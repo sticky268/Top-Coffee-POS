@@ -1,0 +1,23 @@
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies / generated files
+**/vendor/
+**/node_modules/
+**/.dart_tool/
+**/build/
+**/coverage/
+
+# IDE / editor files
+**/.idea/
+**/.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs / caches
+*.log
+.phpunit.result.cache
