@@ -54,7 +54,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final initial = widget.args.initialProduct;
     _nameController = TextEditingController(text: initial?.name ?? '');
     _skuController = TextEditingController(text: initial?.sku ?? '');
-    _descriptionController = TextEditingController(text: initial?.description ?? '');
+    _descriptionController =
+        TextEditingController(text: initial?.description ?? '');
     _basePriceController = TextEditingController(
       text: initial != null ? initial.basePrice.toStringAsFixed(2) : '',
     );
@@ -99,7 +100,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       // ProductsRepository.updateProduct()'s docblock for why: silently
       // reassigning an existing product's branches on every edit would be
       // a separate, unrelated behavior change.
-      ref.read(productFormControllerProvider.notifier).update(product.id!, product);
+      ref
+          .read(productFormControllerProvider.notifier)
+          .update(product.id!, product);
     } else {
       // Without at least one branch assigned, a newly created product
       // gets zero branch_product rows and becomes permanently invisible
@@ -113,11 +116,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       // genuinely multi-branch user until branch management exists as its
       // own feature.
       final authState = ref.read(authControllerProvider);
-      final branchIds = authState is AuthAuthenticated && authState.user.branches.isNotEmpty
-          ? [authState.user.branches.first.id]
-          : const <int>[];
+      final branchIds =
+          authState is AuthAuthenticated && authState.user.branches.isNotEmpty
+              ? [authState.user.branches.first.id]
+              : const <int>[];
 
-      ref.read(productFormControllerProvider.notifier).create(product, branchIds: branchIds);
+      ref
+          .read(productFormControllerProvider.notifier)
+          .create(product, branchIds: branchIds);
     }
   }
 
@@ -133,7 +139,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     if (result != null && mounted) {
       setState(() {
         _variants = [
-          for (final v in _variants) if (v.formKey == variant.formKey) result else v,
+          for (final v in _variants)
+            if (v.formKey == variant.formKey) result else v,
         ];
       });
     }
@@ -143,20 +150,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Widget build(BuildContext context) {
     final formState = ref.watch(productFormControllerProvider);
     final isSaving = formState is ProductFormSaving;
-    final errorMessage = formState is ProductFormError ? formState.message : null;
+    final errorMessage =
+        formState is ProductFormError ? formState.message : null;
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
 
-    ref.listen<ProductFormState>(productFormControllerProvider, (previous, next) {
+    ref.listen<ProductFormState>(productFormControllerProvider,
+        (previous, next) {
       if (next is ProductFormSuccess && previous is! ProductFormSuccess) {
         // Refreshes the same, still-alive ProductsController instance
         // underneath this pushed route — not a new fetch mechanism.
         ref.read(productsControllerProvider.notifier).refresh();
 
         ref.read(posCatalogControllerProvider.notifier).refresh();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isEditing ? 'Product updated' : 'Product created')),
+          SnackBar(
+              content:
+                  Text(_isEditing ? 'Product updated' : 'Product created')),
         );
         Navigator.of(context).pop();
       }
@@ -178,15 +189,19 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               TextFormField(
                 controller: _nameController,
                 enabled: !isSaving,
-                decoration: const InputDecoration(labelText: 'Product name', border: OutlineInputBorder()),
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a product name' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Product name', border: OutlineInputBorder()),
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? 'Enter a product name'
+                    : null,
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _skuController,
                 enabled: !isSaving,
-                decoration: const InputDecoration(labelText: 'SKU (optional)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'SKU (optional)', border: OutlineInputBorder()),
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
@@ -194,14 +209,16 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 controller: _descriptionController,
                 enabled: !isSaving,
                 maxLines: 3,
-                decoration:
-                    const InputDecoration(labelText: 'Description (optional)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    border: OutlineInputBorder()),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _basePriceController,
                 enabled: !isSaving,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Base price',
                   prefixText: '\$ ',
@@ -216,14 +233,19 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                value: _selectedCategoryId,
-                decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                initialValue: _selectedCategoryId,
+                decoration: const InputDecoration(
+                    labelText: 'Category', border: OutlineInputBorder()),
                 items: [
                   for (final category in widget.args.categories)
-                    DropdownMenuItem(value: category.id, child: Text(category.name)),
+                    DropdownMenuItem(
+                        value: category.id, child: Text(category.name)),
                 ],
-                onChanged: isSaving ? null : (value) => setState(() => _selectedCategoryId = value),
-                validator: (value) => value == null ? 'Select a category' : null,
+                onChanged: isSaving
+                    ? null
+                    : (value) => setState(() => _selectedCategoryId = value),
+                validator: (value) =>
+                    value == null ? 'Select a category' : null,
               ),
               const SizedBox(height: 8),
               SwitchListTile(
@@ -231,7 +253,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 title: const Text('Active'),
                 subtitle: const Text('Visible in the catalog when on'),
                 value: _isActive,
-                onChanged: isSaving ? null : (value) => setState(() => _isActive = value),
+                onChanged: isSaving
+                    ? null
+                    : (value) => setState(() => _isActive = value),
               ),
               const SizedBox(height: 24),
               Row(
@@ -250,7 +274,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     'No variants — this product has a single price',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 )
               else
@@ -260,7 +285,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       for (final variant in _variants)
                         ListTile(
                           title: Text(variant.name),
-                          subtitle: variant.isActive ? null : const Text('Disabled'),
+                          subtitle:
+                              variant.isActive ? null : const Text('Disabled'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -271,7 +297,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined),
                                 tooltip: 'Edit variant',
-                                onPressed: isSaving ? null : () => _editVariant(variant),
+                                onPressed: isSaving
+                                    ? null
+                                    : () => _editVariant(variant),
                               ),
                             ],
                           ),
@@ -282,7 +310,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: isSaving ? null : _submit,
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16)),
                 child: isSaving
                     ? const SizedBox(
                         height: 20,
@@ -315,12 +344,14 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: theme.colorScheme.onErrorContainer, size: 20),
+          Icon(Icons.error_outline,
+              color: theme.colorScheme.onErrorContainer, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onErrorContainer),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onErrorContainer),
             ),
           ),
         ],

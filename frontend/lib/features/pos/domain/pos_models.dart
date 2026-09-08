@@ -1,6 +1,7 @@
 /// Domain models for the POS catalog + cart. Framework-agnostic (no
 /// Flutter imports) — same convention as features/auth/domain and
 /// features/dashboard/domain.
+library;
 
 class PosCategory {
   const PosCategory({required this.id, required this.name, required this.sortOrder});

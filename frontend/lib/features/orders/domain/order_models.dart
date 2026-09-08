@@ -1,5 +1,6 @@
 /// Domain models for order history. Framework-agnostic (no Flutter
 /// imports) — same convention as auth/dashboard/pos domain files.
+library;
 
 class OrderBranchRef {
   const OrderBranchRef({required this.id, required this.name, required this.code});

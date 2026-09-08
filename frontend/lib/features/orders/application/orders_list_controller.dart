@@ -63,9 +63,7 @@ class OrdersListController extends StateNotifier<OrdersListState> {
         currentPage: page.currentPage,
         lastPage: page.lastPage,
       );
-  } catch (e, stackTrace) {
-    print('ORDERS LOAD ERROR: $e');
-    print(stackTrace);
+  } catch (e) {
 
     if (!mounted) return;
     state = OrdersListError(

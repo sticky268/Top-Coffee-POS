@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../auth/application/auth_controller.dart';
-import '../../../auth/application/auth_state.dart';
 import '../../../auth/domain/auth_models.dart';
 import '../../../../core/branch/current_branch_provider.dart';
 
@@ -125,8 +123,8 @@ class DashboardHeader extends ConsumerWidget {
             ],
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined),
+        const IconButton(
+          icon: Icon(Icons.notifications_outlined),
           tooltip: 'Notifications',
           onPressed: null,
         ),

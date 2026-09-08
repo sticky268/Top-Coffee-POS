@@ -1,6 +1,7 @@
 /// Domain models for the POS dashboard. Deliberately framework-agnostic
 /// (no Flutter imports) — the same convention used by features/auth/domain.
 /// Presentation-only concerns (colors, icons) live in the presentation layer.
+library;
 
 /// The four headline stat-card values shown at the top of the dashboard.
 class DashboardStats {

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/branch/current_branch_provider.dart';
+
 import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
 import 'checkout_state.dart';
@@ -15,9 +17,10 @@ import 'checkout_state.dart';
 /// autoDispose: a fresh CheckoutController per visit to the checkout
 /// screen, so a previous success/error doesn't linger into the next order.
 class CheckoutController extends StateNotifier<CheckoutState> {
-  CheckoutController(this._repository) : super(const CheckoutIdle());
+  CheckoutController(this._repository, this._ref) : super(const CheckoutIdle());
 
   final PosRepository _repository;
+  final Ref _ref;
 
   Future<void> submit({
     required List<CartItem> items,
@@ -34,17 +37,22 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         paymentMethod: paymentMethod,
         tendered: tendered,
         discountTotal: discountTotal,
+        branchId: _ref.read(currentBranchProvider)?.id,
       );
       if (!mounted) return;
       state = CheckoutSuccess(confirmation);
     } catch (e) {
       if (!mounted) return;
-      state = CheckoutError(e is ApiException ? e.message : 'Something went wrong');
+      state =
+          CheckoutError(e is ApiException ? e.message : 'Something went wrong');
     }
   }
 }
 
 final checkoutControllerProvider =
     StateNotifierProvider.autoDispose<CheckoutController, CheckoutState>((ref) {
-  return CheckoutController(ref.watch(posRepositoryProvider));
+  return CheckoutController(
+    ref.watch(posRepositoryProvider),
+    ref,
+  );
 });

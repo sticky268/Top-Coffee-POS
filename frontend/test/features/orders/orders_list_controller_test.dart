@@ -267,10 +267,6 @@ void main() {
 
         final state = container.read(ordersListControllerProvider);
 
-        if (state is OrdersListError) {
-          print('LOAD MORE ERROR: ${state.message}');
-        }
-
         expect(state, isA<OrdersListLoaded>());
         final loaded = state as OrdersListLoaded;
 

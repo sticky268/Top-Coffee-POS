@@ -1,6 +1,7 @@
 /// Domain models for authentication. These mirror the shape returned by
 /// `POST /api/v1/auth/login`, `GET /api/v1/auth/me` (see
 /// backend/app/Http/Controllers/Api/V1/Auth/AuthController.php).
+library;
 
 class BranchSummary {
   const BranchSummary({
