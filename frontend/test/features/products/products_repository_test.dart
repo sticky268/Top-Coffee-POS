@@ -229,4 +229,48 @@ void main() {
       expect(() => repository.setProductActive(20, false), throwsException);
     });
   });
+
+  group('branch_id threading (branch switcher support)', () {
+    test('getProducts sends branch_id as a query parameter when provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {'success': true, 'data': <Map<String, dynamic>>[]},
+          requestOptions: RequestOptions(path: '/products'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getProducts(branchId: 2);
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/products', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      expect((captured.single as Map)['branch_id'], 2);
+    });
+
+    test('getCategories omits branch_id entirely when not provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {'success': true, 'data': <Map<String, dynamic>>[]},
+          requestOptions: RequestOptions(path: '/categories'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getCategories();
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/categories', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      expect((captured.single as Map).containsKey('branch_id'), isFalse);
+    });
+  });
 }

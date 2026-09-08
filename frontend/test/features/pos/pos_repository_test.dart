@@ -7,6 +7,8 @@ import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 
+class MockDio extends Mock implements Dio {}
+
 void main() {
   late MockApiClient apiClient;
   late ApiPosRepository repository;
@@ -192,6 +194,109 @@ void main() {
       expect(confirmation.paymentMethod, 'qr');
       expect(confirmation.tendered, isNull);
       expect(confirmation.changeDue, isNull);
+    });
+  });
+
+  group('branch_id threading (branch switcher support)', () {
+    test('getCategories sends branch_id as a query parameter when provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {'success': true, 'data': <Map<String, dynamic>>[]},
+          requestOptions: RequestOptions(path: '/categories'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getCategories(branchId: 2);
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/categories', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      expect((captured.single as Map)['branch_id'], 2);
+    });
+
+    test('getCategories omits branch_id entirely when not provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {'success': true, 'data': <Map<String, dynamic>>[]},
+          requestOptions: RequestOptions(path: '/categories'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getCategories();
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/categories', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      expect((captured.single as Map).containsKey('branch_id'), isFalse);
+    });
+
+    test('getProducts sends branch_id as a query parameter when provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {'success': true, 'data': <Map<String, dynamic>>[]},
+          requestOptions: RequestOptions(path: '/products'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getProducts(branchId: 2);
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/products', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      expect((captured.single as Map)['branch_id'], 2);
+    });
+
+    test('createOrder sends branch_id in the request body when provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.post<dynamic>(any(), data: any(named: 'data'))).thenAnswer(
+        (_) async => Response(
+          data: {
+            'success': true,
+            'data': {
+              'id': 1,
+              'uuid': 'x',
+              'order_type': 'takeaway',
+              'status': 'completed',
+              'subtotal': 2.50,
+              'discount_total': 0,
+              'total': 2.50,
+              'payment': {'method': 'cash', 'amount': 2.50, 'tendered': 5.0, 'change_due': 2.50},
+            },
+          },
+          requestOptions: RequestOptions(path: '/orders'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.createOrder(
+        items: [const CartItem(product: product, quantity: 1)],
+        paymentMethod: 'cash',
+        tendered: 5.0,
+        branchId: 2,
+      );
+
+      final captured = verify(
+        () => mockDio.post<dynamic>('/orders', data: captureAny(named: 'data')),
+      ).captured;
+      expect((captured.single as Map)['branch_id'], 2);
     });
   });
 }

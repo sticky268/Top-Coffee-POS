@@ -9,7 +9,13 @@ import '../domain/order_models.dart';
 /// GET /api/v1/orders/{id}), calls it via the existing [ApiClient] — no
 /// second HTTP client, no mock implementation needed here.
 abstract class OrdersRepository {
-  Future<OrderListPage> getOrders({int page = 1});
+  /// [branchId]: forwarded as the `branch_id` query param — the backend
+  /// endpoint accepts it (OrderController::index()), narrowing the list to
+  /// a single branch on top of the BranchScoped trait's own restriction
+  /// to branches the user has access to at all. Needed for the branch
+  /// switcher: without it, a multi-branch user always sees every branch
+  /// they can access at once, with no way to narrow to just one.
+  Future<OrderListPage> getOrders({int page = 1, int? branchId});
   Future<OrderDetail> getOrder(int id);
 }
 
@@ -19,9 +25,12 @@ class ApiOrdersRepository implements OrdersRepository {
   final ApiClient _apiClient;
 
   @override
-  Future<OrderListPage> getOrders({int page = 1}) async {
+  Future<OrderListPage> getOrders({int page = 1, int? branchId}) async {
     final response = await _apiClient.request(
-      (dio) => dio.get('/orders', queryParameters: {'page': page}),
+      (dio) => dio.get('/orders', queryParameters: {
+        'page': page,
+        if (branchId != null) 'branch_id': branchId,
+      }),
     );
 
     final data = response.data['data'] as List;

@@ -15,8 +15,12 @@ import '../../pos/domain/pos_models.dart';
 import '../domain/managed_product_models.dart';
 
 abstract class ProductsRepository {
-  Future<List<PosCategory>> getCategories();
-  Future<List<PosProduct>> getProducts();
+  /// [branchId]: forwarded as the `branch_id` query param. When omitted,
+  /// the backend falls back to the authenticated user's primary branch —
+  /// passing it explicitly is what lets the app's branch switcher change
+  /// which branch's catalog this screen shows.
+  Future<List<PosCategory>> getCategories({int? branchId});
+  Future<List<PosProduct>> getProducts({int? branchId});
 
   /// POST /api/v1/products
   ///
@@ -56,21 +60,30 @@ class ApiProductsRepository implements ProductsRepository {
   final ApiClient _apiClient;
 
   @override
-  Future<List<PosCategory>> getCategories() async {
-    final response = await _apiClient.request((dio) => dio.get('/categories'));
+  Future<List<PosCategory>> getCategories({int? branchId}) async {
+    final response = await _apiClient.request(
+      (dio) => dio.get('/categories', queryParameters: {
+        if (branchId != null) 'branch_id': branchId,
+      }),
+    );
     final data = response.data['data'] as List;
     return data.map((json) => PosCategory.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   @override
-  Future<List<PosProduct>> getProducts() async {
-    // Fetched once, unfiltered — category selection and search both
-    // filter this list locally (see ProductsController), matching the
-    // same "don't re-fetch per tap/keystroke" approach already
-    // established by PosCatalogController for the same reason: the
-    // backend has no search parameter, and re-fetching per category tap
-    // isn't necessary when the full catalog is already in memory.
-    final response = await _apiClient.request((dio) => dio.get('/products'));
+  Future<List<PosProduct>> getProducts({int? branchId}) async {
+    // Fetched once, unfiltered by category/search — category selection
+    // and search both filter this list locally (see ProductsController),
+    // matching the same "don't re-fetch per tap/keystroke" approach
+    // already established by PosCatalogController for the same reason:
+    // the backend has no search parameter, and re-fetching per category
+    // tap isn't necessary when the full catalog is already in memory.
+    // branch_id is a separate, orthogonal concern from that decision.
+    final response = await _apiClient.request(
+      (dio) => dio.get('/products', queryParameters: {
+        if (branchId != null) 'branch_id': branchId,
+      }),
+    );
     final data = response.data['data'] as List;
     return data.map((json) => PosProduct.fromJson(json as Map<String, dynamic>)).toList();
   }

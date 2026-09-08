@@ -7,6 +7,8 @@ import 'package:top_coffee_pos/features/orders/data/orders_repository.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 
+class MockDio extends Mock implements Dio {}
+
 void main() {
   late MockApiClient apiClient;
   late ApiOrdersRepository repository;
@@ -154,6 +156,60 @@ void main() {
           .thenThrow(const UnknownApiException('Order not found'));
 
       expect(() => repository.getOrder(999999), throwsA(isA<UnknownApiException>()));
+    });
+  });
+
+  group('branch_id threading (branch switcher support)', () {
+    test('getOrders sends branch_id as a query parameter when provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {
+            'success': true,
+            'data': <Map<String, dynamic>>[],
+            'meta': {'current_page': 1, 'last_page': 1, 'per_page': 20, 'total': 0},
+          },
+          requestOptions: RequestOptions(path: '/orders'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getOrders(branchId: 2);
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/orders', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      final params = captured.single as Map;
+      expect(params['branch_id'], 2);
+      expect(params['page'], 1); // existing pagination param untouched
+    });
+
+    test('getOrders omits branch_id entirely when not provided', () async {
+      final mockDio = MockDio();
+      when(() => mockDio.get<dynamic>(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => Response(
+          data: {
+            'success': true,
+            'data': <Map<String, dynamic>>[],
+            'meta': {'current_page': 1, 'last_page': 1, 'per_page': 20, 'total': 0},
+          },
+          requestOptions: RequestOptions(path: '/orders'),
+        ),
+      );
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+        final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+        return call(mockDio);
+      });
+
+      await repository.getOrders();
+
+      final captured = verify(
+        () => mockDio.get<dynamic>('/orders', queryParameters: captureAny(named: 'queryParameters')),
+      ).captured;
+      expect((captured.single as Map).containsKey('branch_id'), isFalse);
     });
   });
 }
