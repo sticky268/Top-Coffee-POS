@@ -286,6 +286,16 @@ void main() {
         return call(mockDio);
       });
 
+      const product = PosProduct(
+        id: 1,
+        name: 'Test Product',
+        sku: null,
+        description: null,
+        category: null,
+        price: 2.50,
+        variants: [],
+      );
+
       await repository.createOrder(
         items: [const CartItem(product: product, quantity: 1)],
         paymentMethod: 'cash',

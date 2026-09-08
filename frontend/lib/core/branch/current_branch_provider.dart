@@ -5,8 +5,12 @@ import '../../features/auth/application/auth_state.dart';
 import '../../features/auth/domain/auth_models.dart';
 
 class CurrentBranchNotifier extends StateNotifier<BranchSummary?> {
-  CurrentBranchNotifier(this._ref) : super(null) {
-    _ref.listen<AuthState>(
+  CurrentBranchNotifier(this._ref, {bool listenToAuth = true}) : super(null) {
+      if (!listenToAuth) {
+        return;
+      }
+
+      _ref.listen<AuthState>(
       authControllerProvider,
       (_, next) => _syncWithAuth(next),
       fireImmediately: true,
