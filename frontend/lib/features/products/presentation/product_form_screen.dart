@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../auth/application/auth_controller.dart';
-import '../../auth/application/auth_state.dart';
 import '../../pos/application/pos_catalog_controller.dart';
 import '../../pos/domain/pos_models.dart';
 import '../application/product_form_controller.dart';
@@ -11,6 +9,7 @@ import '../application/product_form_state.dart';
 import '../application/products_controller.dart';
 import '../domain/managed_product_models.dart';
 import 'widgets/variant_editor_dialog.dart';
+import '../../../core/branch/current_branch_provider.dart';
 
 /// Bundled navigation arguments — passed via go_router's `extra`. The
 /// category list is already loaded by ProductsController by the time this
@@ -104,22 +103,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
           .read(productFormControllerProvider.notifier)
           .update(product.id!, product);
     } else {
-      // Without at least one branch assigned, a newly created product
-      // gets zero branch_product rows and becomes permanently invisible
-      // to GET /api/v1/products (it requires a matching branch for the
-      // resolved user — see ProductController::index()). There is no
-      // branch-selection UI in this milestone, so this uses the existing
-      // AuthenticatedUser.branches data already loaded by auth, rather
-      // than building new branch infrastructure. Defaults to the user's
-      // first branch — correct for every current seeded account (each has
-      // exactly one) and a known, deliberate simplification for a
-      // genuinely multi-branch user until branch management exists as its
-      // own feature.
-      final authState = ref.read(authControllerProvider);
+      // Create the product for the currently selected branch.
+      final currentBranch = ref.read(currentBranchProvider);
       final branchIds =
-          authState is AuthAuthenticated && authState.user.branches.isNotEmpty
-              ? [authState.user.branches.first.id]
-              : const <int>[];
+          currentBranch != null ? [currentBranch.id] : const <int>[];
 
       ref
           .read(productFormControllerProvider.notifier)
