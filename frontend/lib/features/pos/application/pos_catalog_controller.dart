@@ -1,13 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../data/pos_repository.dart';
 import 'pos_catalog_state.dart';
 
 /// Loads categories + products on construction and exposes
 /// [PosCatalogState]. Deliberately separate from cart state (see
-/// CartController) — reloading/erroring the catalog must never touch an
-/// in-progress cart.
+/// CartController) — reloading/erroring the catalog must never touch
+/// an in-progress cart.
 ///
 /// Follows the same two guarantees established for AuthController (Phase
 /// 3) and DashboardController (Phase 4):
@@ -16,11 +17,31 @@ import 'pos_catalog_state.dart';
 ///     providers are lazy.
 ///  2. Every `state = ...` after an `await` is guarded by [mounted].
 class PosCatalogController extends StateNotifier<PosCatalogState> {
-  PosCatalogController(this._repository) : super(const PosCatalogLoading()) {
+  PosCatalogController(this._repository, this._ref)
+      : super(const PosCatalogLoading()) {
+    _branchId = _ref.read(currentBranchProvider)?.id;
+
+    _ref.listen(
+      currentBranchProvider,
+      (_, next) {
+        final nextBranchId = next?.id;
+
+        if (_branchId == nextBranchId) {
+          return;
+        }
+
+        _branchId = nextBranchId;
+        refresh();
+      },
+    );
+
     _initialization = _load();
   }
 
   final PosRepository _repository;
+  final Ref _ref;
+
+  int? _branchId;
   late Future<void> _initialization;
 
   Future<void> get initialization => _initialization;
@@ -36,20 +57,25 @@ class PosCatalogController extends StateNotifier<PosCatalogState> {
     state = const PosCatalogLoading();
 
     try {
-      final categoriesFuture = _repository.getCategories();
-      final productsFuture = _repository.getProducts();
+      final categoriesFuture =
+          _repository.getCategories(branchId: _branchId);
+      final productsFuture =
+          _repository.getProducts(branchId: _branchId);
 
       final categories = await categoriesFuture;
       final products = await productsFuture;
       if (!mounted) return;
 
-      state = PosCatalogLoaded(categories: categories, products: products);
+      state = PosCatalogLoaded(
+        categories: categories,
+        products: products,
+      );
     } catch (e) {
       if (!mounted) return;
-      // Extract .message explicitly rather than e.toString() — an
-      // ApiException's default toString() is just "Instance of
-      // 'NetworkException'" etc, not the human-readable message.
-      state = PosCatalogError(e is ApiException ? e.message : 'Something went wrong');
+
+      state = PosCatalogError(
+        e is ApiException ? e.message : 'Something went wrong',
+      );
     }
   }
 
@@ -58,6 +84,7 @@ class PosCatalogController extends StateNotifier<PosCatalogState> {
   void selectCategory(int? categoryId) {
     final current = state;
     if (current is! PosCatalogLoaded) return;
+
     state = PosCatalogLoaded(
       categories: current.categories,
       products: current.products,
@@ -72,6 +99,7 @@ class PosCatalogController extends StateNotifier<PosCatalogState> {
   void updateSearchQuery(String query) {
     final current = state;
     if (current is! PosCatalogLoaded) return;
+
     state = PosCatalogLoaded(
       categories: current.categories,
       products: current.products,
@@ -81,6 +109,10 @@ class PosCatalogController extends StateNotifier<PosCatalogState> {
   }
 }
 
-final posCatalogControllerProvider = StateNotifierProvider<PosCatalogController, PosCatalogState>((ref) {
-  return PosCatalogController(ref.watch(posRepositoryProvider));
+final posCatalogControllerProvider =
+    StateNotifierProvider<PosCatalogController, PosCatalogState>((ref) {
+  return PosCatalogController(
+    ref.watch(posRepositoryProvider),
+    ref,
+  );
 });

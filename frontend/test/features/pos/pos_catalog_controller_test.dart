@@ -1,3 +1,5 @@
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
+import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -90,6 +92,60 @@ void main() {
     await built.controller.refresh();
 
     expect(built.container.read(posCatalogControllerProvider), isA<PosCatalogLoaded>());
+  });
+
+    test('reloads catalog when the current branch changes', () async {
+    const branch74 = BranchSummary(
+      id: 74,
+      name: 'Top Coffee - Riverside',
+      code: 'PP-01',
+    );
+
+    const branch75 = BranchSummary(
+      id: 75,
+      name: 'Top Coffee - BKK1',
+      code: 'PP-02',
+    );
+
+    when(() => repository.getCategories(branchId: 74))
+        .thenAnswer((_) async => [_coffee]);
+
+    when(() => repository.getProducts(branchId: 74))
+        .thenAnswer((_) async => [_latte]);
+
+    when(() => repository.getCategories(branchId: 75))
+        .thenAnswer((_) async => [_tea]);
+
+    when(() => repository.getProducts(branchId: 75))
+        .thenAnswer((_) async => [_greenTea]);
+
+    final built = buildAndStart();
+    await built.controller.initialization;
+
+    built.container
+        .read(currentBranchProvider.notifier)
+        .selectBranch(branch74);
+
+    await built.controller.initialization;
+
+    var loaded =
+        built.container.read(posCatalogControllerProvider) as PosCatalogLoaded;
+
+    expect(loaded.products.single.name, 'Latte');
+
+    built.container
+        .read(currentBranchProvider.notifier)
+        .selectBranch(branch75);
+
+    await built.controller.initialization;
+
+    loaded =
+        built.container.read(posCatalogControllerProvider) as PosCatalogLoaded;
+
+    expect(loaded.products.single.name, 'Green Tea');
+
+    verify(() => repository.getProducts(branchId: 74)).called(1);
+    verify(() => repository.getProducts(branchId: 75)).called(1);
   });
 
   group('selectCategory + visibleProducts', () {
