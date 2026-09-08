@@ -13,6 +13,10 @@ const _newProduct = ManagedProduct(name: 'Latte', categoryId: 1, basePrice: 3.50
 const _savedProduct = ManagedProduct(id: 20, name: 'Latte', categoryId: 1, basePrice: 3.50);
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(_newProduct);
+  });
+
   late MockProductsRepository repository;
 
   setUp(() {
@@ -25,6 +29,10 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(productFormControllerProvider.notifier);
+    container.listen<ProductFormState>(
+      productFormControllerProvider,
+      (_, __) {},
+    );
     return (container: container, controller: controller);
   }
 

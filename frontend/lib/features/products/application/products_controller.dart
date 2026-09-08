@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../data/products_repository.dart';
 import 'products_state.dart';
@@ -15,11 +16,30 @@ import 'products_state.dart';
 /// Same mounted-guard + deterministic `initialization` future pattern as
 /// every other controller in this codebase.
 class ProductsController extends StateNotifier<ProductsState> {
-  ProductsController(this._repository) : super(const ProductsLoading()) {
+  ProductsController(this._repository, this._ref)
+      : super(const ProductsLoading()) {
+    _branchId = _ref.read(currentBranchProvider)?.id;
+
+    _ref.listen(
+      currentBranchProvider,
+      (_, next) {
+        final nextBranchId = next?.id;
+        if (_branchId == nextBranchId) {
+          return;
+        }
+
+        _branchId = nextBranchId;
+        refresh();
+      },
+    );
+
     _initialization = _load();
   }
 
   final ProductsRepository _repository;
+  final Ref _ref;
+
+  int? _branchId;
   late Future<void> _initialization;
 
   Future<void> get initialization => _initialization;
@@ -35,17 +55,26 @@ class ProductsController extends StateNotifier<ProductsState> {
     state = const ProductsLoading();
 
     try {
-      final categoriesFuture = _repository.getCategories();
-      final productsFuture = _repository.getProducts();
+      final categoriesFuture = _repository.getCategories(
+        branchId: _branchId,
+      );
+      final productsFuture = _repository.getProducts(
+        branchId: _branchId,
+      );
 
       final categories = await categoriesFuture;
       final products = await productsFuture;
       if (!mounted) return;
 
-      state = ProductsLoaded(categories: categories, products: products);
+      state = ProductsLoaded(
+        categories: categories,
+        products: products,
+      );
     } catch (e) {
       if (!mounted) return;
-      state = ProductsError(e is ApiException ? e.message : 'Something went wrong');
+      state = ProductsError(
+        e is ApiException ? e.message : 'Something went wrong',
+      );
     }
   }
 
@@ -72,6 +101,10 @@ class ProductsController extends StateNotifier<ProductsState> {
   }
 }
 
-final productsControllerProvider = StateNotifierProvider<ProductsController, ProductsState>((ref) {
-  return ProductsController(ref.watch(productsRepositoryProvider));
+final productsControllerProvider =
+    StateNotifierProvider<ProductsController, ProductsState>((ref) {
+  return ProductsController(
+    ref.watch(productsRepositoryProvider),
+    ref,
+  );
 });
