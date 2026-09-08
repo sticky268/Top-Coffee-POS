@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../pos/application/pos_catalog_controller.dart';
 import '../../pos/domain/pos_models.dart';
 import '../application/product_form_controller.dart';
 import '../application/product_form_state.dart';
@@ -151,6 +152,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         // Refreshes the same, still-alive ProductsController instance
         // underneath this pushed route — not a new fetch mechanism.
         ref.read(productsControllerProvider.notifier).refresh();
+
+        ref.read(posCatalogControllerProvider.notifier).refresh();
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isEditing ? 'Product updated' : 'Product created')),
         );
