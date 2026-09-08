@@ -49,6 +49,7 @@ class OrderController extends Controller
             ], 403);
         }
 
+
         $user = $request->user();
         $branchId = $request->input('branch_id');
 
@@ -60,8 +61,8 @@ class OrderController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'You do not have access to that branch',
-            ], 403);
-        }
+                ], 403);
+            }
         } else {
             $branch = $user->branches()->wherePivot('is_primary', true)->first()
                 ?? $user->branches()->first();
@@ -75,9 +76,8 @@ class OrderController extends Controller
 
             $branchId = $branch->id;
         }
-
-
-       $validator = Validator::make($request->all(), [
+        
+        $validator = Validator::make($request->all(), [
             'branch_id' => 'nullable|integer|exists:branches,id',
             'order_type' => 'required|in:dine_in,takeaway',
             'items' => 'required|array|min:1',
@@ -234,14 +234,25 @@ class OrderController extends Controller
     }
 
     /**
-     * GET /api/v1/orders?order_number=&date_from=&date_to=&status=&payment_method=&per_page=&page=
+     * GET /api/v1/orders?branch_id=&order_number=&date_from=&date_to=&status=&payment_method=&per_page=&page=
      *
-     * Branch scoping is handled entirely by the Order model's existing
-     * BranchScoped trait (see Order::class) — Order::query() is already
-     * filtered to the authenticated user's branches (or unfiltered for
-     * branches.view-all holders) before any of the filters below are
-     * applied. No manual branch check is duplicated here, per this task's
-     * explicit instruction.
+     * Branch scoping has two layers, deliberately not redundant with each
+     * other:
+     *  1. The Order model's existing BranchScoped trait always restricts
+     *     Order::query() to the authenticated user's own branches (or
+     *     leaves it unrestricted for branches.view-all holders) — this
+     *     alone already makes it impossible for a user to see another
+     *     branch's orders, with or without the parameter below.
+     *  2. The new `branch_id` param ADDITIONALLY narrows within that
+     *     already-safe set, to a single branch — this is what lets a
+     *     multi-branch user (e.g. an admin switching branches in the
+     *     Flutter app) scope the list to just the branch they're
+     *     currently viewing, rather than always seeing every branch they
+     *     have access to at once. An explicit 403 (matching Category/
+     *     Product/Order-create's existing convention) is returned for a
+     *     branch_id the user doesn't have access to, rather than
+     *     silently returning zero rows — that ambiguity (no access vs.
+     *     genuinely empty) is worse for a UI to interpret correctly.
      *
      * "order_number" matches this app's existing convention (see
      * OrderController::store()'s response and the Flutter checkout
@@ -260,6 +271,7 @@ class OrderController extends Controller
         }
 
         $validator = Validator::make($request->query(), [
+            'branch_id' => 'nullable|integer|exists:branches,id',
             'order_number' => 'nullable|string',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
@@ -277,6 +289,19 @@ class OrderController extends Controller
             ], 422);
         }
 
+        $user = $request->user();
+        $branchId = $request->query('branch_id');
+
+        if ($branchId !== null && ! $user->can('branches.view-all')) {
+            $hasAccess = $user->branches()->where('branches.id', $branchId)->exists();
+            if (! $hasAccess) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have access to that branch',
+                ], 403);
+            }
+        }
+
         $perPage = (int) $request->query('per_page', 20);
 
         $orders = Order::query()
@@ -285,17 +310,17 @@ class OrderController extends Controller
             // cashier/payments are exactly what the list response needs,
             // items are deliberately NOT loaded here (that's show()'s job).
             ->with(['branch:id,name,code', 'cashier:id,name', 'payments'])
+            ->when($branchId !== null, function ($query) use ($branchId) {
+                $query->where('branch_id', $branchId);
+            })
             ->when($request->filled('order_number'), function ($query) use ($request) {
                 $value = $request->query('order_number');
-
-                $query->where(function ($q) use ($value) {
-            if (is_numeric($value)) {
-                $q->where('id', (int) $value);
-            } else {
-                $q->where('uuid', 'like', "%{$value}%");
-            }
-        });
-    })
+                if (is_numeric($value)) {
+                    $query->where('id', (int) $value);
+                } else {
+                    $query->where('uuid', 'like', "%{$value}%");
+                }
+            })
             ->when($request->filled('date_from'), function ($query) use ($request) {
                 $query->whereDate('created_at', '>=', $request->query('date_from'));
             })

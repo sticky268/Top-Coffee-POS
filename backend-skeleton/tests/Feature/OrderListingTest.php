@@ -283,4 +283,77 @@ class OrderListingTest extends TestCase
 
         $response->assertStatus(403)->assertJsonPath('success', false);
     }
+
+    // --- branch_id filter (branch-switcher support) -----------------------
+
+    public function test_branch_id_filter_narrows_the_list_to_a_single_branch(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $this->seedPermissions();
+
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $admin->branches()->attach($branch->id, ['is_primary' => true]);
+        $admin->branches()->attach($otherBranch->id, []);
+
+        $orderAtBranch = $this->createOrder($branch, $admin);
+        $orderAtOtherBranch = $this->createOrder($otherBranch, $admin);
+
+        // With no branch_id, BranchScoped alone lets the admin see both
+        // (branches.view-all bypasses the trait's filtering entirely).
+        $unfiltered = $this->actingAs($admin)->getJson('/api/v1/orders');
+        $unfilteredIds = collect($unfiltered->json('data'))->pluck('id');
+        $this->assertTrue($unfilteredIds->contains($orderAtBranch->id));
+        $this->assertTrue($unfilteredIds->contains($orderAtOtherBranch->id));
+
+        // With branch_id, only that branch's orders are returned — this is
+        // what the branch switcher relies on.
+        $filtered = $this->actingAs($admin)->getJson("/api/v1/orders?branch_id={$branch->id}");
+        $filteredIds = collect($filtered->json('data'))->pluck('id');
+        $this->assertTrue($filteredIds->contains($orderAtBranch->id));
+        $this->assertFalse($filteredIds->contains($orderAtOtherBranch->id));
+    }
+
+    public function test_branch_id_filter_for_an_unassigned_branch_is_rejected(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $cashier = $this->makeCashier($branch);
+
+        $response = $this->actingAs($cashier)->getJson("/api/v1/orders?branch_id={$otherBranch->id}");
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+    }
+
+    public function test_branch_id_filter_combines_with_other_filters(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $this->seedPermissions();
+
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $admin->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $this->createOrder($branch, $admin, ['status' => 'cancelled']);
+        $this->createOrder($branch, $admin); // completed (default)
+        $this->createOrder($otherBranch, $admin, ['status' => 'cancelled']);
+
+        $response = $this->actingAs($admin)->getJson(
+            "/api/v1/orders?branch_id={$branch->id}&status=cancelled"
+        );
+
+        $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_invalid_branch_id_fails_validation(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $cashier = $this->makeCashier($branch);
+
+        $response = $this->actingAs($cashier)->getJson('/api/v1/orders?branch_id=999999');
+
+        $response->assertStatus(422)->assertJsonPath('success', false);
+    }
 }
