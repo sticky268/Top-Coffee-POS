@@ -99,6 +99,7 @@ class ManagedProduct {
     required this.basePrice,
     this.isActive = true,
     this.variants = const [],
+    this.imageUrl,
   });
 
   /// null for a not-yet-created product (the Add Product form).
@@ -114,6 +115,7 @@ class ManagedProduct {
   final double basePrice;
   final bool isActive;
   final List<ManagedProductVariant> variants;
+  final String? imageUrl;
 
   factory ManagedProduct.fromJson(Map<String, dynamic> json) {
     final categoryJson = json['category'] as Map<String, dynamic>?;
@@ -129,6 +131,9 @@ class ManagedProduct {
       variants: (json['variants'] as List? ?? const [])
           .map((v) => ManagedProductVariant.fromJson(v as Map<String, dynamic>))
           .toList(),
+      imageUrl: (json['images'] as List? ?? const []).isNotEmpty
+          ? ((json['images'] as List).first as Map<String, dynamic>)['url'] as String?
+          : null,
     );
   }
 
@@ -202,6 +207,7 @@ class ManagedProduct {
     double? basePrice,
     bool? isActive,
     List<ManagedProductVariant>? variants,
+    String? imageUrl,
   }) {
     return ManagedProduct(
       id: id,
@@ -213,6 +219,7 @@ class ManagedProduct {
       basePrice: basePrice ?? this.basePrice,
       isActive: isActive ?? this.isActive,
       variants: variants ?? this.variants,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 }

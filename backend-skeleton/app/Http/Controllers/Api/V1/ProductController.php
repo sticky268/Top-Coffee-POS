@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -95,6 +96,7 @@ class ProductController extends Controller
                 'variants' => function ($query) {
                     $query->where('is_active', true)->orderBy('name');
                 },
+		'images',
             ])
             ->orderBy('name')
             ->get();
@@ -115,6 +117,11 @@ class ProductController extends Controller
                     'name' => $product->category->name,
                 ] : null,
                 'price' => $effectivePrice,
+		'images' => $product->images->map(fn ($image) => [
+    			'id' => $image->id,
+    			'path' => $image->path,
+    			'url' => asset('storage/' . $image->path),
+		])->values(),
                 // Each variant's price is the absolute resolved price
                 // (branch-effective base + variant delta), not just the
                 // raw delta — so the Flutter POS screen can display it
@@ -162,6 +169,7 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'base_price' => 'required|numeric|min:0',
             'is_active' => 'nullable|boolean',
+            'image' => 'nullable|image|max:5120',
 
             'variants' => 'nullable|array',
             'variants.*.name' => 'required_with:variants|string|max:255',
@@ -207,6 +215,14 @@ class ProductController extends Controller
                 'base_price' => $request->input('base_price'),
                 'is_active' => $request->boolean('is_active', true),
             ]);
+            if ($request->hasFile('image')) {
+                $path = $request->file('image')->store('products', 'public');
+
+                $product->images()->create([
+                    'path' => $path,
+                    'sort_order' => 0,
+                ]);
+            }
 
             foreach ($request->input('variants', []) as $variantInput) {
                 ProductVariant::create([
@@ -277,6 +293,7 @@ class ProductController extends Controller
             'description' => 'sometimes|nullable|string',
             'base_price' => 'sometimes|required|numeric|min:0',
             'is_active' => 'sometimes|boolean',
+            'image' => 'nullable|image|max:5120',
 
             'variants' => 'sometimes|array',
             'variants.*.id' => 'nullable|integer|exists:product_variants,id',
@@ -320,6 +337,25 @@ class ProductController extends Controller
                 $product->is_active = $request->boolean('is_active');
             }
             $product->save();
+
+            if ($request->hasFile('image')) {
+                $oldImages = $product->images()->get();
+
+                $path = $request->file('image')->store('products', 'public');
+
+                foreach ($oldImages as $oldImage) {
+                    $product->images()->whereKey($oldImage->id)->delete();
+
+                    if (Storage::disk('public')->exists($oldImage->path)) {
+                        Storage::disk('public')->delete($oldImage->path);
+                    }
+                }
+
+                $product->images()->create([
+                    'path' => $path,
+                    'sort_order' => 0,
+                ]);
+            }
 
             if ($request->has('variants')) {
                 foreach ($request->input('variants') as $variantInput) {
@@ -382,7 +418,7 @@ class ProductController extends Controller
      */
     private function present(Product $product): array
     {
-        $product->loadMissing(['category:id,name', 'variants', 'branches']);
+        $product->loadMissing(['category:id,name', 'variants', 'branches', 'images']);
 
         return [
             'id' => $product->id,
@@ -391,6 +427,11 @@ class ProductController extends Controller
             'description' => $product->description,
             'base_price' => (float) $product->base_price,
             'is_active' => (bool) $product->is_active,
+            'images' => $product->images->map(fn ($image) => [
+                'id' => $image->id,
+                'path' => $image->path,
+                'url' => asset('storage/' . $image->path),
+            ])->values(),
             'category' => $product->category ? [
                 'id' => $product->category->id,
                 'name' => $product->category->name,

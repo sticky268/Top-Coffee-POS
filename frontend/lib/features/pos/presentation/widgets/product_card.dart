@@ -29,9 +29,6 @@ class ProductCard extends StatelessWidget {
         onTap: onTap,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Same responsive-tiering + Expanded pattern established in
-            // StatCardsGrid to guarantee no RenderFlex overflow at small
-            // cell sizes, not just avoid it at "normal" sizes.
             final isCompact = constraints.maxHeight < 92;
             final padding = isCompact ? 10.0 : 14.0;
             final nameFontSize = isCompact ? 13.0 : 15.0;
@@ -43,14 +40,38 @@ class ProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(fontSize: nameFontSize),
-                      ),
+                    child: product.imageUrl != null &&
+                            product.imageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              product.imageUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Icon(
+                                  Icons.local_cafe_outlined,
+                                  size: 32,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Icon(
+                              Icons.local_cafe_outlined,
+                              size: 32,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: nameFontSize,
                     ),
                   ),
                   const SizedBox(height: 4),

@@ -62,6 +62,7 @@ class PosProduct {
     required this.category,
     required this.price,
     required this.variants,
+	this.imageUrl,
   });
 
   final int id;
@@ -75,6 +76,7 @@ class PosProduct {
   /// see ProductCard, which shows "From $X" when variants exist.
   final double price;
   final List<PosProductVariant> variants;
+  final String? imageUrl;
 
   bool get hasVariants => variants.isNotEmpty;
 
@@ -87,10 +89,13 @@ class PosProduct {
       category: json['category'] != null
           ? PosProductCategoryRef.fromJson(json['category'] as Map<String, dynamic>)
           : null,
-      price: (json['price'] as num).toDouble(),
-      variants: (json['variants'] as List? ?? const [])
-          .map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
-          .toList(),
+	price: (json['price'] as num).toDouble(),
+	variants: (json['variants'] as List? ?? const [])
+    	.map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
+    	.toList(),
+	imageUrl: (json['images'] as List? ?? const []).isNotEmpty
+    ? ((json['images'] as List).first as Map<String, dynamic>)['url'] as String?
+    : null,
     );
   }
 }

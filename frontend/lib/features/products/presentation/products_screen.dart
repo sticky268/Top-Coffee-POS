@@ -24,7 +24,19 @@ class ProductsScreen extends ConsumerWidget {
     final state = ref.watch(productsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Products')),
+      appBar: AppBar(
+        title: const Text('Products'),
+        actions: [
+          if (state is ProductsLoaded)
+            IconButton(
+              onPressed: () {
+                context.push('/products/categories');
+              },
+              icon: const Icon(Icons.category_outlined),
+              tooltip: 'Manage Categories',
+            ),
+        ],
+      ),
       // Only shown once categories are actually loaded — the Add Product
       // form needs them for its category dropdown, and this screen is
       // the only place that data comes from (no second fetch).

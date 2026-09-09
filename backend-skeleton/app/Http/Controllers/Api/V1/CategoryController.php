@@ -14,14 +14,7 @@ class CategoryController extends Controller
      *
      * Returns active categories visible to the authenticated user's branch
      * context: global categories (branch_id IS NULL) plus any categories
-     * specific to that branch — matching the "null = global category"
-     * convention already established in the categories migration.
-     *
-     * No specific permission is required beyond being authenticated
-     * (auth:sanctum): browsing the catalog is a prerequisite for the core
-     * POS ordering flow, and the seeded cashier role has no 'products.*'
-     * permission at all — gating this behind one would break the exact
-     * workflow this endpoint exists to support.
+     * specific to that branch.
      */
     public function index(Request $request)
     {
@@ -41,9 +34,6 @@ class CategoryController extends Controller
         $branchId = $request->query('branch_id');
 
         if ($branchId !== null) {
-            // A user may only request a branch they're actually assigned
-            // to, unless they hold 'branches.view-all' (admins) — same
-            // authorization convention as the BranchScoped trait uses.
             $canAccessBranch = $user->can('branches.view-all')
                 || $user->branches()->where('branches.id', $branchId)->exists();
 
@@ -54,11 +44,6 @@ class CategoryController extends Controller
                 ], 403);
             }
         } else {
-            // No branch specified — default to the user's primary branch
-            // (falls back to their first assigned branch if none is
-            // marked primary). This is the "current branch/context" the
-            // task asked for; there is no session-level "current branch"
-            // concept anywhere else in the app yet to draw from.
             $branch = $user->branches()->wherePivot('is_primary', true)->first()
                 ?? $user->branches()->first();
 
@@ -86,5 +71,67 @@ class CategoryController extends Controller
             'success' => true,
             'data' => $categories,
         ]);
+    }
+
+    /**
+     * POST /api/v1/categories
+     *
+     * Creates a category for the selected branch.
+     *
+     * Requires products.manage, matching ProductController::store().
+     */
+    public function store(Request $request)
+    {
+        if (! $request->user()->can('products.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to manage categories',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'branch_id' => 'required|integer|exists:branches,id',
+            'name' => 'required|string|max:255',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = $request->user();
+        $branchId = (int) $request->input('branch_id');
+
+        if (
+            ! $user->can('branches.view-all')
+            && ! $user->branches()->where('branches.id', $branchId)->exists()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => "You do not have access to branch {$branchId}",
+            ], 403);
+        }
+
+        $category = Category::create([
+            'branch_id' => $branchId,
+            'name' => $request->input('name'),
+            'sort_order' => $request->input('sort_order', 0),
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $category->id,
+                'branch_id' => $category->branch_id,
+                'name' => $category->name,
+                'sort_order' => $category->sort_order,
+            ],
+        ], 201);
     }
 }

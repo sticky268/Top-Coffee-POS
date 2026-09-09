@@ -49,13 +49,26 @@ class ProductListTile extends StatelessWidget {
 
     return ListTile(
       onTap: isDisabling ? null : onEdit,
-      // The current Products API response has no image field at all
-      // (confirmed by reading ProductController::index() before building
-      // this) — a placeholder icon stands in until the backend adds one.
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.primaryContainer,
-        child: Icon(Icons.local_cafe_outlined, color: theme.colorScheme.onPrimaryContainer),
-      ),
+leading: CircleAvatar(
+  backgroundColor: theme.colorScheme.primaryContainer,
+  child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+      ? ClipOval(
+          child: Image.network(
+            product.imageUrl!,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.local_cafe_outlined,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+          ),
+        )
+      : Icon(
+          Icons.local_cafe_outlined,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+),
       title: Text(product.name),
       subtitle: subtitleParts.isEmpty
           ? null
