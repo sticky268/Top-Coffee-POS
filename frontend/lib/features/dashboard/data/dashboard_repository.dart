@@ -1,112 +1,170 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/network/api_client.dart';
+import '../../auth/data/auth_repository.dart' show apiClientProvider;
 import '../domain/dashboard_models.dart';
 
-/// Data boundary for the dashboard. [DashboardController] depends only on
-/// this interface, so swapping [LocalDashboardRepository] for a real
-/// `ApiDashboardRepository` (backed by GET /api/v1/dashboard, once the
-/// backend builds it in a later phase) is a one-line change at
-/// [dashboardRepositoryProvider] — nothing above this layer needs to know.
 abstract class DashboardRepository {
   Future<DashboardStats> getStats();
   Future<List<RecentOrder>> getRecentOrders({int limit = 5});
   Future<List<SalesDataPoint>> getSalesOverview({int days = 7});
 }
 
-/// Local data source for the initial dashboard implementation. Simulates
-/// realistic network latency so loading states are visible and testable,
-/// and is the only place with example values — nothing is hardcoded into
-/// the controller or UI layers. Named "Local" (not "Mock") because this is
-/// production code, not a test double — mocktail's `MockDashboardRepository`
-/// test class is a separate, unrelated type.
-class LocalDashboardRepository implements DashboardRepository {
-  LocalDashboardRepository({this.simulatedLatency = const Duration(milliseconds: 400)});
+class ApiDashboardRepository implements DashboardRepository {
+  ApiDashboardRepository(
+    this._apiClient, {
+    required this.branchId,
+  });
 
-  final Duration simulatedLatency;
+  final ApiClient _apiClient;
+  final int? branchId;
+
+  Map<String, dynamic>? _cachedData;
+
+  Future<Map<String, dynamic>> _getDashboardData() async {
+    final response = await _apiClient.request(
+      (dio) => dio.get(
+        '/dashboard',
+        queryParameters: {
+          if (branchId != null) 'branch_id': branchId,
+        },
+      ),
+    );
+
+    final data = response.data['data'];
+
+    if (data is! Map) {
+      throw const FormatException('Invalid dashboard response');
+    }
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>> _getData() async {
+    if (_cachedData != null) {
+      final data = _cachedData!;
+      _cachedData = null;
+      return data;
+    }
+
+    return _getDashboardData();
+  }
 
   @override
   Future<DashboardStats> getStats() async {
-    await Future.delayed(simulatedLatency);
-    return const DashboardStats(
-      todaysSales: 1248.50,
-      todaysOrders: 86,
-      averageOrderValue: 14.52,
-      lowStockItemCount: 5,
+    final data = await _getDashboardData();
+    _cachedData = data;
+
+    final stats = data['stats'];
+
+    if (stats is! Map) {
+      throw const FormatException('Invalid dashboard stats response');
+    }
+
+    return DashboardStats(
+      todaysSales: _toDouble(stats['todays_sales']),
+      todaysOrders: _toInt(stats['todays_orders']),
+      averageOrderValue: _toDouble(stats['average_order_value']),
+      lowStockItemCount: _toInt(stats['low_stock_item_count']),
     );
   }
 
   @override
   Future<List<RecentOrder>> getRecentOrders({int limit = 5}) async {
-    await Future.delayed(simulatedLatency);
-    final now = DateTime.now();
-    final orders = [
-      RecentOrder(
-        orderNumber: '#1042',
-        time: now.subtract(const Duration(minutes: 3)),
-        customerOrTable: 'Table 4',
-        itemCount: 3,
-        total: 15.40,
-        status: OrderStatus.preparing,
-      ),
-      RecentOrder(
-        orderNumber: '#1041',
-        time: now.subtract(const Duration(minutes: 9)),
-        customerOrTable: 'Takeaway',
-        itemCount: 1,
-        total: 3.50,
-        status: OrderStatus.ready,
-      ),
-      RecentOrder(
-        orderNumber: '#1040',
-        time: now.subtract(const Duration(minutes: 14)),
-        customerOrTable: 'Table 2',
-        itemCount: 2,
-        total: 9.25,
-        status: OrderStatus.completed,
-      ),
-      RecentOrder(
-        orderNumber: '#1039',
-        time: now.subtract(const Duration(minutes: 22)),
-        customerOrTable: 'Takeaway',
-        itemCount: 4,
-        total: 21.80,
-        status: OrderStatus.completed,
-      ),
-      RecentOrder(
-        orderNumber: '#1038',
-        time: now.subtract(const Duration(minutes: 30)),
-        customerOrTable: 'Table 7',
-        itemCount: 2,
-        total: 7.00,
-        status: OrderStatus.cancelled,
-      ),
-      RecentOrder(
-        orderNumber: '#1037',
-        time: now.subtract(const Duration(minutes: 41)),
-        customerOrTable: null,
-        itemCount: 1,
-        total: 2.75,
-        status: OrderStatus.pending,
-      ),
-    ];
-    return orders.take(limit).toList();
+    final data = await _getData();
+    final orders = data['recent_orders'];
+
+    if (orders is! List) {
+      throw const FormatException('Invalid recent orders response');
+    }
+
+    return orders
+        .take(limit)
+        .map(
+          (json) => RecentOrder(
+            orderNumber: '#${json['order_number']}',
+            time: DateTime.parse(json['created_at'] as String).toLocal(),
+            customerOrTable: _customerOrTable(json['order_type']),
+            itemCount: _toInt(json['item_count']),
+            total: _toDouble(json['total']),
+            status: _orderStatus(json['status']),
+          ),
+        )
+        .toList();
   }
 
   @override
   Future<List<SalesDataPoint>> getSalesOverview({int days = 7}) async {
-    await Future.delayed(simulatedLatency);
-    final today = DateTime.now();
-    final values = [420.0, 610.0, 380.0, 705.5, 890.0, 1120.25, 1248.50];
-    return List.generate(days, (i) {
-      final offset = days - 1 - i;
-      return SalesDataPoint(
-        date: today.subtract(Duration(days: offset)),
-        total: values[i % values.length],
-      );
-    });
+    final data = await _getData();
+    final sales = data['sales_overview'];
+
+    if (sales is! List) {
+      throw const FormatException('Invalid sales overview response');
+    }
+
+    return sales
+        .take(days)
+        .map(
+          (json) => SalesDataPoint(
+            date: DateTime.parse(json['date'] as String),
+            total: _toDouble(json['total']),
+          ),
+        )
+        .toList();
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static String? _customerOrTable(dynamic orderType) {
+    switch (orderType?.toString()) {
+      case 'takeaway':
+        return 'Takeaway';
+      case 'dine_in':
+        return 'Dine-in';
+      case 'delivery':
+        return 'Delivery';
+      default:
+        return null;
+    }
+  }
+
+  static OrderStatus _orderStatus(dynamic status) {
+    switch (status?.toString()) {
+      case 'pending':
+        return OrderStatus.pending;
+      case 'preparing':
+        return OrderStatus.preparing;
+      case 'ready':
+        return OrderStatus.ready;
+      case 'cancelled':
+        return OrderStatus.cancelled;
+      case 'completed':
+      default:
+        return OrderStatus.completed;
+    }
   }
 }
 
 final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
-  return LocalDashboardRepository();
+  final currentBranch = ref.watch(currentBranchProvider);
+
+  return ApiDashboardRepository(
+    ref.watch(apiClientProvider),
+    branchId: currentBranch?.id,
+  );
 });

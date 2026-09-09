@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../auth/domain/auth_models.dart';
 import '../../../../core/branch/current_branch_provider.dart';
+import '../../../auth/domain/auth_models.dart';
 
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({
@@ -28,6 +28,7 @@ class DashboardHeader extends ConsumerWidget {
     final dateLabel = DateFormat('EEEE, MMMM d').format(DateTime.now());
     final roleLabel = user.roles.isNotEmpty ? user.roles.first : null;
     final currentBranch = ref.watch(currentBranchProvider);
+    final canViewAllBranches = user.hasPermission('branches.view-all');
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,29 +86,34 @@ class DashboardHeader extends ConsumerWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              if (user.branches.length > 1) ...[
+              if (user.branches.length > 1 || canViewAllBranches) ...[
                 const SizedBox(height: 8),
                 DropdownButtonHideUnderline(
-                  child: DropdownButton<BranchSummary>(
+                  child: DropdownButton<BranchSummary?>(
                     value: currentBranch,
                     isDense: true,
                     icon: const Icon(Icons.keyboard_arrow_down),
                     hint: const Text('Select branch'),
-                    items: user.branches.map((branch) {
-                      return DropdownMenuItem<BranchSummary>(
-                        value: branch,
-                        child: Text(
-                          '${branch.name} (${branch.code})',
-                          overflow: TextOverflow.ellipsis,
+                    items: [
+                      if (canViewAllBranches)
+                        const DropdownMenuItem<BranchSummary?>(
+                          value: null,
+                          child: Text('All Branches'),
                         ),
-                      );
-                    }).toList(),
+                      ...user.branches.map((branch) {
+                        return DropdownMenuItem<BranchSummary?>(
+                          value: branch,
+                          child: Text(
+                            '${branch.name} (${branch.code})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
                     onChanged: (branch) {
-                      if (branch != null) {
-                        ref
-                            .read(currentBranchProvider.notifier)
-                            .selectBranch(branch);
-                      }
+                      ref
+                          .read(currentBranchProvider.notifier)
+                          .selectBranch(branch);
                     },
                   ),
                 ),

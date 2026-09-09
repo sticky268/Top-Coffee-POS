@@ -41,7 +41,7 @@ class CurrentBranchNotifier extends StateNotifier<BranchSummary?> {
     }
   }
 
-  void selectBranch(BranchSummary branch) {
+  void selectBranch(BranchSummary? branch) {
     state = branch;
   }
 }

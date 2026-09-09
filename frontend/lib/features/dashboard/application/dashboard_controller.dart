@@ -1,23 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../data/dashboard_repository.dart';
 import 'dashboard_state.dart';
 
-/// Loads dashboard data on construction and exposes [DashboardState].
-///
-/// Follows the same two guarantees established for AuthController in
-/// Phase 3 (see auth_controller.dart for the full rationale):
-///  1. [initialization] is a deterministic completion signal — tests (and
-///     any future startup-gating code) should await it instead of guessing
-///     with delays, since Riverpod providers are lazy.
-///  2. Every `state = ...` after an `await` is guarded by [mounted], so a
-///     disposed controller can never throw or leak a late update.
+/// Loads dashboard data on construction and reloads automatically when the
+/// selected branch changes.
 class DashboardController extends StateNotifier<DashboardState> {
-  DashboardController(this._repository) : super(const DashboardLoading()) {
+  DashboardController(this._repository, this._ref)
+      : super(const DashboardLoading()) {
+    _ref.listen(
+      currentBranchProvider,
+      (_, __) => refresh(),
+    );
+
     _initialization = _load();
   }
 
   final DashboardRepository _repository;
+  final Ref _ref;
   late Future<void> _initialization;
 
   Future<void> get initialization => _initialization;
@@ -34,10 +35,6 @@ class DashboardController extends StateNotifier<DashboardState> {
     state = const DashboardLoading();
 
     try {
-      // Started concurrently (not one `await` per line) so the three calls
-      // race in parallel, same latency as a single request — the `as
-      // dynamic` casts a combined Future.wait<Object> list would otherwise
-      // need are avoided by awaiting each typed Future separately.
       final statsFuture = _repository.getStats();
       final ordersFuture = _repository.getRecentOrders();
       final salesFuture = _repository.getSalesOverview();
@@ -45,9 +42,14 @@ class DashboardController extends StateNotifier<DashboardState> {
       final stats = await statsFuture;
       final orders = await ordersFuture;
       final sales = await salesFuture;
+
       if (!mounted) return;
 
-      state = DashboardLoaded(stats: stats, recentOrders: orders, salesOverview: sales);
+      state = DashboardLoaded(
+        stats: stats,
+        recentOrders: orders,
+        salesOverview: sales,
+      );
     } catch (e) {
       if (!mounted) return;
       state = DashboardError(e.toString());
@@ -55,6 +57,10 @@ class DashboardController extends StateNotifier<DashboardState> {
   }
 }
 
-final dashboardControllerProvider = StateNotifierProvider<DashboardController, DashboardState>((ref) {
-  return DashboardController(ref.watch(dashboardRepositoryProvider));
+final dashboardControllerProvider =
+    StateNotifierProvider<DashboardController, DashboardState>((ref) {
+  return DashboardController(
+    ref.watch(dashboardRepositoryProvider),
+    ref,
+  );
 });
