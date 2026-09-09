@@ -157,6 +157,7 @@ void main() {
       final confirmation = await repository.createOrder(
         items: [CartItem(product: product, variant: product.variants.first, quantity: 1)],
         paymentMethod: 'cash',
+        orderType: 'takeaway',
         tendered: 5.0,
       );
 
@@ -189,6 +190,7 @@ void main() {
       final confirmation = await repository.createOrder(
         items: [const CartItem(product: product, quantity: 1)],
         paymentMethod: 'qr',
+        orderType: 'takeaway',
       );
 
       expect(confirmation.paymentMethod, 'qr');
@@ -299,6 +301,7 @@ void main() {
       await repository.createOrder(
         items: [const CartItem(product: product, quantity: 1)],
         paymentMethod: 'cash',
+        orderType: 'takeaway',
         tendered: 5.0,
         branchId: 2,
       );
@@ -310,3 +313,5 @@ void main() {
     });
   });
 }
+
+

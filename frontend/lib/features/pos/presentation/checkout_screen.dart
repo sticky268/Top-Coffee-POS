@@ -22,6 +22,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _paymentMethod = 'cash';
+  String _orderType = 'takeaway';
   final _tenderedController = TextEditingController();
 
   @override
@@ -65,6 +66,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           _ => _CheckoutForm(
               cart: cart,
               paymentMethod: _paymentMethod,
+              orderType: _orderType,
+              onOrderTypeChanged: (type) => setState(() => _orderType = type),
               onPaymentMethodChanged: (method) => setState(() => _paymentMethod = method),
               tenderedController: _tenderedController,
               tenderedAmount: _tenderedAmount,
@@ -75,6 +78,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ref.read(checkoutControllerProvider.notifier).submit(
                       items: cart.items,
                       paymentMethod: _paymentMethod,
+                      orderType: _orderType,
                       tendered: _paymentMethod == 'cash' ? _tenderedAmount : null,
                       discountTotal: cart.discountTotal,
                     );
@@ -90,6 +94,8 @@ class _CheckoutForm extends StatelessWidget {
   const _CheckoutForm({
     required this.cart,
     required this.paymentMethod,
+    required this.orderType,
+    required this.onOrderTypeChanged,
     required this.onPaymentMethodChanged,
     required this.tenderedController,
     required this.tenderedAmount,
@@ -101,6 +107,8 @@ class _CheckoutForm extends StatelessWidget {
 
   final CartState cart;
   final String paymentMethod;
+  final String orderType;
+  final ValueChanged<String> onOrderTypeChanged;
   final ValueChanged<String> onPaymentMethodChanged;
   final TextEditingController tenderedController;
   final double? tenderedAmount;
@@ -158,6 +166,27 @@ class _CheckoutForm extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 24),
+          Text('Order Type', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+          segments: const [
+          ButtonSegment(
+          value: 'takeaway',
+          label: Text('Takeaway'),
+          icon: Icon(Icons.takeout_dining),
+          ),
+          ButtonSegment(
+          value: 'dine_in',
+          label: Text('Dine-in'),
+          icon: Icon(Icons.restaurant),
+          ),
+          ],
+          selected: {orderType},
+          onSelectionChanged: isSubmitting
+          ? null
+          : (selection) => onOrderTypeChanged(selection.first),
           ),
           const SizedBox(height: 24),
           Text('Payment Method', style: theme.textTheme.titleMedium),

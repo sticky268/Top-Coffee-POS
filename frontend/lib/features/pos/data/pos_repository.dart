@@ -26,13 +26,15 @@ abstract class PosRepository {
   /// [branchId]: forwarded as `branch_id` in the request body — without
   /// it, the backend falls back to the user's primary branch, which would
   /// silently ignore the currently-selected branch for order creation.
-  Future<OrderConfirmation> createOrder({
+    Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
     required String paymentMethod,
+    required String orderType,
     double? tendered,
     double discountTotal = 0,
     int? branchId,
-  });
+    });
+
 }
 
 class ApiPosRepository implements PosRepository {
@@ -73,6 +75,7 @@ class ApiPosRepository implements PosRepository {
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
     required String paymentMethod,
+    required String orderType,
     double? tendered,
     double discountTotal = 0,
     int? branchId,
@@ -83,7 +86,7 @@ class ApiPosRepository implements PosRepository {
         // No dine-in/table-selection UI exists yet — every order created
         // from this screen is a takeaway, matching what's actually
         // buildable right now rather than guessing at a dine-in flow.
-        'order_type': 'takeaway',
+        'order_type': orderType,
         'items': items
             .map((item) => {
                   'product_id': item.product.id,

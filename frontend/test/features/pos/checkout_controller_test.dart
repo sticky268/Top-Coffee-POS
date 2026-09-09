@@ -52,6 +52,7 @@ void main() {
     when(() => repository.createOrder(
           items: any(named: 'items'),
           paymentMethod: any(named: 'paymentMethod'),
+          orderType: any(named: 'orderType'),
           tendered: any(named: 'tendered'),
           discountTotal: any(named: 'discountTotal'),
         )).thenAnswer((_) async => _confirmation);
@@ -60,6 +61,7 @@ void main() {
     await built.controller.submit(
       items: const [CartItem(product: _americano, quantity: 1)],
       paymentMethod: 'cash',
+      orderType: 'takeaway',
       tendered: 5.00,
       discountTotal: 0,
     );
@@ -73,6 +75,7 @@ void main() {
     when(() => repository.createOrder(
           items: any(named: 'items'),
           paymentMethod: any(named: 'paymentMethod'),
+          orderType: any(named: 'orderType'),
           tendered: any(named: 'tendered'),
           discountTotal: any(named: 'discountTotal'),
         )).thenThrow(const ValidationException({}, 'Product is not available at this branch.'));
@@ -81,6 +84,7 @@ void main() {
     await built.controller.submit(
       items: const [CartItem(product: _americano, quantity: 1)],
       paymentMethod: 'card',
+      orderType: 'takeaway',
       discountTotal: 0,
     );
 
@@ -93,6 +97,7 @@ void main() {
     when(() => repository.createOrder(
           items: any(named: 'items'),
           paymentMethod: any(named: 'paymentMethod'),
+          orderType: any(named: 'orderType'),
           tendered: any(named: 'tendered'),
           discountTotal: any(named: 'discountTotal'),
         )).thenAnswer((_) async {
@@ -108,6 +113,7 @@ void main() {
     final submitFuture = controller.submit(
       items: const [CartItem(product: _americano, quantity: 1)],
       paymentMethod: 'cash',
+      orderType: 'takeaway',
       tendered: 5.00,
       discountTotal: 0,
     );
@@ -117,3 +123,5 @@ void main() {
     await expectLater(submitFuture, completes);
   });
 }
+
+

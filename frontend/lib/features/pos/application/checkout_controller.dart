@@ -22,19 +22,23 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   final PosRepository _repository;
   final Ref _ref;
 
-  Future<void> submit({
+    Future<void> submit({
     required List<CartItem> items,
     required String paymentMethod,
+    required String orderType,
     double? tendered,
     required double discountTotal,
-  }) async {
+    }) async {
+
     if (!mounted) return;
     state = const CheckoutSubmitting();
 
     try {
-      final confirmation = await _repository.createOrder(
-        items: items,
-        paymentMethod: paymentMethod,
+  final confirmation = await _repository.createOrder(
+  items: items,
+  paymentMethod: paymentMethod,
+  orderType: orderType,
+
         tendered: tendered,
         discountTotal: discountTotal,
         branchId: _ref.read(currentBranchProvider)?.id,
