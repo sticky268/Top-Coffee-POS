@@ -147,6 +147,7 @@ final response = await _apiClient.request(
     }
 
     final formData = FormData();
+    print('PRODUCT PAYLOAD: $payload');
 
     payload.forEach((key, value) {
       if (key == 'variants' && value is List) {
@@ -157,7 +158,9 @@ final response = await _apiClient.request(
             formData.fields.add(
               MapEntry(
                 'variants[$i][$variantKey]',
-                variantValue?.toString() ?? '',
+          variantValue is bool
+              ? (variantValue ? '1' : '0')
+              : variantValue?.toString() ?? '',
               ),
             );
           });
@@ -170,14 +173,20 @@ final response = await _apiClient.request(
             formData.fields.add(
               MapEntry(
                 'branches[$i][$branchKey]',
-                branchValue?.toString() ?? '',
+          branchValue is bool
+              ? (branchValue ? '1' : '0')
+              : branchValue?.toString() ?? '',
               ),
             );
           });
         }
       } else {
+        final fieldValue = value is bool
+            ? (value ? '1' : '0')
+            : value?.toString() ?? '';
+
         formData.fields.add(
-          MapEntry(key, value?.toString() ?? ''),
+          MapEntry(key, fieldValue),
         );
       }
     });

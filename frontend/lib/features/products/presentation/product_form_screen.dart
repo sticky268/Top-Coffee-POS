@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../pos/application/pos_catalog_controller.dart';
 import '../../pos/domain/pos_models.dart';
@@ -44,6 +46,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   int? _selectedCategoryId;
   bool _isActive = true;
   late List<ManagedProductVariant> _variants;
+  XFile? _selectedImage;
 
   bool get _isEditing => widget.args.initialProduct != null;
 
@@ -71,6 +74,20 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _basePriceController.dispose();
     super.dispose();
   }
+
+  Future<void> _pickImage() async {
+  final picker = ImagePicker();
+
+  final image = await picker.pickImage(
+    source: ImageSource.gallery,
+  );
+
+  if (image != null && mounted) {
+    setState(() {
+      _selectedImage = image;
+    });
+  }
+}
 
   void _submit() {
     if (ref.read(productFormControllerProvider) is ProductFormSaving) return;
@@ -101,7 +118,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       // a separate, unrelated behavior change.
       ref
           .read(productFormControllerProvider.notifier)
-          .update(product.id!, product);
+          .update(
+            product.id!,
+            product,
+            imageFile: _selectedImage,
+          );
     } else {
       // Create the product for the currently selected branch.
       final currentBranch = ref.read(currentBranchProvider);
@@ -110,7 +131,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
       ref
           .read(productFormControllerProvider.notifier)
-          .create(product, branchIds: branchIds);
+          .create(
+            product,
+            branchIds: branchIds,
+            imageFile: _selectedImage,
+          );
     }
   }
 
@@ -219,6 +244,55 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 },
               ),
               const SizedBox(height: 16),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Product Photo',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  if (_selectedImage != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(_selectedImage!.path),
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 180,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: theme.colorScheme.outline,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.add_a_photo_outlined,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: isSaving ? null : _pickImage,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(
+                      _selectedImage == null ? 'Choose Photo' : 'Change Photo',
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
               DropdownButtonFormField<int>(
                 initialValue: _selectedCategoryId,
                 decoration: const InputDecoration(
