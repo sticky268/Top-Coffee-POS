@@ -1,4 +1,5 @@
-import '../domain/order_models.dart';
+﻿import '../domain/order_models.dart';
+import '../domain/orders_list_filters.dart';
 
 sealed class OrdersListState {
   const OrdersListState();
@@ -13,12 +14,14 @@ class OrdersListLoaded extends OrdersListState {
     required this.orders,
     required this.currentPage,
     required this.lastPage,
+    this.filters = OrdersListFilters.empty,
     this.isLoadingMore = false,
   });
 
   final List<OrderSummary> orders;
   final int currentPage;
   final int lastPage;
+  final OrdersListFilters filters;
 
   /// True while a loadMore() request is in flight — drives the footer
   /// spinner in the list, distinct from the initial full-screen loading
@@ -31,12 +34,14 @@ class OrdersListLoaded extends OrdersListState {
     List<OrderSummary>? orders,
     int? currentPage,
     int? lastPage,
+    OrdersListFilters? filters,
     bool? isLoadingMore,
   }) {
     return OrdersListLoaded(
       orders: orders ?? this.orders,
       currentPage: currentPage ?? this.currentPage,
       lastPage: lastPage ?? this.lastPage,
+      filters: filters ?? this.filters,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
@@ -44,5 +49,6 @@ class OrdersListLoaded extends OrdersListState {
 
 class OrdersListError extends OrdersListState {
   const OrdersListError(this.message);
+
   final String message;
 }

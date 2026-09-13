@@ -206,4 +206,28 @@ class OrderTest extends TestCase
 
         $response->assertStatus(422)->assertJsonPath('success', false);
     }
+    public function test_dine_in_order_requires_a_table(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'dine_in',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonValidationErrors(['table_id']);
+    }
 }
+

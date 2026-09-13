@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/cart_controller.dart';
@@ -7,10 +7,18 @@ import 'product_card.dart';
 import 'variant_selector_sheet.dart';
 
 class ProductGrid extends ConsumerWidget {
-  const ProductGrid({super.key, required this.products, required this.crossAxisCount});
+  const ProductGrid({
+    super.key,
+    required this.products,
+    required this.crossAxisCount,
+    this.onProductSelected,
+    this.onVariantSelected,
+  });
 
   final List<PosProduct> products;
   final int crossAxisCount;
+  final void Function(PosProduct product)? onProductSelected;
+  final void Function(PosProduct product, PosProductVariant variant)? onVariantSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +41,14 @@ class ProductGrid extends ConsumerWidget {
           product: product,
           onTap: () {
             if (product.hasVariants) {
-              showVariantSelector(context, ref, product);
+              showVariantSelector(
+                context,
+                ref,
+                product,
+                onVariantSelected: onVariantSelected,
+              );
+            } else if (onProductSelected != null) {
+              onProductSelected!(product);
             } else {
               ref.read(cartControllerProvider.notifier).addItem(product);
             }
@@ -65,3 +80,4 @@ class _EmptyProducts extends StatelessWidget {
     );
   }
 }
+

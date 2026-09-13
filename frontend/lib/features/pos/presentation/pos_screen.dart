@@ -10,24 +10,45 @@ import 'widgets/category_selector.dart';
 import 'widgets/product_grid.dart';
 import 'widgets/product_search_field.dart';
 
-/// The cashier's New Order screen — category tabs, product grid, and cart,
+/// The cashier's New Order screen ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â category tabs, product grid, and cart,
 /// in a layout that adapts between a phone (stacked vertically) and a
-/// tablet/desktop (two-panel) arrangement. Replaces the Phase 4 placeholder.
-class PosScreen extends ConsumerWidget {
-  const PosScreen({super.key});
+/// tablet/desktop (two-panel) arrangement.
+class PosScreen extends ConsumerStatefulWidget {
+  const PosScreen({
+    super.key,
+    this.initialTable,
+  });
+
+  final PosTable? initialTable;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PosScreen> createState() => _PosScreenState();
+}
+
+class _PosScreenState extends ConsumerState<PosScreen> {
+  PosTable? _selectedTable;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTable = widget.initialTable;
+  }
+
+  Future<void> _openTableSelector() async {
+    final table = await context.push<PosTable>('/pos/select-table');
+
+    if (table != null && mounted) {
+      setState(() {
+        _selectedTable = table;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final catalogState = ref.watch(posCatalogControllerProvider);
 
     return PopScope(
-      // Unconditional, unlike relying on Navigator.canPop(): the "New
-      // Order" button on the post-checkout confirmation screen reaches
-      // this route via context.go('/pos'), which replaces the stack —
-      // there's nothing to pop in that case, so the default back-button
-      // behavior would silently do nothing. Explicitly redirecting here
-      // makes system back behave the same regardless of how /pos was
-      // reached.
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
@@ -41,6 +62,14 @@ class PosScreen extends ConsumerWidget {
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
           ),
+          actions: [
+            TextButton.icon(
+              onPressed: _openTableSelector,
+              icon: const Icon(Icons.table_restaurant),
+              label: const Text('Dine-in'),
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: SafeArea(
           child: LayoutBuilder(
@@ -54,21 +83,29 @@ class PosScreen extends ConsumerWidget {
                 PosCatalogLoading() => const _CatalogLoading(),
                 PosCatalogError(:final message) => _CatalogErrorView(
                     message: message,
-                    onRetry: () => ref.read(posCatalogControllerProvider.notifier).refresh(),
+                    onRetry: () => ref
+                        .read(posCatalogControllerProvider.notifier)
+                        .refresh(),
                   ),
-                PosCatalogLoaded(:final categories, :final selectedCategoryId, :final visibleProducts) =>
+                PosCatalogLoaded(
+                  :final categories,
+                  :final selectedCategoryId,
+                  :final visibleProducts
+                ) =>
                   isCompact
                       ? _PhoneLayout(
                           categories: categories,
                           selectedCategoryId: selectedCategoryId,
                           products: visibleProducts,
                           crossAxisCount: productColumns,
+                          selectedTable: _selectedTable,
                         )
                       : _TabletLayout(
                           categories: categories,
                           selectedCategoryId: selectedCategoryId,
                           products: visibleProducts,
                           crossAxisCount: productColumns,
+                          selectedTable: _selectedTable,
                         ),
               };
             },
@@ -85,12 +122,14 @@ class _PhoneLayout extends ConsumerWidget {
     required this.selectedCategoryId,
     required this.products,
     required this.crossAxisCount,
+    required this.selectedTable,
   });
 
   final List<PosCategory> categories;
   final int? selectedCategoryId;
   final List<PosProduct> products;
   final int crossAxisCount;
+  final PosTable? selectedTable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,23 +137,30 @@ class _PhoneLayout extends ConsumerWidget {
       children: [
         const SizedBox(height: 12),
         ProductSearchField(
-          onChanged: (query) => ref.read(posCatalogControllerProvider.notifier).updateSearchQuery(query),
+          onChanged: (query) => ref
+              .read(posCatalogControllerProvider.notifier)
+              .updateSearchQuery(query),
         ),
         const SizedBox(height: 8),
         CategorySelector(
           categories: categories,
           selectedCategoryId: selectedCategoryId,
-          onSelected: (id) => ref.read(posCatalogControllerProvider.notifier).selectCategory(id),
+          onSelected: (id) => ref
+              .read(posCatalogControllerProvider.notifier)
+              .selectCategory(id),
         ),
         const SizedBox(height: 8),
         Expanded(
           flex: 3,
-          child: ProductGrid(products: products, crossAxisCount: crossAxisCount),
+          child: ProductGrid(
+            products: products,
+            crossAxisCount: crossAxisCount,
+          ),
         ),
         const Divider(height: 1),
-        const Expanded(
+        Expanded(
           flex: 2,
-          child: CartPanel(),
+          child: CartPanel(selectedTable: selectedTable),
         ),
       ],
     );
@@ -127,12 +173,14 @@ class _TabletLayout extends ConsumerWidget {
     required this.selectedCategoryId,
     required this.products,
     required this.crossAxisCount,
+    required this.selectedTable,
   });
 
   final List<PosCategory> categories;
   final int? selectedCategoryId;
   final List<PosProduct> products;
   final int crossAxisCount;
+  final PosTable? selectedTable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -145,21 +193,33 @@ class _TabletLayout extends ConsumerWidget {
             children: [
               const SizedBox(height: 12),
               ProductSearchField(
-                onChanged: (query) => ref.read(posCatalogControllerProvider.notifier).updateSearchQuery(query),
+                onChanged: (query) => ref
+                    .read(posCatalogControllerProvider.notifier)
+                    .updateSearchQuery(query),
               ),
               const SizedBox(height: 8),
               CategorySelector(
                 categories: categories,
                 selectedCategoryId: selectedCategoryId,
-                onSelected: (id) => ref.read(posCatalogControllerProvider.notifier).selectCategory(id),
+                onSelected: (id) => ref
+                    .read(posCatalogControllerProvider.notifier)
+                    .selectCategory(id),
               ),
               const SizedBox(height: 8),
-              Expanded(child: ProductGrid(products: products, crossAxisCount: crossAxisCount)),
+              Expanded(
+                child: ProductGrid(
+                  products: products,
+                  crossAxisCount: crossAxisCount,
+                ),
+              ),
             ],
           ),
         ),
         const VerticalDivider(width: 1),
-        const SizedBox(width: 340, child: CartPanel()),
+        SizedBox(
+          width: 340,
+          child: CartPanel(selectedTable: selectedTable),
+        ),
       ],
     );
   }
@@ -170,12 +230,17 @@ class _CatalogLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
   }
 }
 
 class _CatalogErrorView extends StatelessWidget {
-  const _CatalogErrorView({required this.message, required this.onRetry});
+  const _CatalogErrorView({
+    required this.message,
+    required this.onRetry,
+  });
 
   final String message;
   final VoidCallback onRetry;
@@ -183,20 +248,30 @@ class _CatalogErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+            Icon(
+              Icons.error_outline,
+              size: 40,
+              color: theme.colorScheme.error,
+            ),
             const SizedBox(height: 12),
-            Text('Could not load the menu', style: theme.textTheme.titleMedium),
+            Text(
+              'Could not load the menu',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

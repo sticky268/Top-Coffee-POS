@@ -1,5 +1,5 @@
 /// Domain models for order history. Framework-agnostic (no Flutter
-/// imports) — same convention as auth/dashboard/pos domain files.
+/// imports) â€” same convention as auth/dashboard/pos domain files.
 library;
 
 class OrderBranchRef {
@@ -29,7 +29,7 @@ class OrderCashierRef {
   }
 }
 
-/// Lightweight payment info shown on list rows — see [OrderPaymentDetail]
+/// Lightweight payment info shown on list rows â€” see [OrderPaymentDetail]
 /// for the fuller version shown on the detail screen.
 class OrderPaymentSummary {
   const OrderPaymentSummary({required this.method, required this.status});
@@ -71,6 +71,8 @@ class OrderPaymentDetail {
 class OrderLineItem {
   const OrderLineItem({
     required this.id,
+    required this.productId,
+    this.productVariantId,
     required this.productName,
     this.variantName,
     required this.quantity,
@@ -79,6 +81,8 @@ class OrderLineItem {
   });
 
   final int id;
+  final int productId;
+  final int? productVariantId;
   final String productName;
   final String? variantName;
   final int quantity;
@@ -88,6 +92,8 @@ class OrderLineItem {
   factory OrderLineItem.fromJson(Map<String, dynamic> json) {
     return OrderLineItem(
       id: json['id'] as int,
+      productId: json['product_id'] as int,
+      productVariantId: json['product_variant_id'] as int?,
       productName: json['product_name'] as String,
       variantName: json['variant_name'] as String?,
       quantity: json['quantity'] as int,
@@ -97,8 +103,8 @@ class OrderLineItem {
   }
 }
 
-/// One row in the order list — matches GET /api/v1/orders's per-item shape
-/// (no line items — that's [OrderDetail]'s job).
+/// One row in the order list â€” matches GET /api/v1/orders's per-item shape
+/// (no line items â€” that's [OrderDetail]'s job).
 class OrderSummary {
   const OrderSummary({
     required this.id,
@@ -123,7 +129,7 @@ class OrderSummary {
   final double total;
 
   // Nullable throughout: a historical order's branch/cashier/payment
-  // could theoretically be missing (soft-deleted user, data anomaly) —
+  // could theoretically be missing (soft-deleted user, data anomaly) â€”
   // the UI must never assume these are present.
   final OrderBranchRef? branch;
   final OrderCashierRef? cashier;
@@ -148,7 +154,31 @@ class OrderSummary {
   }
 }
 
-/// Full order detail — matches GET /api/v1/orders/{id}.
+/// Table reference included with a dine-in order detail.
+class OrderTableRef {
+  const OrderTableRef({
+    required this.id,
+    required this.name,
+    required this.capacity,
+    required this.status,
+  });
+
+  final int id;
+  final String name;
+  final int capacity;
+  final String status;
+
+  factory OrderTableRef.fromJson(Map<String, dynamic> json) {
+    return OrderTableRef(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      capacity: json['capacity'] as int,
+      status: json['status'] as String,
+    );
+  }
+}
+
+/// Full order detail â€” matches GET /api/v1/orders/{id}.
 class OrderDetail {
   const OrderDetail({
     required this.id,
@@ -160,6 +190,7 @@ class OrderDetail {
     required this.total,
     required this.branch,
     required this.cashier,
+    this.table,
     required this.items,
     required this.payment,
     required this.createdAt,
@@ -174,6 +205,7 @@ class OrderDetail {
   final double total;
   final OrderBranchRef? branch;
   final OrderCashierRef? cashier;
+  final OrderTableRef? table;
   final List<OrderLineItem> items;
   final OrderPaymentDetail? payment;
   final DateTime? createdAt;
@@ -189,6 +221,7 @@ class OrderDetail {
       total: (json['total'] as num).toDouble(),
       branch: json['branch'] != null ? OrderBranchRef.fromJson(json['branch'] as Map<String, dynamic>) : null,
       cashier: json['cashier'] != null ? OrderCashierRef.fromJson(json['cashier'] as Map<String, dynamic>) : null,
+      table: json['table'] != null ? OrderTableRef.fromJson(json['table'] as Map<String, dynamic>) : null,
       items: (json['items'] as List? ?? const [])
           .map((item) => OrderLineItem.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -200,7 +233,7 @@ class OrderDetail {
 }
 
 /// One fetched page of the order list, from GET /api/v1/orders's `meta`
-/// block — used internally by the repository/controller, not the raw
+/// block â€” used internally by the repository/controller, not the raw
 /// paginator itself.
 class OrderListPage {
   const OrderListPage({
@@ -217,3 +250,4 @@ class OrderListPage {
 
   bool get hasMore => currentPage < lastPage;
 }
+

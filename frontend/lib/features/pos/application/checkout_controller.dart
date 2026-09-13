@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/branch/current_branch_provider.dart';
@@ -9,7 +9,7 @@ import 'checkout_state.dart';
 
 /// Submits the cart as a real order. Unlike PosCatalogController/
 /// AuthController, this controller does no work at construction time (no
-/// auto-fetch), so it doesn't need the `initialization`-future pattern —
+/// auto-fetch), so it doesn't need the `initialization`-future pattern â€”
 /// submission only happens on an explicit user action (Confirm Payment).
 /// `mounted` guards are still applied around the one `await`, for the same
 /// disposal-safety reason as elsewhere.
@@ -26,7 +26,8 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     required List<CartItem> items,
     required String paymentMethod,
     required String orderType,
-    double? tendered,
+          int? tableId,
+double? tendered,
     required double discountTotal,
     }) async {
 
@@ -39,7 +40,8 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   paymentMethod: paymentMethod,
   orderType: orderType,
 
-        tendered: tendered,
+                tableId: tableId,
+tendered: tendered,
         discountTotal: discountTotal,
         branchId: _ref.read(currentBranchProvider)?.id,
       );
@@ -51,6 +53,34 @@ class CheckoutController extends StateNotifier<CheckoutState> {
           CheckoutError(e is ApiException ? e.message : 'Something went wrong');
     }
   }
+
+  Future<void> hold({
+    required List<CartItem> items,
+    required String orderType,
+    required int tableId,
+    required double discountTotal,
+  }) async {
+    if (!mounted) return;
+    state = const CheckoutSubmitting();
+
+    try {
+      final confirmation = await _repository.holdOrder(
+        items: items,
+        orderType: orderType,
+        tableId: tableId,
+        discountTotal: discountTotal,
+        branchId: _ref.read(currentBranchProvider)?.id,
+      );
+
+      if (!mounted) return;
+      state = CheckoutHeld(confirmation);
+    } catch (e) {
+      if (!mounted) return;
+      state = CheckoutError(
+        e is ApiException ? e.message : 'Something went wrong',
+      );
+    }
+  }
 }
 
 final checkoutControllerProvider =
@@ -60,3 +90,6 @@ final checkoutControllerProvider =
     ref,
   );
 });
+
+
+

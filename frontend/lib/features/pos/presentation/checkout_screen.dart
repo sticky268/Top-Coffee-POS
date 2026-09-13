@@ -14,7 +14,12 @@ import '../domain/pos_models.dart';
 /// clears the cart via the existing CartController (no new cart-clearing
 /// logic here) and shows a confirmation.
 class CheckoutScreen extends ConsumerStatefulWidget {
-  const CheckoutScreen({super.key});
+  const CheckoutScreen({
+    super.key,
+    this.initialTable,
+  });
+
+  final PosTable? initialTable;
 
   @override
   ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -22,8 +27,14 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _paymentMethod = 'cash';
-  String _orderType = 'takeaway';
+PosTable? _selectedTable;
   final _tenderedController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTable = widget.initialTable;
+  }
 
   @override
   void dispose() {
@@ -37,24 +48,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartControllerProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
-    final isSuccess = checkoutState is CheckoutSuccess;
+    final isCompleted =
+        checkoutState is CheckoutSuccess || checkoutState is CheckoutHeld;
 
-    // Clears the cart exactly once, via the existing CartController — not
-    // duplicated clearing logic — the moment an order actually succeeds.
+    // Clears the cart exactly once, via the existing CartController ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â not
+    // duplicated clearing logic ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â the moment an order actually succeeds.
     ref.listen<CheckoutState>(checkoutControllerProvider, (previous, next) {
-      if (next is CheckoutSuccess && previous is! CheckoutSuccess) {
+      if ((next is CheckoutSuccess && previous is! CheckoutSuccess) ||
+          (next is CheckoutHeld && previous is! CheckoutHeld)) {
         ref.read(cartControllerProvider.notifier).clear();
+
+        if (context.mounted) {
+          context.go('/pos/select-table');
+        }
       }
     });
 
     return PopScope(
       // Every other state (idle/submitting/error) keeps the default pop
-      // behavior — back button/gesture/AppBar arrow returns to /pos,
-      // satisfying "Checkout → POS" unchanged. Only the success state
+      // behavior ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â back button/gesture/AppBar arrow returns to /pos,
+      // satisfying "Checkout ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ POS" unchanged. Only the success state
       // intercepts it: popping normally would land back on /pos showing
       // the now-emptied cart, which isn't a meaningful place to return
       // to once an order is already confirmed.
-      canPop: !isSuccess,
+      canPop: !isCompleted,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         context.go('/home');
@@ -65,12 +82,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           CheckoutSuccess(:final confirmation) => _CheckoutSuccessView(confirmation: confirmation),
           _ => _CheckoutForm(
               cart: cart,
-              paymentMethod: _paymentMethod,
-              orderType: _orderType,
-              onOrderTypeChanged: (type) => setState(() => _orderType = type),
+              paymentMethod: _paymentMethod,              selectedTable: _selectedTable,
+              onTableChanged: (table) => setState(() => _selectedTable = table),
               onPaymentMethodChanged: (method) => setState(() => _paymentMethod = method),
               tenderedController: _tenderedController,
               tenderedAmount: _tenderedAmount,
+              canSaveOrder: cart.items.isNotEmpty &&
+                  _selectedTable != null &&
+                  checkoutState is! CheckoutSubmitting,
               onTenderedChanged: () => setState(() {}),
               isSubmitting: checkoutState is CheckoutSubmitting,
               errorMessage: checkoutState is CheckoutError ? checkoutState.message : null,
@@ -78,8 +97,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ref.read(checkoutControllerProvider.notifier).submit(
                       items: cart.items,
                       paymentMethod: _paymentMethod,
-                      orderType: _orderType,
+                      orderType: 'dine_in',
+                      tableId: _selectedTable?.id,
                       tendered: _paymentMethod == 'cash' ? _tenderedAmount : null,
+                      discountTotal: cart.discountTotal,
+                    );
+              },
+              onHold: () {
+                ref.read(checkoutControllerProvider.notifier).hold(
+                      items: cart.items,
+                      orderType: 'dine_in',
+                      tableId: _selectedTable!.id,
                       discountTotal: cart.discountTotal,
                     );
               },
@@ -94,28 +122,32 @@ class _CheckoutForm extends StatelessWidget {
   const _CheckoutForm({
     required this.cart,
     required this.paymentMethod,
-    required this.orderType,
-    required this.onOrderTypeChanged,
-    required this.onPaymentMethodChanged,
+required this.selectedTable,
+    required this.onTableChanged,
+required this.onPaymentMethodChanged,
     required this.tenderedController,
     required this.tenderedAmount,
+    required this.canSaveOrder,
     required this.onTenderedChanged,
     required this.isSubmitting,
     required this.errorMessage,
     required this.onConfirm,
+    required this.onHold,
   });
 
   final CartState cart;
   final String paymentMethod;
-  final String orderType;
-  final ValueChanged<String> onOrderTypeChanged;
-  final ValueChanged<String> onPaymentMethodChanged;
+final PosTable? selectedTable;
+  final ValueChanged<PosTable> onTableChanged;
+final ValueChanged<String> onPaymentMethodChanged;
   final TextEditingController tenderedController;
   final double? tenderedAmount;
+  final bool canSaveOrder;
   final VoidCallback onTenderedChanged;
   final bool isSubmitting;
   final String? errorMessage;
   final VoidCallback onConfirm;
+  final VoidCallback onHold;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +155,7 @@ class _CheckoutForm extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: '\$');
     final change = (paymentMethod == 'cash' && tenderedAmount != null) ? tenderedAmount! - cart.total : null;
     final canConfirm = !isSubmitting &&
-        cart.items.isNotEmpty &&
+        cart.items.isNotEmpty && (selectedTable != null) &&
         (paymentMethod != 'cash' || (tenderedAmount != null && tenderedAmount! >= cart.total));
 
     return SafeArea(
@@ -149,16 +181,18 @@ class _CheckoutForm extends StatelessWidget {
                           Expanded(
                             child: Text(
                               item.variant != null
-                                  ? '${item.product.name} — ${item.variant!.name}'
+                                  ? '${item.product.name} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ${item.variant!.name}'
                                   : item.product.name,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text('${item.quantity} × ${currency.format(item.unitPrice)}'),
+                          Text('${item.quantity} x ${currency.format(item.unitPrice)}'),
                         ],
                       ),
                     ),
-                  const Divider(),
+                  Divider(
+                    color: theme.colorScheme.outlineVariant,
+                  ),
                   _SummaryRow(label: 'Subtotal', value: currency.format(cart.subtotal)),
                   if (cart.discountTotal > 0)
                     _SummaryRow(label: 'Discount', value: '- ${currency.format(cart.discountTotal)}'),
@@ -168,26 +202,38 @@ class _CheckoutForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Text('Order Type', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-          segments: const [
-          ButtonSegment(
-          value: 'takeaway',
-          label: Text('Takeaway'),
-          icon: Icon(Icons.takeout_dining),
-          ),
-          ButtonSegment(
-          value: 'dine_in',
-          label: Text('Dine-in'),
-          icon: Icon(Icons.restaurant),
-          ),
+          if (selectedTable != null) ...[
+            const SizedBox(height: 24),
+            Text('Table', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.outline,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.table_restaurant,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${selectedTable!.name} - ${selectedTable!.capacity} seats',
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                  ),
+                ],
+              ),
+            ),
           ],
-          selected: {orderType},
-          onSelectionChanged: isSubmitting
-          ? null
-          : (selection) => onOrderTypeChanged(selection.first),
-          ),
           const SizedBox(height: 24),
           Text('Payment Method', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -213,6 +259,34 @@ class _CheckoutForm extends StatelessWidget {
               ),
               onChanged: (_) => onTenderedChanged(),
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Quick Amount',
+              style: theme.textTheme.labelLarge,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final amount in {
+                  cart.total,
+                  15.0,
+                  20.0,
+                  50.0,
+                })
+                  OutlinedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () {
+                            tenderedController.text =
+                                amount.toStringAsFixed(2);
+                            onTenderedChanged();
+                          },
+                    child: Text(currency.format(amount)),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text(
               change == null
@@ -224,6 +298,16 @@ class _CheckoutForm extends StatelessWidget {
                 color: (change != null && change < 0) ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ],
+          if (selectedTable != null) ...[
+            const SizedBox(height: 24),
+            OutlinedButton(
+              onPressed: canSaveOrder ? onHold : null,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Save Order'),
             ),
           ],
           const SizedBox(height: 24),
@@ -349,3 +433,41 @@ class _CheckoutSuccessView extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

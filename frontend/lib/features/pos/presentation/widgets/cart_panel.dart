@@ -4,10 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../application/cart_controller.dart';
+import '../../domain/pos_models.dart';
 import 'cart_line_tile.dart';
 
 class CartPanel extends ConsumerWidget {
-  const CartPanel({super.key});
+  const CartPanel({
+    super.key,
+    this.selectedTable,
+  });
+
+  final PosTable? selectedTable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,7 +30,27 @@ class CartPanel extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Order Summary', style: theme.textTheme.titleMedium),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Order Summary',
+                        style: theme.textTheme.titleMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (selectedTable != null) ...[
+                      const SizedBox(width: 8),
+                      Chip(
+                        avatar: const Icon(Icons.table_restaurant, size: 16),
+                        label: Text(selectedTable!.name),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               if (!cart.isEmpty)
                 TextButton.icon(
                   onPressed: () => _confirmClearCart(context, cartNotifier),
@@ -69,7 +95,12 @@ class CartPanel extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: cart.isEmpty ? null : () => context.push('/pos/checkout'),
+                onPressed: cart.isEmpty
+                    ? null
+                    : () => context.push(
+                          '/pos/checkout',
+                          extra: selectedTable,
+                        ),
                 child: const Text('Review Order'),
               ),
             ],
@@ -120,7 +151,7 @@ class _SummaryLine extends StatelessWidget {
   }
 }
 
-/// A simple manual flat-amount discount input — deliberately no
+/// A simple manual flat-amount discount input Ã¢â‚¬â€ deliberately no
 /// percentage tiers or coupon rules, per the task's explicit "prepare the
 /// UI/state for it, but don't add complicated discount rules yet".
 class _DiscountRow extends StatefulWidget {
@@ -224,3 +255,4 @@ class _EmptyCart extends StatelessWidget {
     );
   }
 }
+

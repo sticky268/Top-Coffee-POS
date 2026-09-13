@@ -16,4 +16,19 @@ class Expense extends Model
     ];
 
     protected $casts = ['amount' => 'decimal:2', 'spent_at' => 'date'];
+
+    public function category()
+    {
+        return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 }

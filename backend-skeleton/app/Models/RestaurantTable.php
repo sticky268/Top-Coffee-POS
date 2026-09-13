@@ -11,7 +11,22 @@ class RestaurantTable extends Model
 
     protected $table = 'restaurant_tables';
 
-    protected $fillable = ['branch_id', 'name', 'capacity', 'status', 'position_x', 'position_y'];
+    protected $fillable = [
+        'branch_id',
+        'name',
+        'capacity',
+        'status',
+        'position_x',
+        'position_y',
+        'section',
+        'shape',
+        'color',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 
     public function orders()
     {

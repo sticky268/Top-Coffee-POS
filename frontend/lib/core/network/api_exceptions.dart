@@ -46,11 +46,21 @@ class ApiExceptionMapper {
       final errors = (data is Map && data['errors'] is Map)
           ? Map<String, dynamic>.from(data['errors'])
           : <String, dynamic>{};
-      return ValidationException(errors);
+      final message = (data is Map && data['message'] is String)
+          ? data['message'] as String
+          : 'Validation failed';
+      return ValidationException(errors, message);
     }
     if (status != null && status >= 500) {
       return const ServerException();
     }
-    return const UnknownApiException();
+    final data = e.response?.data;
+    final message = (data is Map && data['message'] is String)
+        ? data['message'] as String
+        : 'HTTP ${status ?? 'unknown'}';
+
+    return UnknownApiException(message);
   }
 }
+
+
