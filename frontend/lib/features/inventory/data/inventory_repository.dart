@@ -26,6 +26,13 @@ abstract class InventoryRepository {
     required double quantity,
     String? reason,
   });
+
+  Future<List<InventoryStockMovement>> getStockMovements({
+    required int ingredientId,
+    String? type,
+    int page = 1,
+    int perPage = 20,
+  });
 }
 
 class ApiInventoryRepository implements InventoryRepository {
@@ -101,6 +108,35 @@ class ApiInventoryRepository implements InventoryRepository {
   }
 
   @override
+  Future<List<InventoryStockMovement>> getStockMovements({
+    required int ingredientId,
+    String? type,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.get(
+        '/ingredients/$ingredientId/movements',
+        queryParameters: {
+          if (type != null) 'type': type,
+          'page': page,
+          'per_page': perPage,
+        },
+      ),
+    );
+
+    final data = response.data['data'] as List;
+
+    return data
+        .map(
+          (json) => InventoryStockMovement.fromJson(
+            json as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  @override
   Future<InventoryIngredient> recordStockMovement({
     required int ingredientId,
     required String type,
@@ -130,6 +166,3 @@ class ApiInventoryRepository implements InventoryRepository {
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
   return ApiInventoryRepository(ref.watch(apiClientProvider));
 });
-
-
-

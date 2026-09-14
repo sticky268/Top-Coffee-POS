@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -65,17 +65,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
         error: (error, _) => _ErrorState(
           message: error.toString(),
-          onRetry: () => ref
-              .read(inventoryListControllerProvider.notifier)
-              .refresh(),
+          onRetry: () =>
+              ref.read(inventoryListControllerProvider.notifier).refresh(),
         ),
         data: (data) {
           final ingredients = _filteredIngredients(data.ingredients);
 
           return RefreshIndicator(
-            onRefresh: () => ref
-                .read(inventoryListControllerProvider.notifier)
-                .refresh(),
+            onRefresh: () =>
+                ref.read(inventoryListControllerProvider.notifier).refresh(),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -102,6 +100,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       child: _IngredientCard(
                         ingredient: ingredient,
                         onStockAction: () => _showStockActionDialog(ingredient),
+                        onHistory: () => context.push(
+                          '/inventory/history',
+                          extra: ingredient,
+                        ),
                       ),
                     ),
                   ),
@@ -149,8 +151,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 });
 
                 try {
-                  final repository =
-                      ref.read(inventoryRepositoryProvider);
+                  final repository = ref.read(inventoryRepositoryProvider);
 
                   await repository.recordStockMovement(
                     ingredientId: ingredient.id,
@@ -176,7 +177,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               }
 
               return AlertDialog(
-                title: Text('Stock Action — ${ingredient.name}'),
+                title:
+                    Text('Stock Action ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${ingredient.name}'),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -214,8 +216,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       TextField(
                         controller: quantityController,
                         enabled: !isSaving,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(
+                        keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                         decoration: InputDecoration(
@@ -240,9 +241,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           child: Text(
                             errorMessage!,
                             style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .error,
+                              color: Theme.of(context).colorScheme.error,
                             ),
                           ),
                         ),
@@ -280,7 +279,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       reasonController.dispose();
     }
   }
-
 }
 
 class _InventoryHeader extends StatelessWidget {
@@ -343,11 +341,12 @@ class _IngredientCard extends StatelessWidget {
   const _IngredientCard({
     required this.ingredient,
     required this.onStockAction,
+    required this.onHistory,
   });
 
   final InventoryIngredient ingredient;
   final VoidCallback onStockAction;
-
+  final VoidCallback onHistory;
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -420,10 +419,27 @@ class _IngredientCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: onStockAction,
-                  icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                  label: const Text('Stock Action'),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onStockAction,
+                      icon: const Icon(
+                        Icons.inventory_2_outlined,
+                        size: 18,
+                      ),
+                      label: const Text('Stock Action'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: onHistory,
+                      icon: const Icon(
+                        Icons.history,
+                        size: 18,
+                      ),
+                      label: const Text('History'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -527,11 +543,3 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-

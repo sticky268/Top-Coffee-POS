@@ -10,6 +10,8 @@ import '../../features/expenses/presentation/expenses_screen.dart';
 import '../../features/expenses/presentation/add_expense_screen.dart';
 import 'package:top_coffee_pos/features/inventory/presentation/inventory_screen.dart';
 import '../../features/inventory/presentation/add_ingredient_screen.dart';
+import '../../features/inventory/presentation/inventory_movement_history_screen.dart';
+import '../../features/inventory/domain/inventory_models.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/pos/presentation/checkout_screen.dart';
@@ -76,7 +78,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
-
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
@@ -87,17 +88,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pos',
             builder: (context, state) => PosScreen(
-              initialTable: state.extra is PosTable
-                  ? state.extra as PosTable
-                  : null,
+              initialTable:
+                  state.extra is PosTable ? state.extra as PosTable : null,
             ),
           ),
           GoRoute(
             path: '/pos/checkout',
             builder: (context, state) => CheckoutScreen(
-              initialTable: state.extra is PosTable
-                  ? state.extra as PosTable
-                  : null,
+              initialTable:
+                  state.extra is PosTable ? state.extra as PosTable : null,
             ),
           ),
           GoRoute(
@@ -149,6 +148,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'add',
                 builder: (context, state) => const AddIngredientScreen(),
               ),
+              GoRoute(
+                path: 'history',
+                builder: (context, state) {
+                  final ingredient = state.extra as InventoryIngredient;
+                  return InventoryMovementHistoryScreen(
+                    ingredient: ingredient,
+                  );
+                },
+              ),
             ],
           ),
           GoRoute(
@@ -170,19 +178,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
