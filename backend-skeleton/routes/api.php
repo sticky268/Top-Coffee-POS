@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
+        Route::patch('/ingredients/{id}', [IngredientController::class, 'update'])->whereNumber('id');
         Route::get('/ingredients/{id}/movements', [IngredientController::class, 'movements'])->whereNumber('id');
         Route::post('/ingredients/{id}/movements', [IngredientController::class, 'recordMovement'])->whereNumber('id');
     });

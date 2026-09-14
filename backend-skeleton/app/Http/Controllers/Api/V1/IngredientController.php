@@ -86,6 +86,85 @@ class IngredientController extends Controller
         ], 201);
     }
 
+    public function update(Request $request, $id)
+    {
+        if (! $request->user()->can('inventory.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Forbidden',
+            ], 403);
+        }
+
+        $ingredient = Ingredient::query()
+            ->whereKey($id)
+            ->first();
+
+        if (! $ingredient) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ingredient not found.',
+            ], 404);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            $request->all(),
+            [
+                'name' => ['required', 'string', 'max:255'],
+                'unit_id' => ['required', 'integer', 'exists:units,id'],
+                'reorder_threshold' => ['nullable', 'numeric', 'min:0'],
+                'is_active' => ['nullable', 'boolean'],
+            ]
+        );
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $newUnitId = (int) $request->input('unit_id');
+
+        if ($newUnitId !== (int) $ingredient->unit_id) {
+            $hasMovements = $ingredient->movements()->exists();
+
+            $hasRecipeItems = \App\Models\RecipeItem::query()
+                ->where('ingredient_id', $ingredient->id)
+                ->exists();
+
+            if ($hasMovements || $hasRecipeItems) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The ingredient unit cannot be changed after it has been used in stock movements or recipes.',
+                ], 422);
+            }
+        }
+
+        $ingredient->update([
+            'unit_id' => $newUnitId,
+            'name' => $request->input('name'),
+            'reorder_threshold' => $request->input('reorder_threshold', 0),
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        $ingredient->refresh();
+        $ingredient->load('unit:id,name,abbreviation');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ingredient updated successfully.',
+            'data' => [
+                'id' => $ingredient->id,
+                'name' => $ingredient->name,
+                'unit' => $ingredient->unit,
+                'current_stock' => $ingredient->current_stock,
+                'reorder_threshold' => $ingredient->reorder_threshold,
+                'is_low_stock' => $ingredient->isLowStock(),
+                'is_active' => $ingredient->is_active,
+            ],
+        ]);
+    }
     public function movements(Request $request, $id)
     {
         if (! $request->user()->can('inventory.view')) {
