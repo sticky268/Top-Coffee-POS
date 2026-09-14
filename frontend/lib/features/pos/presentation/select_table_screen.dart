@@ -139,6 +139,36 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     }
   }
 
+  Future<void> _manageTable(PosTable table) async {
+    if (table.status == 'available') {
+      await _updateTableStatus(table, 'reserved');
+      return;
+    }
+
+    if (table.status == 'reserved') {
+      await _updateTableStatus(table, 'available');
+    }
+  }
+
+  Future<void> _updateTableStatus(PosTable table, String status) async {
+    try {
+      await ref.read(posRepositoryProvider).updateTable(
+            tableId: table.id,
+            status: status,
+          );
+
+      await _loadTables();
+    } catch (e) {
+      if (!mounted) return;
+
+      _showTableMessage(
+        title: 'Unable to Update Table',
+        message: 'Could not update ${table.name}. Please try again.',
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
   void _selectTable(PosTable table) {
     if (table.status == 'available') {
       context.go('/pos', extra: table);
@@ -343,25 +373,25 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
         }
 
         return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          gridDelegate: gridDelegate,
-          itemCount: _tables.length,
-          itemBuilder: (context, index) {
-            final table = _tables[index];
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            gridDelegate: gridDelegate,
+            itemCount: _tables.length,
+            itemBuilder: (context, index) {
+              final table = _tables[index];
 
-            if (!table.isActive) {
-              return const SizedBox.shrink();
-            }
+              if (!table.isActive) {
+                return const SizedBox.shrink();
+              }
 
-            return _SelectTableCard(
-              table: table,
-              statusLabel: _statusLabel(table.status),
-              statusColor: _statusColor(context, table.status),
-              enabled: true,
-              onTap: () => _selectTable(table),
-            );
-          },
-        );
+              return _SelectTableCard(
+                table: table,
+                statusLabel: _statusLabel(table.status),
+                statusColor: _statusColor(context, table.status),
+                enabled: true,
+                onTap: () => _selectTable(table),
+                onManage: () => _manageTable(table),
+              );
+            });
       },
     );
   }
@@ -374,6 +404,7 @@ class _SelectTableCard extends StatelessWidget {
     required this.statusColor,
     required this.enabled,
     required this.onTap,
+    required this.onManage,
   });
 
   final PosTable table;
@@ -381,6 +412,7 @@ class _SelectTableCard extends StatelessWidget {
   final Color statusColor;
   final bool enabled;
   final VoidCallback onTap;
+  final VoidCallback onManage;
 
   @override
   Widget build(BuildContext context) {
@@ -411,6 +443,24 @@ class _SelectTableCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              if (table.status == 'available' || table.status == 'reserved')
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PopupMenuButton<String>(
+                    onSelected: (_) => onManage(),
+                    itemBuilder: (context) => [
+                      PopupMenuItem<String>(
+                        value: 'toggle_reservation',
+                        child: Text(
+                          table.status == 'reserved'
+                              ? 'Unreserve Table'
+                              : 'Reserve Table',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 4),
               Container(
                 width: 56,
                 height: 56,
