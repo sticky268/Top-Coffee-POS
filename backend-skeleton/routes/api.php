@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\IngredientController;
 use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RestaurantTableController;
+use App\Http\Controllers\Api\V1\RecipeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -29,11 +30,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/products', [ProductController::class, 'index']);
         Route::post('/products', [ProductController::class, 'store']);
         Route::patch('/products/{product}', [ProductController::class, 'update']);
+        Route::get('/products/{product}/recipe', [RecipeController::class, 'show']);
+        Route::put('/products/{product}/recipe', [RecipeController::class, 'update']);
 
         Route::get('/tables', [RestaurantTableController::class, 'index']);
 
         Route::get('/expense-categories', [ExpenseCategoryController::class, 'index']);
-Route::get('/expenses', [ExpenseController::class, 'index']);
+        Route::get('/expenses', [ExpenseController::class, 'index']);
         Route::post('/expenses', [ExpenseController::class, 'store']);
         Route::get('/expenses/{id}', [ExpenseController::class, 'show'])->whereNumber('id');
         Route::patch('/expenses/{id}', [ExpenseController::class, 'update'])->whereNumber('id');
@@ -51,6 +54,6 @@ Route::get('/expenses', [ExpenseController::class, 'index']);
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
         Route::get('/ingredients/{id}/movements', [IngredientController::class, 'movements'])->whereNumber('id');
-Route::post('/ingredients/{id}/movements', [IngredientController::class, 'recordMovement'])->whereNumber('id');
+        Route::post('/ingredients/{id}/movements', [IngredientController::class, 'recordMovement'])->whereNumber('id');
     });
 });
