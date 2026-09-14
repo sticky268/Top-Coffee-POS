@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
@@ -18,9 +19,31 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
   String? _error;
   VoidCallback? _routerListener;
 
+// 0 = Auto, otherwise fixed column count.
+  int _tableColumns = 0;
+
+  Future<void> _loadTableLayoutPreference() async {
+    final preferences = await SharedPreferences.getInstance();
+    final savedColumns = preferences.getInt('pos_table_columns') ?? 0;
+
+    if (!mounted) return;
+
+    if ([0, 2, 3, 4, 5].contains(savedColumns)) {
+      setState(() {
+        _tableColumns = savedColumns;
+      });
+    }
+  }
+
+  Future<void> _saveTableLayoutPreference(int columns) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setInt('pos_table_columns', columns);
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadTableLayoutPreference();
     _loadTables();
   }
 
@@ -91,8 +114,6 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
       });
     }
   }
-
-
 
   String _statusLabel(String status) {
     switch (status) {
@@ -166,26 +187,53 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
   Widget _buildToolbar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Wrap(
-          spacing: 16,
-          runSpacing: 8,
-          children: [
-            _LegendItem(
-              color: _statusColor(context, 'available'),
-              label: 'Available',
-            ),
-            _LegendItem(
-              color: _statusColor(context, 'occupied'),
-              label: 'Occupied',
-            ),
-            _LegendItem(
-              color: _statusColor(context, 'reserved'),
-              label: 'Reserved',
-            ),
-          ],
-        ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _LegendItem(
+            color: Colors.green,
+            label: 'Available',
+          ),
+          _LegendItem(
+            color: Colors.orange,
+            label: 'Occupied',
+          ),
+          _LegendItem(
+            color: Colors.blue,
+            label: 'Reserved',
+          ),
+          const SizedBox(width: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Table Layout:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: _tableColumns,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Auto')),
+                  DropdownMenuItem(value: 2, child: Text('2 Columns')),
+                  DropdownMenuItem(value: 3, child: Text('3 Columns')),
+                  DropdownMenuItem(value: 4, child: Text('4 Columns')),
+                  DropdownMenuItem(value: 5, child: Text('5 Columns')),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _tableColumns = value;
+                  });
+                  _saveTableLayoutPreference(value);
+                },
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -227,16 +275,29 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const maxCardWidth = 190.0;
+        final SliverGridDelegate gridDelegate;
 
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        if (_tableColumns == 0) {
+          const maxCardWidth = 190.0;
+
+          gridDelegate = const SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: maxCardWidth,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
             childAspectRatio: 0.70,
-          ),
+          );
+        } else {
+          gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _tableColumns,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 0.70,
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          gridDelegate: gridDelegate,
           itemCount: _tables.length,
           itemBuilder: (context, index) {
             final table = _tables[index];
@@ -388,22 +449,3 @@ class _LegendItem extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
