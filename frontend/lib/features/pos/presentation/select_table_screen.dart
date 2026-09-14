@@ -147,7 +147,54 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
 
     if (table.status == 'occupied' && table.activeOrderId != null) {
       context.push('/pos/open-order/${table.activeOrderId}');
+      return;
     }
+
+    if (table.status == 'reserved') {
+      _showTableMessage(
+        title: 'Table Reserved',
+        message: '${table.name} is currently reserved.',
+        icon: Icons.event_seat,
+      );
+      return;
+    }
+
+    if (table.status == 'occupied' && table.activeOrderId == null) {
+      _showTableMessage(
+        title: 'Table Occupied',
+        message:
+            '${table.name} is marked as occupied, but there is no active order.',
+        icon: Icons.warning_amber_rounded,
+      );
+    }
+  }
+
+  void _showTableMessage({
+    required String title,
+    required String message,
+    required IconData icon,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 10),
+              Expanded(child: Text(title)),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -310,8 +357,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
               table: table,
               statusLabel: _statusLabel(table.status),
               statusColor: _statusColor(context, table.status),
-              enabled: table.status == 'available' ||
-                  (table.status == 'occupied' && table.activeOrderId != null),
+              enabled: true,
               onTap: () => _selectTable(table),
             );
           },
@@ -346,12 +392,20 @@ class _SelectTableCard extends StatelessWidget {
       _ => Colors.green.shade50,
     };
 
+    final actionLabel = switch (table.status) {
+      'available' => 'Start Order',
+      'occupied' when table.activeOrderId != null => 'Open Order',
+      'occupied' => 'No Active Order',
+      'reserved' => 'Reserved',
+      _ => statusLabel,
+    };
+
     return Card(
       color: cardBackgroundColor,
       clipBehavior: Clip.antiAlias,
       elevation: enabled ? 1 : 0,
       child: InkWell(
-        onTap: enabled ? onTap : null,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -412,6 +466,14 @@ class _SelectTableCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                actionLabel,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
               ),
             ],
           ),
