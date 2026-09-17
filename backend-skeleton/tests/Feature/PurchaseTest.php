@@ -22,6 +22,7 @@ class PurchaseTest extends TestCase
     {
         foreach ([
             'inventory.manage',
+            'inventory.view',
             'branches.view-all',
         ] as $permission) {
             Permission::firstOrCreate([
@@ -37,6 +38,7 @@ class PurchaseTest extends TestCase
 
         $manager->syncPermissions([
             'inventory.manage',
+            'inventory.view',
         ]);
 
         $admin = Role::firstOrCreate([
@@ -414,5 +416,160 @@ class PurchaseTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('success', false);
+    }
+
+    public function test_manager_can_list_purchase_history_with_supplier_and_items(): void
+    {
+        $branch = Branch::factory()->create();
+        $user = $this->makeUser($branch);
+        $supplier = $this->createSupplier($branch->id);
+        $ingredient = $this->createIngredient($branch);
+
+        $purchase = Purchase::create([
+            'branch_id' => $branch->id,
+            'supplier_id' => $supplier->id,
+            'created_by' => $user->id,
+            'total_cost' => 25.00,
+            'purchased_at' => '2026-09-17',
+        ]);
+
+        $purchase->items()->create([
+            'ingredient_id' => $ingredient->id,
+            'quantity' => 10,
+            'unit_cost' => 2.50,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/v1/purchases');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.id', $purchase->id)
+            ->assertJsonPath('data.0.branch_id', $branch->id)
+            ->assertJsonPath('data.0.supplier.id', $supplier->id)
+            ->assertJsonPath('data.0.supplier.name', $supplier->name)
+            ->assertJsonPath('data.0.items.0.ingredient.id', $ingredient->id)
+            ->assertJsonPath('data.0.items.0.ingredient.name', $ingredient->name)
+            ->assertJsonPath('data.0.items.0.quantity', '10.000')
+            ->assertJsonPath('data.0.items.0.unit_cost', '2.5000');
+
+        $response->assertJsonStructure([
+            'success',
+            'data',
+            'meta' => [
+                'current_page',
+                'last_page',
+                'per_page',
+                'total',
+            ],
+        ]);
+    }
+
+    public function test_purchase_history_defaults_to_users_primary_branch(): void
+    {
+        $branch = Branch::factory()->create();
+        $otherBranch = Branch::factory()->create();
+
+        $user = $this->makeUser($branch);
+        $supplier = $this->createSupplier($branch->id);
+        $otherSupplier = $this->createSupplier($otherBranch->id);
+
+        $branchPurchase = Purchase::create([
+            'branch_id' => $branch->id,
+            'supplier_id' => $supplier->id,
+            'created_by' => $user->id,
+            'total_cost' => 10,
+            'purchased_at' => '2026-09-17',
+        ]);
+
+        Purchase::create([
+            'branch_id' => $otherBranch->id,
+            'supplier_id' => $otherSupplier->id,
+            'created_by' => $user->id,
+            'total_cost' => 20,
+            'purchased_at' => '2026-09-18',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/v1/purchases');
+
+        $response->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $branchPurchase->id);
+    }
+
+    public function test_purchase_history_rejects_another_branch(): void
+    {
+        $branch = Branch::factory()->create();
+        $otherBranch = Branch::factory()->create();
+
+        $user = $this->makeUser($branch);
+        $supplier = $this->createSupplier($otherBranch->id);
+
+        Purchase::create([
+            'branch_id' => $otherBranch->id,
+            'supplier_id' => $supplier->id,
+            'created_by' => $user->id,
+            'total_cost' => 20,
+            'purchased_at' => '2026-09-17',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/v1/purchases?branch_id=' . $otherBranch->id);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_purchase_history_supports_pagination(): void
+    {
+        $branch = Branch::factory()->create();
+        $user = $this->makeUser($branch);
+        $supplier = $this->createSupplier($branch->id);
+
+        for ($i = 1; $i <= 3; $i++) {
+            Purchase::create([
+                'branch_id' => $branch->id,
+                'supplier_id' => $supplier->id,
+                'created_by' => $user->id,
+                'total_cost' => $i * 10,
+                'purchased_at' => '2026-09-' . str_pad((string) $i, 2, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/v1/purchases?per_page=2');
+
+        $response->assertOk()
+            ->assertJsonPath('meta.per_page', 2)
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_unauthenticated_purchase_history_request_is_rejected(): void
+    {
+        $response = $this->getJson('/api/v1/purchases');
+
+        $response->assertStatus(401);
+    }
+
+    public function test_user_without_inventory_view_permission_is_rejected(): void
+    {
+        $branch = Branch::factory()->create();
+
+        $this->seedPermissions();
+
+        $user = User::factory()->create();
+        $user->branches()->attach($branch->id, [
+            'is_primary' => true,
+        ]);
+
+        $user->removeRole('manager');
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/v1/purchases');
+
+        $response->assertStatus(403);
     }
 }

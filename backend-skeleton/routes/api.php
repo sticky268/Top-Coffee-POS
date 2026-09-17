@@ -63,6 +63,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/suppliers/{id}', [SupplierController::class, 'update'])->whereNumber('id');
         Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy'])->whereNumber('id');
 
+        Route::get('/purchases', [PurchaseController::class, 'index']);
         Route::post('/purchases', [PurchaseController::class, 'store']);
     });
 });

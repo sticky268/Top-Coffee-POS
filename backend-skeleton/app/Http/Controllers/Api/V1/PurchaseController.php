@@ -14,6 +14,81 @@ use Illuminate\Support\Facades\Validator;
 
 class PurchaseController extends Controller
 {
+    public function index(Request $request)
+    {
+        if (! $request->user()->can('inventory.view')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Forbidden',
+            ], 403);
+        }
+
+        $user = $request->user();
+
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+                'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            ]
+        );
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $branchId = $request->input('branch_id');
+
+        if ($branchId === null) {
+            $branchId = $user->branches()
+                ->orderBy('branches.id')
+                ->value('branches.id');
+        } else {
+            $canAccessBranch = $user->can('branches.view-all')
+                || $user->branches()->where('branches.id', $branchId)->exists();
+
+            if (! $canAccessBranch) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have access to this branch.',
+                ], 403);
+            }
+        }
+
+        if ($branchId === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No branch is available for this user.',
+            ], 422);
+        }
+
+        $perPage = (int) ($request->input('per_page') ?? 15);
+
+        $purchases = Purchase::query()
+            ->where('branch_id', $branchId)
+            ->with([
+                'supplier:id,branch_id,name,contact_name,phone,email',
+                'items.ingredient:id,branch_id,unit_id,name,current_stock',
+            ])
+            ->orderByDesc('purchased_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $purchases->items(),
+            'meta' => [
+                'current_page' => $purchases->currentPage(),
+                'last_page' => $purchases->lastPage(),
+                'per_page' => $purchases->perPage(),
+                'total' => $purchases->total(),
+            ],
+        ]);
+    }
     public function store(Request $request)
     {
         if (! $request->user()->can('inventory.manage')) {
