@@ -164,7 +164,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -186,7 +186,7 @@ class PurchaseTest extends TestCase
             'supplier_id' => $supplier->id,
             'created_by' => $user->id,
             'total_cost' => 25.00,
-            'purchased_at' => '2026-09-17',
+            'purchased_at' => '2026-09-17 00:00:00',
         ]);
 
         $this->assertDatabaseHas('purchase_items', [
@@ -221,7 +221,7 @@ class PurchaseTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/purchases', [
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -246,7 +246,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -272,7 +272,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $otherBranch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -300,7 +300,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -328,7 +328,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -355,7 +355,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'total_cost' => 999999,
                 'items' => [
                     [
@@ -385,7 +385,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [],
             ]);
 
@@ -404,7 +404,7 @@ class PurchaseTest extends TestCase
             ->postJson('/api/v1/purchases', [
                 'branch_id' => $branch->id,
                 'supplier_id' => $supplier->id,
-                'purchased_at' => '2026-09-17',
+                'purchased_at' => '2026-09-17 00:00:00',
                 'items' => [
                     [
                         'ingredient_id' => $ingredient->id,
@@ -430,7 +430,7 @@ class PurchaseTest extends TestCase
             'supplier_id' => $supplier->id,
             'created_by' => $user->id,
             'total_cost' => 25.00,
-            'purchased_at' => '2026-09-17',
+            'purchased_at' => '2026-09-17 00:00:00',
         ]);
 
         $purchase->items()->create([
@@ -479,7 +479,7 @@ class PurchaseTest extends TestCase
             'supplier_id' => $supplier->id,
             'created_by' => $user->id,
             'total_cost' => 10,
-            'purchased_at' => '2026-09-17',
+            'purchased_at' => '2026-09-17 00:00:00',
         ]);
 
         Purchase::create([
@@ -511,7 +511,7 @@ class PurchaseTest extends TestCase
             'supplier_id' => $supplier->id,
             'created_by' => $user->id,
             'total_cost' => 20,
-            'purchased_at' => '2026-09-17',
+            'purchased_at' => '2026-09-17 00:00:00',
         ]);
 
         $response = $this->actingAs($user)

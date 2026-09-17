@@ -136,10 +136,13 @@ class SupplierTest extends TestCase
             'name' => 'Branch Coffee Supplier',
         ]);
 
-        $response->assertJsonMissing([
-            'id' => $otherBranch->id,
-            'name' => 'Other Branch Supplier',
-        ]);
+        $this->assertFalse(
+            collect($response->json('data'))->contains(
+                fn (array $supplier) =>
+                    $supplier['id'] === $otherBranch->id
+                    && $supplier['name'] === 'Other Branch Supplier'
+            )
+        );
     }
 
     public function test_user_cannot_list_another_branch_without_access(): void
