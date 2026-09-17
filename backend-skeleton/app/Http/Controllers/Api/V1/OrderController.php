@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\SaleInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -183,6 +184,11 @@ class OrderController extends Controller
                 foreach ($resolvedItems as $item) {
                     OrderItem::create(array_merge($item, ['order_id' => $order->id]));
                 }
+
+                app(SaleInventoryService::class)->deductForOrder(
+                    $order,
+                    $user->id,
+                );
 
                 $changeDue = null;
                 if ($paymentMethod === 'cash' && $tendered !== null) {
@@ -698,6 +704,11 @@ class OrderController extends Controller
                     $tendered = null;
                     $changeDue = 0;
                 }
+
+                app(SaleInventoryService::class)->deductForOrder(
+                    $order,
+                    $user->id,
+                );
 
                 $payment = Payment::create([
                     'order_id' => $order->id,

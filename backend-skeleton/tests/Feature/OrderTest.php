@@ -4,11 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\Ingredient;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\RecipeItem;
+use App\Models\RestaurantTable;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -44,6 +48,50 @@ class OrderTest extends TestCase
         return $user;
     }
 
+    private function createUnit(): int
+    {
+        return DB::table('units')->insertGetId([
+            'name' => 'Gram',
+            'abbreviation' => 'g',
+            'base_unit_id' => null,
+            'conversion_factor' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createIngredient(
+        Branch $branch,
+        int $unitId,
+        string $name,
+        float $stock = 100,
+    ): Ingredient {
+        $ingredient = Ingredient::create([
+            'branch_id' => $branch->id,
+            'unit_id' => $unitId,
+            'name' => $name,
+            'reorder_threshold' => 10,
+            'is_active' => true,
+        ]);
+
+        $createdBy = User::query()
+            ->whereHas('branches', fn ($query) => $query->where('branches.id', $branch->id))
+            ->value('id');
+
+        if ($createdBy === null) {
+            throw new \RuntimeException('No test user is assigned to the ingredient branch.');
+        }
+
+        app(\App\Services\StockMovementService::class)->record(
+            $ingredient,
+            'purchase',
+            $stock,
+            $createdBy,
+            'Initial test stock',
+        );
+
+        return $ingredient->fresh();
+    }
     public function test_unauthenticated_request_is_rejected(): void
     {
         $this->postJson('/api/v1/orders', [])->assertStatus(401);
@@ -229,5 +277,544 @@ class OrderTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonValidationErrors(['table_id']);
     }
-}
+    public function test_held_dine_in_order_does_not_deduct_inventory(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
 
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $milk = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Milk',
+            1000,
+        );
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 18,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $milk->id,
+            'quantity_used' => 250,
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'held');
+
+        $this->assertSame(100.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(1000.0, (float) $milk->fresh()->current_stock);
+
+        $this->assertDatabaseMissing('stock_movements', [
+            'ingredient_id' => $coffee->id,
+            'type' => 'sale_deduction',
+        ]);
+
+        $this->assertDatabaseMissing('stock_movements', [
+            'ingredient_id' => $milk->id,
+            'type' => 'sale_deduction',
+        ]);
+
+        $this->assertSame(
+            'occupied',
+            $table->fresh()->status,
+        );
+    }
+    public function test_paid_held_dine_in_order_deducts_inventory(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $milk = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Milk',
+            1000,
+        );
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 18,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $milk->id,
+            'quantity_used' => 250,
+        ]);
+
+        $holdResponse = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $holdResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'held');
+
+        $orderId = $holdResponse->json('data.id');
+
+        $this->assertSame(100.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(1000.0, (float) $milk->fresh()->current_stock);
+
+        $paymentResponse = $this->actingAs($user)->postJson(
+            "/api/v1/orders/{$orderId}/pay",
+            [
+                'payment' => [
+                    'method' => 'cash',
+                    'tendered' => 5,
+                ],
+            ],
+        );
+
+        $paymentResponse
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.payment.status', 'completed');
+
+        $this->assertSame(82.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(750.0, (float) $milk->fresh()->current_stock);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $coffee->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -18,
+            'reason' => "Sale deduction for Order #{$orderId}",
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $milk->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -250,
+            'reason' => "Sale deduction for Order #{$orderId}",
+        ]);
+
+        $this->assertSame(
+            'available',
+            $table->fresh()->status,
+        );
+    }
+    public function test_paid_held_dine_in_order_rolls_back_when_inventory_is_insufficient(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $milk = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Milk',
+            100,
+        );
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 18,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $milk->id,
+            'quantity_used' => 250,
+        ]);
+
+        $holdResponse = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $holdResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'held');
+
+        $orderId = $holdResponse->json('data.id');
+
+        $paymentResponse = $this->actingAs($user)->postJson(
+            "/api/v1/orders/{$orderId}/pay",
+            [
+                'payment' => [
+                    'method' => 'cash',
+                    'tendered' => 5,
+                ],
+            ],
+        );
+
+        $paymentResponse
+            ->assertStatus(500)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'message',
+                'Could not complete the payment. Please try again.'
+            );
+
+        $this->assertSame(100.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(100.0, (float) $milk->fresh()->current_stock);
+
+        $this->assertSame(
+            'held',
+            Order::findOrFail($orderId)->status,
+        );
+
+        $this->assertSame(
+            'occupied',
+            $table->fresh()->status,
+        );
+
+        $this->assertDatabaseMissing('payments', [
+            'order_id' => $orderId,
+        ]);
+
+        $this->assertDatabaseMissing('stock_movements', [
+            'ingredient_id' => $coffee->id,
+            'type' => 'sale_deduction',
+        ]);
+
+        $this->assertDatabaseMissing('stock_movements', [
+            'ingredient_id' => $milk->id,
+            'type' => 'sale_deduction',
+        ]);
+    }
+    public function test_completed_sale_deducts_inventory_by_order_quantity(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $milk = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Milk',
+            1000,
+        );
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 18,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $milk->id,
+            'quantity_used' => 250,
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 2,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 10,
+            ],
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $orderId = $response->json('data.id');
+
+        $this->assertSame(64.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(500.0, (float) $milk->fresh()->current_stock);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $coffee->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -36,
+            'reason' => 'Sale deduction for Order #' . $orderId,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $milk->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -500,
+            'reason' => 'Sale deduction for Order #' . $orderId,
+        ]);
+    }
+    public function test_completed_sale_deducts_inventory_from_product_recipe(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $milk = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Milk',
+            1000,
+        );
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 18,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $milk->id,
+            'quantity_used' => 250,
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 5,
+            ],
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $orderId = $response->json('data.id');
+
+        $this->assertSame(82.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(750.0, (float) $milk->fresh()->current_stock);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $coffee->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -18,
+            'reason' => 'Sale deduction for Order #' . $orderId,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $milk->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -250,
+            'reason' => 'Sale deduction for Order #' . $orderId,
+        ]);
+    }
+}
