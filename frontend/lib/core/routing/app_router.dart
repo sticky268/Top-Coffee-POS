@@ -10,6 +10,7 @@ import '../../features/expenses/presentation/expenses_screen.dart';
 import '../../features/expenses/presentation/add_expense_screen.dart';
 import 'package:top_coffee_pos/features/inventory/presentation/inventory_screen.dart';
 import '../../features/inventory/presentation/add_ingredient_screen.dart';
+import '../../features/inventory/presentation/edit_ingredient_screen.dart';
 import '../../features/inventory/presentation/inventory_movement_history_screen.dart';
 import '../../features/inventory/domain/inventory_models.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
@@ -147,6 +148,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'add',
                 builder: (context, state) => const AddIngredientScreen(),
+              ),
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) {
+                  final ingredient = state.extra as InventoryIngredient;
+                  return EditIngredientScreen(
+                    ingredient: ingredient,
+                  );
+                },
               ),
               GoRoute(
                 path: 'history',

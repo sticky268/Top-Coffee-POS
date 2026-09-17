@@ -27,6 +27,14 @@ abstract class InventoryRepository {
     String? reason,
   });
 
+  Future<InventoryIngredient> updateIngredient({
+    required int ingredientId,
+    required String name,
+    required int unitId,
+    required double reorderThreshold,
+    required bool isActive,
+  });
+
   Future<List<InventoryStockMovement>> getStockMovements({
     required int ingredientId,
     String? type,
@@ -134,6 +142,31 @@ class ApiInventoryRepository implements InventoryRepository {
           ),
         )
         .toList();
+  }
+
+  @override
+  Future<InventoryIngredient> updateIngredient({
+    required int ingredientId,
+    required String name,
+    required int unitId,
+    required double reorderThreshold,
+    required bool isActive,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.patch(
+        '/ingredients/$ingredientId',
+        data: {
+          'name': name,
+          'unit_id': unitId,
+          'reorder_threshold': reorderThreshold,
+          'is_active': isActive,
+        },
+      ),
+    );
+
+    return InventoryIngredient.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
   }
 
   @override

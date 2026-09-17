@@ -15,6 +15,7 @@ import '../../auth/data/auth_repository.dart' show apiClientProvider;
 // duplication).
 import '../../pos/domain/pos_models.dart';
 import '../domain/managed_product_models.dart';
+import '../domain/recipe_models.dart';
 
 abstract class ProductsRepository {
   /// [branchId]: forwarded as the `branch_id` query param. When omitted,
@@ -67,6 +68,16 @@ abstract class ProductsRepository {
   /// backend's `sometimes` validation already treats an absent field as
   /// "don't touch it", so this is the correct minimal request for a
   /// single-flag toggle, not a shortcut.
+  Future<List<RecipeItem>> getRecipe({
+    required int productId,
+    int? branchId,
+  });
+
+  Future<List<RecipeItem>> updateRecipe({
+    required int productId,
+    required List<RecipeItem> items,
+    int? branchId,
+  });
   Future<void> setProductActive(int id, bool isActive);
 }
 
@@ -147,7 +158,6 @@ final response = await _apiClient.request(
     }
 
     final formData = FormData();
-    print('PRODUCT PAYLOAD: $payload');
 
     payload.forEach((key, value) {
       if (key == 'variants' && value is List) {
@@ -250,6 +260,58 @@ final response = await _apiClient.request(
     return ManagedProduct.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
+  @override
+  Future<List<RecipeItem>> getRecipe({
+    required int productId,
+    int? branchId,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.get(
+        '/products/$productId/recipe',
+        queryParameters: {
+          if (branchId != null) 'branch_id': branchId,
+        },
+      ),
+    );
+
+    final data = response.data['data'] as Map<String, dynamic>;
+    final items = data['items'] as List;
+
+    return items
+        .map(
+          (json) => RecipeItem.fromJson(
+            json as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+  @override
+  Future<List<RecipeItem>> updateRecipe({
+    required int productId,
+    required List<RecipeItem> items,
+    int? branchId,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.put(
+        '/products/$productId/recipe',
+        data: {
+          if (branchId != null) 'branch_id': branchId,
+          'items': items.map((item) => item.toJson()).toList(),
+        },
+      ),
+    );
+
+    final data = response.data['data'] as Map<String, dynamic>;
+    final updatedItems = data['items'] as List;
+
+    return updatedItems
+        .map(
+          (json) => RecipeItem.fromJson(
+            json as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
   @override
   Future<void> setProductActive(int id, bool isActive) async {
     await _apiClient.request(

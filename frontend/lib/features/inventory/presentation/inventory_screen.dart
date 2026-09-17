@@ -99,6 +99,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _IngredientCard(
                         ingredient: ingredient,
+                        onEdit: () => context.push(
+                          '/inventory/edit',
+                          extra: ingredient,
+                        ),
                         onStockAction: () => _showStockActionDialog(ingredient),
                         onHistory: () => context.push(
                           '/inventory/history',
@@ -340,11 +344,13 @@ class _InventoryHeader extends StatelessWidget {
 class _IngredientCard extends StatelessWidget {
   const _IngredientCard({
     required this.ingredient,
+    required this.onEdit,
     required this.onStockAction,
     required this.onHistory,
   });
 
   final InventoryIngredient ingredient;
+  final VoidCallback onEdit;
   final VoidCallback onStockAction;
   final VoidCallback onHistory;
   @override
@@ -422,6 +428,15 @@ class _IngredientCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    OutlinedButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                      ),
+                      label: const Text('Edit'),
+                    ),
+                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: onStockAction,
                       icon: const Icon(

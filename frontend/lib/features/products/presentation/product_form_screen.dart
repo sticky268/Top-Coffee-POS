@@ -11,6 +11,7 @@ import '../application/product_form_controller.dart';
 import '../application/product_form_state.dart';
 import '../application/products_controller.dart';
 import '../domain/managed_product_models.dart';
+import 'recipe_editor_screen.dart';
 import 'widgets/variant_editor_dialog.dart';
 import '../../../core/branch/current_branch_provider.dart';
 
@@ -369,6 +370,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     ],
                   ),
                 ),
+              if (_isEditing) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: isSaving
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => RecipeEditorScreen(
+                                product: widget.args.initialProduct!,
+                              ),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.restaurant_menu_outlined),
+                  label: const Text('Manage Recipe'),
+                ),
+              ],
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: isSaving ? null : _submit,
