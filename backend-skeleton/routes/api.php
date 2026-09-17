@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RestaurantTableController;
 use App\Http\Controllers\Api\V1\RecipeController;
+use App\Http\Controllers\Api\V1\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -56,5 +57,9 @@ Route::prefix('v1')->group(function () {
         Route::patch('/ingredients/{id}', [IngredientController::class, 'update'])->whereNumber('id');
         Route::get('/ingredients/{id}/movements', [IngredientController::class, 'movements'])->whereNumber('id');
         Route::post('/ingredients/{id}/movements', [IngredientController::class, 'recordMovement'])->whereNumber('id');
+        Route::get('/suppliers', [SupplierController::class, 'index']);
+        Route::post('/suppliers', [SupplierController::class, 'store']);
+        Route::patch('/suppliers/{id}', [SupplierController::class, 'update'])->whereNumber('id');
+        Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy'])->whereNumber('id');
     });
 });
