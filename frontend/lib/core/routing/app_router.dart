@@ -27,6 +27,7 @@ import '../../features/products/presentation/category_management_screen.dart';
 import '../../features/products/presentation/product_form_screen.dart';
 import '../../features/products/presentation/products_screen.dart';
 import '../../features/purchasing/presentation/purchase_history_screen.dart';
+import '../../features/purchasing/presentation/purchase_creation_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
@@ -173,6 +174,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/purchases',
             builder: (context, state) => const PurchaseHistoryScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (context, state) => const PurchaseCreationScreen(),
+              ),
+            ],
           ),
           GoRoute(
             path: '/reports',

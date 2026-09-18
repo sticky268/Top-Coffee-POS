@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../application/purchase_history_controller.dart';
 import '../domain/purchase_models.dart';
@@ -52,6 +53,19 @@ class _PurchaseHistoryScreenState
       appBar: AppBar(
         title: const Text('Purchase History'),
         actions: [
+          IconButton(
+            tooltip: 'New Purchase',
+            onPressed: () async {
+              final created = await context.push<bool>('/purchases/new');
+
+              if (created == true && mounted) {
+                ref
+                    .read(purchaseHistoryControllerProvider.notifier)
+                    .refresh();
+              }
+            },
+            icon: const Icon(Icons.add_shopping_cart_outlined),
+          ),
           IconButton(
             tooltip: 'Refresh',
             onPressed: purchaseState.isLoading
