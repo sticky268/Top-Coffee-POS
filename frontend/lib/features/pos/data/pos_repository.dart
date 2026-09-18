@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../auth/data/auth_repository.dart' show apiClientProvider;
@@ -57,6 +57,7 @@ abstract class PosRepository {
     required int orderId,
     required String paymentMethod,
     double? tendered,
+    List<Map<String, dynamic>>? splitPayments,
     int? branchId,
   });
 
@@ -66,6 +67,7 @@ abstract class PosRepository {
     required String orderType,
     int? tableId,
     double? tendered,
+    List<Map<String, dynamic>>? splitPayments,
     double discountTotal = 0,
     int? branchId,
   });
@@ -269,6 +271,7 @@ class ApiPosRepository implements PosRepository {
     required int orderId,
     required String paymentMethod,
     double? tendered,
+    List<Map<String, dynamic>>? splitPayments,
     int? branchId,
   }) async {
     final response = await _apiClient.request(
@@ -279,6 +282,8 @@ class ApiPosRepository implements PosRepository {
           'payment': {
             'method': paymentMethod,
             if (tendered != null) 'tendered': tendered,
+            if (paymentMethod == 'split' && splitPayments != null)
+              'payments': splitPayments,
           },
         },
       ),
@@ -296,6 +301,7 @@ class ApiPosRepository implements PosRepository {
     required String orderType,
     int? tableId,
     double? tendered,
+    List<Map<String, dynamic>>? splitPayments,
     double discountTotal = 0,
     int? branchId,
   }) async {
@@ -319,6 +325,8 @@ class ApiPosRepository implements PosRepository {
           'payment': {
             'method': paymentMethod,
             if (tendered != null) 'tendered': tendered,
+            if (paymentMethod == 'split' && splitPayments != null)
+              'payments': splitPayments,
           },
         },
       ),
