@@ -1,4 +1,4 @@
-﻿/// Domain models for the POS catalog + cart. Framework-agnostic (no
+/// Domain models for the POS catalog + cart. Framework-agnostic (no
 /// Flutter imports) â€” same convention as features/auth/domain and
 /// features/dashboard/domain.
 library;
@@ -168,6 +168,39 @@ class CartItem {
 /// Result of a successful POST /api/v1/orders â€” enough to show a
 /// confirmation (order id, resolved total, change due for cash) without
 /// needing a full order-detail fetch, which is out of scope for this task.
+class PaymentConfirmation {
+  const PaymentConfirmation({
+    required this.id,
+    required this.method,
+    required this.amount,
+    this.tendered,
+    this.changeDue,
+    required this.status,
+  });
+
+  final int id;
+  final String method;
+  final double amount;
+  final double? tendered;
+  final double? changeDue;
+  final String status;
+
+  factory PaymentConfirmation.fromJson(Map<String, dynamic> json) {
+    return PaymentConfirmation(
+      id: json['id'] as int,
+      method: json['method'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      tendered: json['tendered'] != null
+          ? (json['tendered'] as num).toDouble()
+          : null,
+      changeDue: json['change_due'] != null
+          ? (json['change_due'] as num).toDouble()
+          : null,
+      status: json['status'] as String,
+    );
+  }
+}
+
 class OrderConfirmation {
   const OrderConfirmation({
     required this.orderId,
@@ -175,6 +208,7 @@ class OrderConfirmation {
     required this.paymentMethod,
     this.tendered,
     this.changeDue,
+    this.payments = const [],
   });
 
   final int orderId;
@@ -182,11 +216,17 @@ class OrderConfirmation {
   final String paymentMethod;
   final double? tendered;
   final double? changeDue;
+  final List<PaymentConfirmation> payments;
 
   factory OrderConfirmation.fromJson(Map<String, dynamic> json) {
     final payment = json['payment'] is Map<String, dynamic>
         ? json['payment'] as Map<String, dynamic>
         : null;
+
+    final paymentsJson = json['payments'] is List
+        ? json['payments'] as List
+        : const [];
+
     return OrderConfirmation(
       orderId: json['id'] as int,
       total: (json['total'] as num).toDouble(),
@@ -197,16 +237,13 @@ class OrderConfirmation {
       changeDue: payment?['change_due'] != null
           ? (payment!['change_due'] as num).toDouble()
           : null,
+      payments: paymentsJson
+          .whereType<Map<String, dynamic>>()
+          .map(PaymentConfirmation.fromJson)
+          .toList(),
     );
   }
 }
-
-
-
-
-
-
-
 class OpenOrderItem {
   const OpenOrderItem({
     required this.id,
@@ -276,4 +313,3 @@ class OpenOrder {
     );
   }
 }
-
