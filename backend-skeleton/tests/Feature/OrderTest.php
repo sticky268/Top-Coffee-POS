@@ -193,6 +193,113 @@ class OrderTest extends TestCase
         $response->assertJsonPath('data.payment.change_due', null);
     }
 
+    public function test_split_payment_creates_multiple_payment_records(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 10.00,
+        ]);
+
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 1],
+            ],
+            'payment' => [
+                'method' => 'split',
+                'payments' => [
+                    [
+                        'method' => 'cash',
+                        'amount' => 4.00,
+                        'tendered' => 5.00,
+                    ],
+                    [
+                        'method' => 'qr',
+                        'amount' => 6.00,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.payment.method', 'split');
+
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 2);
+
+        $order = Order::first();
+
+        $this->assertEquals('completed', $order->status);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $order->id,
+            'method' => 'cash',
+            'amount' => 4.00,
+            'tendered' => 5.00,
+            'change_due' => 1.00,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $order->id,
+            'method' => 'qr',
+            'amount' => 6.00,
+            'tendered' => null,
+            'change_due' => null,
+            'status' => 'completed',
+        ]);
+    }
+
+    public function test_split_payment_must_equal_order_total(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 10.00,
+        ]);
+
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 1],
+            ],
+            'payment' => [
+                'method' => 'split',
+                'payments' => [
+                    [
+                        'method' => 'cash',
+                        'amount' => 4.00,
+                        'tendered' => 5.00,
+                    ],
+                    [
+                        'method' => 'qr',
+                        'amount' => 5.00,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('order_items', 0);
+        $this->assertDatabaseCount('payments', 0);
+    }
     public function test_an_unavailable_product_rejects_the_whole_order_and_creates_nothing(): void
     {
         $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
@@ -493,6 +600,123 @@ class OrderTest extends TestCase
             'type' => 'sale_deduction',
             'quantity' => -250,
             'reason' => "Sale deduction for Order #{$orderId}",
+        ]);
+
+        $this->assertSame(
+            'available',
+            $table->fresh()->status,
+        );
+    }
+    public function test_held_dine_in_order_supports_split_payment(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 10.00,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $holdResponse = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $holdResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'held');
+
+        $orderId = $holdResponse->json('data.id');
+
+        $paymentResponse = $this->actingAs($user)->postJson(
+            "/api/v1/orders/{$orderId}/pay",
+            [
+                'payment' => [
+                    'method' => 'split',
+                    'payments' => [
+                        [
+                            'method' => 'cash',
+                            'amount' => 4.00,
+                            'tendered' => 5.00,
+                        ],
+                        [
+                            'method' => 'qr',
+                            'amount' => 6.00,
+                        ],
+                    ],
+                ],
+            ],
+        );
+
+        $paymentResponse
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.payment.method', 'split')
+            ->assertJsonPath('data.payment.amount', 10)
+            ->assertJsonPath('data.payment.tendered', null)
+            ->assertJsonPath('data.payment.change_due', null)
+            ->assertJsonCount(2, 'data.payments');
+
+        $payments = $paymentResponse->json('data.payments');
+
+        $this->assertSame('cash', $payments[0]['method']);
+        $this->assertSame(4.0, (float) $payments[0]['amount']);
+        $this->assertSame(5.0, (float) $payments[0]['tendered']);
+        $this->assertSame(1.0, (float) $payments[0]['change_due']);
+
+        $this->assertSame('qr', $payments[1]['method']);
+        $this->assertSame(6.0, (float) $payments[1]['amount']);
+        $this->assertNull($payments[1]['tendered']);
+        $this->assertNull($payments[1]['change_due']);
+
+        $this->assertDatabaseCount('payments', 2);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $orderId,
+            'method' => 'cash',
+            'amount' => 4.00,
+            'tendered' => 5.00,
+            'change_due' => 1.00,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $orderId,
+            'method' => 'qr',
+            'amount' => 6.00,
+            'tendered' => null,
+            'change_due' => null,
+            'status' => 'completed',
         ]);
 
         $this->assertSame(
@@ -816,5 +1040,80 @@ class OrderTest extends TestCase
             'quantity' => -250,
             'reason' => 'Sale deduction for Order #' . $orderId,
         ]);
+    }
+
+    public function test_order_listing_can_filter_split_payments(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        Permission::firstOrCreate([
+            'name' => 'orders.view',
+            'guard_name' => 'web',
+        ]);
+
+        $user->givePermissionTo('orders.view');
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 10,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $createResponse = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'split',
+                'payments' => [
+                    [
+                        'method' => 'cash',
+                        'amount' => 4,
+                        'tendered' => 5,
+                    ],
+                    [
+                        'method' => 'qr',
+                        'amount' => 6,
+                    ],
+                ],
+            ],
+        ]);
+
+        $createResponse
+            ->assertStatus(201)
+            ->assertJsonPath('data.payment.method', 'split');
+
+        $orderId = $createResponse->json('data.id');
+
+        $response = $this->actingAs($user)->getJson(
+            '/api/v1/orders?payment_method=split'
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $orders = $response->json('data');
+
+        $this->assertCount(1, $orders);
+        $this->assertSame($orderId, $orders[0]['id']);
     }
 }

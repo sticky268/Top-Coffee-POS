@@ -87,8 +87,12 @@ class OrderController extends Controller
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
-            'payment.method' => 'required|in:cash,card,qr',
+            'payment.method' => 'required|in:cash,card,qr,split',
             'payment.tendered' => 'nullable|numeric|min:0',
+            'payment.payments' => 'required_if:payment.method,split|array|min:2',
+            'payment.payments.*.method' => 'required|in:cash,card,qr',
+            'payment.payments.*.amount' => 'required|numeric|gt:0',
+            'payment.payments.*.tendered' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -190,21 +194,15 @@ class OrderController extends Controller
                     $user->id,
                 );
 
-                $changeDue = null;
-                if ($paymentMethod === 'cash' && $tendered !== null) {
-                    $changeDue = round((float) $tendered - $total, 2);
-                }
+                $splitPayments = $request->input('payment.payments');
 
-                Payment::create([
-                    'order_id' => $order->id,
-                    'method' => $paymentMethod,
-                    'amount' => $total,
-                    'tendered' => $paymentMethod === 'cash' ? $tendered : null,
-                    'change_due' => $changeDue,
-                    'status' => 'completed',
-                    'processed_by' => $user->id,
-                ]);
-
+                $this->createPayments(
+                    $order,
+                    $paymentMethod,
+                    $tendered !== null ? (float) $tendered : null,
+                    $splitPayments,
+                    $user->id,
+                );
                 return $order->load(['items', 'payments']);
             });
         } catch (HttpException $e) {
@@ -219,7 +217,9 @@ class OrderController extends Controller
             ], 500);
         }
 
-        $payment = $order->payments->first();
+        $payments = $order->payments->values();
+        $payment = $payments->first();
+        $isSplit = $payments->count() > 1;
 
         return response()->json([
             'success' => true,
@@ -232,11 +232,27 @@ class OrderController extends Controller
                 'discount_total' => (float) $order->discount_total,
                 'total' => (float) $order->total,
                 'payment' => [
+                    'method' => $isSplit ? 'split' : $payment->method,
+                    'amount' => (float) $order->total,
+                    'tendered' => $isSplit || $payment->tendered === null
+                        ? null
+                        : (float) $payment->tendered,
+                    'change_due' => $isSplit || $payment->change_due === null
+                        ? null
+                        : (float) $payment->change_due,
+                ],
+                'payments' => $payments->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
                     'method' => $payment->method,
                     'amount' => (float) $payment->amount,
-                    'tendered' => $payment->tendered !== null ? (float) $payment->tendered : null,
-                    'change_due' => $payment->change_due !== null ? (float) $payment->change_due : null,
-                ],
+                    'tendered' => $payment->tendered !== null
+                        ? (float) $payment->tendered
+                        : null,
+                    'change_due' => $payment->change_due !== null
+                        ? (float) $payment->change_due
+                        : null,
+                    'status' => $payment->status,
+                ])->values()->all(),
             ],
         ], 201);
     }
@@ -634,8 +650,12 @@ class OrderController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'payment.method' => 'required|in:cash,card,qr',
+            'payment.method' => 'required|in:cash,card,qr,split',
             'payment.tendered' => 'nullable|numeric|min:0',
+            'payment.payments' => 'required_if:payment.method,split|array|min:2',
+            'payment.payments.*.method' => 'required|in:cash,card,qr',
+            'payment.payments.*.amount' => 'required|numeric|gt:0',
+            'payment.payments.*.tendered' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -684,42 +704,21 @@ class OrderController extends Controller
                     abort(422, 'The order table could not be found.');
                 }
 
-                $total = round((float) $order->total, 2);
-                $tendered = $tenderedInput !== null
-                    ? round((float) $tenderedInput, 2)
-                    : null;
-
-                if ($paymentMethod === 'cash') {
-                    // If no cash amount is entered, treat it as exact payment.
-                    if ($tendered === null) {
-                        $tendered = $total;
-                    }
-
-                    if ($tendered < $total) {
-                        abort(422, 'Cash tendered is less than the order total.');
-                    }
-
-                    $changeDue = round($tendered - $total, 2);
-                } else {
-                    $tendered = null;
-                    $changeDue = 0;
-                }
+                $splitPayments = $request->input('payment.payments');
 
                 app(SaleInventoryService::class)->deductForOrder(
                     $order,
                     $user->id,
                 );
 
-                $payment = Payment::create([
-                    'order_id' => $order->id,
-                    'method' => $paymentMethod,
-                    'amount' => $total,
-                    'tendered' => $tendered,
-                    'change_due' => $changeDue,
-                    'status' => 'completed',
-                    'processed_by' => $user->id,
-                ]);
-
+                $payments = $this->createPayments(
+                    $order,
+                    $paymentMethod,
+                    $tenderedInput !== null ? (float) $tenderedInput : null,
+                    $splitPayments,
+                    $user->id,
+                    true,
+                );
                 $order->update([
                     'status' => 'completed',
                     'completed_at' => now(),
@@ -731,7 +730,7 @@ class OrderController extends Controller
 
                 return [
                     'order' => $order->fresh(),
-                    'payment' => $payment,
+                    'payments' => $payments,
                 ];
             });
         } catch (HttpException $e) {
@@ -747,7 +746,9 @@ class OrderController extends Controller
         }
 
         $order = $result['order'];
-        $payment = $result['payment'];
+        $payments = collect($result['payments'])->values();
+        $payment = $payments->first();
+        $isSplit = $payments->count() > 1;
 
         return response()->json([
             'success' => true,
@@ -762,17 +763,129 @@ class OrderController extends Controller
                 'total' => (float) $order->total,
                 'completed_at' => $order->completed_at?->toIso8601String(),
                 'payment' => [
+                    'id' => $isSplit ? null : $payment->id,
+                    'method' => $isSplit ? 'split' : $payment->method,
+                    'amount' => (float) $order->total,
+                    'tendered' => $isSplit || $payment->tendered === null
+                        ? null
+                        : (float) $payment->tendered,
+                    'change_due' => $isSplit || $payment->change_due === null
+                        ? null
+                        : (float) $payment->change_due,
+                    'status' => $isSplit ? 'completed' : $payment->status,
+                ],
+                'payments' => $payments->map(fn (Payment $payment) => [
                     'id' => $payment->id,
                     'method' => $payment->method,
                     'amount' => (float) $payment->amount,
                     'tendered' => $payment->tendered !== null
                         ? (float) $payment->tendered
                         : null,
-                    'change_due' => (float) $payment->change_due,
+                    'change_due' => $payment->change_due !== null
+                        ? (float) $payment->change_due
+                        : null,
                     'status' => $payment->status,
-                ],
+                ])->values()->all(),
             ],
         ]);
+    }
+    private function createPayments(
+        Order $order,
+        string $paymentMethod,
+        ?float $tendered,
+        ?array $splitPayments,
+        int $processedBy,
+        bool $heldPayment = false,
+    ): array {
+        $total = round((float) $order->total, 2);
+
+        if ($paymentMethod !== 'split') {
+            $changeDue = null;
+
+            if ($paymentMethod === 'cash') {
+                if ($heldPayment && $tendered === null) {
+                    $tendered = $total;
+                }
+
+                if ($tendered !== null) {
+                    $tendered = round($tendered, 2);
+                    $changeDue = round($tendered - $total, 2);
+
+                    if ($heldPayment && $tendered < $total) {
+                        abort(422, 'Cash tendered is less than the order total.');
+                    }
+                }
+            } else {
+                $tendered = null;
+                $changeDue = $heldPayment ? 0 : null;
+            }
+
+            return [
+                Payment::create([
+                    'order_id' => $order->id,
+                    'method' => $paymentMethod,
+                    'amount' => $total,
+                    'tendered' => $paymentMethod === 'cash' ? $tendered : null,
+                    'change_due' => $changeDue,
+                    'status' => 'completed',
+                    'processed_by' => $processedBy,
+                ]),
+            ];
+        }
+
+        $payments = $splitPayments ?? [];
+
+        if (count($payments) < 2) {
+            abort(422, 'A split payment must contain at least two payment methods.');
+        }
+
+        $splitTotal = round(
+            collect($payments)->sum(
+                fn (array $payment) => (float) $payment['amount']
+            ),
+            2
+        );
+
+        if (abs($splitTotal - $total) > 0.001) {
+            abort(422, 'Split payment amounts must equal the order total.');
+        }
+
+        $createdPayments = [];
+
+        foreach ($payments as $paymentInput) {
+            $method = $paymentInput['method'];
+            $amount = round((float) $paymentInput['amount'], 2);
+            $portionTendered = $paymentInput['tendered'] ?? null;
+            $changeDue = null;
+
+            if ($method === 'cash') {
+                if ($portionTendered === null) {
+                    abort(422, 'Cash split payment requires a tendered amount.');
+                }
+
+                $portionTendered = round((float) $portionTendered, 2);
+
+                if ($portionTendered < $amount) {
+                    abort(422, 'Cash tendered is less than the split payment amount.');
+                }
+
+                $changeDue = round($portionTendered - $amount, 2);
+            } else {
+                $portionTendered = null;
+            }
+
+            $createdPayments[] = Payment::create([
+                'order_id' => $order->id,
+                'method' => $method,
+                'amount' => $amount,
+                'tendered' => $portionTendered,
+                'change_due' => $changeDue,
+                'status' => 'completed',
+                'processed_by' => $processedBy,
+            ]);
+        }
+
+        return $createdPayments;
     }
     public function index(Request $request)
     {
@@ -844,9 +957,17 @@ class OrderController extends Controller
                 $query->where('status', $request->query('status'));
             })
             ->when($request->filled('payment_method'), function ($query) use ($request) {
-                $query->whereHas('payments', function ($paymentQuery) use ($request) {
-                    $paymentQuery->where('method', $request->query('payment_method'));
-                });
+                $paymentMethod = $request->query('payment_method');
+
+                if ($paymentMethod === 'split') {
+                    $query->whereHas('payments', function ($paymentQuery) {
+                        $paymentQuery->where('status', 'completed');
+                    })->has('payments', '>=', 2);
+                } else {
+                    $query->whereHas('payments', function ($paymentQuery) use ($paymentMethod) {
+                        $paymentQuery->where('method', $paymentMethod);
+                    });
+                }
             })
             ->orderByDesc('created_at')
             ->paginate($perPage);
