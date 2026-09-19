@@ -194,6 +194,11 @@ class _DashboardContent extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         onTap: () => context.push('/reports'),
       ),
+      QuickAction(
+        label: 'Receipt Settings',
+        icon: Icons.receipt_long_outlined,
+        onTap: () => context.push('/settings/receipt'),
+      ),
     ];
 
     return Column(

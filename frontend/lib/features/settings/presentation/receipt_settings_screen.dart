@@ -1,0 +1,1057 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class ReceiptSettingsScreen extends StatefulWidget {
+  const ReceiptSettingsScreen({super.key});
+
+  @override
+  State<ReceiptSettingsScreen> createState() => _ReceiptSettingsScreenState();
+}
+
+class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadLogo();
+    _loadSettings();
+  }
+
+  bool showLogo = true;
+  String logoPosition = 'Center';
+  String logoSize = 'Medium';
+  Uint8List? logoBytes;
+
+  String fontStyle = 'Default';
+  String bodyFontSize = 'Medium';
+  String businessFontSize = 'Large';
+  String footerFontSize = 'Medium';
+  bool boldBusinessName = true;
+  bool boldTotal = true;
+  bool boldFooter = true;
+
+  bool showOrderNumber = true;
+  bool showDateTime = true;
+  bool showCashier = true;
+  bool showTable = true;
+  bool showOrderType = true;
+
+  bool showItemName = true;
+  bool showQuantity = true;
+  bool showUnitPrice = true;
+  bool showLineTotal = true;
+
+  bool showPaymentMethod = true;
+  bool showTendered = true;
+  bool showChange = true;
+  bool showSplitPayments = true;
+
+  final TextEditingController businessNameController =
+      TextEditingController(text: 'TOP COFFEE');
+
+  final TextEditingController branchNameController =
+      TextEditingController(text: 'Phnom Penh Branch');
+
+  final TextEditingController footerController =
+      TextEditingController(text: 'Thank you for visiting Top Coffee!');
+
+  @override
+  void dispose() {
+    businessNameController.dispose();
+    branchNameController.dispose();
+    footerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Receipt Settings'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 900;
+
+          if (isWide) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _buildSettingsPanel(),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: _buildPreviewPanel(),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildSettingsPanel(),
+              const SizedBox(height: 24),
+              _buildPreviewPanel(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSettingsPanel() {
+    return ListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _buildSection(
+          title: 'Business Information',
+          icon: Icons.store_outlined,
+          children: [
+            TextField(
+              controller: businessNameController,
+              decoration: const InputDecoration(
+                labelText: 'Business name',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: branchNameController,
+              decoration: const InputDecoration(
+                labelText: 'Branch name',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSection(
+          title: 'Logo',
+          icon: Icons.image_outlined,
+          children: [
+            _buildSwitch(
+              'Show logo',
+              showLogo,
+              (value) => setState(() => showLogo = value),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: logoPosition,
+              decoration: const InputDecoration(
+                labelText: 'Logo position',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Left',
+                  child: Text('Left'),
+                ),
+                DropdownMenuItem(
+                  value: 'Center',
+                  child: Text('Center'),
+                ),
+                DropdownMenuItem(
+                  value: 'Right',
+                  child: Text('Right'),
+                ),
+              ],
+              onChanged: showLogo
+                  ? (value) {
+                      if (value != null) {
+                        setState(() => logoPosition = value);
+                      }
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: logoSize,
+              decoration: const InputDecoration(
+                labelText: 'Logo size',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Small',
+                  child: Text('Small'),
+                ),
+                DropdownMenuItem(
+                  value: 'Medium',
+                  child: Text('Medium'),
+                ),
+                DropdownMenuItem(
+                  value: 'Large',
+                  child: Text('Large'),
+                ),
+              ],
+              onChanged: showLogo
+                  ? (value) {
+                      if (value != null) {
+                        setState(() => logoSize = value);
+                      }
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: showLogo ? _pickLogo : null,
+              icon: const Icon(Icons.upload_outlined),
+              label: Text(
+                logoBytes == null ? 'Upload Logo' : 'Change Logo',
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+            if (logoBytes != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _removeLogo,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Remove Logo'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSection(
+          title: 'Font Settings',
+          icon: Icons.text_fields_outlined,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: fontStyle,
+              decoration: const InputDecoration(
+                labelText: 'Font style',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Default',
+                  child: Text('Default'),
+                ),
+                DropdownMenuItem(
+                  value: 'Sans Serif',
+                  child: Text('Sans Serif'),
+                ),
+                DropdownMenuItem(
+                  value: 'Serif',
+                  child: Text('Serif'),
+                ),
+                DropdownMenuItem(
+                  value: 'Monospace',
+                  child: Text('Monospace'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => fontStyle = value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: businessFontSize,
+              decoration: const InputDecoration(
+                labelText: 'Business name size',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Small',
+                  child: Text('Small'),
+                ),
+                DropdownMenuItem(
+                  value: 'Medium',
+                  child: Text('Medium'),
+                ),
+                DropdownMenuItem(
+                  value: 'Large',
+                  child: Text('Large'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => businessFontSize = value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: bodyFontSize,
+              decoration: const InputDecoration(
+                labelText: 'Body font size',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Small',
+                  child: Text('Small'),
+                ),
+                DropdownMenuItem(
+                  value: 'Medium',
+                  child: Text('Medium'),
+                ),
+                DropdownMenuItem(
+                  value: 'Large',
+                  child: Text('Large'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => bodyFontSize = value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: footerFontSize,
+              decoration: const InputDecoration(
+                labelText: 'Footer font size',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Small',
+                  child: Text('Small'),
+                ),
+                DropdownMenuItem(
+                  value: 'Medium',
+                  child: Text('Medium'),
+                ),
+                DropdownMenuItem(
+                  value: 'Large',
+                  child: Text('Large'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => footerFontSize = value);
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            _buildSwitch(
+              'Bold business name',
+              boldBusinessName,
+              (value) => setState(() => boldBusinessName = value),
+            ),
+            _buildSwitch(
+              'Bold total',
+              boldTotal,
+              (value) => setState(() => boldTotal = value),
+            ),
+            _buildSwitch(
+              'Bold footer',
+              boldFooter,
+              (value) => setState(() => boldFooter = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSection(
+          title: 'Receipt Information',
+          icon: Icons.receipt_long_outlined,
+          children: [
+            _buildSwitch(
+              'Order number',
+              showOrderNumber,
+              (value) => setState(() => showOrderNumber = value),
+            ),
+            _buildSwitch(
+              'Date & time',
+              showDateTime,
+              (value) => setState(() => showDateTime = value),
+            ),
+            _buildSwitch(
+              'Cashier',
+              showCashier,
+              (value) => setState(() => showCashier = value),
+            ),
+            _buildSwitch(
+              'Table',
+              showTable,
+              (value) => setState(() => showTable = value),
+            ),
+            _buildSwitch(
+              'Order type',
+              showOrderType,
+              (value) => setState(() => showOrderType = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSection(
+          title: 'Item Display',
+          icon: Icons.shopping_bag_outlined,
+          children: [
+            _buildSwitch(
+              'Item name',
+              showItemName,
+              (value) => setState(() => showItemName = value),
+            ),
+            _buildSwitch(
+              'Quantity',
+              showQuantity,
+              (value) => setState(() => showQuantity = value),
+            ),
+            _buildSwitch(
+              'Unit price',
+              showUnitPrice,
+              (value) => setState(() => showUnitPrice = value),
+            ),
+            _buildSwitch(
+              'Line total',
+              showLineTotal,
+              (value) => setState(() => showLineTotal = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSection(
+          title: 'Payment',
+          icon: Icons.payments_outlined,
+          children: [
+            _buildSwitch(
+              'Payment method',
+              showPaymentMethod,
+              (value) => setState(() => showPaymentMethod = value),
+            ),
+            _buildSwitch(
+              'Tendered',
+              showTendered,
+              (value) => setState(() => showTendered = value),
+            ),
+            _buildSwitch(
+              'Change',
+              showChange,
+              (value) => setState(() => showChange = value),
+            ),
+            _buildSwitch(
+              'Split-payment breakdown',
+              showSplitPayments,
+              (value) => setState(() => showSplitPayments = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSection(
+          title: 'Footer',
+          icon: Icons.short_text_outlined,
+          children: [
+            TextField(
+              controller: footerController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Footer message',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: () async {
+              await _saveSettings();
+
+              if (!mounted) {
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Receipt settings saved.'),
+                ),
+              );
+            },
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Save Settings'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewPanel() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.visibility_outlined),
+                const SizedBox(width: 8),
+                Text(
+                  'Live Preview',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildReceiptPreview(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+    );
+
+    if (image == null) {
+      return;
+    }
+
+    final bytes = await image.readAsBytes();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      logoBytes = bytes;
+    });
+
+    await _saveLogo(bytes);
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      businessNameController.text =
+          prefs.getString('receipt_business_name') ?? 'TOP COFFEE';
+
+      branchNameController.text =
+          prefs.getString('receipt_branch_name') ?? 'Phnom Penh Branch';
+
+      logoPosition =
+          prefs.getString('receipt_logo_position') ?? 'Center';
+
+      logoSize =
+          prefs.getString('receipt_logo_size') ?? 'Medium';
+
+      fontStyle =
+          prefs.getString('receipt_font_style') ?? 'Default';
+
+      bodyFontSize =
+          prefs.getString('receipt_body_font_size') ?? 'Medium';
+
+      businessFontSize =
+          prefs.getString('receipt_business_font_size') ?? 'Large';
+
+      footerFontSize =
+          prefs.getString('receipt_footer_font_size') ?? 'Medium';
+
+      boldBusinessName =
+          prefs.getBool('receipt_bold_business_name') ?? true;
+
+      boldTotal =
+          prefs.getBool('receipt_bold_total') ?? true;
+
+      boldFooter =
+          prefs.getBool('receipt_bold_footer') ?? true;
+
+      showOrderNumber =
+          prefs.getBool('receipt_show_order_number') ?? true;
+
+      showDateTime =
+          prefs.getBool('receipt_show_date_time') ?? true;
+
+      showCashier =
+          prefs.getBool('receipt_show_cashier') ?? true;
+
+      showTable =
+          prefs.getBool('receipt_show_table') ?? true;
+
+      showOrderType =
+          prefs.getBool('receipt_show_order_type') ?? true;
+
+      showItemName =
+          prefs.getBool('receipt_show_item_name') ?? true;
+
+      showQuantity =
+          prefs.getBool('receipt_show_quantity') ?? true;
+
+      showUnitPrice =
+          prefs.getBool('receipt_show_unit_price') ?? true;
+
+      showLineTotal =
+          prefs.getBool('receipt_show_line_total') ?? true;
+
+      showPaymentMethod =
+          prefs.getBool('receipt_show_payment_method') ?? true;
+
+      showTendered =
+          prefs.getBool('receipt_show_tendered') ?? true;
+
+      showChange =
+          prefs.getBool('receipt_show_change') ?? true;
+
+      showSplitPayments =
+          prefs.getBool('receipt_show_split_payments') ?? true;
+
+      footerController.text =
+          prefs.getString('receipt_footer') ??
+              'Thank you for visiting Top Coffee!';
+    });
+  }
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      'receipt_business_name',
+      businessNameController.text,
+    );
+    await prefs.setString(
+      'receipt_branch_name',
+      branchNameController.text,
+    );
+    await prefs.setString(
+      'receipt_logo_position',
+      logoPosition,
+    );
+    await prefs.setString(
+      'receipt_logo_size',
+      logoSize,
+    );
+    await prefs.setString(
+      'receipt_font_style',
+      fontStyle,
+    );
+    await prefs.setString(
+      'receipt_body_font_size',
+      bodyFontSize,
+    );
+    await prefs.setString(
+      'receipt_business_font_size',
+      businessFontSize,
+    );
+    await prefs.setString(
+      'receipt_footer_font_size',
+      footerFontSize,
+    );
+
+    await prefs.setBool(
+      'receipt_bold_business_name',
+      boldBusinessName,
+    );
+    await prefs.setBool(
+      'receipt_bold_total',
+      boldTotal,
+    );
+    await prefs.setBool(
+      'receipt_bold_footer',
+      boldFooter,
+    );
+
+    await prefs.setBool(
+      'receipt_show_order_number',
+      showOrderNumber,
+    );
+    await prefs.setBool(
+      'receipt_show_date_time',
+      showDateTime,
+    );
+    await prefs.setBool(
+      'receipt_show_cashier',
+      showCashier,
+    );
+    await prefs.setBool(
+      'receipt_show_table',
+      showTable,
+    );
+    await prefs.setBool(
+      'receipt_show_order_type',
+      showOrderType,
+    );
+
+    await prefs.setBool(
+      'receipt_show_item_name',
+      showItemName,
+    );
+    await prefs.setBool(
+      'receipt_show_quantity',
+      showQuantity,
+    );
+    await prefs.setBool(
+      'receipt_show_unit_price',
+      showUnitPrice,
+    );
+    await prefs.setBool(
+      'receipt_show_line_total',
+      showLineTotal,
+    );
+
+    await prefs.setBool(
+      'receipt_show_payment_method',
+      showPaymentMethod,
+    );
+    await prefs.setBool(
+      'receipt_show_tendered',
+      showTendered,
+    );
+    await prefs.setBool(
+      'receipt_show_change',
+      showChange,
+    );
+    await prefs.setBool(
+      'receipt_show_split_payments',
+      showSplitPayments,
+    );
+
+    await prefs.setString(
+      'receipt_footer',
+      footerController.text,
+    );
+  }
+  Future<void> _saveLogo(Uint8List bytes) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/receipt_logo.png');
+
+    await file.writeAsBytes(bytes);
+  }
+
+  Future<void> _loadLogo() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/receipt_logo.png');
+
+    if (!await file.exists()) {
+      return;
+    }
+
+    final bytes = await file.readAsBytes();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      logoBytes = bytes;
+    });
+  }
+
+  Future<void> _removeLogo() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/receipt_logo.png');
+
+    if (await file.exists()) {
+      await file.delete();
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      logoBytes = null;
+    });
+  }
+
+  TextStyle _receiptFontStyle({
+    double? fontSize,
+    FontWeight? fontWeight,
+  }) {
+    String? family;
+
+    switch (fontStyle) {
+      case 'Sans Serif':
+        family = 'sans-serif';
+        break;
+      case 'Serif':
+        family = 'serif';
+        break;
+      case 'Monospace':
+        family = 'monospace';
+        break;
+      default:
+        family = null;
+    }
+
+    return TextStyle(
+      fontFamily: family,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: Colors.black,
+    );
+  }
+
+  double _bodyFontSize() {
+    switch (bodyFontSize) {
+      case 'Small':
+        return 12;
+      case 'Large':
+        return 16;
+      default:
+        return 14;
+    }
+  }
+
+  double _businessFontSize() {
+    switch (businessFontSize) {
+      case 'Small':
+        return 16;
+      case 'Large':
+        return 22;
+      default:
+        return 18;
+    }
+  }
+
+  double _footerFontSize() {
+    switch (footerFontSize) {
+      case 'Small':
+        return 11;
+      case 'Large':
+        return 15;
+      default:
+        return 13;
+    }
+  }
+
+  Widget _buildPreviewItem({
+    required String name,
+    required String quantity,
+    required String price,
+    required String amount,
+    bool header = false,
+  }) {
+    final textStyle = header
+        ? const TextStyle(fontWeight: FontWeight.w600)
+        : null;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            header ? name : (showItemName ? name : ''),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
+        SizedBox(
+          width: 48,
+          child: Text(
+            header ? quantity : (showQuantity ? quantity : ''),
+            textAlign: TextAlign.center,
+            style: textStyle,
+          ),
+        ),
+        SizedBox(
+          width: 68,
+          child: Text(
+            header ? price : (showUnitPrice ? price : ''),
+            textAlign: TextAlign.right,
+            style: textStyle,
+          ),
+        ),
+        SizedBox(
+          width: 76,
+          child: Text(
+            header ? amount : (showLineTotal ? amount : ''),
+            textAlign: TextAlign.right,
+            style: textStyle ??
+                const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReceiptPreview() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Colors.grey.shade100,
+      child: DefaultTextStyle(
+        style: _receiptFontStyle(
+          fontSize: _bodyFontSize(),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showLogo)
+              Align(
+                alignment: logoPosition == 'Left'
+                    ? Alignment.centerLeft
+                    : logoPosition == 'Right'
+                        ? Alignment.centerRight
+                        : Alignment.center,
+                child: logoBytes != null
+                    ? Image.memory(
+                        logoBytes!,
+                        width: logoSize == 'Small'
+                            ? 48
+                            : logoSize == 'Large'
+                                ? 120
+                                : 80,
+                        height: logoSize == 'Small'
+                            ? 32
+                            : logoSize == 'Large'
+                                ? 80
+                                : 56,
+                        fit: BoxFit.contain,
+                      )
+                    : Icon(
+                        Icons.local_cafe,
+                        size: logoSize == 'Small'
+                            ? 32
+                            : logoSize == 'Large'
+                                ? 64
+                                : 48,
+                      ),
+              ),
+            if (showLogo) const SizedBox(height: 8),
+            Text(
+              businessNameController.text.isEmpty
+                  ? 'TOP COFFEE'
+                  : businessNameController.text,
+              textAlign: TextAlign.center,
+              style: _receiptFontStyle(
+                fontSize: _businessFontSize(),
+                fontWeight: boldBusinessName
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+            Text(
+              branchNameController.text,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            if (showOrderNumber) const Text('Order #: 1025'),
+            if (showDateTime) const Text('Date: 19/09/2026 10:35 AM'),
+            if (showCashier) const Text('Cashier: Admin'),
+            if (showTable) const Text('Table: T3'),
+            if (showOrderType) const Text('Type: Dine-in'),
+            const Divider(),
+            _buildPreviewItem(
+              name: 'ITEM',
+              quantity: 'QTY',
+              price: 'PRICE',
+              amount: 'AMOUNT',
+              header: true,
+            ),
+            const Divider(height: 16),
+            _buildPreviewItem(
+              name: 'Americano',
+              quantity: '2',
+              price: '\$2.00',
+              amount: '\$4.00',
+            ),
+            const SizedBox(height: 6),
+            _buildPreviewItem(
+              name: 'Iced Latte',
+              quantity: '1',
+              price: '\$3.50',
+              amount: '\$3.50',
+            ),
+            const Divider(),
+            const Text('Subtotal:                 \$7.50'),
+            const Text('Discount:                 \$0.50'),
+            Text(
+              'TOTAL:                    \$7.00',
+              style: _receiptFontStyle(
+                fontWeight: boldTotal
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+            const Divider(),
+            if (showPaymentMethod) const Text('Payment: CASH'),
+            if (showTendered) const Text('Tendered:                \$10.00'),
+            if (showChange) const Text('Change:                   \$3.00'),
+            if (showSplitPayments)
+              const SizedBox(height: 4),
+            if (showSplitPayments)
+              const Text('Split payments: hidden when not applicable'),
+            const SizedBox(height: 12),
+            Text(
+              footerController.text,
+              textAlign: TextAlign.center,
+              style: _receiptFontStyle(
+                fontSize: _footerFontSize(),
+                fontWeight: boldFooter
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitch(
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title),
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+}
