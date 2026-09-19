@@ -7,6 +7,8 @@ import '../application/cart_controller.dart';
 import '../application/cart_state.dart';
 import '../application/checkout_controller.dart';
 import '../application/checkout_state.dart';
+import '../../../core/printer/printer_service.dart';
+import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
 
 /// Order review + payment screen, reached via the cart's "Review Order" /
@@ -920,10 +922,19 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-class _CheckoutSuccessView extends StatelessWidget {
+class _CheckoutSuccessView extends ConsumerStatefulWidget {
   const _CheckoutSuccessView({required this.confirmation});
 
   final OrderConfirmation confirmation;
+
+  @override
+  ConsumerState<_CheckoutSuccessView> createState() =>
+      _CheckoutSuccessViewState();
+}
+
+class _CheckoutSuccessViewState
+    extends ConsumerState<_CheckoutSuccessView> {
+  bool _isPrinting = false;
 
   String _paymentLabel(String method) {
     switch (method) {
@@ -940,11 +951,66 @@ class _CheckoutSuccessView extends StatelessWidget {
     }
   }
 
+  Future<void> _printReceipt() async {
+    if (_isPrinting) {
+      return;
+    }
+
+    setState(() {
+      _isPrinting = true;
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+    final printerService = PrinterService();
+
+    try {
+      final receipt = await ref.read(posRepositoryProvider).getOrderReceipt(
+        orderId: widget.confirmation.orderId,
+      );
+
+      await printerService.connect('192.168.1.111');
+      await printerService.printReceipt(receipt);
+      await printerService.disconnect();
+
+      if (!mounted) {
+        return;
+      }
+
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Receipt printed successfully.'),
+        ),
+      );
+    } catch (e) {
+      try {
+        await printerService.disconnect();
+      } catch (_) {
+        // Ignore disconnect errors after a failed print.
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Failed to print receipt: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPrinting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
-    final payments = confirmation.payments;
+    final payments = widget.confirmation.payments;
 
     return SafeArea(
       child: Center(
@@ -986,7 +1052,7 @@ class _CheckoutSuccessView extends StatelessWidget {
                 const SizedBox(height: 6),
 
                 Text(
-                  'Order #${confirmation.orderId}',
+                  'Order #${widget.confirmation.orderId}',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -1017,7 +1083,7 @@ class _CheckoutSuccessView extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        currency.format(confirmation.total),
+                        currency.format(widget.confirmation.total),
                         style: theme.textTheme.displaySmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -1126,14 +1192,14 @@ class _CheckoutSuccessView extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                _paymentLabel(confirmation.paymentMethod),
+                                _paymentLabel(widget.confirmation.paymentMethod),
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                             Text(
-                              currency.format(confirmation.total),
+                              currency.format(widget.confirmation.total),
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1141,7 +1207,7 @@ class _CheckoutSuccessView extends StatelessWidget {
                           ],
                         ),
 
-                        if (confirmation.tendered != null) ...[
+                        if (widget.confirmation.tendered != null) ...[
                           const SizedBox(height: 10),
                           Row(
                             children: [
@@ -1154,15 +1220,15 @@ class _CheckoutSuccessView extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                currency.format(confirmation.tendered),
+                                currency.format(widget.confirmation.tendered),
                                 style: theme.textTheme.bodyMedium,
                               ),
                             ],
                           ),
                         ],
 
-                        if (confirmation.changeDue != null &&
-                            confirmation.changeDue! > 0) ...[
+                        if (widget.confirmation.changeDue != null &&
+                            widget.confirmation.changeDue! > 0) ...[
                           const SizedBox(height: 6),
                           Row(
                             children: [
@@ -1175,7 +1241,7 @@ class _CheckoutSuccessView extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                currency.format(confirmation.changeDue),
+                                currency.format(widget.confirmation.changeDue),
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -1191,15 +1257,19 @@ class _CheckoutSuccessView extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Receipt printing will be available soon.'),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.print_outlined),
-                  label: const Text('Print Receipt'),
+                  onPressed: _isPrinting ? null : _printReceipt,
+                  icon: _isPrinting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.print_outlined),
+                  label: Text(
+                    _isPrinting ? 'Printing...' : 'Print Receipt',
+                  ),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(

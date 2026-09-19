@@ -23,7 +23,6 @@ import '../../features/pos/presentation/select_table_screen.dart';
 import '../../features/pos/presentation/open_order_screen.dart';
 
 import '../../features/pos/presentation/table_management_screen.dart';
-import '../../core/printer/printer_test_screen.dart';
 import '../../features/products/presentation/category_management_screen.dart';
 import '../../features/products/presentation/product_form_screen.dart';
 import '../../features/products/presentation/products_screen.dart';
@@ -143,10 +142,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/tables',
             builder: (context, state) => const TableManagementScreen(),
-          ),
-          GoRoute(
-            path: '/printer-test',
-            builder: (context, state) => const PrinterTestScreen(),
           ),
           GoRoute(
             path: '/inventory',

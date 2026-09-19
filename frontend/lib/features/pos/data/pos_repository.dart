@@ -61,6 +61,10 @@ abstract class PosRepository {
     int? branchId,
   });
 
+  Future<OrderReceipt> getOrderReceipt({
+    required int orderId,
+  });
+
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
     required String paymentMethod,
@@ -290,6 +294,21 @@ class ApiPosRepository implements PosRepository {
     );
 
     return OrderConfirmation.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+
+
+  @override
+  Future<OrderReceipt> getOrderReceipt({
+    required int orderId,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.get('/orders/$orderId'),
+    );
+
+    return OrderReceipt.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
   }

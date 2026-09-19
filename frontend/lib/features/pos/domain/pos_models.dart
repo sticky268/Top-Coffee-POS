@@ -244,6 +244,104 @@ class OrderConfirmation {
     );
   }
 }
+class OrderReceipt {
+  const OrderReceipt({
+    required this.orderId,
+    required this.uuid,
+    required this.orderType,
+    required this.status,
+    required this.subtotal,
+    required this.discountTotal,
+    required this.total,
+    this.branchName,
+    this.branchCode,
+    this.cashierName,
+    this.tableName,
+    required this.items,
+    this.payment,
+    this.payments = const [],
+    this.createdAt,
+  });
+
+  final int orderId;
+  final String uuid;
+  final String orderType;
+  final String status;
+  final double subtotal;
+  final double discountTotal;
+  final double total;
+  final String? branchName;
+  final String? branchCode;
+  final String? cashierName;
+  final String? tableName;
+  final List<OpenOrderItem> items;
+  final PaymentConfirmation? payment;
+  final List<PaymentConfirmation> payments;
+  final DateTime? createdAt;
+
+  factory OrderReceipt.fromJson(Map<String, dynamic> json) {
+    final branch = json['branch'] is Map<String, dynamic>
+        ? json['branch'] as Map<String, dynamic>
+        : null;
+
+    final cashier = json['cashier'] is Map<String, dynamic>
+        ? json['cashier'] as Map<String, dynamic>
+        : null;
+
+    final table = json['table'] is Map<String, dynamic>
+        ? json['table'] as Map<String, dynamic>
+        : null;
+
+    final paymentJson = json['payment'] is Map<String, dynamic>
+        ? json['payment'] as Map<String, dynamic>
+        : null;
+
+    final paymentsJson = json['payments'] is List
+        ? json['payments'] as List
+        : const [];
+
+    final itemsJson = json['items'] is List
+        ? json['items'] as List
+        : const [];
+
+    return OrderReceipt(
+      orderId: json['id'] as int,
+      uuid: json['uuid'] as String,
+      orderType: json['order_type'] as String,
+      status: json['status'] as String,
+      subtotal: (json['subtotal'] as num).toDouble(),
+      discountTotal: (json['discount_total'] as num).toDouble(),
+      total: (json['total'] as num).toDouble(),
+      branchName: branch?['name'] as String?,
+      branchCode: branch?['code'] as String?,
+      cashierName: cashier?['name'] as String?,
+      tableName: table?['name'] as String?,
+      items: itemsJson
+          .whereType<Map<String, dynamic>>()
+          .map(OpenOrderItem.fromJson)
+          .toList(),
+      payment: paymentJson != null
+          ? PaymentConfirmation.fromJson({
+              'id': 0,
+              'method': paymentJson['method'],
+              'amount': paymentJson['amount'],
+              'tendered': paymentJson['tendered'],
+              'change_due': paymentJson['change_due'],
+              'status': paymentJson['status'],
+            })
+          : null,
+       payments: paymentsJson
+           .whereType<Map<String, dynamic>>()
+           .map(
+             (payment) => PaymentConfirmation.fromJson(payment),
+           )
+           .toList(),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
+    );
+  }
+}
 class OpenOrderItem {
   const OpenOrderItem({
     required this.id,

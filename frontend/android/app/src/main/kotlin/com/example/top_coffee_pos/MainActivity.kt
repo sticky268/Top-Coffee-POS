@@ -121,6 +121,132 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "printReceipt" -> {
+                    try {
+                        val currentPrinter = printer
+
+                        if (currentPrinter == null) {
+                            result.error(
+                                "NOT_CONNECTED",
+                                "Printer is not connected.",
+                                null,
+                            )
+                            return@setMethodCallHandler
+                        }
+
+                        val orderNumber =
+                            call.argument<String>("orderNumber") ?: "N/A"
+                        val branchName =
+                            call.argument<String>("branchName") ?: "TOP COFFEE"
+                        val cashierName =
+                            call.argument<String>("cashierName") ?: ""
+                        val tableName =
+                            call.argument<String>("tableName") ?: ""
+                        val orderType =
+                            call.argument<String>("orderType") ?: ""
+                        val subtotal =
+                            call.argument<String>("subtotal") ?: "0.00"
+                        val discount =
+                            call.argument<String>("discount") ?: "0.00"
+                        val total =
+                            call.argument<String>("total") ?: "0.00"
+                        val paymentMethod =
+                            call.argument<String>("paymentMethod") ?: ""
+                        val tendered =
+                            call.argument<String>("tendered")
+                        val changeDue =
+                            call.argument<String>("changeDue")
+
+                        val items =
+                            call.argument<List<*>>("items") ?: emptyList<Any?>()
+
+                        currentPrinter.initializePrinter()
+
+                        currentPrinter
+                            .printText(
+                                "$branchName\n",
+                                POSConst.ALIGNMENT_CENTER,
+                                POSConst.FNT_BOLD,
+                                POSConst.TXT_2WIDTH,
+                            )
+                            .printString(
+                                "Order #$orderNumber\n",
+                            )
+
+                        if (orderType.isNotBlank()) {
+                            currentPrinter.printString(
+                                "$orderType\n",
+                            )
+                        }
+
+                        if (tableName.isNotBlank()) {
+                            currentPrinter.printString(
+                                "Table: $tableName\n",
+                            )
+                        }
+
+                        if (cashierName.isNotBlank()) {
+                            currentPrinter.printString(
+                                "Cashier: $cashierName\n",
+                            )
+                        }
+
+                        currentPrinter.printString(
+                            "--------------------------------\n",
+                        )
+
+                        for (rawItem in items) {
+                            val item = rawItem as? Map<*, *> ?: continue
+
+                            val name =
+                                item["name"]?.toString() ?: "Item"
+                            val quantity =
+                                item["quantity"]?.toString() ?: "1"
+                            val lineTotal =
+                                item["lineTotal"]?.toString() ?: "0.00"
+
+                            currentPrinter.printString(
+                                "$quantity x $name    $lineTotal\n",
+                            )
+                        }
+
+                        currentPrinter.printString(
+                            "--------------------------------\n" +
+                                "Subtotal:        $subtotal\n" +
+                                "Discount:        $discount\n" +
+                                "TOTAL:           $total\n" +
+                                "\n" +
+                                "Payment:         $paymentMethod\n",
+                        )
+
+                        if (tendered != null) {
+                            currentPrinter.printString(
+                                "Tendered:        $tendered\n",
+                            )
+                        }
+
+                        if (changeDue != null) {
+                            currentPrinter.printString(
+                                "Change:          $changeDue\n",
+                            )
+                        }
+
+                        currentPrinter
+                            .printString(
+                                "\nThank you for visiting Top Coffee!\n",
+                            )
+                            .feedLine(3)
+                            .cutHalfAndFeed(1)
+
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error(
+                            "PRINT_ERROR",
+                            e.message,
+                            null,
+                        )
+                    }
+                }
                 "disconnect" -> {
                     printer = null
                     printerConnection?.close()

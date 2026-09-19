@@ -1069,6 +1069,14 @@ class OrderController extends Controller
                     'tendered' => $payment->tendered !== null ? (float) $payment->tendered : null,
                     'change_due' => $payment->change_due !== null ? (float) $payment->change_due : null,
                 ] : null,
+                'payments' => $order->payments->map(fn ($payment) => [
+                    'id' => $payment->id,
+                    'method' => $payment->method,
+                    'status' => $payment->status,
+                    'amount' => (float) $payment->amount,
+                    'tendered' => $payment->tendered !== null ? (float) $payment->tendered : null,
+                    'change_due' => $payment->change_due !== null ? (float) $payment->change_due : null,
+                ])->values(),
                 'created_at' => $order->created_at?->toIso8601String(),
             ],
         ]);
