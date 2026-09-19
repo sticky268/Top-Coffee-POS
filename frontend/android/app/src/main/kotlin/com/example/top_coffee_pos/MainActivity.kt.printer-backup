@@ -3,8 +3,7 @@ package com.example.top_coffee_pos
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import net.posprinter.IDeviceConnection
-import net.posprinter.POSConnect
+import com.posprinter.printdemo.App
 import net.posprinter.POSConst
 import net.posprinter.POSPrinter
 
@@ -14,13 +13,10 @@ class MainActivity : FlutterActivity() {
         private const val PRINTER_CHANNEL = "top_coffee_pos/printer"
     }
 
-    private var printerConnection: IDeviceConnection? = null
     private var printer: POSPrinter? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        POSConnect.init(applicationContext)
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -41,31 +37,8 @@ class MainActivity : FlutterActivity() {
                     }
 
                     try {
-                        printerConnection?.close()
-
-                        val connection =
-                            POSConnect.createDevice(
-                                POSConnect.DEVICE_TYPE_ETHERNET,
-                            )
-
-                        val connected = connection.connectSync(
-                            ipAddress,
-                            null as net.posprinter.IConnectListener?,
-                        )
-
-                        if (!connected || !connection.isConnect()) {
-                            connection.close()
-
-                            result.error(
-                                "CONNECT_ERROR",
-                                "Could not connect to printer at $ipAddress.",
-                                null,
-                            )
-                            return@setMethodCallHandler
-                        }
-
-                        printerConnection = connection
-                        printer = POSPrinter(connection)
+                        App.get().connectNet(ipAddress)
+                        printer = POSPrinter(App.get().curConnect)
 
                         result.success(true)
                     } catch (e: Exception) {
@@ -116,26 +89,10 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
-                "disconnect" -> {
-                    printer = null
-                    printerConnection?.close()
-                    printerConnection = null
-                    result.success(true)
-                }
-
                 else -> {
                     result.notImplemented()
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        printer = null
-        printerConnection?.close()
-        printerConnection = null
-        POSConnect.exit()
-
-        super.onDestroy()
     }
 }
