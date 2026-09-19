@@ -29,55 +29,60 @@ class MainActivity : FlutterActivity() {
 
             when (call.method) {
                 "connect" -> {
-                    val ipAddress = call.argument<String>("ip")
+    val ipAddress = call.argument<String>("ip")
 
-                    if (ipAddress.isNullOrBlank()) {
-                        result.error(
-                            "INVALID_IP",
-                            "Printer IP address is required.",
-                            null,
-                        )
-                        return@setMethodCallHandler
-                    }
+    if (ipAddress.isNullOrBlank()) {
+        result.error(
+            "INVALID_IP",
+            "Printer IP address is required.",
+            null,
+        )
+        return@setMethodCallHandler
+    }
 
-                    try {
-                        printerConnection?.close()
+    try {
+        printerConnection?.close()
+        printer = null
 
-                        val connection =
-                            POSConnect.createDevice(
-                                POSConnect.DEVICE_TYPE_ETHERNET,
-                            )
+        val connection = POSConnect.createDevice(
+            POSConnect.DEVICE_TYPE_ETHERNET,
+        )
 
-                        val connected = connection.connectSync(
-                            ipAddress,
-                            null as net.posprinter.IConnectListener?,
-                        )
-
-                        if (!connected || !connection.isConnect()) {
-                            connection.close()
-
-                            result.error(
-                                "CONNECT_ERROR",
-                                "Could not connect to printer at $ipAddress.",
-                                null,
-                            )
-                            return@setMethodCallHandler
-                        }
-
+        connection.connect(
+            ipAddress,
+            object : net.posprinter.IConnectListener {
+                override fun onStatus(
+                    code: Int,
+                    connectInfo: String,
+                    message: String,
+                ) {
+                    if (code == POSConnect.CONNECT_SUCCESS) {
                         printerConnection = connection
                         printer = POSPrinter(connection)
 
                         result.success(true)
-                    } catch (e: Exception) {
+                    } else {
+                        connection.close()
+
                         result.error(
                             "CONNECT_ERROR",
-                            e.message,
-                            null,
+                            "Could not connect to printer at $ipAddress.",
+                            "$code: $message",
                         )
                     }
                 }
+            },
+        )
+    } catch (e: Exception) {
+        result.error(
+            "CONNECT_ERROR",
+            e.message,
+            null,
+        )
+    }
+}
 
-                "printTest" -> {
+"printTest" -> {
                     try {
                         val currentPrinter = printer
 

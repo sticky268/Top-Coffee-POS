@@ -194,6 +194,11 @@ class _DashboardContent extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         onTap: () => context.push('/reports'),
       ),
+      QuickAction(
+        label: 'Printer Test',
+        icon: Icons.print_outlined,
+        onTap: () => context.push('/printer-test'),
+      ),
     ];
 
     return Column(
