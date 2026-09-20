@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../data/receipt_settings.dart';
 
 class ReceiptSettingsScreen extends StatefulWidget {
   const ReceiptSettingsScreen({super.key});
@@ -541,198 +542,71 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final settings = await ReceiptSettings.load();
 
     if (!mounted) {
       return;
     }
 
     setState(() {
-      businessNameController.text =
-          prefs.getString('receipt_business_name') ?? 'TOP COFFEE';
-
-      branchNameController.text =
-          prefs.getString('receipt_branch_name') ?? 'Phnom Penh Branch';
-
-      logoPosition =
-          prefs.getString('receipt_logo_position') ?? 'Center';
-
-      logoSize =
-          prefs.getString('receipt_logo_size') ?? 'Medium';
-
-      fontStyle =
-          prefs.getString('receipt_font_style') ?? 'Default';
-
-      bodyFontSize =
-          prefs.getString('receipt_body_font_size') ?? 'Medium';
-
-      businessFontSize =
-          prefs.getString('receipt_business_font_size') ?? 'Large';
-
-      footerFontSize =
-          prefs.getString('receipt_footer_font_size') ?? 'Medium';
-
-      boldBusinessName =
-          prefs.getBool('receipt_bold_business_name') ?? true;
-
-      boldTotal =
-          prefs.getBool('receipt_bold_total') ?? true;
-
-      boldFooter =
-          prefs.getBool('receipt_bold_footer') ?? true;
-
-      showOrderNumber =
-          prefs.getBool('receipt_show_order_number') ?? true;
-
-      showDateTime =
-          prefs.getBool('receipt_show_date_time') ?? true;
-
-      showCashier =
-          prefs.getBool('receipt_show_cashier') ?? true;
-
-      showTable =
-          prefs.getBool('receipt_show_table') ?? true;
-
-      showOrderType =
-          prefs.getBool('receipt_show_order_type') ?? true;
-
-      showItemName =
-          prefs.getBool('receipt_show_item_name') ?? true;
-
-      showQuantity =
-          prefs.getBool('receipt_show_quantity') ?? true;
-
-      showUnitPrice =
-          prefs.getBool('receipt_show_unit_price') ?? true;
-
-      showLineTotal =
-          prefs.getBool('receipt_show_line_total') ?? true;
-
-      showPaymentMethod =
-          prefs.getBool('receipt_show_payment_method') ?? true;
-
-      showTendered =
-          prefs.getBool('receipt_show_tendered') ?? true;
-
-      showChange =
-          prefs.getBool('receipt_show_change') ?? true;
-
-      showSplitPayments =
-          prefs.getBool('receipt_show_split_payments') ?? true;
-
-      footerController.text =
-          prefs.getString('receipt_footer') ??
-              'Thank you for visiting Top Coffee!';
+      businessNameController.text = settings.businessName;
+      branchNameController.text = settings.branchName;
+      logoPosition = settings.logoPosition;
+      logoSize = settings.logoSize;
+      fontStyle = settings.fontStyle;
+      bodyFontSize = settings.bodyFontSize;
+      businessFontSize = settings.businessFontSize;
+      footerFontSize = settings.footerFontSize;
+      boldBusinessName = settings.boldBusinessName;
+      boldTotal = settings.boldTotal;
+      boldFooter = settings.boldFooter;
+      showOrderNumber = settings.showOrderNumber;
+      showDateTime = settings.showDateTime;
+      showCashier = settings.showCashier;
+      showTable = settings.showTable;
+      showOrderType = settings.showOrderType;
+      showItemName = settings.showItemName;
+      showQuantity = settings.showQuantity;
+      showUnitPrice = settings.showUnitPrice;
+      showLineTotal = settings.showLineTotal;
+      showPaymentMethod = settings.showPaymentMethod;
+      showTendered = settings.showTendered;
+      showChange = settings.showChange;
+      showSplitPayments = settings.showSplitPayments;
+      footerController.text = settings.footer;
     });
   }
+
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      'receipt_business_name',
-      businessNameController.text,
-    );
-    await prefs.setString(
-      'receipt_branch_name',
-      branchNameController.text,
-    );
-    await prefs.setString(
-      'receipt_logo_position',
-      logoPosition,
-    );
-    await prefs.setString(
-      'receipt_logo_size',
-      logoSize,
-    );
-    await prefs.setString(
-      'receipt_font_style',
-      fontStyle,
-    );
-    await prefs.setString(
-      'receipt_body_font_size',
-      bodyFontSize,
-    );
-    await prefs.setString(
-      'receipt_business_font_size',
-      businessFontSize,
-    );
-    await prefs.setString(
-      'receipt_footer_font_size',
-      footerFontSize,
+    final settings = ReceiptSettings(
+      businessName: businessNameController.text,
+      branchName: branchNameController.text,
+      logoPosition: logoPosition,
+      logoSize: logoSize,
+      fontStyle: fontStyle,
+      bodyFontSize: bodyFontSize,
+      businessFontSize: businessFontSize,
+      footerFontSize: footerFontSize,
+      boldBusinessName: boldBusinessName,
+      boldTotal: boldTotal,
+      boldFooter: boldFooter,
+      showOrderNumber: showOrderNumber,
+      showDateTime: showDateTime,
+      showCashier: showCashier,
+      showTable: showTable,
+      showOrderType: showOrderType,
+      showItemName: showItemName,
+      showQuantity: showQuantity,
+      showUnitPrice: showUnitPrice,
+      showLineTotal: showLineTotal,
+      showPaymentMethod: showPaymentMethod,
+      showTendered: showTendered,
+      showChange: showChange,
+      showSplitPayments: showSplitPayments,
+      footer: footerController.text,
     );
 
-    await prefs.setBool(
-      'receipt_bold_business_name',
-      boldBusinessName,
-    );
-    await prefs.setBool(
-      'receipt_bold_total',
-      boldTotal,
-    );
-    await prefs.setBool(
-      'receipt_bold_footer',
-      boldFooter,
-    );
-
-    await prefs.setBool(
-      'receipt_show_order_number',
-      showOrderNumber,
-    );
-    await prefs.setBool(
-      'receipt_show_date_time',
-      showDateTime,
-    );
-    await prefs.setBool(
-      'receipt_show_cashier',
-      showCashier,
-    );
-    await prefs.setBool(
-      'receipt_show_table',
-      showTable,
-    );
-    await prefs.setBool(
-      'receipt_show_order_type',
-      showOrderType,
-    );
-
-    await prefs.setBool(
-      'receipt_show_item_name',
-      showItemName,
-    );
-    await prefs.setBool(
-      'receipt_show_quantity',
-      showQuantity,
-    );
-    await prefs.setBool(
-      'receipt_show_unit_price',
-      showUnitPrice,
-    );
-    await prefs.setBool(
-      'receipt_show_line_total',
-      showLineTotal,
-    );
-
-    await prefs.setBool(
-      'receipt_show_payment_method',
-      showPaymentMethod,
-    );
-    await prefs.setBool(
-      'receipt_show_tendered',
-      showTendered,
-    );
-    await prefs.setBool(
-      'receipt_show_change',
-      showChange,
-    );
-    await prefs.setBool(
-      'receipt_show_split_payments',
-      showSplitPayments,
-    );
-
-    await prefs.setString(
-      'receipt_footer',
-      footerController.text,
-    );
+    await settings.save();
   }
   Future<void> _saveLogo(Uint8List bytes) async {
     final directory = await getApplicationDocumentsDirectory();
