@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../features/pos/domain/pos_models.dart';
+import '../../features/settings/data/receipt_settings.dart';
 
 class PrinterService {
   static const MethodChannel _channel = MethodChannel(
@@ -20,7 +24,21 @@ class PrinterService {
     await _channel.invokeMethod<bool>('printTest');
   }
 
+  Future<Uint8List?> _loadLogoBytes() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/receipt_logo.png');
+
+    if (!await file.exists()) {
+      return null;
+    }
+
+    return file.readAsBytes();
+  }
+
   Future<void> printReceipt(OrderReceipt receipt) async {
+    final settings = await ReceiptSettings.load();
+    final logoBytes = await _loadLogoBytes();
+
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
         : receipt.payment != null
@@ -34,12 +52,14 @@ class PrinterService {
             : '';
 
     final tendered = payments.length == 1 &&
-            payments.first.tendered != null
+            payments.first.tendered != null &&
+            settings.showTendered
         ? payments.first.tendered!.toStringAsFixed(2)
         : null;
 
     final changeDue = payments.length == 1 &&
-            payments.first.changeDue != null
+            payments.first.changeDue != null &&
+            settings.showChange
         ? payments.first.changeDue!.toStringAsFixed(2)
         : null;
 
@@ -49,26 +69,57 @@ class PrinterService {
           : item.productName;
 
       return <String, dynamic>{
-        'name': itemName,
-        'quantity': item.quantity,
-        'lineTotal': item.lineTotal.toStringAsFixed(2),
+        'name': settings.showItemName ? itemName : '',
+        'quantity': settings.showQuantity ? item.quantity : '',
+        'unitPrice': settings.showUnitPrice
+            ? item.unitPrice.toStringAsFixed(2)
+            : '',
+        'lineTotal': settings.showLineTotal
+            ? item.lineTotal.toStringAsFixed(2)
+            : '',
       };
     }).toList();
 
     await _channel.invokeMethod<bool>(
       'printReceipt',
       <String, dynamic>{
-        'orderNumber': receipt.orderId.toString(),
-        'branchName': receipt.branchName ?? 'TOP COFFEE',
-        'cashierName': receipt.cashierName ?? '',
-        'tableName': receipt.tableName ?? '',
-        'orderType': receipt.orderType,
+        'logoBytes': logoBytes,
+        'logoPosition': settings.logoPosition,
+        'logoSize': settings.logoSize,
+        'bodyFontSize': settings.bodyFontSize,
+        'businessFontSize': settings.businessFontSize,
+        'footerFontSize': settings.footerFontSize,
+        'boldBusinessName': settings.boldBusinessName,
+        'boldTotal': settings.boldTotal,
+        'boldFooter': settings.boldFooter,
+        'orderNumber': settings.showOrderNumber
+            ? receipt.orderId.toString()
+            : '',
+        'businessName': settings.businessName,
+        'branchName': settings.branchName,
+        'cashierName':
+            settings.showCashier ? receipt.cashierName ?? '' : '',
+        'tableName':
+            settings.showTable ? receipt.tableName ?? '' : '',
+        'orderType':
+            settings.showOrderType ? receipt.orderType : '',
         'subtotal': receipt.subtotal.toStringAsFixed(2),
         'discount': receipt.discountTotal.toStringAsFixed(2),
         'total': receipt.total.toStringAsFixed(2),
-        'paymentMethod': paymentMethod,
+        'paymentMethod':
+            settings.showPaymentMethod ? paymentMethod : '',
         'tendered': tendered,
         'changeDue': changeDue,
+        'showSplitPayments': settings.showSplitPayments,
+        'payments': payments
+            .map(
+              (payment) => <String, dynamic>{
+                'method': payment.method,
+                'amount': payment.amount.toStringAsFixed(2),
+              },
+            )
+            .toList(),
+        'footer': settings.footer,
         'items': items,
       },
     );

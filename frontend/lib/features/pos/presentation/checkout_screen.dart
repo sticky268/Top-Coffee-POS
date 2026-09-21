@@ -58,6 +58,7 @@ class _SplitPaymentLine {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _paymentMethod = 'cash';
+  String _orderType = 'takeaway';
   PosTable? _selectedTable;
   final _tenderedController = TextEditingController();
   final List<_SplitPaymentLine> _splitPayments = [
@@ -127,10 +128,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             _CheckoutSuccessView(confirmation: confirmation),
           _ => _CheckoutForm(
               cart: cart,
+              orderType: _orderType,
               paymentMethod: _paymentMethod,
               selectedTable: _selectedTable,
               splitPayments: _splitPayments,
               onTableChanged: (table) => setState(() => _selectedTable = table),
+              onOrderTypeChanged: (type) {
+                setState(() {
+                  _orderType = type;
+
+                  if (type == 'takeaway') {
+                    _selectedTable = null;
+                  }
+                });
+              },
               onPaymentMethodChanged: (method) =>
                   setState(() => _paymentMethod = method),
               tenderedController: _tenderedController,
@@ -146,7 +157,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ref.read(checkoutControllerProvider.notifier).submit(
                       items: cart.items,
                       paymentMethod: _paymentMethod,
-                      orderType: 'dine_in',
+                      orderType: _orderType,
                       tableId: _selectedTable?.id,
                       tendered:
                           _paymentMethod == 'cash' ? _tenderedAmount : null,
@@ -176,10 +187,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 class _CheckoutForm extends StatelessWidget {
   const _CheckoutForm({
     required this.cart,
+    required this.orderType,
     required this.paymentMethod,
     required this.selectedTable,
     required this.splitPayments,
     required this.onTableChanged,
+    required this.onOrderTypeChanged,
     required this.onPaymentMethodChanged,
     required this.tenderedController,
     required this.tenderedAmount,
@@ -192,10 +205,12 @@ class _CheckoutForm extends StatelessWidget {
   });
 
   final CartState cart;
+  final String orderType;
   final String paymentMethod;
   final PosTable? selectedTable;
   final List<_SplitPaymentLine> splitPayments;
   final ValueChanged<PosTable> onTableChanged;
+  final ValueChanged<String> onOrderTypeChanged;
   final ValueChanged<String> onPaymentMethodChanged;
   final TextEditingController tenderedController;
   final double? tenderedAmount;
@@ -236,7 +251,7 @@ class _CheckoutForm extends StatelessWidget {
 
     final canConfirm = !isSubmitting &&
         cart.items.isNotEmpty &&
-        (selectedTable != null) &&
+        (orderType == 'takeaway' || selectedTable != null) &&
         (paymentMethod == 'split'
             ? splitValid
             : paymentMethod != 'cash' ||
@@ -259,9 +274,16 @@ class _CheckoutForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          if (selectedTable != null)
+          if (orderType == 'dine_in' && selectedTable != null)
             Text(
-              '${selectedTable!.name} · Dine-in',
+              ' · Dine-in',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          else if (orderType == 'takeaway')
+            Text(
+              'Takeaway order',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -273,7 +295,38 @@ class _CheckoutForm extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
+          Text(
+            'Order Type',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment<String>(
+                  value: 'takeaway',
+                  label: Text('Takeaway'),
+                  icon: Icon(Icons.shopping_bag_outlined),
+                ),
+                ButtonSegment<String>(
+                  value: 'dine_in',
+                  label: Text('Dine-in'),
+                  icon: Icon(Icons.table_restaurant_outlined),
+                ),
+              ],
+              selected: {orderType},
+              onSelectionChanged: isSubmitting
+                  ? null
+                  : (selection) =>
+                      onOrderTypeChanged(selection.first),
+            ),
+          ),
+          const SizedBox(height: 20),
+
           Text(
             'ORDER',
             style: theme.textTheme.labelMedium?.copyWith(
@@ -396,7 +449,7 @@ class _CheckoutForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          if (selectedTable != null) ...[
+          if (orderType == 'dine_in' && selectedTable != null) ...[
             const SizedBox(height: 8),
             Text(
               'TABLE',

@@ -1,5 +1,6 @@
 package com.example.top_coffee_pos
 
+import android.graphics.BitmapFactory
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -134,10 +135,52 @@ class MainActivity : FlutterActivity() {
                             return@setMethodCallHandler
                         }
 
-                        val orderNumber =
-                            call.argument<String>("orderNumber") ?: "N/A"
+                        val logoBytes =
+                            call.argument<ByteArray>("logoBytes")
+                        val logoPosition =
+                            call.argument<String>("logoPosition")
+                                ?: "Center"
+                        val logoSize =
+                            call.argument<String>("logoSize")
+                                ?: "Medium"
+                        val bodyFontSize =
+                            call.argument<String>("bodyFontSize")
+                                ?: "Medium"
+                        val businessFontSize =
+                            call.argument<String>("businessFontSize")
+                                ?: "Large"
+                        val footerFontSize =
+                            call.argument<String>("footerFontSize")
+                                ?: "Medium"
+                        val boldBusinessName =
+                            call.argument<Boolean>("boldBusinessName")
+                                ?: true
+                        val boldTotal =
+                            call.argument<Boolean>("boldTotal")
+                                ?: true
+                        val boldFooter =
+                            call.argument<Boolean>("boldFooter")
+                                ?: true
+
+                        val bodyWidth = when (bodyFontSize) {
+                            "Small" -> POSConst.TXT_1WIDTH
+                            "Large" -> POSConst.TXT_2WIDTH
+                            else -> POSConst.TXT_1WIDTH
+                        }
+
+                        val separator = if (bodyFontSize == "Large") {
+                            "------------------------\n"
+                        } else {
+                            "------------------------------------------------\n"
+                        }
+
+                        val businessName =
+                            call.argument<String>("businessName")
+                                ?: "TOP COFFEE"
                         val branchName =
-                            call.argument<String>("branchName") ?: "TOP COFFEE"
+                            call.argument<String>("branchName") ?: ""
+                        val orderNumber =
+                            call.argument<String>("orderNumber") ?: ""
                         val cashierName =
                             call.argument<String>("cashierName") ?: ""
                         val tableName =
@@ -156,84 +199,299 @@ class MainActivity : FlutterActivity() {
                             call.argument<String>("tendered")
                         val changeDue =
                             call.argument<String>("changeDue")
+                        val footer =
+                            call.argument<String>("footer")
+                                ?: "Thank you for visiting Top Coffee!"
+                        val showSplitPayments =
+                            call.argument<Boolean>("showSplitPayments")
+                                ?: true
 
                         val items =
-                            call.argument<List<*>>("items") ?: emptyList<Any?>()
+                            call.argument<List<*>>("items")
+                                ?: emptyList<Any?>()
+
+                        val payments =
+                            call.argument<List<*>>("payments")
+                                ?: emptyList<Any?>()
 
                         currentPrinter.initializePrinter()
 
-                        currentPrinter
-                            .printText(
+                        if (logoBytes != null && logoBytes.isNotEmpty()) {
+                            val logoBitmap =
+                                BitmapFactory.decodeByteArray(
+                                    logoBytes,
+                                    0,
+                                    logoBytes.size,
+                                )
+
+                            if (logoBitmap != null) {
+                                val alignment =
+                                    when (logoPosition) {
+                                        "Left" ->
+                                            POSConst.ALIGNMENT_LEFT
+                                        "Right" ->
+                                            POSConst.ALIGNMENT_RIGHT
+                                        else ->
+                                            POSConst.ALIGNMENT_CENTER
+                                    }
+
+                                val logoWidth =
+                                    when (logoSize) {
+                                        "Small" -> 160
+                                        "Large" -> 320
+                                        else -> 240
+                                    }
+
+                                currentPrinter.printBitmap(
+                                    logoBitmap,
+                                    alignment,
+                                    logoWidth,
+                                )
+                            }
+                        }
+
+                        if (businessName.isNotBlank()) {
+                            val businessFont = if (boldBusinessName) {
+                                POSConst.FNT_BOLD
+                            } else {
+                                POSConst.FNT_DEFAULT
+                            }
+
+                            val businessWidth = when (businessFontSize) {
+                                "Small" -> POSConst.TXT_1WIDTH
+                                "Large" -> POSConst.TXT_3WIDTH
+                                else -> POSConst.TXT_2WIDTH
+                            }
+
+                            currentPrinter.printText(
+                                "$businessName\n",
+                                POSConst.ALIGNMENT_CENTER,
+                                businessFont,
+                                businessWidth,
+                            )
+                        }
+
+                        if (branchName.isNotBlank()) {
+                            currentPrinter.printText(
                                 "$branchName\n",
                                 POSConst.ALIGNMENT_CENTER,
                                 POSConst.FNT_BOLD,
-                                POSConst.TXT_2WIDTH,
+                                POSConst.TXT_1WIDTH,
                             )
-                            .printString(
+                        }
+
+                        if (orderNumber.isNotBlank()) {
+                            currentPrinter.printText(
                                 "Order #$orderNumber\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
                             )
+                        }
 
                         if (orderType.isNotBlank()) {
-                            currentPrinter.printString(
-                                "$orderType\n",
+                            currentPrinter.printText(
+                                "Type: $orderType\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
                             )
                         }
 
                         if (tableName.isNotBlank()) {
-                            currentPrinter.printString(
+                            currentPrinter.printText(
                                 "Table: $tableName\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
                             )
                         }
 
                         if (cashierName.isNotBlank()) {
-                            currentPrinter.printString(
+                            currentPrinter.printText(
                                 "Cashier: $cashierName\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
                             )
                         }
 
                         currentPrinter.printString(
-                            "--------------------------------\n",
+                            separator +
+                                "ITEM                  QTY    PRICE    AMOUNT\n" +
+                                separator,
                         )
 
                         for (rawItem in items) {
                             val item = rawItem as? Map<*, *> ?: continue
 
                             val name =
-                                item["name"]?.toString() ?: "Item"
+                                item["name"]?.toString() ?: ""
                             val quantity =
-                                item["quantity"]?.toString() ?: "1"
+                                item["quantity"]?.toString() ?: ""
+                            val unitPrice =
+                                item["unitPrice"]?.toString() ?: ""
                             val lineTotal =
-                                item["lineTotal"]?.toString() ?: "0.00"
+                                item["lineTotal"]?.toString() ?: ""
 
-                            currentPrinter.printString(
-                                "$quantity x $name    $lineTotal\n",
+                            val shortName = if (name.length > 20) {
+                                name.take(20)
+                            } else {
+                                name
+                            }
+
+                            val itemColumn =
+                                shortName.padEnd(20)
+                            val quantityColumn =
+                                quantity.padStart(3).padEnd(7)
+                            val priceColumn =
+                                if (unitPrice.isNotBlank()) {
+                                    "\$$unitPrice".padStart(7)
+                                } else {
+                                    "".padStart(7)
+                                }
+                            val amountColumn =
+                                if (lineTotal.isNotBlank()) {
+                                    "\$$lineTotal".padStart(8)
+                                } else {
+                                    "".padStart(8)
+                                }
+
+                            currentPrinter.printText(
+                                "$itemColumn$quantityColumn" +
+                                    "$priceColumn$amountColumn\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
                             )
+
                         }
 
                         currentPrinter.printString(
-                            "--------------------------------\n" +
-                                "Subtotal:        $subtotal\n" +
-                                "Discount:        $discount\n" +
-                                "TOTAL:           $total\n" +
-                                "\n" +
-                                "Payment:         $paymentMethod\n",
+                            separator,
                         )
 
+                        currentPrinter.printText(
+                            "Subtotal:        $subtotal\n",
+                            POSConst.ALIGNMENT_LEFT,
+                            POSConst.FNT_DEFAULT,
+                            bodyWidth,
+                        )
+
+                        if (discount != "0.00") {
+                            currentPrinter.printText(
+                                "Discount:        $discount\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
+                            )
+                        }
+
+                        val totalFont = if (boldTotal) {
+                            POSConst.FNT_BOLD
+                        } else {
+                            POSConst.FNT_DEFAULT
+                        }
+
+                        currentPrinter.printText(
+                            "TOTAL:           $total\n",
+                            POSConst.ALIGNMENT_LEFT,
+                            totalFont,
+                            bodyWidth,
+                        )
+
+                        currentPrinter.printString(
+                            separator,
+                        )
+
+                        if (paymentMethod.isNotBlank()) {
+                            currentPrinter.printText(
+                                "Payment:         $paymentMethod\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
+                            )
+                        }
+
+                        if (
+                            showSplitPayments &&
+                            payments.size > 1
+                        ) {
+                            currentPrinter.printText(
+                                "PAYMENT\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_BOLD,
+                                bodyWidth,
+                            )
+
+                            for (rawPayment in payments) {
+                                val payment =
+                                    rawPayment as? Map<*, *>
+                                        ?: continue
+
+                                val method =
+                                    payment["method"]?.toString()
+                                        ?: ""
+                                val amount =
+                                    payment["amount"]?.toString()
+                                        ?: "0.00"
+
+                                currentPrinter.printText(
+                                    "${method.padEnd(20)}" +
+                                        "\$$amount\n",
+                                    POSConst.ALIGNMENT_LEFT,
+                                    POSConst.FNT_DEFAULT,
+                                    bodyWidth,
+                                )
+                            }
+                        }
+
                         if (tendered != null) {
-                            currentPrinter.printString(
+                            currentPrinter.printText(
                                 "Tendered:        $tendered\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
                             )
                         }
 
                         if (changeDue != null) {
-                            currentPrinter.printString(
+                            currentPrinter.printText(
                                 "Change:          $changeDue\n",
+                                POSConst.ALIGNMENT_LEFT,
+                                POSConst.FNT_DEFAULT,
+                                bodyWidth,
+                            )
+                        }
+
+                        currentPrinter.printString(
+                            separator,
+                        )
+
+                        if (footer.isNotBlank()) {
+                            val footerFont = if (boldFooter) {
+                                POSConst.FNT_BOLD
+                            } else {
+                                POSConst.FNT_DEFAULT
+                            }
+
+                            val footerWidth = when (footerFontSize) {
+                                "Small" -> POSConst.TXT_1WIDTH
+                                "Large" -> POSConst.TXT_2WIDTH
+                                else -> POSConst.TXT_1WIDTH
+                            }
+
+                            currentPrinter.printText(
+                                "$footer\n",
+                                POSConst.ALIGNMENT_CENTER,
+                                footerFont,
+                                footerWidth,
                             )
                         }
 
                         currentPrinter
                             .printString(
-                                "\nThank you for visiting Top Coffee!\n",
+                                "\n",
                             )
                             .feedLine(3)
                             .cutHalfAndFeed(1)
