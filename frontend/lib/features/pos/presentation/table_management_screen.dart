@@ -619,7 +619,10 @@ class _AddTableDialogState extends State<_AddTableDialog> {
         TextButton(
           onPressed: _isSaving
               ? null
-              : () => Navigator.of(context).pop(false),
+              : () {
+                  FocusScope.of(context).unfocus();
+                  Navigator.of(context).pop(false);
+                },
           child: const Text('Cancel'),
         ),
         FilledButton(
@@ -948,7 +951,10 @@ class _EditTableDialogState extends State<_EditTableDialog> {
         TextButton(
           onPressed: _isSaving
               ? null
-              : () => Navigator.of(context).pop(false),
+              : () {
+                  FocusScope.of(context).unfocus();
+                  Navigator.of(context).pop(false);
+                },
           child: const Text('Cancel'),
         ),
         FilledButton(
