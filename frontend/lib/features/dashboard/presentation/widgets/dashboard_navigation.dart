@@ -92,6 +92,14 @@ class DashboardNavigation extends StatelessWidget {
                         selectedRoute: selectedRoute,
                         onTap: () => _navigate(context, '/orders'),
                       ),
+                      _NavigationItem(
+                        icon: Icons.soup_kitchen_outlined,
+                        selectedIcon: Icons.soup_kitchen,
+                        label: 'Kitchen Display',
+                        route: '/kds',
+                        selectedRoute: selectedRoute,
+                        onTap: () => _navigate(context, '/kds'),
+                      ),
                     ],
                   ),
                   _NavigationSection(

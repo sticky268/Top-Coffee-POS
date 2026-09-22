@@ -13,6 +13,7 @@ import '../../features/inventory/presentation/add_ingredient_screen.dart';
 import '../../features/inventory/presentation/edit_ingredient_screen.dart';
 import '../../features/inventory/presentation/inventory_movement_history_screen.dart';
 import '../../features/inventory/domain/inventory_models.dart';
+import '../../features/kds/presentation/kds_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/pos/presentation/checkout_screen.dart';
@@ -88,6 +89,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/home',
             builder: (context, state) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: '/kds',
+            builder: (context, state) => const KdsScreen(),
           ),
           GoRoute(
             path: '/pos',

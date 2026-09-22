@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\KitchenTicket;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -183,6 +184,12 @@ class OrderController extends Controller
                     'tax_total' => 0,
                     'total' => $total,
                     'completed_at' => now(),
+                ]);
+
+                KitchenTicket::create([
+                    'order_id' => $order->id,
+                    'status' => 'new',
+                    'sent_at' => now(),
                 ]);
 
                 foreach ($resolvedItems as $item) {
@@ -428,6 +435,12 @@ class OrderController extends Controller
                     'tax_total' => 0,
                     'total' => $total,
                     'held_at' => now(),
+                ]);
+
+                KitchenTicket::create([
+                    'order_id' => $order->id,
+                    'status' => 'new',
+                    'sent_at' => now(),
                 ]);
 
                 foreach ($resolvedItems as $item) {
