@@ -23,7 +23,7 @@ class OrderTest extends TestCase
 
     private function seedPermissions(): void
     {
-        foreach (['orders.create', 'branches.view-all'] as $permission) {
+        foreach (['orders.create', 'orders.edit', 'branches.view-all'] as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
@@ -31,11 +31,10 @@ class OrderTest extends TestCase
         $cashier->syncPermissions(['orders.create']);
 
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->syncPermissions(['orders.create', 'branches.view-all']);
+        $admin->syncPermissions(['orders.create', 'orders.edit', 'branches.view-all']);
 
-        Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
-        // Deliberately no 'orders.create' synced to manager — matches the
-        // real RolePermissionSeeder gap noted in OrderController's docblock.
+        $manager = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        $manager->syncPermissions(['orders.edit']);
     }
 
     private function makeCashier(Branch $branch): User
@@ -1042,6 +1041,381 @@ class OrderTest extends TestCase
         ]);
     }
 
+    public function test_user_without_orders_edit_permission_is_rejected(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $orderId = $createResponse->json('data.id');
+
+        $response = $this->actingAs($cashier)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_manager_with_orders_edit_permission_can_edit_order(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $unitId = $this->createUnit();
+
+        $oldIngredient = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Old Ingredient',
+            100,
+        );
+
+        $newIngredient = $this->createIngredient(
+            $branch,
+            $unitId,
+            'New Ingredient',
+            100,
+        );
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $oldProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Old Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $newProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'New Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $oldProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $newProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $oldProduct->id,
+            'ingredient_id' => $oldIngredient->id,
+            'quantity_used' => 10,
+        ]);
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $newProduct->id,
+            'ingredient_id' => $newIngredient->id,
+            'quantity_used' => 20,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $oldProduct->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $orderId = $createResponse->json('data.id');
+        $orderUuid = $createResponse->json('data.uuid');
+
+        $this->assertSame(90.0, (float) $oldIngredient->fresh()->current_stock);
+        $this->assertSame(100.0, (float) $newIngredient->fresh()->current_stock);
+
+        $response = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $newProduct->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('data.id', $orderId)
+            ->assertJsonPath('data.uuid', $orderUuid)
+            ->assertJsonPath('data.total', 3);
+
+        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+
+        $this->assertSame(3.0, (float) $order->total);
+        $this->assertSame(
+            $newProduct->id,
+            $order->items()->firstOrFail()->product_id
+        );
+
+        $this->assertSame(
+            100.0,
+            (float) $oldIngredient->fresh()->current_stock
+        );
+
+        $this->assertSame(
+            80.0,
+            (float) $newIngredient->fresh()->current_stock
+        );
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $oldIngredient->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -10,
+            'reason' => "Sale deduction for Order #{$orderId}",
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $oldIngredient->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => 10,
+            'reason' => "Sale reversal for Order #{$orderId}",
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'ingredient_id' => $newIngredient->id,
+            'branch_id' => $branch->id,
+            'type' => 'sale_deduction',
+            'quantity' => -20,
+            'reason' => "Sale deduction for Order #{$orderId}",
+        ]);
+    }
+    public function test_admin_with_orders_edit_permission_can_edit_order(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $admin->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $oldProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Old Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $newProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'New Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $oldProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $newProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $oldProduct->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $orderId = $createResponse->json('data.id');
+
+        $response = $this->actingAs($admin)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $newProduct->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.id', $orderId)
+            ->assertJsonPath('data.total', 3);
+
+        $this->assertSame(
+            $newProduct->id,
+            Order::withoutGlobalScopes()
+                ->findOrFail($orderId)
+                ->items()
+                ->firstOrFail()
+                ->product_id
+        );
+    }
+
+    public function test_manager_cannot_edit_order_from_another_branch(): void
+    {
+        $this->seedPermissions();
+
+        $orderBranch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $managerBranch = Branch::create([
+            'name' => 'Downtown',
+            'code' => 'PP-02',
+        ]);
+
+        $cashier = $this->makeCashier($orderBranch);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($managerBranch->id, ['is_primary' => true]);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $product->branches()->attach($orderBranch->id, [
+            'is_available' => true,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $orderId = $createResponse->json('data.id');
+
+        $response = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+
+        $this->assertSame(
+            $product->id,
+            Order::withoutGlobalScopes()
+                ->findOrFail($orderId)
+                ->items()
+                ->firstOrFail()
+                ->product_id
+        );
+    }
     public function test_order_listing_can_filter_split_payments(): void
     {
         $branch = Branch::create([

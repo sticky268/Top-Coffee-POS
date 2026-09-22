@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/orders/{id}/hold', [OrderController::class, 'updateHeld'])->whereNumber('id');
         Route::post('/orders/{id}/pay', [OrderController::class, 'payHeld'])->whereNumber('id');
         Route::post('/orders', [OrderController::class, 'store']);
+        Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
 

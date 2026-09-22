@@ -900,6 +900,235 @@ class OrderController extends Controller
 
         return $createdPayments;
     }
+    /**
+     * PATCH /api/v1/orders/{id}
+     *
+     * Edit a completed historical order.
+     *
+     * Existing payment records are preserved. Because payment reconciliation
+     * is not performed by this endpoint, the edited total must remain equal
+     * to the amount already paid.
+     */
+    public function update(Request $request, int $id)
+    {
+        if (! $request->user()->can('orders.edit')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to edit orders',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'discount_total' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        try {
+            $order = DB::transaction(function () use ($request, $user, $id) {
+                $order = Order::query()
+                    ->withoutGlobalScope('branch')
+                    ->where('id', $id)
+                    ->where('status', 'completed')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $order) {
+                    abort(404, 'Completed order not found.');
+                }
+
+                if (! $user->can('branches.view-all')
+                    && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
+                    abort(403, 'You do not have access to this branch.');
+                }
+
+                $order->load([
+                    'items',
+                    'payments' => function ($query) {
+                        $query->where('status', 'completed');
+                    },
+                ]);
+
+                $paidTotal = round(
+                    $order->payments->sum(
+                        fn (Payment $payment) => (float) $payment->amount
+                    ),
+                    2
+                );
+
+                $subtotal = 0;
+                $resolvedItems = [];
+
+                foreach ($request->input('items') as $itemInput) {
+                    $product = Product::query()
+                        ->where('is_active', true)
+                        ->whereHas('branches', function ($query) use ($order) {
+                            $query->where('branches.id', $order->branch_id)
+                                ->where('branch_product.is_available', true);
+                        })
+                        ->with(['branches' => function ($query) use ($order) {
+                            $query->where('branches.id', $order->branch_id);
+                        }])
+                        ->find($itemInput['product_id']);
+
+                    if (! $product) {
+                        abort(
+                            422,
+                            "Product {$itemInput['product_id']} is not available at this branch."
+                        );
+                    }
+
+                    $branchPivot = $product->branches->first()?->pivot;
+
+                    $effectivePrice = ($branchPivot && $branchPivot->price_override !== null)
+                        ? (float) $branchPivot->price_override
+                        : (float) $product->base_price;
+
+                    $unitPrice = $effectivePrice;
+                    $variantId = $itemInput['product_variant_id'] ?? null;
+
+                    if ($variantId !== null) {
+                        $variant = ProductVariant::query()
+                            ->where('id', $variantId)
+                            ->where('product_id', $product->id)
+                            ->where('is_active', true)
+                            ->first();
+
+                        if (! $variant) {
+                            abort(
+                                422,
+                                "Variant {$variantId} is not valid for product {$product->id}."
+                            );
+                        }
+
+                        $unitPrice = $effectivePrice + (float) $variant->price_delta;
+                    }
+
+                    $quantity = (int) $itemInput['quantity'];
+                    $subtotal += $unitPrice * $quantity;
+
+                    $resolvedItems[] = [
+                        'product_id' => $product->id,
+                        'product_variant_id' => $variantId,
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                    ];
+                }
+
+                $discountTotal = round(
+                    (float) $request->input(
+                        'discount_total',
+                        $order->discount_total ?? 0
+                    ),
+                    2
+                );
+
+                $total = max(
+                    0,
+                    round($subtotal - $discountTotal, 2)
+                );
+
+                if (abs($total - $paidTotal) > 0.001) {
+                    abort(
+                        422,
+                        'The edited order total must match the amount already paid. ' .
+                        'Use the refund or additional payment workflow for payment changes.'
+                    );
+                }
+
+                app(SaleInventoryService::class)->reverseForOrder(
+                    $order,
+                    $user->id,
+                );
+
+                $order->items()->delete();
+
+                foreach ($resolvedItems as $item) {
+                    OrderItem::create(array_merge($item, [
+                        'order_id' => $order->id,
+                    ]));
+                }
+
+                $order->update([
+                    'subtotal' => round($subtotal, 2),
+                    'discount_total' => $discountTotal,
+                    'tax_total' => 0,
+                    'total' => $total,
+                ]);
+
+                app(SaleInventoryService::class)->deductForOrder(
+                    $order->fresh(),
+                    $user->id,
+                );
+
+                return $order->fresh()->load([
+                    'items',
+                    'payments',
+                ]);
+            });
+        } catch (HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not update the order. Please try again.',
+            ], 500);
+        }
+
+        $payments = $order->payments->values();
+        $payment = $payments->first();
+        $isSplit = $payments->count() > 1;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $order->id,
+                'uuid' => $order->uuid,
+                'order_type' => $order->order_type,
+                'status' => $order->status,
+                'subtotal' => (float) $order->subtotal,
+                'discount_total' => (float) $order->discount_total,
+                'total' => (float) $order->total,
+                'payment' => $payment ? [
+                    'method' => $isSplit ? 'split' : $payment->method,
+                    'amount' => (float) $order->total,
+                    'tendered' => $isSplit || $payment->tendered === null
+                        ? null
+                        : (float) $payment->tendered,
+                    'change_due' => $isSplit || $payment->change_due === null
+                        ? null
+                        : (float) $payment->change_due,
+                ] : null,
+                'payments' => $payments->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'method' => $payment->method,
+                    'amount' => (float) $payment->amount,
+                    'tendered' => $payment->tendered !== null
+                        ? (float) $payment->tendered
+                        : null,
+                    'change_due' => $payment->change_due !== null
+                        ? (float) $payment->change_due
+                        : null,
+                    'status' => $payment->status,
+                ])->values()->all(),
+            ],
+        ]);
+    }
     public function index(Request $request)
     {
         if (! $request->user()->can('orders.view')) {

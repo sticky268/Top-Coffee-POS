@@ -14,7 +14,7 @@ class RolePermissionSeeder extends Seeder
             'branches.view-all',
             'users.manage',
             'products.manage',
-            'orders.create', 'orders.view', 'orders.refund', 'orders.cancel',
+            'orders.create', 'orders.view', 'orders.edit', 'orders.refund', 'orders.cancel',
             'inventory.view', 'inventory.adjust', 'inventory.manage',
             'reports.view',
             'expenses.manage',
@@ -33,7 +33,7 @@ class RolePermissionSeeder extends Seeder
 
         $manager = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
         $manager->syncPermissions([
-            'users.manage', 'products.manage', 'orders.view', 'orders.refund', 'orders.cancel',
+            'users.manage', 'products.manage', 'orders.view', 'orders.edit', 'orders.refund', 'orders.cancel',
             'inventory.view', 'inventory.adjust', 'inventory.manage', 'reports.view',
             'expenses.manage', 'kitchen.view', 'kitchen.update-status', 'tables.manage', 'customers.manage',
         ]);
