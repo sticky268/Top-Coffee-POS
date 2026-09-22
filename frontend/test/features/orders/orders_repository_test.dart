@@ -106,9 +106,16 @@ void main() {
           'total': 9.0,
           'branch': {'id': 1, 'name': 'Riverside', 'code': 'PP-01'},
           'cashier': {'id': 3, 'name': 'Cashier User'},
+          'table': {
+            'id': 5,
+            'name': 'T5',
+            'capacity': 4,
+            'status': 'occupied',
+          },
           'items': [
             {
               'id': 1,
+              'product_id': 1,
               'product_name': 'Latte',
               'variant_name': 'Large',
               'quantity': 2,
@@ -117,6 +124,7 @@ void main() {
             },
             {
               'id': 2,
+              'product_id': 2,
               'product_name': 'Americano',
               'variant_name': null,
               'quantity': 1,
@@ -131,6 +139,16 @@ void main() {
             'tendered': 10.0,
             'change_due': 1.0,
           },
+          'payments': [
+            {
+              'id': 1,
+              'method': 'cash',
+              'status': 'completed',
+              'amount': 9.0,
+              'tendered': 10.0,
+              'change_due': 1.0,
+            },
+          ],
           'created_at': '2026-08-31T09:15:00+00:00',
         },
       };
@@ -146,6 +164,11 @@ void main() {
       expect(order.items[0].productName, 'Latte');
       expect(order.items[0].variantName, 'Large');
       expect(order.items[1].variantName, isNull);
+      expect(order.table?.name, 'T5');
+      expect(order.table?.capacity, 4);
+      expect(order.payments, hasLength(1));
+      expect(order.payments.single.method, 'cash');
+      expect(order.payments.single.amount, 9.0);
       expect(order.payment?.tendered, 10.0);
       expect(order.payment?.changeDue, 1.0);
       expect(order.discountTotal, 1.0);

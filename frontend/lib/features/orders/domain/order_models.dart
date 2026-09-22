@@ -193,6 +193,7 @@ class OrderDetail {
     this.table,
     required this.items,
     required this.payment,
+    this.payments = const [],
     required this.createdAt,
   });
 
@@ -208,6 +209,7 @@ class OrderDetail {
   final OrderTableRef? table;
   final List<OrderLineItem> items;
   final OrderPaymentDetail? payment;
+  final List<OrderPaymentDetail> payments;
   final DateTime? createdAt;
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
@@ -227,6 +229,13 @@ class OrderDetail {
           .toList(),
       payment:
           json['payment'] != null ? OrderPaymentDetail.fromJson(json['payment'] as Map<String, dynamic>) : null,
+      payments: (json['payments'] as List? ?? const [])
+          .map(
+            (payment) => OrderPaymentDetail.fromJson(
+              payment as Map<String, dynamic>,
+            ),
+          )
+          .toList(),
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'] as String) : null,
     );
   }

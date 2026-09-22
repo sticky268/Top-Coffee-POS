@@ -60,6 +60,8 @@ class _OrderDetailBody extends StatelessWidget {
                 const SizedBox(height: 12),
                 _InfoRow(label: 'Status', value: orderStatusLabel(order.status)),
                 _InfoRow(label: 'Type', value: orderTypeLabel(order.orderType)),
+                if (order.table != null)
+                  _InfoRow(label: 'Table', value: order.table!.name),
                 // Defensive per this feature's requirement — a historical
                 // order's branch/cashier could be missing; never crash,
                 // always show a sensible fallback.
@@ -110,7 +112,7 @@ class _OrderDetailBody extends StatelessWidget {
             ),
           ),
         ),
-        if (order.payment != null) ...[
+        if (order.payment != null || order.payments.isNotEmpty) ...[
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -120,12 +122,32 @@ class _OrderDetailBody extends StatelessWidget {
                 children: [
                   Text('Payment', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  _InfoRow(label: 'Method', value: paymentMethodLabel(order.payment!.method)),
-                  _InfoRow(label: 'Status', value: order.payment!.status),
-                  if (order.payment!.tendered != null)
-                    _InfoRow(label: 'Tendered', value: currency.format(order.payment!.tendered)),
-                  if (order.payment!.changeDue != null)
-                    _InfoRow(label: 'Change Due', value: currency.format(order.payment!.changeDue)),
+                  for (final payment in (order.payments.isNotEmpty ? order.payments : [order.payment!])) ...[
+                    _InfoRow(
+                      label: 'Method',
+                      value: paymentMethodLabel(payment.method),
+                    ),
+                    _InfoRow(
+                      label: 'Status',
+                      value: payment.status,
+                    ),
+                    _InfoRow(
+                      label: 'Amount',
+                      value: currency.format(payment.amount),
+                    ),
+                    if (payment.tendered != null)
+                      _InfoRow(
+                        label: 'Tendered',
+                        value: currency.format(payment.tendered),
+                      ),
+                    if (payment.changeDue != null)
+                      _InfoRow(
+                        label: 'Change Due',
+                        value: currency.format(payment.changeDue),
+                      ),
+                    if (order.payments.length > 1 && payment != order.payments.last)
+                      const Divider(height: 24),
+                  ],
                 ],
               ),
             ),

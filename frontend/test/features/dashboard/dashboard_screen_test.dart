@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/app.dart';
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/dashboard/application/dashboard_controller.dart';
@@ -67,6 +68,14 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(authRepository),
           dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
+          currentBranchProvider.overrideWith((ref) {
+            final notifier = CurrentBranchNotifier(
+              ref,
+              listenToAuth: false,
+            );
+            notifier.selectBranch(_testUser.branches.first);
+            return notifier;
+          }),
         ],
       );
       addTearDown(container.dispose);
@@ -211,7 +220,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Landed on the dashboard, not stuck on splash or login.
-      expect(find.text('Top Coffee POS'), findsOneWidget);
+      // The app shell and dashboard header both display the app name,
+      // so use a dashboard-specific element to verify the destination.
       expect(find.text('New Order'), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.logout));
