@@ -41,6 +41,8 @@ class MainActivity : FlutterActivity() {
         return@setMethodCallHandler
     }
 
+    var replySubmitted = false
+
     try {
         printerConnection?.close()
         printer = null
@@ -57,6 +59,12 @@ class MainActivity : FlutterActivity() {
                     connectInfo: String,
                     message: String,
                 ) {
+                    if (replySubmitted) {
+                        return
+                    }
+
+                    replySubmitted = true
+
                     if (code == POSConnect.CONNECT_SUCCESS) {
                         printerConnection = connection
                         printer = POSPrinter(connection)
@@ -75,14 +83,17 @@ class MainActivity : FlutterActivity() {
             },
         )
     } catch (e: Exception) {
-        result.error(
-            "CONNECT_ERROR",
-            e.message,
-            null,
-        )
+        if (!replySubmitted) {
+            replySubmitted = true
+
+            result.error(
+                "CONNECT_ERROR",
+                e.message,
+                null,
+            )
+        }
     }
 }
-
 "printTest" -> {
                     try {
                         val currentPrinter = printer
@@ -213,9 +224,7 @@ class MainActivity : FlutterActivity() {
                         val payments =
                             call.argument<List<*>>("payments")
                                 ?: emptyList<Any?>()
-
                         currentPrinter.initializePrinter()
-
                         if (logoBytes != null && logoBytes.isNotEmpty()) {
                             val logoBitmap =
                                 BitmapFactory.decodeByteArray(
@@ -241,7 +250,6 @@ class MainActivity : FlutterActivity() {
                                         "Large" -> 320
                                         else -> 240
                                     }
-
                                 currentPrinter.printBitmap(
                                     logoBitmap,
                                     alignment,
@@ -262,7 +270,6 @@ class MainActivity : FlutterActivity() {
                                 "Large" -> POSConst.TXT_3WIDTH
                                 else -> POSConst.TXT_2WIDTH
                             }
-
                             currentPrinter.printText(
                                 "$businessName\n",
                                 POSConst.ALIGNMENT_CENTER,
@@ -323,6 +330,7 @@ class MainActivity : FlutterActivity() {
                         )
 
                         for (rawItem in items) {
+
                             val item = rawItem as? Map<*, *> ?: continue
 
                             val name =
@@ -364,7 +372,6 @@ class MainActivity : FlutterActivity() {
                                 POSConst.FNT_DEFAULT,
                                 bodyWidth,
                             )
-
                         }
 
                         currentPrinter.printString(
@@ -380,7 +387,7 @@ class MainActivity : FlutterActivity() {
 
                         if (discount != "0.00") {
                             currentPrinter.printText(
-                                "Discount:        $discount\n",
+                                "Discount: $discount\n",
                                 POSConst.ALIGNMENT_LEFT,
                                 POSConst.FNT_DEFAULT,
                                 bodyWidth,
@@ -494,7 +501,7 @@ class MainActivity : FlutterActivity() {
                                 "\n",
                             )
                             .feedLine(3)
-                            .cutHalfAndFeed(1)
+                            .cutPaper()
 
                         result.success(true)
                     } catch (e: Exception) {

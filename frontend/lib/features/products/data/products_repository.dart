@@ -30,6 +30,16 @@ abstract class ProductsRepository {
         required String name,
         int sortOrder = 0,
       });
+      Future<PosCategory> updateCategory({
+        required int categoryId,
+        String? name,
+        int? sortOrder,
+        bool? isActive,
+      });
+
+      Future<void> deleteCategory({
+        required int categoryId,
+      });
 
   /// POST /api/v1/products
   ///
@@ -120,6 +130,37 @@ Future<PosCategory> createCategory({
   );
 }
 
+  @override
+  Future<PosCategory> updateCategory({
+    required int categoryId,
+    String? name,
+    int? sortOrder,
+    bool? isActive,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.patch(
+        '/categories/$categoryId',
+        data: {
+          if (name != null) 'name': name,
+          if (sortOrder != null) 'sort_order': sortOrder,
+          if (isActive != null) 'is_active': isActive,
+        },
+      ),
+    );
+
+    return PosCategory.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<void> deleteCategory({
+    required int categoryId,
+  }) async {
+    await _apiClient.request(
+      (dio) => dio.delete('/categories/$categoryId'),
+    );
+  }
   @override
   Future<List<PosProduct>> getProducts({int? branchId}) async {
     // Fetched once, unfiltered by category/search — category selection

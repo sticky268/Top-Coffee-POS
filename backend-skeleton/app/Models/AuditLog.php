@@ -13,5 +13,10 @@ class AuditLog extends Model
 
     protected $casts = ['old_values' => 'array', 'new_values' => 'array'];
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public $timestamps = true;
 }

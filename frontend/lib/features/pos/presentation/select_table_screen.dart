@@ -18,6 +18,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
   bool _isLoading = true;
   String? _error;
   VoidCallback? _routerListener;
+  GoRouter? _router;
 
 // 0 = Auto, otherwise fixed column count.
   int _tableColumns = 0;
@@ -52,6 +53,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     super.didChangeDependencies();
 
     final router = GoRouter.of(context);
+    _router = router;
 
     if (_routerListener == null) {
       _routerListener = () {
@@ -71,7 +73,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
   @override
   void dispose() {
     if (_routerListener != null) {
-      GoRouter.of(context).routerDelegate.removeListener(_routerListener!);
+      _router?.routerDelegate.removeListener(_routerListener!);
     }
 
     super.dispose();
@@ -361,14 +363,14 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
             maxCrossAxisExtent: maxCardWidth,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 0.70,
+            childAspectRatio: 0.55,
           );
         } else {
           gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: _tableColumns,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 0.70,
+            childAspectRatio: 0.55,
           );
         }
 
@@ -439,10 +441,13 @@ class _SelectTableCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+          padding: const EdgeInsets.all(8),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
               if (table.status == 'available' || table.status == 'reserved')
                 Align(
                   alignment: Alignment.centerRight,
@@ -525,7 +530,8 @@ class _SelectTableCard extends StatelessWidget {
                       color: statusColor,
                     ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

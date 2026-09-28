@@ -182,6 +182,115 @@ void main() {
     });
   });
 
+  group('updateOrder', () {
+    test('sends PATCH /orders/{id} with items, discount, and branch id', () async {
+      final mockDio = MockDio();
+
+      final responseData = {
+        'success': true,
+        'data': {
+          'id': 42,
+          'uuid': 'abc-123',
+          'order_type': 'takeaway',
+          'status': 'completed',
+          'subtotal': 10.0,
+          'discount_total': 1.0,
+          'total': 9.0,
+          'branch': {'id': 2, 'name': 'Downtown', 'code': 'PP-02'},
+          'cashier': {'id': 3, 'name': 'Cashier User'},
+          'table': null,
+          'items': [
+            {
+              'id': 10,
+              'product_id': 5,
+              'product_variant_id': 2,
+              'product_name': 'Latte',
+              'variant_name': 'Large',
+              'quantity': 2,
+              'unit_price': 5.0,
+              'line_total': 10.0,
+            },
+          ],
+          'payment': {
+            'method': 'cash',
+            'status': 'completed',
+            'amount': 9.0,
+            'tendered': 10.0,
+            'change_due': 1.0,
+          },
+          'payments': [
+            {
+              'id': 1,
+              'method': 'cash',
+              'status': 'completed',
+              'amount': 9.0,
+              'tendered': 10.0,
+              'change_due': 1.0,
+            },
+          ],
+          'created_at': '2026-08-31T09:15:00+00:00',
+        },
+      };
+
+      when(
+        () => mockDio.patch<dynamic>(
+          any(),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => Response(
+          data: responseData,
+          requestOptions: RequestOptions(path: '/orders/42'),
+        ),
+      );
+
+      when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer(
+        (invocation) async {
+          final call = invocation.positionalArguments[0]
+              as Future<Response<dynamic>> Function(Dio);
+          return call(mockDio);
+        },
+      );
+
+      final order = await repository.updateOrder(
+        orderId: 42,
+        branchId: 2,
+        items: [
+          {
+            'product_id': 5,
+            'product_variant_id': 2,
+            'quantity': 2,
+          },
+        ],
+        discountTotal: 1.0,
+      );
+
+      expect(order.id, 42);
+      expect(order.total, 9.0);
+      expect(order.items, hasLength(1));
+      expect(order.items.single.productId, 5);
+      expect(order.items.single.productVariantId, 2);
+
+      final captured = verify(
+        () => mockDio.patch<dynamic>(
+          '/orders/42',
+          data: captureAny(named: 'data'),
+        ),
+      ).captured;
+
+      final data = captured.single as Map;
+
+      expect(data['branch_id'], 2);
+      expect(data['discount_total'], 1.0);
+      expect(data['items'], [
+        {
+          'product_id': 5,
+          'product_variant_id': 2,
+          'quantity': 2,
+        },
+      ]);
+    });
+  });
   group('branch_id threading (branch switcher support)', () {
     test('getOrders sends branch_id as a query parameter when provided', () async {
       final mockDio = MockDio();

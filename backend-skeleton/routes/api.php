@@ -14,6 +14,11 @@ use App\Http\Controllers\Api\V1\RestaurantTableController;
 use App\Http\Controllers\Api\V1\RecipeController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\PurchaseController;
+use App\Http\Controllers\Api\V1\ReportsController;
+use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\AuditLogController;
+use App\Http\Controllers\Api\V1\LoyaltyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -25,10 +30,32 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/reports', [ReportsController::class, 'index']);
         Route::get('/units', [UnitController::class, 'index']);
+
+        Route::get('/customers', [CustomerController::class, 'index']);
+        Route::post('/customers', [CustomerController::class, 'store']);
+        Route::get('/customers/{customer}', [CustomerController::class, 'show']);
+        Route::patch('/customers/{customer}', [CustomerController::class, 'update']);
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
+        Route::get('/customers/{customer}/orders', [CustomerController::class, 'orders']);
+        Route::get('/customers/{customer}/loyalty', [CustomerController::class, 'loyalty']);
+        Route::post('/customers/{customer}/loyalty/adjust', [CustomerController::class, 'adjustLoyalty']);
+
+        Route::get('/loyalty/settings', [LoyaltyController::class, 'settings']);
+        Route::patch('/loyalty/settings', [LoyaltyController::class, 'updateSettings']);
+
+        Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users', [UserController::class, 'store']);
+        Route::get('/users/{user}', [UserController::class, 'show']);
+        Route::patch('/users/{user}', [UserController::class, 'update']);
+        Route::delete('/users/{user}', [UserController::class, 'destroy']);
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
         Route::get('/categories', [CategoryController::class, 'index']);
         Route::post('/categories', [CategoryController::class, 'store']);
+        Route::patch('/categories/{category}', [CategoryController::class, 'update']);
+        Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 
         Route::get('/products', [ProductController::class, 'index']);
         Route::post('/products', [ProductController::class, 'store']);
@@ -41,8 +68,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/expense-categories', [ExpenseCategoryController::class, 'index']);
         Route::get('/expenses', [ExpenseController::class, 'index']);
         Route::post('/expenses', [ExpenseController::class, 'store']);
+        Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
         Route::get('/expenses/{id}', [ExpenseController::class, 'show'])->whereNumber('id');
         Route::patch('/expenses/{id}', [ExpenseController::class, 'update'])->whereNumber('id');
+        Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy'])->whereNumber('id');
         Route::post('/tables', [RestaurantTableController::class, 'store']);
         Route::patch('/tables/{table}', [RestaurantTableController::class, 'update']);
         Route::delete('/tables/{table}', [RestaurantTableController::class, 'destroy']);

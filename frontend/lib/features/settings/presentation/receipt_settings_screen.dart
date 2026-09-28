@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/printer/printer_service.dart';
 import '../data/receipt_settings.dart';
 
 class ReceiptSettingsScreen extends StatefulWidget {
@@ -51,6 +52,11 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   bool showChange = true;
   bool showSplitPayments = true;
 
+  bool printerEnabled = true;
+
+  final TextEditingController printerIpController =
+      TextEditingController(text: '192.168.1.111');
+
   final TextEditingController businessNameController =
       TextEditingController(text: 'TOP COFFEE');
 
@@ -65,6 +71,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
     businessNameController.dispose();
     branchNameController.dispose();
     footerController.dispose();
+    printerIpController.dispose();
     super.dispose();
   }
 
@@ -468,6 +475,82 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
           ],
         ),
         const SizedBox(height: 16),
+        _buildSection(
+          title: 'Printer Settings',
+          icon: Icons.print_outlined,
+          children: [
+            _buildSwitch(
+              'Enable receipt printing',
+              printerEnabled,
+              (value) => setState(() => printerEnabled = value),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: printerIpController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Printer IP Address',
+                hintText: '192.168.1.111',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lan_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final ipAddress = printerIpController.text.trim();
+
+                  if (ipAddress.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter the printer IP address first.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final printerService = PrinterService();
+
+                  try {
+                    await printerService.connect(ipAddress);
+                    await printerService.printTest();
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Test print sent successfully.'),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Printer test failed: ' + e.toString()),
+                      ),
+                    );
+                  } finally {
+                    try {
+                      await printerService.disconnect();
+                    } catch (_) {
+                      // Ignore disconnect errors after the test.
+                    }
+                  }
+                },
+                icon: const Icon(Icons.print_outlined),
+                label: const Text('Test Print'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
@@ -573,6 +656,8 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
       showTendered = settings.showTendered;
       showChange = settings.showChange;
       showSplitPayments = settings.showSplitPayments;
+      printerEnabled = settings.printerEnabled;
+      printerIpController.text = settings.printerIpAddress;
       footerController.text = settings.footer;
     });
   }
@@ -604,6 +689,8 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
       showChange: showChange,
       showSplitPayments: showSplitPayments,
       footer: footerController.text,
+      printerEnabled: printerEnabled,
+      printerIpAddress: printerIpController.text.trim(),
     );
 
     await settings.save();

@@ -44,26 +44,43 @@ class OrderPaymentSummary {
 
 class OrderPaymentDetail {
   const OrderPaymentDetail({
+    this.id,
     required this.method,
     required this.status,
     required this.amount,
     this.tendered,
     this.changeDue,
+    this.refundedAmount = 0,
+    this.refundableAmount = 0,
   });
 
+  final int? id;
   final String method;
   final String status;
   final double amount;
   final double? tendered;
   final double? changeDue;
+  final double refundedAmount;
+  final double refundableAmount;
 
   factory OrderPaymentDetail.fromJson(Map<String, dynamic> json) {
     return OrderPaymentDetail(
+      id: json['id'] != null ? (json['id'] as num).toInt() : null,
       method: json['method'] as String,
       status: json['status'] as String,
       amount: (json['amount'] as num).toDouble(),
-      tendered: json['tendered'] != null ? (json['tendered'] as num).toDouble() : null,
-      changeDue: json['change_due'] != null ? (json['change_due'] as num).toDouble() : null,
+      tendered: json['tendered'] != null
+          ? (json['tendered'] as num).toDouble()
+          : null,
+      changeDue: json['change_due'] != null
+          ? (json['change_due'] as num).toDouble()
+          : null,
+      refundedAmount: json['refunded_amount'] != null
+          ? (json['refunded_amount'] as num).toDouble()
+          : 0,
+      refundableAmount: json['refundable_amount'] != null
+          ? (json['refundable_amount'] as num).toDouble()
+          : 0,
     );
   }
 }

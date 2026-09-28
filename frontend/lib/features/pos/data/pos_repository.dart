@@ -74,6 +74,7 @@ abstract class PosRepository {
     List<Map<String, dynamic>>? splitPayments,
     double discountTotal = 0,
     int? branchId,
+    int? customerId,
   });
 }
 
@@ -322,6 +323,7 @@ class ApiPosRepository implements PosRepository {
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     double discountTotal = 0,
+    int? customerId,
     int? branchId,
   }) async {
     final response = await _apiClient.request(
@@ -329,6 +331,7 @@ class ApiPosRepository implements PosRepository {
         '/orders',
         data: {
           if (branchId != null) 'branch_id': branchId,
+          if (customerId != null) 'customer_id': customerId,
           'order_type': orderType,
           if (tableId != null) 'table_id': tableId,
           'items': items

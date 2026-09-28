@@ -9,6 +9,25 @@ abstract class PurchaseSupplierRepository {
   Future<List<PurchaseSupplier>> getSuppliers({
     int? branchId,
   });
+
+  Future<PurchaseSupplier> createSupplier({
+    int? branchId,
+    required String name,
+    String? contactName,
+    String? phone,
+    String? email,
+  });
+
+  Future<PurchaseSupplier> updateSupplier({
+    required int id,
+    int? branchId,
+    required String name,
+    String? contactName,
+    String? phone,
+    String? email,
+  });
+
+  Future<void> deleteSupplier(int id);
 }
 
 class ApiPurchaseSupplierRepository
@@ -17,6 +36,65 @@ class ApiPurchaseSupplierRepository
 
   final ApiClient _apiClient;
 
+  @override
+  Future<PurchaseSupplier> createSupplier({
+    int? branchId,
+    required String name,
+    String? contactName,
+    String? phone,
+    String? email,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.post(
+        '/suppliers',
+        data: {
+          'branch_id': branchId,
+          'name': name,
+          'contact_name': contactName,
+          'phone': phone,
+          'email': email,
+        },
+      ),
+    );
+
+    return PurchaseSupplier.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<PurchaseSupplier> updateSupplier({
+    required int id,
+    int? branchId,
+    required String name,
+    String? contactName,
+    String? phone,
+    String? email,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.patch(
+        '/suppliers/$id',
+        data: {
+          'branch_id': branchId,
+          'name': name,
+          'contact_name': contactName,
+          'phone': phone,
+          'email': email,
+        },
+      ),
+    );
+
+    return PurchaseSupplier.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<void> deleteSupplier(int id) async {
+    await _apiClient.request(
+      (dio) => dio.delete('/suppliers/$id'),
+    );
+  }
   @override
   Future<List<PurchaseSupplier>> getSuppliers({
     int? branchId,

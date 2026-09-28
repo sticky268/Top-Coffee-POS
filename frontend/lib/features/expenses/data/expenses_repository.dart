@@ -55,6 +55,15 @@ class ExpensesRepository {
     );
   }
 
+  Future<ExpenseSummary> getExpenseSummary() async {
+    final response = await _apiClient.request(
+      (dio) => dio.get('/expenses/summary'),
+    );
+
+    return ExpenseSummary.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
   Future<Expense> getExpense(int id) async {
     final response = await _apiClient.request(
       (dio) => dio.get('/expenses/$id'),
@@ -109,6 +118,11 @@ class ExpensesRepository {
 
     return Expense.fromJson(
       response.data['data'] as Map<String, dynamic>,
+    );
+  }
+  Future<void> deleteExpense(int id) async {
+    await _apiClient.request(
+      (dio) => dio.delete('/expenses/$id'),
     );
   }
 }

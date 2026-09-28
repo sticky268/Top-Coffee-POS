@@ -154,6 +154,125 @@ class ExpenseController extends Controller
         ], 201);
     }
     /**
+     * GET /api/v1/expenses/summary
+     *
+     * Returns expense dashboard totals, trend, and category breakdown
+     * for the selected branch.
+     */
+    public function summary(Request $request)
+    {
+        if (! $request->user()->can('expenses.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to view expenses',
+            ], 403);
+        }
+
+        $branchId = $this->resolveBranchId($request);
+
+        if ($branchId instanceof \Illuminate\Http\JsonResponse) {
+            return $branchId;
+        }
+
+        $today = now()->startOfDay();
+        $tomorrow = $today->copy()->addDay();
+
+        $weekStart = now()->startOfWeek();
+        $nextWeekStart = $weekStart->copy()->addWeek();
+        $previousWeekStart = $weekStart->copy()->subWeek();
+
+        $monthStart = now()->startOfMonth();
+        $nextMonthStart = $monthStart->copy()->addMonth();
+        $previousMonthStart = $monthStart->copy()->subMonth();
+
+        $baseQuery = Expense::query()
+            ->where('branch_id', $branchId);
+
+        $todayTotal = (clone $baseQuery)
+            ->whereDate('spent_at', $today)
+            ->sum('amount');
+
+        $weekTotal = (clone $baseQuery)
+            ->where('spent_at', '>=', $weekStart->toDateString())
+            ->where('spent_at', '<', $nextWeekStart->toDateString())
+            ->sum('amount');
+
+        $previousWeekTotal = (clone $baseQuery)
+            ->where('spent_at', '>=', $previousWeekStart->toDateString())
+            ->where('spent_at', '<', $weekStart->toDateString())
+            ->sum('amount');
+
+        $monthTotal = (clone $baseQuery)
+            ->where('spent_at', '>=', $monthStart->toDateString())
+            ->where('spent_at', '<', $nextMonthStart->toDateString())
+            ->sum('amount');
+
+        $previousMonthTotal = (clone $baseQuery)
+            ->where('spent_at', '>=', $previousMonthStart->toDateString())
+            ->where('spent_at', '<', $monthStart->toDateString())
+            ->sum('amount');
+
+        $trendStart = $today->copy()->subDays(6);
+
+        $trendRows = (clone $baseQuery)
+            ->selectRaw('spent_at, SUM(amount) as total')
+            ->where('spent_at', '>=', $trendStart->toDateString())
+            ->where('spent_at', '<', $tomorrow->toDateString())
+            ->groupBy('spent_at')
+            ->orderBy('spent_at')
+            ->get();
+
+        $trendMap = $trendRows->mapWithKeys(function ($row) {
+            return [
+                $row->spent_at->toDateString() => (float) $row->total,
+            ];
+        });
+
+        $trend = collect();
+
+        for ($date = $trendStart->copy(); $date->lte($today); $date->addDay()) {
+            $dateKey = $date->toDateString();
+
+            $trend->push([
+                'date' => $dateKey,
+                'day' => $date->format('D'),
+                'amount' => $trendMap[$dateKey] ?? 0.0,
+            ]);
+        }
+
+        $categoryRows = (clone $baseQuery)
+            ->selectRaw(
+                'expense_category_id, SUM(amount) as total'
+            )
+            ->with('category:id,name')
+            ->where('spent_at', '>=', $monthStart->toDateString())
+            ->where('spent_at', '<', $nextMonthStart->toDateString())
+            ->groupBy('expense_category_id')
+            ->orderByDesc('total')
+            ->get();
+
+        $categories = $categoryRows->map(function ($row) {
+            return [
+                'category_id' => $row->expense_category_id,
+                'category_name' => $row->category?->name ?? 'Unknown',
+                'amount' => (float) $row->total,
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'today' => (float) $todayTotal,
+                'week' => (float) $weekTotal,
+                'previous_week' => (float) $previousWeekTotal,
+                'month' => (float) $monthTotal,
+                'previous_month' => (float) $previousMonthTotal,
+                'trend' => $trend,
+                'categories' => $categories,
+            ],
+        ]);
+    }
+    /**
      * GET /api/v1/expenses/{id}
      *
      * Returns one expense for the selected branch.
@@ -270,6 +389,44 @@ class ExpenseController extends Controller
             'success' => true,
             'message' => 'Expense updated successfully',
             'data' => $expense,
+        ]);
+    }
+    /**
+     * DELETE /api/v1/expenses/{id}
+     *
+     * Soft deletes an expense for the selected branch.
+     */
+    public function destroy(Request $request, $id)
+    {
+        if (! $request->user()->can('expenses.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to manage expenses',
+            ], 403);
+        }
+
+        $branchId = $this->resolveBranchId($request);
+
+        if ($branchId instanceof \Illuminate\Http\JsonResponse) {
+            return $branchId;
+        }
+
+        $expense = Expense::query()
+            ->where('branch_id', $branchId)
+            ->find($id);
+
+        if (! $expense) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Expense not found',
+            ], 404);
+        }
+
+        $expense->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Expense deleted successfully',
         ]);
     }
     private function resolveBranchId(Request $request)

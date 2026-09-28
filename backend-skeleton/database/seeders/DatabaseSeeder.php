@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             UnitSeeder::class,
             CategoryProductSeeder::class,
+            ExpenseCategorySeeder::class,
         ]);
     }
 }

@@ -15,4 +15,14 @@ class Customer extends Model
     {
         return $this->hasMany(Order::class);
     }
+
+    public function loyaltyAccount()
+    {
+        return $this->hasOne(CustomerLoyaltyAccount::class);
+    }
+
+    public function loyaltyTransactions()
+    {
+        return $this->hasMany(LoyaltyTransaction::class);
+    }
 }

@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Customer;
 use App\Models\OrderItem;
 use App\Models\KitchenTicket;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\AuditLogService;
 use App\Services\SaleInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +83,7 @@ class OrderController extends Controller
         
         $validator = Validator::make($request->all(), [
             'branch_id' => 'nullable|integer|exists:branches,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in,takeaway',
             'table_id' => 'nullable|integer|exists:restaurant_tables,id|required_if:order_type,dine_in',
             'items' => 'required|array|min:1',
@@ -104,13 +107,29 @@ class OrderController extends Controller
             ], 422);
         }
 
+        $customerId = $request->input('customer_id');
+
+        if ($customerId !== null) {
+            $customer = Customer::query()
+                ->where('id', $customerId)
+                ->where('branch_id', $branchId)
+                ->first();
+
+            if (! $customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer is not available at this branch.',
+                ], 422);
+            }
+        }
+
         $discountTotal = round((float) $request->input('discount_total', 0), 2);
         $paymentMethod = $request->input('payment.method');
         $tendered = $request->input('payment.tendered');
 
         try {
             $order = DB::transaction(function () use (
-                $request, $user, $branchId, $discountTotal, $paymentMethod, $tendered
+                $request, $user, $branchId, $customerId, $discountTotal, $paymentMethod, $tendered
             ) {
                 $subtotal = 0;
                 $resolvedItems = [];
@@ -173,6 +192,7 @@ class OrderController extends Controller
                     'uuid' => (string) Str::uuid(),
                     'branch_id' => $branchId,
                     'user_id' => $user->id,
+                    'customer_id' => $customerId,
                     'order_type' => $request->input('order_type'),
                     'table_id' => $request->input('table_id'),
                     // No kitchen/hold workflow yet (Phase 10/11 territory)
@@ -210,6 +230,9 @@ class OrderController extends Controller
                     $splitPayments,
                     $user->id,
                 );
+
+                app(\App\Services\LoyaltyService::class)->awardForOrder($order);
+
                 return $order->load(['items', 'payments']);
             });
         } catch (HttpException $e) {
@@ -225,6 +248,55 @@ class OrderController extends Controller
         }
 
         $payments = $order->payments->values();
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.created',
+            $order,
+            null,
+            [
+                'branch_id' => $order->branch_id,
+                'customer_id' => $order->customer_id,
+                'order_type' => $order->order_type,
+                'status' => $order->status,
+                'subtotal' => (float) $order->subtotal,
+                'discount_total' => (float) $order->discount_total,
+                'total' => (float) $order->total,
+            ],
+        );
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.paid',
+            $order,
+            [
+                'status' => 'held',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+            ],
+            [
+                'status' => 'completed',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+                'payments' => $payments->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'method' => $payment->method,
+                    'amount' => (float) $payment->amount,
+                    'tendered' => $payment->tendered !== null
+                        ? (float) $payment->tendered
+                        : null,
+                    'change_due' => $payment->change_due !== null
+                        ? (float) $payment->change_due
+                        : null,
+                    'status' => $payment->status,
+                ])->values()->all(),
+            ],
+        );
+
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
 
@@ -234,6 +306,7 @@ class OrderController extends Controller
                 'id' => $order->id,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id,
                 'status' => $order->status,
                 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total,
@@ -335,6 +408,7 @@ class OrderController extends Controller
 
         $validator = Validator::make($request->all(), [
             'branch_id' => 'nullable|integer|exists:branches,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in',
             'table_id' => 'required|integer|exists:restaurant_tables,id',
             'items' => 'required|array|min:1',
@@ -420,13 +494,30 @@ class OrderController extends Controller
                     ];
                 }
 
-                $discountTotal = round((float) $request->input('discount_total', 0), 2);
+                $customerId = $request->input('customer_id');
+
+        if ($customerId !== null) {
+            $customer = Customer::query()
+                ->where('id', $customerId)
+                ->where('branch_id', $branchId)
+                ->first();
+
+            if (! $customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer is not available at this branch.',
+                ], 422);
+            }
+        }
+
+        $discountTotal = round((float) $request->input('discount_total', 0), 2);
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
                 $order = Order::create([
                     'uuid' => (string) Str::uuid(),
                     'branch_id' => $branchId,
                     'user_id' => $user->id,
+                    'customer_id' => $customerId,
                     'order_type' => 'dine_in',
                     'table_id' => $table->id,
                     'status' => 'held',
@@ -451,6 +542,22 @@ class OrderController extends Controller
                     'status' => 'occupied',
                 ]);
 
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.held',
+                    $order,
+                    null,
+                    [
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'status' => $order->status,
+                        'subtotal' => (float) $order->subtotal,
+                        'discount_total' => (float) $order->discount_total,
+                        'total' => (float) $order->total,
+                    ],
+                );
+
                 return $order->load(['items']);
             });
         } catch (HttpException $e) {
@@ -471,6 +578,7 @@ class OrderController extends Controller
                 'id' => $order->id,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id,
                 'status' => $order->status,
                 'table_id' => $order->table_id,
                 'subtotal' => (float) $order->subtotal,
@@ -515,7 +623,7 @@ class OrderController extends Controller
         $user = $request->user();
 
         try {
-            $order = DB::transaction(function () use ($request, $user, $id) {
+            $result = DB::transaction(function () use ($request, $user, $id) {
                 $order = Order::query()
                     ->where('id', $id)
                     ->where('status', 'held')
@@ -594,8 +702,33 @@ class OrderController extends Controller
                     ];
                 }
 
-                $discountTotal = round((float) $request->input('discount_total', 0), 2);
+                $customerId = $request->input('customer_id');
+
+        if ($customerId !== null) {
+            $customer = Customer::query()
+                ->where('id', $customerId)
+                ->where('branch_id', $branchId)
+                ->first();
+
+            if (! $customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer is not available at this branch.',
+                ], 422);
+            }
+        }
+
+        $discountTotal = round((float) $request->input('discount_total', 0), 2);
                 $total = max(0, round($subtotal - $discountTotal, 2));
+
+                $oldValues = [
+                    'subtotal' => (float) $order->subtotal,
+                    'discount_total' => (float) $order->discount_total,
+                    'total' => (float) $order->total,
+                    'status' => $order->status,
+                    'branch_id' => $order->branch_id,
+                    'table_id' => $order->table_id,
+                ];
 
                 $order->update([
                     'subtotal' => round($subtotal, 2),
@@ -619,7 +752,10 @@ class OrderController extends Controller
                     ]);
                 }
 
-                return $order->load(['items']);
+                return [
+                    'order' => $order->load(['items']),
+                    'old_values' => $oldValues,
+                ];
             });
         } catch (HttpException $e) {
             return response()->json([
@@ -633,12 +769,31 @@ class OrderController extends Controller
             ], 500);
         }
 
+        $order = $result['order'];
+        $oldValues = $result['old_values'];
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.updated',
+            $order,
+            $oldValues,
+            [
+                'subtotal' => (float) $order->subtotal,
+                'discount_total' => (float) $order->discount_total,
+                'total' => (float) $order->total,
+                'status' => $order->status,
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+            ],
+        );
+
         return response()->json([
             'success' => true,
             'data' => [
                 'id' => $order->id,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id,
                 'status' => $order->status,
                 'table_id' => $order->table_id,
                 'subtotal' => (float) $order->subtotal,
@@ -760,6 +915,40 @@ class OrderController extends Controller
 
         $order = $result['order'];
         $payments = collect($result['payments'])->values();
+
+        app(\App\Services\LoyaltyService::class)->awardForOrder($order);
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.paid',
+            $order,
+            [
+                'status' => 'held',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+            ],
+            [
+                'status' => 'completed',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+                'payments' => $payments->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'method' => $payment->method,
+                    'amount' => (float) $payment->amount,
+                    'tendered' => $payment->tendered !== null
+                        ? (float) $payment->tendered
+                        : null,
+                    'change_due' => $payment->change_due !== null
+                        ? (float) $payment->change_due
+                        : null,
+                    'status' => $payment->status,
+                ])->values()->all(),
+            ],
+        );
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
 
@@ -769,6 +958,7 @@ class OrderController extends Controller
                 'id' => $order->id,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id,
                 'status' => $order->status,
                 'table_id' => $order->table_id,
                 'subtotal' => (float) $order->subtotal,
@@ -1040,13 +1230,6 @@ class OrderController extends Controller
                     round($subtotal - $discountTotal, 2)
                 );
 
-                if (abs($total - $paidTotal) > 0.001) {
-                    abort(
-                        422,
-                        'The edited order total must match the amount already paid. ' .
-                        'Use the refund or additional payment workflow for payment changes.'
-                    );
-                }
 
                 app(SaleInventoryService::class)->reverseForOrder(
                     $order,
@@ -1091,6 +1274,55 @@ class OrderController extends Controller
         }
 
         $payments = $order->payments->values();
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.created',
+            $order,
+            null,
+            [
+                'branch_id' => $order->branch_id,
+                'customer_id' => $order->customer_id,
+                'order_type' => $order->order_type,
+                'status' => $order->status,
+                'subtotal' => (float) $order->subtotal,
+                'discount_total' => (float) $order->discount_total,
+                'total' => (float) $order->total,
+            ],
+        );
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.paid',
+            $order,
+            [
+                'status' => 'held',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+            ],
+            [
+                'status' => 'completed',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+                'payments' => $payments->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'method' => $payment->method,
+                    'amount' => (float) $payment->amount,
+                    'tendered' => $payment->tendered !== null
+                        ? (float) $payment->tendered
+                        : null,
+                    'change_due' => $payment->change_due !== null
+                        ? (float) $payment->change_due
+                        : null,
+                    'status' => $payment->status,
+                ])->values()->all(),
+            ],
+        );
+
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
 
@@ -1100,6 +1332,7 @@ class OrderController extends Controller
                 'id' => $order->id,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id,
                 'status' => $order->status,
                 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total,
@@ -1140,6 +1373,7 @@ class OrderController extends Controller
 
         $validator = Validator::make($request->query(), [
             'branch_id' => 'nullable|integer|exists:branches,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
             'order_number' => 'nullable|string',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
@@ -1272,6 +1506,7 @@ class OrderController extends Controller
                 'id' => $order->id,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id,
                 'status' => $order->status,
                 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total,

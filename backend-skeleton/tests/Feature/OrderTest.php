@@ -2,10 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Ingredient;
+use App\Models\LoyaltySetting;
+use App\Models\LoyaltyTransaction;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\RecipeItem;
@@ -150,6 +155,76 @@ class OrderTest extends TestCase
         $this->assertEquals('completed', $order->status);
         $this->assertEquals($branch->id, $order->branch_id);
         $this->assertEquals($user->id, $order->user_id);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'order.created',
+            'auditable_type' => $order->getMorphClass(),
+            'auditable_id' => $order->id,
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'order.created')
+            ->where('auditable_id', $order->id)
+            ->firstOrFail();
+
+        $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
+        $this->assertSame($user->id, $auditLog->user_id);
+        $this->assertSame('completed', $auditLog->new_values['status']);
+        $this->assertSame(10.0, (float) $auditLog->new_values['total']);
+    }
+
+    public function test_creates_an_order_for_a_customer(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Test Customer',
+            'phone' => '012345678',
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 10.00],
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.customer_id', $customer->id);
+
+        $order = Order::first();
+        $this->assertEquals($customer->id, $order->customer_id);
+    }
+
+    public function test_rejects_a_customer_from_another_branch(): void
+    {
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'Downtown', 'code' => 'PP-02']);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $customer = Customer::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Other Branch Customer',
+            'phone' => '012345679',
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 10.00],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('message', 'Customer is not available at this branch.');
+        $this->assertDatabaseCount('orders', 0);
     }
 
     public function test_discount_total_reduces_the_final_total(): void
@@ -309,7 +384,7 @@ class OrderTest extends TestCase
         $validProduct = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
         $validProduct->branches()->attach($branch->id, ['is_available' => true]);
 
-        // Only available at the OTHER branch — not sellable at $branch.
+        // Only available at the OTHER branch ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â not sellable at $branch.
         $invalidProduct = Product::create(['category_id' => $category->id, 'name' => 'Cold Brew', 'base_price' => 4.00]);
         $invalidProduct->branches()->attach($otherBranch->id, ['is_available' => true]);
 
@@ -324,7 +399,7 @@ class OrderTest extends TestCase
 
         $response->assertStatus(422)->assertJsonPath('success', false);
 
-        // Critical: the transaction must have rolled back completely —
+        // Critical: the transaction must have rolled back completely ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
         // not even the valid line should exist.
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('order_items', 0);
@@ -480,6 +555,120 @@ class OrderTest extends TestCase
             'occupied',
             $table->fresh()->status,
         );
+
+        $orderId = $response->json('data.id');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'order.held',
+            'auditable_type' => Order::class,
+            'auditable_id' => $orderId,
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'order.held')
+            ->where('auditable_id', $orderId)
+            ->firstOrFail();
+
+        $this->assertSame('held', $auditLog->new_values['status']);
+        $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
+    }
+    public function test_updating_held_order_records_audit_log(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $latte = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 5.00,
+        ]);
+
+        $americano = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Americano',
+            'base_price' => 3.00,
+        ]);
+
+        $latte->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $americano->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $holdResponse = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [
+                [
+                    'product_id' => $latte->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $holdResponse
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'held')
+            ->assertJsonPath('data.total', 5);
+
+        $orderId = $holdResponse->json('data.id');
+
+        $updateResponse = $this->actingAs($user)->patchJson(
+            "/api/v1/orders/{$orderId}/hold",
+            [
+                'items' => [
+                    [
+                        'product_id' => $americano->id,
+                        'quantity' => 2,
+                    ],
+                ],
+            ],
+        );
+
+        $updateResponse
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'held')
+            ->assertJsonPath('data.total', 6);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'order.updated',
+            'auditable_type' => Order::class,
+            'auditable_id' => $orderId,
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'order.updated')
+            ->where('auditable_id', $orderId)
+            ->firstOrFail();
+
+        $this->assertSame(5.0, (float) $auditLog->old_values['total']);
+        $this->assertSame(6.0, (float) $auditLog->new_values['total']);
+        $this->assertSame('held', $auditLog->new_values['status']);
+        $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
+        $this->assertSame($table->id, $auditLog->new_values['table_id']);
     }
     public function test_paid_held_dine_in_order_deducts_inventory(): void
     {
@@ -584,6 +773,25 @@ class OrderTest extends TestCase
 
         $this->assertSame(82.0, (float) $coffee->fresh()->current_stock);
         $this->assertSame(750.0, (float) $milk->fresh()->current_stock);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'order.paid',
+            'auditable_type' => Order::class,
+            'auditable_id' => $orderId,
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'order.paid')
+            ->where('auditable_id', $orderId)
+            ->firstOrFail();
+
+        $this->assertSame('held', $auditLog->old_values['status']);
+        $this->assertSame('completed', $auditLog->new_values['status']);
+        $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
+        $this->assertSame($table->id, $auditLog->new_values['table_id']);
+        $this->assertSame(3.5, (float) $auditLog->new_values['total']);
+        $this->assertSame('cash', $auditLog->new_values['payments'][0]['method']);
+        $this->assertSame(3.5, (float) $auditLog->new_values['payments'][0]['amount']);
 
         $this->assertDatabaseHas('stock_movements', [
             'ingredient_id' => $coffee->id,
@@ -1023,6 +1231,25 @@ class OrderTest extends TestCase
 
         $this->assertSame(82.0, (float) $coffee->fresh()->current_stock);
         $this->assertSame(750.0, (float) $milk->fresh()->current_stock);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'order.paid',
+            'auditable_type' => Order::class,
+            'auditable_id' => $orderId,
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'order.paid')
+            ->where('auditable_id', $orderId)
+            ->firstOrFail();
+
+        $this->assertSame('held', $auditLog->old_values['status']);
+        $this->assertSame('completed', $auditLog->new_values['status']);
+        $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
+        $this->assertNull($auditLog->new_values['table_id']);
+        $this->assertSame(3.5, (float) $auditLog->new_values['total']);
+        $this->assertSame('cash', $auditLog->new_values['payments'][0]['method']);
+        $this->assertSame(3.5, (float) $auditLog->new_values['payments'][0]['amount']);
 
         $this->assertDatabaseHas('stock_movements', [
             'ingredient_id' => $coffee->id,
@@ -1251,6 +1478,186 @@ class OrderTest extends TestCase
             'quantity' => -20,
             'reason' => "Sale deduction for Order #{$orderId}",
         ]);
+    }
+    public function test_editing_order_to_higher_total_preserves_existing_payment_without_additional_payment(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $oldProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Small Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $newProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Large Latte',
+            'base_price' => 5.00,
+        ]);
+
+        $oldProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $newProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $oldProduct->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse
+            ->assertStatus(201)
+            ->assertJsonPath('data.total', 3);
+
+        $orderId = $createResponse->json('data.id');
+
+        $response = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $newProduct->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('data.id', $orderId)
+            ->assertJsonPath('data.total', 5);
+
+        $this->assertDatabaseCount('payments', 1);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $orderId,
+            'method' => 'cash',
+            'amount' => 3,
+            'tendered' => 3,
+            'status' => 'completed',
+            'processed_by' => $cashier->id,
+        ]);
+
+        $this->assertDatabaseCount('payment_refunds', 0);
+    }
+    public function test_editing_order_to_lower_total_preserves_existing_payment_without_refund(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $oldProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Large Latte',
+            'base_price' => 5.00,
+        ]);
+
+        $newProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Small Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $oldProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $newProduct->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $oldProduct->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 5,
+            ],
+        ]);
+
+        $createResponse
+            ->assertStatus(201)
+            ->assertJsonPath('data.total', 5);
+
+        $orderId = $createResponse->json('data.id');
+
+        $response = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $newProduct->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('data.id', $orderId)
+            ->assertJsonPath('data.total', 3);
+
+        $this->assertDatabaseCount('payments', 1);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $orderId,
+            'method' => 'cash',
+            'amount' => 5,
+            'tendered' => 5,
+            'status' => 'completed',
+            'processed_by' => $cashier->id,
+        ]);
+
+        $this->assertDatabaseCount('payment_refunds', 0);
     }
     public function test_admin_with_orders_edit_permission_can_edit_order(): void
     {
@@ -1490,4 +1897,175 @@ class OrderTest extends TestCase
         $this->assertCount(1, $orders);
         $this->assertSame($orderId, $orders[0]['id']);
     }
+
+    public function test_completed_order_awards_loyalty_points(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        Permission::firstOrCreate([
+            'name' => 'loyalty.manage',
+            'guard_name' => 'web',
+        ]);
+
+        $user->givePermissionTo('loyalty.manage');
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 5.00,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Loyalty Customer',
+            'phone' => '012345678',
+        ]);
+
+        LoyaltySetting::create([
+            'branch_id' => $branch->id,
+            'is_enabled' => true,
+            'points_per_currency_unit' => 1,
+            'points_per_reward_currency_unit' => 100,
+            'minimum_redeem_points' => 100,
+            'redemption_enabled' => true,
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 10.00],
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('data.status', 'completed');
+
+        $orderId = $response->json('data.id');
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'customer_id' => $customer->id,
+            'branch_id' => $branch->id,
+            'order_id' => $orderId,
+            'type' => 'earned',
+            'points' => 5,
+        ]);
+
+        $transaction = LoyaltyTransaction::where('order_id', $orderId)->firstOrFail();
+        $this->assertSame(5, (int) $transaction->balance_after);
+    }
+
+
+    public function test_paid_held_order_awards_loyalty_points(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        Permission::firstOrCreate([
+            'name' => 'loyalty.manage',
+            'guard_name' => 'web',
+        ]);
+
+        $user->givePermissionTo('loyalty.manage');
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 5.00,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Held Loyalty Customer',
+            'phone' => '012345679',
+        ]);
+
+        LoyaltySetting::create([
+            'branch_id' => $branch->id,
+            'is_enabled' => true,
+            'points_per_currency_unit' => 1,
+            'points_per_reward_currency_unit' => 100,
+            'minimum_redeem_points' => 100,
+            'redemption_enabled' => true,
+        ]);
+
+        $holdResponse = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'customer_id' => $customer->id,
+            'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $holdResponse
+            ->assertStatus(201)
+            ->assertJsonPath('data.status', 'held');
+
+        $orderId = $holdResponse->json('data.id');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'customer_id' => $customer->id,
+            'status' => 'held',
+        ]);
+
+        $paymentResponse = $this->actingAs($user)->postJson(
+            "/api/v1/orders/{$orderId}/pay",
+            [
+                'payment' => ['method' => 'cash', 'tendered' => 5.00],
+            ],
+        );
+
+        $paymentResponse
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', 'completed');
+
+        $this->assertDatabaseHas('loyalty_transactions', [
+            'customer_id' => $customer->id,
+            'branch_id' => $branch->id,
+            'order_id' => $orderId,
+            'type' => 'earned',
+            'points' => 5,
+        ]);
+
+        $transaction = LoyaltyTransaction::where('order_id', $orderId)->firstOrFail();
+        $this->assertSame(5, (int) $transaction->balance_after);
+
+        $this->assertSame('available', $table->fresh()->status);
+    }
+
 }

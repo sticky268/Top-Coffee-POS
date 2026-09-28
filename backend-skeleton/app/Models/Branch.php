@@ -24,4 +24,9 @@ class Branch extends Model
         return $this->belongsToMany(Product::class, 'branch_product')
             ->withPivot(['price_override', 'is_available']);
     }
+
+    public function loyaltyTransactions()
+    {
+        return $this->hasMany(LoyaltyTransaction::class);
+    }
 }

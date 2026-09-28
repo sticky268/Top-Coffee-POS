@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../auth/data/auth_repository.dart' show apiClientProvider;
@@ -14,6 +14,13 @@ abstract class OrdersRepository {
   });
 
   Future<OrderDetail> getOrder(int id);
+
+  Future<OrderDetail> updateOrder({
+    required int orderId,
+    required List<Map<String, dynamic>> items,
+    double discountTotal = 0,
+    int? branchId,
+  });
 }
 
 class ApiOrdersRepository implements OrdersRepository {
@@ -75,8 +82,30 @@ class ApiOrdersRepository implements OrdersRepository {
     final response = await _apiClient.request(
       (dio) => dio.get('/orders/$id'),
     );
-
     return OrderDetail.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<OrderDetail> updateOrder({
+    required int orderId,
+    required List<Map<String, dynamic>> items,
+    double discountTotal = 0,
+    int? branchId,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.patch(
+        '/orders/$orderId',
+        data: {
+          if (branchId != null) 'branch_id': branchId,
+          'items': items,
+          'discount_total': discountTotal,
+        },
+      ),
+    );
+
+      return OrderDetail.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
   }

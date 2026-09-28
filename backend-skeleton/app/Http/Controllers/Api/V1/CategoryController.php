@@ -134,4 +134,118 @@ class CategoryController extends Controller
             ],
         ], 201);
     }
+
+    /**
+     * PATCH /api/v1/categories/{category}
+     *
+     * Updates a category belonging to an accessible branch.
+     * Global categories (branch_id IS NULL) cannot be modified here.
+     */
+    public function update(Request $request, Category $category)
+    {
+        if (! $request->user()->can('products.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to manage categories',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|required|string|max:255',
+            'sort_order' => 'sometimes|required|integer|min:0',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        if ($category->branch_id === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Global categories cannot be modified',
+            ], 403);
+        }
+
+        if (
+            ! $user->can('branches.view-all')
+            && ! $user->branches()->where('branches.id', $category->branch_id)->exists()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => "You do not have access to branch {$category->branch_id}",
+            ], 403);
+        }
+
+        $category->fill($request->only([
+            'name',
+            'sort_order',
+        ]));
+
+        if ($request->has('is_active')) {
+            $category->is_active = $request->boolean('is_active');
+        }
+
+        $category->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $category->id,
+                'branch_id' => $category->branch_id,
+                'name' => $category->name,
+                'sort_order' => $category->sort_order,
+                'is_active' => (bool) $category->is_active,
+            ],
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/categories/{category}
+     *
+     * Deactivates the category instead of physically deleting it.
+     * This is required because products may reference the category.
+     */
+    public function destroy(Request $request, Category $category)
+    {
+        if (! $request->user()->can('products.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to manage categories',
+            ], 403);
+        }
+
+        $user = $request->user();
+
+        if ($category->branch_id === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Global categories cannot be deactivated',
+            ], 403);
+        }
+
+        if (
+            ! $user->can('branches.view-all')
+            && ! $user->branches()->where('branches.id', $category->branch_id)->exists()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => "You do not have access to branch {$category->branch_id}",
+            ], 403);
+        }
+
+        $category->is_active = false;
+        $category->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Category deactivated successfully',
+        ]);
+    }
 }

@@ -30,6 +30,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     required double discountTotal,
+    int? customerId,
   }) async {
     if (!mounted) return;
     state = const CheckoutSubmitting();
@@ -43,6 +44,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         tendered: tendered,
         splitPayments: splitPayments,
         discountTotal: discountTotal,
+        customerId: customerId,
         branchId: _ref.read(currentBranchProvider)?.id,
       );
       if (!mounted) return;

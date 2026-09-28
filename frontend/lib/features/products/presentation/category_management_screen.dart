@@ -6,6 +6,7 @@ import '../../../core/network/api_exceptions.dart';
 import '../application/products_controller.dart';
 import '../application/products_state.dart';
 import '../data/products_repository.dart';
+import '../../pos/domain/pos_models.dart';
 
 class CategoryManagementScreen extends ConsumerStatefulWidget {
   const CategoryManagementScreen({super.key});
@@ -69,6 +70,176 @@ class _CategoryManagementScreenState
 
       final message =
           e is ApiException ? e.message : 'Could not create category';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _editCategory(PosCategory category) async {
+    final nameController = TextEditingController(text: category.name);
+    final sortOrderController = TextEditingController(
+      text: category.sortOrder.toString(),
+    );
+
+    try {
+      final result = await showDialog<_CategoryEditResult>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Edit Category'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Category name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: sortOrderController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Sort order',
+                    helperText: 'Lower numbers appear first',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final name = nameController.text.trim();
+                  final sortOrder =
+                      int.tryParse(sortOrderController.text.trim());
+
+                  if (name.isEmpty || sortOrder == null || sortOrder < 0) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Enter a valid name and sort order (0 or higher)',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  Navigator.of(dialogContext).pop(
+                    _CategoryEditResult(
+                      name: name,
+                      sortOrder: sortOrder,
+                    ),
+                  );
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (result == null || !mounted) return;
+
+      setState(() => _isSaving = true);
+
+      try {
+        await ref.read(productsRepositoryProvider).updateCategory(
+              categoryId: category.id,
+              name: result.name,
+              sortOrder: result.sortOrder,
+            );
+
+        if (!mounted) return;
+
+        await ref.read(productsControllerProvider.notifier).refresh();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${result.name}" updated')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        final message =
+            e is ApiException ? e.message : 'Could not update category';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
+      }
+    } finally {
+      nameController.dispose();
+      sortOrderController.dispose();
+    }
+  }
+
+  Future<void> _deactivateCategory(PosCategory category) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Deactivate Category?'),
+          content: Text(
+            'Are you sure you want to deactivate "${category.name}"? '
+            'It will no longer appear in the active category list.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Deactivate'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      await ref.read(productsRepositoryProvider).deleteCategory(
+            categoryId: category.id,
+          );
+
+      if (!mounted) return;
+
+      await ref.read(productsControllerProvider.notifier).refresh();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${category.name}" deactivated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      final message =
+          e is ApiException ? e.message : 'Could not deactivate category';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -151,10 +322,41 @@ class _CategoryManagementScreenState
                               const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final category = categories[index];
+                            final isGlobal = category.branchId == null;
 
                             return ListTile(
                               leading: const Icon(Icons.category_outlined),
                               title: Text(category.name),
+                              subtitle: Text(
+                                'Sort order: ${category.sortOrder}'
+                                '${isGlobal ? ' • Global' : ''}',
+                              ),
+                              trailing: isGlobal
+                                  ? const Chip(
+                                      label: Text('Global'),
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Edit',
+                                          onPressed: _isSaving
+                                              ? null
+                                              : () => _editCategory(category),
+                                          icon: const Icon(Icons.edit_outlined),
+                                        ),
+                                        IconButton(
+                                          tooltip: 'Deactivate',
+                                          onPressed: _isSaving
+                                              ? null
+                                              : () =>
+                                                  _deactivateCategory(category),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             );
                           },
                         ),
@@ -166,4 +368,14 @@ class _CategoryManagementScreenState
       ),
     );
   }
+}
+
+class _CategoryEditResult {
+  const _CategoryEditResult({
+    required this.name,
+    required this.sortOrder,
+  });
+
+  final String name;
+  final int sortOrder;
 }

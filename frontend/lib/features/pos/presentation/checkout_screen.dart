@@ -8,7 +8,11 @@ import '../application/cart_state.dart';
 import '../application/checkout_controller.dart';
 import '../application/checkout_state.dart';
 import '../../../core/printer/printer_service.dart';
+import '../../../core/branch/current_branch_provider.dart';
 import '../data/pos_repository.dart';
+import '../../settings/data/receipt_settings.dart';
+import '../../customers/data/customers_repository.dart';
+import '../../customers/domain/customer_models.dart';
 import '../domain/pos_models.dart';
 
 /// Order review + payment screen, reached via the cart's "Review Order" /
@@ -60,6 +64,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _paymentMethod = 'cash';
   String _orderType = 'takeaway';
   PosTable? _selectedTable;
+  Customer? _selectedCustomer;
   final _tenderedController = TextEditingController();
   final List<_SplitPaymentLine> _splitPayments = [
     _SplitPaymentLine(method: 'cash'),
@@ -85,6 +90,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   double? get _tenderedAmount => double.tryParse(_tenderedController.text);
 
+  Future<void> _openCustomerPicker() async {
+    final repository = ref.read(customersRepositoryProvider);
+    final branchId = ref.read(currentBranchProvider)?.id;
+
+    final customer = await showModalBottomSheet<Customer?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _CustomerPickerSheet(
+        repository: repository,
+        branchId: branchId,
+        selectedCustomer: _selectedCustomer,
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectedCustomer = customer;
+    });
+  }
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartControllerProvider);
@@ -131,6 +156,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               orderType: _orderType,
               paymentMethod: _paymentMethod,
               selectedTable: _selectedTable,
+              selectedCustomer: _selectedCustomer,
+              onCustomerChanged: (customer) => setState(() => _selectedCustomer = customer),
+              onCustomerTap: _openCustomerPicker,
               splitPayments: _splitPayments,
               onTableChanged: (table) => setState(() => _selectedTable = table),
               onOrderTypeChanged: (type) {
@@ -167,6 +195,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               .toList()
                           : null,
                       discountTotal: cart.discountTotal,
+                      customerId: _selectedCustomer?.id,
                     );
               },
               onHold: () {
@@ -190,6 +219,9 @@ class _CheckoutForm extends StatelessWidget {
     required this.orderType,
     required this.paymentMethod,
     required this.selectedTable,
+    required this.selectedCustomer,
+    required this.onCustomerChanged,
+    required this.onCustomerTap,
     required this.splitPayments,
     required this.onTableChanged,
     required this.onOrderTypeChanged,
@@ -208,6 +240,9 @@ class _CheckoutForm extends StatelessWidget {
   final String orderType;
   final String paymentMethod;
   final PosTable? selectedTable;
+  final Customer? selectedCustomer;
+  final ValueChanged<Customer?> onCustomerChanged;
+  final VoidCallback onCustomerTap;
   final List<_SplitPaymentLine> splitPayments;
   final ValueChanged<PosTable> onTableChanged;
   final ValueChanged<String> onOrderTypeChanged;
@@ -242,7 +277,7 @@ class _CheckoutForm extends StatelessWidget {
           if (payment.method == 'cash') {
             final tendered =
                 double.tryParse(payment.tenderedController.text);
-            return tendered == null || tendered >= amount;
+            return tendered != null && tendered >= amount;
           }
 
           return true;
@@ -327,6 +362,78 @@ class _CheckoutForm extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
+          Text(
+            'Customer',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: isSubmitting ? null : onCustomerTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor:
+                        theme.colorScheme.primaryContainer,
+                    child: Icon(
+                      selectedCustomer == null
+                          ? Icons.person_outline
+                          : Icons.person,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedCustomer?.name ?? 'Walk-in Customer',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (selectedCustomer?.phone != null &&
+                            selectedCustomer!.phone!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            selectedCustomer!.phone!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ] else if (selectedCustomer == null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'No customer selected',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           Text(
             'ORDER',
             style: theme.textTheme.labelMedium?.copyWith(
@@ -1009,11 +1116,34 @@ class _CheckoutSuccessViewState
       return;
     }
 
+    final settings = await ReceiptSettings.load();
+
+    if (!settings.printerEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Receipt printing is disabled in Settings.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (settings.printerIpAddress.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Printer IP address is not configured.'),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isPrinting = true;
     });
 
-    final messenger = ScaffoldMessenger.of(context);
     final printerService = PrinterService();
 
     try {
@@ -1021,7 +1151,13 @@ class _CheckoutSuccessViewState
         orderId: widget.confirmation.orderId,
       );
 
-      await printerService.connect('192.168.1.111');
+      debugPrint(
+        '🧾 PRINT RECEIPT: order=${receipt.orderId}, ' +
+        'subtotal=${receipt.subtotal}, ' +
+        'discount=${receipt.discountTotal}, ' +
+        'total=${receipt.total}',
+      );
+      await printerService.connect(settings.printerIpAddress);
       await printerService.printReceipt(receipt);
       await printerService.disconnect();
 
@@ -1029,7 +1165,7 @@ class _CheckoutSuccessViewState
         return;
       }
 
-      messenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Receipt printed successfully.'),
         ),
@@ -1045,7 +1181,7 @@ class _CheckoutSuccessViewState
         return;
       }
 
-      messenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to print receipt: $e'),
         ),
@@ -1362,6 +1498,350 @@ class _CheckoutSuccessViewState
                 const SizedBox(height: 16),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+class _AddCustomerDialog extends StatefulWidget {
+  const _AddCustomerDialog({
+    required this.repository,
+    required this.branchId,
+  });
+
+  final CustomersRepository repository;
+  final int? branchId;
+
+  @override
+  State<_AddCustomerDialog> createState() => _AddCustomerDialogState();
+}
+
+class _AddCustomerDialogState extends State<_AddCustomerDialog> {
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    if (name.isEmpty || _isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final customer = await widget.repository.createCustomer(
+        name: name,
+        phone: phone.isEmpty ? null : phone,
+        branchId: widget.branchId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop(customer);
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not create customer.'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Customer'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            enabled: !_isSaving,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'Customer name',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _phoneController,
+            enabled: !_isSaving,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _save(),
+            decoration: const InputDecoration(
+              labelText: 'Phone',
+              hintText: 'Phone number',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving
+              ? null
+              : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isSaving ? null : _save,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+class _CustomerPickerSheet extends StatefulWidget {
+  const _CustomerPickerSheet({
+    required this.repository,
+    required this.branchId,
+    required this.selectedCustomer,
+  });
+
+  final CustomersRepository repository;
+  final int? branchId;
+  final Customer? selectedCustomer;
+
+  @override
+  State<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
+}
+
+class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
+  final _searchController = TextEditingController();
+
+  List<Customer> _customers = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCustomers() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await widget.repository.getCustomers(
+        search: _searchController.text.trim(),
+        branchId: widget.branchId,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _customers = result.data;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Could not load customers.';
+      });
+    }
+  }
+
+  Future<void> _addCustomer() async {
+    final customer = await showDialog<Customer>(
+      context: context,
+      builder: (dialogContext) {
+        return _AddCustomerDialog(
+          repository: widget.repository,
+          branchId: widget.branchId,
+        );
+      },
+    );
+
+    if (!mounted || customer == null) return;
+
+    Navigator.of(context).pop(customer);
+  }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+        ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.72,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Select Customer',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: _searchController,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _loadCustomers(),
+                decoration: InputDecoration(
+                  hintText: 'Search name or phone',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    onPressed: _loadCustomers,
+                    icon: const Icon(Icons.arrow_forward),
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _addCustomer,
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Add Customer'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  child: const Icon(Icons.person_outline),
+                ),
+                title: const Text(
+                  'Walk-in Customer',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('No customer selected'),
+                trailing: widget.selectedCustomer == null
+                    ? Icon(
+                        Icons.check_circle,
+                        color: theme.colorScheme.primary,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(),
+              ),
+
+              const SizedBox(height: 8),
+
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : _customers.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No customers found.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: _customers.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final customer = _customers[index];
+                              final isSelected =
+                                  widget.selectedCustomer?.id == customer.id;
+
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  child: Text(
+                                    customer.name.isNotEmpty
+                                        ? customer.name[0].toUpperCase()
+                                        : '?',
+                                  ),
+                                ),
+                                title: Text(
+                                  customer.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: customer.phone == null ||
+                                        customer.phone!.isEmpty
+                                    ? null
+                                    : Text(customer.phone!),
+                                trailing: isSelected
+                                    ? Icon(
+                                        Icons.check_circle,
+                                        color: theme.colorScheme.primary,
+                                      )
+                                    : null,
+                                onTap: () =>
+                                    Navigator.of(context).pop(customer),
+                              );
+                            },
+                          ),
+              ),
+            ],
           ),
         ),
       ),

@@ -180,6 +180,11 @@ class _DashboardContent extends StatelessWidget {
         onTap: () => context.push('/orders'),
       ),
       QuickAction(
+        label: 'Customers',
+        icon: Icons.people_outline,
+        onTap: () => context.push('/customers'),
+      ),
+      QuickAction(
         label: 'Products',
         icon: Icons.local_cafe_outlined,
         onTap: () => context.push('/products'),

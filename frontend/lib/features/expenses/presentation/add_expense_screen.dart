@@ -5,10 +5,16 @@ import 'package:intl/intl.dart';
 import '../application/expense_categories_controller.dart';
 import '../application/expense_categories_state.dart';
 import '../data/expenses_repository.dart';
+import '../domain/expense_models.dart';
 import '../../../core/network/api_exceptions.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({super.key});
+  const AddExpenseScreen({
+    super.key,
+    this.expense,
+  });
+
+  final Expense? expense;
 
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -25,6 +31,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    final expense = widget.expense;
+    if (expense != null) {
+      _selectedCategoryId = expense.expenseCategoryId;
+      _amountController.text = expense.amount.toStringAsFixed(2);
+      _descriptionController.text = expense.description ?? '';
+      _spentAt = expense.spentAt.toLocal();
+    }
+
     Future.microtask(
       () => ref
           .read(expenseCategoriesControllerProvider.notifier)
@@ -45,7 +59,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (categoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Please select an expense category.'),
         ),
       );
@@ -54,7 +68,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Please enter a valid amount.'),
         ),
       );
@@ -66,20 +80,38 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     });
 
     try {
-      await ref.read(expensesRepositoryProvider).createExpense(
-            categoryId: categoryId,
-            amount: amount,
-            description: _descriptionController.text.trim().isEmpty
-                ? null
-                : _descriptionController.text.trim(),
-            spentAt: DateFormat('yyyy-MM-dd').format(_spentAt),
-          );
+      final repository = ref.read(expensesRepositoryProvider);
+      final description = _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim();
+      final spentAt = DateFormat('yyyy-MM-dd').format(_spentAt);
+
+      if (widget.expense == null) {
+        await repository.createExpense(
+          categoryId: categoryId,
+          amount: amount,
+          description: description,
+          spentAt: spentAt,
+        );
+      } else {
+        await repository.updateExpense(
+          id: widget.expense!.id,
+          categoryId: categoryId,
+          amount: amount,
+          description: description,
+          spentAt: spentAt,
+        );
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Expense created successfully.'),
+        SnackBar(
+          content: Text(
+            widget.expense == null
+                ? 'Expense created successfully.'
+                : 'Expense updated successfully.',
+          ),
         ),
       );
 
@@ -96,7 +128,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Could not save expense.'),
         ),
       );
@@ -109,6 +141,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 
+  Future<void> _selectCategory(List<ExpenseCategory> categories) async {
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        return SimpleDialog(
+          title: const Text('Select Category'),
+          children: categories
+              .map(
+                (category) => SimpleDialogOption(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(category.id);
+                  },
+                  child: Text(category.name),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedCategoryId = selected;
+      });
+    }
+  }
   Future<void> _selectDate() async {
     final selected = await showDatePicker(
       context: context,
@@ -130,7 +188,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Expense'),
+        title: Text(widget.expense == null ? 'Add Expense' : 'Edit Expense'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -146,25 +204,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   ),
                 ),
               ExpenseCategoriesLoaded(:final categories) =>
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedCategoryId,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
+                InkWell(
+                  onTap: () => _selectCategory(categories),
+                  borderRadius: BorderRadius.circular(4),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Text(
+                      _selectedCategoryId == null
+                          ? 'Select category'
+                          : categories
+                              .firstWhere(
+                                (category) =>
+                                    category.id == _selectedCategoryId,
+                              )
+                              .name,
+                    ),
                   ),
-                  items: categories
-                      .map(
-                        (category) => DropdownMenuItem<int>(
-                          value: category.id,
-                          child: Text(category.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCategoryId = value;
-                    });
-                  },
                 ),
             },
             const SizedBox(height: 16),
@@ -217,7 +275,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(_isSaving ? 'Saving...' : 'Save Expense'),
+              label: Text(_isSaving ? 'Saving...' : (widget.expense == null ? 'Save Expense' : 'Update Expense')),
             ),
           ],
         ),

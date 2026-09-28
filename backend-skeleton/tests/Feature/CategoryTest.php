@@ -130,4 +130,285 @@ class CategoryTest extends TestCase
         $names = collect($response->json('data'))->pluck('name')->values()->all();
         $this->assertSame(['First', 'Second'], $names);
     }
+
+    private function seedManagementPermissions(): void
+    {
+        foreach (['products.manage', 'branches.view-all'] as $permission) {
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $manager = Role::firstOrCreate([
+            'name' => 'manager',
+            'guard_name' => 'web',
+        ]);
+        $manager->syncPermissions(['products.manage']);
+
+        $admin = Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
+        ]);
+        $admin->syncPermissions(['products.manage', 'branches.view-all']);
+
+        Role::firstOrCreate([
+            'name' => 'cashier',
+            'guard_name' => 'web',
+        ]);
+    }
+
+    public function test_manager_can_update_category_in_their_branch(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => $branch->id,
+            'name' => 'Old Name',
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->actingAs($user)->patchJson(
+            "/api/v1/categories/{$category->id}",
+            [
+                'name' => 'New Name',
+                'sort_order' => 5,
+            ]
+        );
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.name', 'New Name')
+            ->assertJsonPath('data.sort_order', 5);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'New Name',
+            'sort_order' => 5,
+        ]);
+    }
+
+    public function test_manager_cannot_update_category_in_another_branch(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Other Branch',
+        ]);
+
+        $response = $this->actingAs($user)->patchJson(
+            "/api/v1/categories/{$category->id}",
+            ['name' => 'Should Not Change']
+        );
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Other Branch',
+        ]);
+    }
+
+    public function test_cashier_cannot_update_category(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'cashier');
+
+        $category = Category::create([
+            'branch_id' => $branch->id,
+            'name' => 'Drinks',
+        ]);
+
+        $response = $this->actingAs($user)->patchJson(
+            "/api/v1/categories/{$category->id}",
+            ['name' => 'Changed']
+        );
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Drinks',
+        ]);
+    }
+
+    public function test_admin_can_update_category_in_another_branch(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+
+        $admin = $this->makeUserForBranch($branch, 'admin');
+
+        $category = Category::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Other Branch',
+        ]);
+
+        $response = $this->actingAs($admin)->patchJson(
+            "/api/v1/categories/{$category->id}",
+            ['name' => 'Updated By Admin']
+        );
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.name', 'Updated By Admin');
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Updated By Admin',
+        ]);
+    }
+
+    public function test_global_category_cannot_be_modified(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Global Coffee',
+        ]);
+
+        $response = $this->actingAs($user)->patchJson(
+            "/api/v1/categories/{$category->id}",
+            ['name' => 'Changed Global']
+        );
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Global Coffee',
+        ]);
+    }
+
+    public function test_manager_can_deactivate_category_in_their_branch(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => $branch->id,
+            'name' => 'Temporary',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)->deleteJson(
+            "/api/v1/categories/{$category->id}"
+        );
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'is_active' => false,
+        ]);
+
+        $this->assertNotSoftDeleted('categories', [
+            'id' => $category->id,
+        ]);
+    }
+
+    public function test_manager_cannot_deactivate_category_in_another_branch(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Other Branch',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)->deleteJson(
+            "/api/v1/categories/{$category->id}"
+        );
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_global_category_cannot_be_deactivated(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Global Coffee',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)->deleteJson(
+            "/api/v1/categories/{$category->id}"
+        );
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_category_update_validation_rejects_invalid_sort_order(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $category = Category::create([
+            'branch_id' => $branch->id,
+            'name' => 'Drinks',
+        ]);
+
+        $response = $this->actingAs($user)->patchJson(
+            "/api/v1/categories/{$category->id}",
+            ['sort_order' => -1]
+        );
+
+        $response->assertStatus(422)->assertJsonPath('success', false);
+    }
+
+    public function test_updating_nonexistent_category_returns_not_found(): void
+    {
+        $this->seedManagementPermissions();
+
+        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $user = $this->makeUserForBranch($branch, 'manager');
+
+        $response = $this->actingAs($user)->patchJson(
+            '/api/v1/categories/999999',
+            ['name' => 'Missing']
+        );
+
+        $response->assertStatus(404);
+    }
 }

@@ -65,4 +65,9 @@ class Order extends Model
     {
         return $this->hasOne(KitchenTicket::class);
     }
+
+    public function loyaltyTransactions()
+    {
+        return $this->hasMany(LoyaltyTransaction::class);
+    }
 }

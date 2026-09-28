@@ -42,17 +42,24 @@ class PosTable {
 }
 
 class PosCategory {
-  const PosCategory({required this.id, required this.name, required this.sortOrder});
+  const PosCategory({
+    required this.id,
+    required this.name,
+    required this.sortOrder,
+    this.branchId,
+  });
 
   final int id;
   final String name;
   final int sortOrder;
+  final int? branchId;
 
   factory PosCategory.fromJson(Map<String, dynamic> json) {
     return PosCategory(
       id: json['id'] as int,
       name: json['name'] as String,
       sortOrder: json['sort_order'] as int? ?? 0,
+      branchId: json['branch_id'] as int?,
     );
   }
 }

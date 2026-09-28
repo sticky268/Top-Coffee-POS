@@ -27,6 +27,8 @@ class ReceiptSettings {
     required this.showChange,
     required this.showSplitPayments,
     required this.footer,
+    required this.printerEnabled,
+    required this.printerIpAddress,
   });
 
   final String businessName;
@@ -59,6 +61,11 @@ class ReceiptSettings {
   final bool showSplitPayments;
 
   final String footer;
+
+  final bool printerEnabled;
+  final String printerIpAddress;
+
+  static const String defaultPrinterIpAddress = '192.168.1.111';
 
   static const String defaultBusinessName = 'TOP COFFEE';
   static const String defaultBranchName = 'Phnom Penh Branch';
@@ -121,6 +128,11 @@ class ReceiptSettings {
           prefs.getBool('receipt_show_split_payments') ?? true,
       footer:
           prefs.getString('receipt_footer') ?? defaultFooter,
+      printerEnabled:
+          prefs.getBool('receipt_printer_enabled') ?? true,
+      printerIpAddress:
+          prefs.getString('receipt_printer_ip') ??
+              defaultPrinterIpAddress,
     );
   }
 
@@ -231,6 +243,15 @@ class ReceiptSettings {
     await prefs.setString(
       'receipt_footer',
       footer,
+    );
+
+    await prefs.setBool(
+      'receipt_printer_enabled',
+      printerEnabled,
+    );
+    await prefs.setString(
+      'receipt_printer_ip',
+      printerIpAddress,
     );
   }
 }

@@ -140,3 +140,95 @@ class ExpenseListPage {
     );
   }
 }
+class ExpenseSummary {
+  const ExpenseSummary({
+    required this.today,
+    required this.week,
+    required this.previousWeek,
+    required this.month,
+    required this.previousMonth,
+    required this.trend,
+    required this.categories,
+  });
+
+  final double today;
+  final double week;
+  final double previousWeek;
+  final double month;
+  final double previousMonth;
+  final List<ExpenseTrendPoint> trend;
+  final List<ExpenseCategorySummary> categories;
+
+  factory ExpenseSummary.fromJson(Map<String, dynamic> json) {
+    final trendData = json['trend'] as List<dynamic>? ?? const [];
+    final categoryData = json['categories'] as List<dynamic>? ?? const [];
+
+    return ExpenseSummary(
+      today: double.parse(json['today'].toString()),
+      week: double.parse(json['week'].toString()),
+      previousWeek: double.parse(
+        json['previous_week'].toString(),
+      ),
+      month: double.parse(json['month'].toString()),
+      previousMonth: double.parse(
+        json['previous_month'].toString(),
+      ),
+      trend: trendData
+          .map(
+            (item) => ExpenseTrendPoint.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(),
+      categories: categoryData
+          .map(
+            (item) => ExpenseCategorySummary.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class ExpenseTrendPoint {
+  const ExpenseTrendPoint({
+    required this.date,
+    required this.day,
+    required this.amount,
+  });
+
+  final DateTime date;
+  final String day;
+  final double amount;
+
+  factory ExpenseTrendPoint.fromJson(Map<String, dynamic> json) {
+    return ExpenseTrendPoint(
+      date: DateTime.parse(json['date'].toString()),
+      day: json['day'].toString(),
+      amount: double.parse(json['amount'].toString()),
+    );
+  }
+}
+
+class ExpenseCategorySummary {
+  const ExpenseCategorySummary({
+    required this.categoryId,
+    required this.categoryName,
+    required this.amount,
+  });
+
+  final int categoryId;
+  final String categoryName;
+  final double amount;
+
+  factory ExpenseCategorySummary.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return ExpenseCategorySummary(
+      categoryId: json['category_id'] as int,
+      categoryName: json['category_name'].toString(),
+      amount: double.parse(json['amount'].toString()),
+    );
+  }
+}

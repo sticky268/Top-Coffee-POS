@@ -2,6 +2,7 @@ class PurchaseSupplier {
   const PurchaseSupplier({
     required this.id,
     required this.name,
+    this.branchId,
     this.contactName,
     this.phone,
     this.email,
@@ -9,6 +10,7 @@ class PurchaseSupplier {
 
   final int id;
   final String name;
+  final int? branchId;
   final String? contactName;
   final String? phone;
   final String? email;
@@ -17,13 +19,13 @@ class PurchaseSupplier {
     return PurchaseSupplier(
       id: json['id'] as int,
       name: json['name'] as String,
+      branchId: json['branch_id'] as int?,
       contactName: json['contact_name'] as String?,
       phone: json['phone'] as String?,
       email: json['email'] as String?,
     );
   }
 }
-
 class PurchaseIngredient {
   const PurchaseIngredient({
     required this.id,
