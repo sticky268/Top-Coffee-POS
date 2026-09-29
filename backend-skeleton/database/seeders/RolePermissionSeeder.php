@@ -12,6 +12,7 @@ class RolePermissionSeeder extends Seeder
     {
         $permissions = [
             'branches.view-all',
+            'branches.manage',
             'users.manage',
             'products.manage',
             'orders.create', 'orders.view', 'orders.edit', 'orders.refund', 'orders.cancel',

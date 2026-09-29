@@ -234,8 +234,8 @@ class DashboardNavigation extends StatelessWidget {
                         label: 'Branches',
                         route: '/branches',
                         selectedRoute: selectedRoute,
-                        enabled: false,
-                        onTap: () => _showComingSoon(context, 'Branches'),
+                        enabled: true,
+                        onTap: () => _navigate(context, '/branches'),
                       ),
                       _NavigationItem(
                         icon: Icons.settings_outlined,

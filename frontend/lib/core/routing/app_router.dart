@@ -45,6 +45,9 @@ import '../../features/settings/presentation/about_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/staff_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/staff_detail_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/add_staff_screen.dart';
+import 'package:top_coffee_pos/features/branches/presentation/branches_screen.dart';
+import 'package:top_coffee_pos/features/branches/presentation/add_branch_screen.dart';
+import 'package:top_coffee_pos/features/branches/presentation/edit_branch_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
 
@@ -173,6 +176,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final staffId = int.parse(state.pathParameters['id']!);
               return StaffDetailScreen(staffId: staffId);
+            },
+          ),
+          GoRoute(
+            path: '/branches',
+            builder: (context, state) => const BranchesScreen(),
+          ),
+          GoRoute(
+            path: '/branches/add',
+            builder: (context, state) => const AddBranchScreen(),
+          ),
+          GoRoute(
+            path: '/branches/:id',
+            builder: (context, state) {
+              final branchId = int.parse(state.pathParameters['id']!);
+              return EditBranchScreen(branchId: branchId);
             },
           ),
           GoRoute(
