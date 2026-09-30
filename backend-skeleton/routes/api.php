@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\LoyaltyController;
 use App\Http\Controllers\Api\V1\BranchController;
+use App\Http\Controllers\Api\V1\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -30,6 +31,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'subscription.active'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::get('/subscription', [SubscriptionController::class, 'show']);
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/reports', [ReportsController::class, 'index']);
         Route::get('/units', [UnitController::class, 'index']);
