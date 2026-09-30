@@ -17,11 +17,22 @@ class Business extends Model
         'phone',
         'address',
         'is_active',
+        'plan_id',
+        'status',
+        'started_at',
+        'expires_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'started_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
+
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
+    }
 
     public function branches()
     {

@@ -96,6 +96,28 @@ class BranchController extends Controller
             ], 422);
         }
 
+        $business = $request->user()->business()->with('plan')->first();
+
+        if (! $business || ! $business->plan) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your business does not have an active plan. Please contact the administrator.',
+                'code' => 'PLAN_REQUIRED',
+            ], 403);
+        }
+
+        $branchCount = $business->branches()->count();
+
+        if ($branchCount >= $business->plan->branch_limit) {
+            return response()->json([
+                'success' => false,
+                'message' => "Your current plan allows up to {$business->plan->branch_limit} branches. Please upgrade your plan to add another branch.",
+                'code' => 'BRANCH_LIMIT_REACHED',
+                'branch_limit' => $business->plan->branch_limit,
+                'branch_count' => $branchCount,
+            ], 403);
+        }
+
         $branch = Branch::create(array_merge(
             $validator->validated(),
             ['business_id' => $request->user()->business_id],

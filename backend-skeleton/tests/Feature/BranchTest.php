@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Business;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -20,7 +21,50 @@ class BranchTest extends TestCase
     {
         parent::setUp();
 
-        $this->business = Business::factory()->create();
+        $plans = [
+            [
+                'name' => '1 Branch',
+                'slug' => '1-branch',
+                'branch_limit' => 1,
+            ],
+            [
+                'name' => '2 Branches',
+                'slug' => '2-branches',
+                'branch_limit' => 2,
+            ],
+            [
+                'name' => '3 Branches',
+                'slug' => '3-branches',
+                'branch_limit' => 3,
+            ],
+            [
+                'name' => '4 Branches',
+                'slug' => '4-branches',
+                'branch_limit' => 4,
+            ],
+            [
+                'name' => '5 Branches',
+                'slug' => '5-branches',
+                'branch_limit' => 5,
+            ],
+            [
+                'name' => '10 Branches',
+                'slug' => '10-branches',
+                'branch_limit' => 10,
+            ],
+        ];
+
+        foreach ($plans as $plan) {
+            Plan::create(array_merge($plan, [
+                'price' => 0,
+                'billing_interval' => 'monthly',
+                'is_active' => true,
+            ]));
+        }
+
+        $this->business = Business::factory()->create([
+            'plan_id' => Plan::where('slug', '1-branch')->firstOrFail()->id,
+        ]);
     }
 
     private function setupPermissions(): void
@@ -203,6 +247,126 @@ class BranchTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+    public function test_branch_creation_is_blocked_when_plan_limit_is_reached(): void
+    {
+        $user = $this->makeUser();
+
+        Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Existing Branch',
+            'code' => 'PP-01',
+            'timezone' => 'Asia/Phnom_Penh',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/branches', [
+                'name' => 'Second Branch',
+                'code' => 'PP-02',
+                'timezone' => 'Asia/Phnom_Penh',
+            ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'BRANCH_LIMIT_REACHED')
+            ->assertJsonPath('branch_limit', 1)
+            ->assertJsonPath('branch_count', 1);
+    }
+
+    public function test_branch_creation_is_blocked_when_business_has_no_plan(): void
+    {
+        $user = $this->makeUser();
+
+        $this->business->update([
+            'plan_id' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/branches', [
+                'name' => 'New Branch',
+                'code' => 'PP-99',
+                'timezone' => 'Asia/Phnom_Penh',
+            ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'PLAN_REQUIRED');
+    }
+
+    public function test_two_branch_plan_allows_two_branches_but_blocks_third(): void
+    {
+        $user = $this->makeUser();
+
+        $plan = Plan::where('slug', '2-branches')->firstOrFail();
+
+        $this->business->update([
+            'plan_id' => $plan->id,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/branches', [
+                'name' => 'Branch One',
+                'code' => 'PP-01',
+                'timezone' => 'Asia/Phnom_Penh',
+            ])
+            ->assertStatus(201);
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/branches', [
+                'name' => 'Branch Two',
+                'code' => 'PP-02',
+                'timezone' => 'Asia/Phnom_Penh',
+            ])
+            ->assertStatus(201);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/branches', [
+                'name' => 'Branch Three',
+                'code' => 'PP-03',
+                'timezone' => 'Asia/Phnom_Penh',
+            ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'BRANCH_LIMIT_REACHED')
+            ->assertJsonPath('branch_limit', 2)
+            ->assertJsonPath('branch_count', 2);
+    }
+
+    public function test_ten_branch_plan_allows_ten_branches(): void
+    {
+        $user = $this->makeUser();
+
+        $plan = Plan::where('slug', '10-branches')->firstOrFail();
+
+        $this->business->update([
+            'plan_id' => $plan->id,
+        ]);
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->actingAs($user)
+                ->postJson('/api/v1/branches', [
+                    'name' => "Branch {$i}",
+                    'code' => sprintf('PP-%02d', $i),
+                    'timezone' => 'Asia/Phnom_Penh',
+                ])
+                ->assertStatus(201);
+        }
+
+        $this->assertDatabaseCount('branches', 10);
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/branches', [
+                'name' => 'Branch 11',
+                'code' => 'PP-11',
+                'timezone' => 'Asia/Phnom_Penh',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'BRANCH_LIMIT_REACHED')
+            ->assertJsonPath('branch_limit', 10)
+            ->assertJsonPath('branch_count', 10);
+    }
     public function test_authorized_user_can_create_branch(): void
     {
         $user = $this->makeUser();
@@ -351,6 +515,50 @@ class BranchTest extends TestCase
         ]);
     }
 
+    public function test_three_four_and_five_branch_plans_enforce_their_limits(): void
+    {
+        foreach ([3, 4, 5] as $limit) {
+            $plan = Plan::where('branch_limit', $limit)->firstOrFail();
+
+            $business = Business::factory()->create([
+                'plan_id' => $plan->id,
+            ]);
+
+            $user = User::factory()->create([
+                'business_id' => $business->id,
+                'is_active' => true,
+            ]);
+
+            $this->setupPermissions();
+
+            $role = Role::where('name', 'admin')->firstOrFail();
+            $role->syncPermissions(['branches.manage']);
+            $user->assignRole($role);
+
+            for ($i = 1; $i <= $limit; $i++) {
+                $this->actingAs($user)
+                    ->postJson('/api/v1/branches', [
+                        'name' => "Branch {$limit}-{$i}",
+                        'code' => sprintf('P%d-%02d', $limit, $i),
+                        'timezone' => 'Asia/Phnom_Penh',
+                    ])
+                    ->assertStatus(201);
+            }
+
+            $response = $this->actingAs($user)
+                ->postJson('/api/v1/branches', [
+                    'name' => "Branch {$limit}-" . ($limit + 1),
+                    'code' => sprintf('P%d-%02d', $limit, $limit + 1),
+                    'timezone' => 'Asia/Phnom_Penh',
+                ]);
+
+            $response
+                ->assertStatus(403)
+                ->assertJsonPath('code', 'BRANCH_LIMIT_REACHED')
+                ->assertJsonPath('branch_limit', $limit)
+                ->assertJsonPath('branch_count', $limit);
+        }
+    }
     public function test_branch_with_assigned_users_cannot_be_deleted(): void
     {
         $user = $this->makeUser();
