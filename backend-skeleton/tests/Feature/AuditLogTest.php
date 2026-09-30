@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,12 +16,16 @@ class AuditLogTest extends TestCase
 
     public function test_audit_log_service_records_an_authenticated_action(): void
     {
+        $business = Business::factory()->create();
+
         $branch = Branch::create([
+            'business_id' => $business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $user = User::factory()->create([
+            'business_id' => $business->id,
             'is_active' => true,
         ]);
 

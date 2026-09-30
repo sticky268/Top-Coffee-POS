@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -15,6 +16,15 @@ use Tests\TestCase;
 class ProductTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
 
     private function makeUserForBranch(Branch $branch, string $role = 'cashier'): User
     {
@@ -34,8 +44,8 @@ class ProductTest extends TestCase
 
     public function test_only_returns_products_assigned_and_available_at_the_users_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -71,7 +81,7 @@ class ProductTest extends TestCase
 
     public function test_uses_branch_price_override_when_set(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -86,7 +96,7 @@ class ProductTest extends TestCase
 
     public function test_falls_back_to_base_price_when_no_override_is_set(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -101,7 +111,7 @@ class ProductTest extends TestCase
 
     public function test_variant_prices_are_the_resolved_absolute_price_not_just_the_delta(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -120,7 +130,7 @@ class ProductTest extends TestCase
 
     public function test_category_id_filter_narrows_results(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
         $coffee = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $tea = Category::create(['branch_id' => null, 'name' => 'Tea']);
@@ -140,7 +150,7 @@ class ProductTest extends TestCase
 
     public function test_category_info_is_included_on_each_product(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -155,8 +165,8 @@ class ProductTest extends TestCase
 
     public function test_explicit_branch_id_for_an_unassigned_branch_is_rejected(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch);
 
         $response = $this->actingAs($user)->getJson("/api/v1/products?branch_id={$otherBranch->id}");
@@ -166,8 +176,8 @@ class ProductTest extends TestCase
 
     public function test_admin_with_view_all_permission_can_request_any_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
 
         Permission::firstOrCreate(['name' => 'branches.view-all', 'guard_name' => 'web']);
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);

@@ -13,7 +13,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
-    protected $fillable = ['name', 'email', 'phone', 'password', 'is_active'];
+    protected $fillable = ['business_id', 'name', 'email', 'phone', 'password', 'is_active'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -22,6 +22,10 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];
+
+    public function business() {
+        return $this->belongsTo(Business::class);
+    }
 
     public function branches()
     {

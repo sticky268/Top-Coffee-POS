@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -12,6 +13,15 @@ use Tests\TestCase;
 class UserTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
 
     private function setupPermissions(): void
     {
@@ -50,6 +60,7 @@ class UserTest extends TestCase
         }
 
         $user = User::factory()->create([
+            'business_id' => $branch->business_id,
             'is_active' => true,
         ]);
 
@@ -70,6 +81,7 @@ class UserTest extends TestCase
     public function test_user_without_users_manage_permission_is_rejected(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -85,11 +97,13 @@ class UserTest extends TestCase
     public function test_admin_can_list_staff_from_all_branches(): void
     {
         $branch1 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $branch2 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -99,6 +113,7 @@ class UserTest extends TestCase
         $cashier = $this->makeUser($branch1, 'cashier');
 
         $otherBranchCashier = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Other Branch Cashier',
         ]);
         $otherBranchCashier->assignRole('cashier');
@@ -123,11 +138,13 @@ class UserTest extends TestCase
     public function test_manager_only_sees_manageable_staff_in_own_branches(): void
     {
         $branch1 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $branch2 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -136,6 +153,7 @@ class UserTest extends TestCase
 
         $cashier = $this->makeUser($branch1, 'cashier');
         $kitchen = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Kitchen Staff',
         ]);
         $kitchen->assignRole('kitchen_staff');
@@ -144,6 +162,7 @@ class UserTest extends TestCase
         ]);
 
         $otherBranchCashier = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Other Branch Cashier',
         ]);
         $otherBranchCashier->assignRole('cashier');
@@ -152,6 +171,7 @@ class UserTest extends TestCase
         ]);
 
         $admin = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Admin User',
         ]);
         $admin->assignRole('admin');
@@ -160,6 +180,7 @@ class UserTest extends TestCase
         ]);
 
         $otherManager = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Other Manager',
         ]);
         $otherManager->assignRole('manager');
@@ -186,11 +207,13 @@ class UserTest extends TestCase
     public function test_admin_can_create_manager_with_multiple_branches(): void
     {
         $branch1 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $branch2 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -233,6 +256,7 @@ class UserTest extends TestCase
     public function test_manager_can_create_cashier_but_cannot_create_manager(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -271,11 +295,13 @@ class UserTest extends TestCase
     public function test_create_rejects_primary_branch_not_in_assignments(): void
     {
         $branch1 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $branch2 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -304,11 +330,13 @@ class UserTest extends TestCase
     public function test_manager_cannot_assign_staff_to_unassigned_branch(): void
     {
         $branch1 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $branch2 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -334,9 +362,48 @@ class UserTest extends TestCase
         ]);
     }
 
+
+    public function test_admin_cannot_assign_staff_to_branch_from_another_business(): void
+    {
+        $branchA = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Business A Branch',
+            'code' => 'A-03',
+        ]);
+
+        $admin = $this->makeUser($branchA, 'admin');
+
+        $businessB = Business::factory()->create();
+
+        $branchB = Branch::create([
+            'business_id' => $businessB->id,
+            'name' => 'Business B Branch',
+            'code' => 'B-03',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->postJson('/api/v1/users', [
+                'name' => 'Cross Business User',
+                'email' => 'cross.business@example.com',
+                'password' => 'password123',
+                'role' => 'cashier',
+                'branch_ids' => [$branchB->id],
+                'primary_branch_id' => $branchB->id,
+            ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'cross.business@example.com',
+        ]);
+    }
+
     public function test_manager_cannot_show_or_update_admin_or_manager(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -344,6 +411,7 @@ class UserTest extends TestCase
         $manager = $this->makeUser($branch, 'manager');
 
         $admin = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Admin User',
         ]);
         $admin->assignRole('admin');
@@ -352,6 +420,7 @@ class UserTest extends TestCase
         ]);
 
         $otherManager = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Other Manager',
         ]);
         $otherManager->assignRole('manager');
@@ -383,11 +452,13 @@ class UserTest extends TestCase
     public function test_update_can_change_profile_role_branches_and_status(): void
     {
         $branch1 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $branch2 = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -395,6 +466,7 @@ class UserTest extends TestCase
         $admin = $this->makeUser($branch1, 'admin');
 
         $cashier = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Old Cashier',
             'email' => 'old.cashier@example.com',
             'is_active' => true,
@@ -452,6 +524,7 @@ class UserTest extends TestCase
     public function test_admin_cannot_deactivate_own_account(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -476,6 +549,7 @@ class UserTest extends TestCase
     public function test_admin_cannot_delete_own_account(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -498,13 +572,16 @@ class UserTest extends TestCase
     public function test_delete_soft_deletes_staff(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $admin = $this->makeUser($branch, 'admin');
 
-        $cashier = User::factory()->create();
+        $cashier = User::factory()->create([
+            'business_id' => $this->business->id,
+        ]);
         $cashier->assignRole('cashier');
         $cashier->branches()->attach($branch->id, [
             'is_primary' => true,
@@ -525,6 +602,7 @@ class UserTest extends TestCase
     public function test_list_supports_search_role_and_active_filters(): void
     {
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -532,6 +610,7 @@ class UserTest extends TestCase
         $admin = $this->makeUser($branch, 'admin');
 
         $cashier = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Dara Cashier',
             'email' => 'dara@example.com',
             'phone' => '012345678',
@@ -543,6 +622,7 @@ class UserTest extends TestCase
         ]);
 
         $kitchen = User::factory()->create([
+            'business_id' => $this->business->id,
             'name' => 'Sokha Kitchen',
             'is_active' => false,
         ]);
@@ -559,5 +639,118 @@ class UserTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.name', 'Dara Cashier');
+    }
+
+    public function test_admin_cannot_filter_staff_by_branch_from_another_business(): void
+    {
+        $branchA = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Business A Branch',
+            'code' => 'A-04',
+        ]);
+
+        $admin = $this->makeUser($branchA, 'admin');
+
+        $businessB = Business::factory()->create();
+
+        $branchB = Branch::create([
+            'business_id' => $businessB->id,
+            'name' => 'Business B Branch',
+            'code' => 'B-04',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->getJson("/api/v1/users?branch_id={$branchB->id}");
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_admin_can_only_list_users_from_own_business(): void
+    {
+        $branchA = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Business A Branch',
+            'code' => 'A-01',
+        ]);
+
+        $admin = $this->makeUser($branchA, 'admin');
+
+        $businessB = Business::factory()->create();
+
+        $branchB = Branch::create([
+            'business_id' => $businessB->id,
+            'name' => 'Business B Branch',
+            'code' => 'B-01',
+        ]);
+
+        $userB = User::factory()->create([
+            'business_id' => $businessB->id,
+            'name' => 'Business B Cashier',
+        ]);
+        $userB->assignRole('cashier');
+        $userB->branches()->attach($branchB->id, [
+            'is_primary' => true,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->getJson('/api/v1/users');
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonMissing([
+                'name' => 'Business B Cashier',
+            ]);
+    }
+
+    public function test_admin_cannot_manage_user_from_another_business(): void
+    {
+        $branchA = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Business A Branch',
+            'code' => 'A-02',
+        ]);
+
+        $admin = $this->makeUser($branchA, 'admin');
+
+        $businessB = Business::factory()->create();
+
+        $branchB = Branch::create([
+            'business_id' => $businessB->id,
+            'name' => 'Business B Branch',
+            'code' => 'B-02',
+        ]);
+
+        $userB = User::factory()->create([
+            'business_id' => $businessB->id,
+            'name' => 'Business B Cashier',
+        ]);
+        $userB->assignRole('cashier');
+        $userB->branches()->attach($branchB->id, [
+            'is_primary' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson("/api/v1/users/{$userB->id}")
+            ->assertStatus(403);
+
+        $this->actingAs($admin)
+            ->patchJson("/api/v1/users/{$userB->id}", [
+                'name' => 'Changed By Business A',
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($admin)
+            ->deleteJson("/api/v1/users/{$userB->id}")
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $userB->id,
+            'name' => 'Business B Cashier',
+            'business_id' => $businessB->id,
+            'deleted_at' => null,
+        ]);
     }
 }

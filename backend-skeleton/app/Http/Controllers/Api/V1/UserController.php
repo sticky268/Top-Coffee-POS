@@ -55,6 +55,7 @@ class UserController extends Controller
         }
 
         $query = User::query()
+            ->where('business_id', $user->business_id)
             ->with([
                 'roles:id,name',
                 'branches:id,name,code',
@@ -170,8 +171,9 @@ class UserController extends Controller
             ], 403);
         }
 
-        $user = DB::transaction(function () use ($data, $branchIds, $primaryBranchId) {
+        $user = DB::transaction(function () use ($data, $branchIds, $primaryBranchId, $actor) {
             $user = User::create([
+                'business_id' => $actor->business_id,
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
@@ -434,6 +436,10 @@ class UserController extends Controller
 
     private function canManageUser(User $actor, User $target): bool
     {
+        if ($target->business_id !== $actor->business_id) {
+            return false;
+        }
+
         if ($actor->hasRole('admin')) {
             return true;
         }
@@ -451,12 +457,32 @@ class UserController extends Controller
 
     private function canAccessBranch(User $user, int $branchId): bool
     {
+        $branch = Branch::find($branchId);
+
+        if (! $branch || $branch->business_id !== $user->business_id) {
+            return false;
+        }
+
         return $user->can('branches.view-all')
             || $user->branches()->where('branches.id', $branchId)->exists();
     }
 
     private function canAccessBranches(User $user, array $branchIds): bool
     {
+        $branchIds = array_values(array_unique($branchIds));
+
+        if ($branchIds === []) {
+            return false;
+        }
+
+        $businessBranchCount = Branch::whereIn('id', $branchIds)
+            ->where('business_id', $user->business_id)
+            ->count();
+
+        if ($businessBranchCount !== count($branchIds)) {
+            return false;
+        }
+
         if ($user->can('branches.view-all')) {
             return true;
         }
@@ -465,7 +491,7 @@ class UserController extends Controller
             ->whereIn('branches.id', $branchIds)
             ->count();
 
-        return $accessibleCount === count(array_unique($branchIds));
+        return $accessibleCount === count($branchIds);
     }
 
     private function syncBranches(User $user, array $branchIds, int $primaryBranchId): void

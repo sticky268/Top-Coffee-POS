@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -17,6 +18,15 @@ use Tests\TestCase;
 class ReportsTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
 
     private function seedReportsPermissions(): void
     {
@@ -119,6 +129,7 @@ class ReportsTest extends TestCase
         $this->seedReportsPermissions();
 
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -136,6 +147,7 @@ class ReportsTest extends TestCase
         $this->seedReportsPermissions();
 
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -176,6 +188,7 @@ class ReportsTest extends TestCase
         $this->seedReportsPermissions();
 
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -266,6 +279,7 @@ class ReportsTest extends TestCase
         $this->seedReportsPermissions();
 
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -297,11 +311,13 @@ class ReportsTest extends TestCase
         $this->seedReportsPermissions();
 
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $otherBranch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);
@@ -320,11 +336,13 @@ class ReportsTest extends TestCase
         $this->seedReportsPermissions();
 
         $branch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
         $otherBranch = Branch::create([
+            'business_id' => $this->business->id,
             'name' => 'BKK1',
             'code' => 'PP-02',
         ]);

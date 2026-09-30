@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Ingredient;
@@ -25,6 +26,15 @@ use Tests\TestCase;
 class OrderTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
 
     private function seedPermissions(): void
     {
@@ -104,7 +114,7 @@ class OrderTest extends TestCase
     public function test_user_without_orders_create_permission_is_rejected(): void
     {
         $this->seedPermissions();
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = User::factory()->create();
         $manager->assignRole('manager'); // no orders.create permission
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
@@ -120,7 +130,7 @@ class OrderTest extends TestCase
 
     public function test_creates_an_order_with_correct_server_computed_total(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -176,7 +186,7 @@ class OrderTest extends TestCase
 
     public function test_creates_an_order_for_a_customer(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
@@ -203,8 +213,8 @@ class OrderTest extends TestCase
 
     public function test_rejects_a_customer_from_another_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'Downtown', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'Downtown', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
@@ -229,7 +239,7 @@ class OrderTest extends TestCase
 
     public function test_discount_total_reduces_the_final_total(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
@@ -250,7 +260,7 @@ class OrderTest extends TestCase
 
     public function test_card_payment_has_no_tendered_or_change_due(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
@@ -269,7 +279,7 @@ class OrderTest extends TestCase
 
     public function test_split_payment_creates_multiple_payment_records(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -334,7 +344,7 @@ class OrderTest extends TestCase
 
     public function test_split_payment_must_equal_order_total(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -376,8 +386,8 @@ class OrderTest extends TestCase
     }
     public function test_an_unavailable_product_rejects_the_whole_order_and_creates_nothing(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -408,8 +418,8 @@ class OrderTest extends TestCase
 
     public function test_explicit_branch_id_for_an_unassigned_branch_is_rejected(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
 
         $response = $this->actingAs($user)->postJson('/api/v1/orders', [
@@ -424,7 +434,7 @@ class OrderTest extends TestCase
 
     public function test_validation_rejects_an_empty_items_array(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
 
         $response = $this->actingAs($user)->postJson('/api/v1/orders', [
@@ -437,7 +447,7 @@ class OrderTest extends TestCase
     }
     public function test_dine_in_order_requires_a_table(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
 
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
@@ -460,7 +470,7 @@ class OrderTest extends TestCase
     }
     public function test_held_dine_in_order_does_not_deduct_inventory(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -575,7 +585,7 @@ class OrderTest extends TestCase
     }
     public function test_updating_held_order_records_audit_log(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -672,7 +682,7 @@ class OrderTest extends TestCase
     }
     public function test_paid_held_dine_in_order_deducts_inventory(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -816,7 +826,7 @@ class OrderTest extends TestCase
     }
     public function test_held_dine_in_order_supports_split_payment(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -933,7 +943,7 @@ class OrderTest extends TestCase
     }
     public function test_paid_held_dine_in_order_rolls_back_when_inventory_is_insufficient(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1060,7 +1070,7 @@ class OrderTest extends TestCase
     }
     public function test_completed_sale_deducts_inventory_by_order_quantity(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1155,7 +1165,7 @@ class OrderTest extends TestCase
     }
     public function test_completed_sale_deducts_inventory_from_product_recipe(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1270,7 +1280,7 @@ class OrderTest extends TestCase
 
     public function test_user_without_orders_edit_permission_is_rejected(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1331,7 +1341,7 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
 
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1483,7 +1493,7 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
 
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1573,7 +1583,7 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
 
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1663,7 +1673,7 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
 
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1749,12 +1759,12 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
 
-        $orderBranch = Branch::create([
+        $orderBranch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
 
-        $managerBranch = Branch::create([
+        $managerBranch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Downtown',
             'code' => 'PP-02',
         ]);
@@ -1825,7 +1835,7 @@ class OrderTest extends TestCase
     }
     public function test_order_listing_can_filter_split_payments(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1900,7 +1910,7 @@ class OrderTest extends TestCase
 
     public function test_completed_order_awards_loyalty_points(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);
@@ -1972,7 +1982,7 @@ class OrderTest extends TestCase
 
     public function test_paid_held_order_awards_loyalty_points(): void
     {
-        $branch = Branch::create([
+        $branch = Branch::create(['business_id' => $this->business->id,
             'name' => 'Riverside',
             'code' => 'PP-01',
         ]);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\User;
@@ -14,6 +15,24 @@ use Tests\TestCase;
 class ExpenseTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
+
+    private function createBranch(string $name, string $code): Branch
+    {
+        return Branch::create([
+            'business_id' => $this->business->id,
+            'name' => $name,
+            'code' => $code,
+        ]);
+    }
 
     private function makeUserForBranch(
         Branch $branch,
@@ -85,10 +104,7 @@ class ExpenseTest extends TestCase
 
     public function test_user_without_expense_permission_cannot_view_expenses(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch, 'cashier');
 
@@ -103,10 +119,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
         $category = ExpenseCategory::create(['name' => 'Supplies']);
@@ -130,15 +143,9 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
         $otherUser = $this->makeUserForBranch($otherBranch);
@@ -166,10 +173,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
         $category = ExpenseCategory::create(['name' => 'Utilities']);
@@ -201,10 +205,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
         $category = ExpenseCategory::create(['name' => 'Supplies']);
@@ -222,10 +223,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
         $category = ExpenseCategory::create(['name' => 'Supplies']);
@@ -253,15 +251,9 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
         $otherUser = $this->makeUserForBranch($otherBranch);
@@ -290,15 +282,9 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $admin = $this->makeUserForBranch($branch, 'admin');
         $otherUser = $this->makeUserForBranch($otherBranch);
@@ -327,10 +313,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -363,10 +346,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -379,10 +359,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -440,15 +417,9 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
         $otherUser = $this->makeUserForBranch($otherBranch);
@@ -481,10 +452,7 @@ class ExpenseTest extends TestCase
     {
         $this->seedExpensePermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch, 'cashier');
 

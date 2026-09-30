@@ -10,9 +10,22 @@ class Branch extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['name', 'code', 'address', 'phone', 'timezone', 'is_active'];
+    protected $fillable = [
+        'business_id',
+        'name',
+        'code',
+        'address',
+        'phone',
+        'timezone',
+        'is_active',
+    ];
 
     protected $casts = ['is_active' => 'boolean'];
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
 
     public function users()
     {

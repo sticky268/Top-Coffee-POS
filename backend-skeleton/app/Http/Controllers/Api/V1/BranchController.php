@@ -34,6 +34,7 @@ class BranchController extends Controller
         }
 
         $query = Branch::query()
+            ->where('business_id', $request->user()->business_id)
             ->withCount('users');
 
         if ($request->filled('search')) {
@@ -95,7 +96,10 @@ class BranchController extends Controller
             ], 422);
         }
 
-        $branch = Branch::create($validator->validated());
+        $branch = Branch::create(array_merge(
+            $validator->validated(),
+            ['business_id' => $request->user()->business_id],
+        ));
 
         return response()->json([
             'success' => true,
@@ -113,6 +117,13 @@ class BranchController extends Controller
             ], 403);
         }
 
+        if ($branch->business_id !== $request->user()->business_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have access to this branch',
+            ], 403);
+        }
+
         $branch->loadCount('users');
 
         return response()->json([
@@ -127,6 +138,13 @@ class BranchController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to manage branches',
+            ], 403);
+        }
+
+        if ($branch->business_id !== $request->user()->business_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have access to this branch',
             ], 403);
         }
 
@@ -164,6 +182,13 @@ class BranchController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to manage branches',
+            ], 403);
+        }
+
+        if ($branch->business_id !== $request->user()->business_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have access to this branch',
             ], 403);
         }
 

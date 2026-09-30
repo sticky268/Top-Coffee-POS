@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,11 +15,20 @@ class CategoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
+
     private function makeUserForBranch(Branch $branch, string $role = 'cashier'): User
     {
         Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $this->business->id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -32,8 +42,8 @@ class CategoryTest extends TestCase
 
     public function test_returns_global_and_own_branch_categories_by_default(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch);
 
         $global = Category::create(['branch_id' => null, 'name' => 'Coffee', 'sort_order' => 1]);
@@ -54,7 +64,7 @@ class CategoryTest extends TestCase
 
     public function test_explicit_branch_id_for_an_assigned_branch_is_allowed(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
         Category::create(['branch_id' => $branch->id, 'name' => 'Seasonal']);
 
@@ -65,8 +75,8 @@ class CategoryTest extends TestCase
 
     public function test_explicit_branch_id_for_an_unassigned_branch_is_rejected(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch);
 
         $response = $this->actingAs($user)->getJson("/api/v1/categories?branch_id={$otherBranch->id}");
@@ -76,14 +86,14 @@ class CategoryTest extends TestCase
 
     public function test_admin_with_view_all_permission_can_request_any_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
 
         Permission::firstOrCreate(['name' => 'branches.view-all', 'guard_name' => 'web']);
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(['branches.view-all']);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -98,7 +108,7 @@ class CategoryTest extends TestCase
     public function test_user_with_no_assigned_branch_gets_a_clear_error(): void
     {
         Role::firstOrCreate(['name' => 'cashier', 'guard_name' => 'web']);
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $this->business->id]);
         $user->assignRole('cashier');
         // Deliberately no branch attached.
 
@@ -109,7 +119,7 @@ class CategoryTest extends TestCase
 
     public function test_invalid_branch_id_fails_validation(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
 
         $response = $this->actingAs($user)->getJson('/api/v1/categories?branch_id=999999');
@@ -119,7 +129,7 @@ class CategoryTest extends TestCase
 
     public function test_categories_are_ordered_by_sort_order(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
 
         Category::create(['branch_id' => null, 'name' => 'Second', 'sort_order' => 2]);
@@ -162,7 +172,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -195,8 +205,8 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -221,7 +231,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'cashier');
 
         $category = Category::create([
@@ -246,8 +256,8 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
 
         $admin = $this->makeUserForBranch($branch, 'admin');
 
@@ -275,7 +285,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -300,7 +310,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -330,8 +340,8 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -356,7 +366,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -381,7 +391,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $category = Category::create([
@@ -401,7 +411,7 @@ class CategoryTest extends TestCase
     {
         $this->seedManagementPermissions();
 
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
         $response = $this->actingAs($user)->patchJson(

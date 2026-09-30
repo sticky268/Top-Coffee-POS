@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -19,6 +20,23 @@ class OrderListingTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
+
+    private function createBranch(string $name, string $code): Branch
+    {
+        return Branch::create([
+            'business_id' => $this->business->id,
+            'name' => $name,
+            'code' => $code,
+        ]);
+    }
     private function seedPermissions(): void
     {
         foreach (['orders.view', 'branches.view-all'] as $permission) {
@@ -95,7 +113,7 @@ class OrderListingTest extends TestCase
     public function test_user_without_orders_view_permission_is_rejected(): void
     {
         $this->seedPermissions();
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $kitchenUser = User::factory()->create();
         $kitchenUser->assignRole('kitchen_staff');
         $kitchenUser->branches()->attach($branch->id, ['is_primary' => true]);
@@ -107,7 +125,7 @@ class OrderListingTest extends TestCase
 
     public function test_authenticated_user_can_list_their_branchs_orders(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
         $this->createOrder($branch, $cashier);
         $this->createOrder($branch, $cashier);
@@ -121,8 +139,8 @@ class OrderListingTest extends TestCase
 
     public function test_branch_scoping_hides_other_branches_orders_from_the_list(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $cashier = $this->makeCashier($branch);
 
         $ownOrder = $this->createOrder($branch, $cashier);
@@ -137,8 +155,8 @@ class OrderListingTest extends TestCase
 
     public function test_admin_with_view_all_sees_orders_from_every_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $this->seedPermissions();
 
         $cashier = User::factory()->create();
@@ -161,7 +179,7 @@ class OrderListingTest extends TestCase
 
     public function test_pagination_returns_correct_meta_and_limits_page_size(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
 
         for ($i = 0; $i < 5; $i++) {
@@ -184,7 +202,7 @@ class OrderListingTest extends TestCase
 
     public function test_filters_by_order_number_status_and_payment_method(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
 
         $target = $this->createOrder($branch, $cashier);
@@ -210,7 +228,7 @@ class OrderListingTest extends TestCase
 
     public function test_date_range_filter_excludes_orders_outside_the_range(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
 
         $order = $this->createOrder($branch, $cashier);
@@ -229,7 +247,7 @@ class OrderListingTest extends TestCase
 
     public function test_order_detail_returns_items_branch_cashier_and_payment(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
         $order = $this->createOrder($branch, $cashier);
 
@@ -248,8 +266,8 @@ class OrderListingTest extends TestCase
 
     public function test_an_order_from_another_branch_cannot_be_viewed(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $cashier = $this->makeCashier($branch);
         $otherOrder = $this->createOrder($otherBranch, $cashier);
 
@@ -260,7 +278,7 @@ class OrderListingTest extends TestCase
 
     public function test_a_nonexistent_order_returns_404(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
 
         $response = $this->actingAs($cashier)->getJson('/api/v1/orders/999999');
@@ -271,7 +289,7 @@ class OrderListingTest extends TestCase
     public function test_show_also_requires_orders_view_permission(): void
     {
         $this->seedPermissions();
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
         $order = $this->createOrder($branch, $cashier);
 
@@ -288,8 +306,8 @@ class OrderListingTest extends TestCase
 
     public function test_branch_id_filter_narrows_the_list_to_a_single_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $this->seedPermissions();
 
         $admin = User::factory()->create();
@@ -317,8 +335,8 @@ class OrderListingTest extends TestCase
 
     public function test_branch_id_filter_for_an_unassigned_branch_is_rejected(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $cashier = $this->makeCashier($branch);
 
         $response = $this->actingAs($cashier)->getJson("/api/v1/orders?branch_id={$otherBranch->id}");
@@ -328,8 +346,8 @@ class OrderListingTest extends TestCase
 
     public function test_branch_id_filter_combines_with_other_filters(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $this->seedPermissions();
 
         $admin = User::factory()->create();
@@ -349,7 +367,7 @@ class OrderListingTest extends TestCase
 
     public function test_invalid_branch_id_fails_validation(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
 
         $response = $this->actingAs($cashier)->getJson('/api/v1/orders?branch_id=999999');

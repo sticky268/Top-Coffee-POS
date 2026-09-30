@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\KitchenTicket;
 use App\Models\Product;
@@ -16,6 +17,24 @@ use Tests\TestCase;
 class KitchenTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
+
+    private function createBranch(string $name, string $code): Branch
+    {
+        return Branch::create([
+            'business_id' => $this->business->id,
+            'name' => $name,
+            'code' => $code,
+        ]);
+    }
 
     private function seedPermissions(): void
     {
@@ -135,10 +154,7 @@ class KitchenTest extends TestCase
     {
         $this->seedPermissions();
 
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = User::factory()->create();
 
@@ -152,10 +168,7 @@ class KitchenTest extends TestCase
 
     public function test_kitchen_user_can_view_tickets_for_assigned_branch(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeKitchenUser($branch);
 
@@ -177,15 +190,9 @@ class KitchenTest extends TestCase
 
     public function test_kitchen_user_cannot_view_another_branch(): void
     {
-        $branchOne = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branchOne = $this->createBranch('Riverside', 'PP-01');
 
-        $branchTwo = Branch::create([
-            'name' => 'Downtown',
-            'code' => 'PP-02',
-        ]);
+        $branchTwo = $this->createBranch('Downtown', 'PP-02');
 
         $user = $this->makeKitchenUser($branchOne);
 
@@ -199,10 +206,7 @@ class KitchenTest extends TestCase
 
     public function test_admin_can_view_another_branch(): void
     {
-        $branch = Branch::create([
-            'name' => 'Downtown',
-            'code' => 'PP-02',
-        ]);
+        $branch = $this->createBranch('Downtown', 'PP-02');
 
         $admin = $this->makeAdminUser();
 
@@ -223,10 +227,7 @@ class KitchenTest extends TestCase
 
     public function test_creating_an_order_creates_a_kitchen_ticket(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $cashier = $this->makeCashier($branch);
         $product = $this->createProduct($branch);
@@ -257,10 +258,7 @@ class KitchenTest extends TestCase
 
     public function test_kitchen_ticket_status_can_be_updated(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeKitchenUser($branch);
 
@@ -288,10 +286,7 @@ class KitchenTest extends TestCase
 
     public function test_kitchen_ticket_status_updates_timestamps(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeKitchenUser($branch);
 
@@ -326,10 +321,7 @@ class KitchenTest extends TestCase
 
     public function test_invalid_kitchen_status_is_rejected(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeKitchenUser($branch);
 
@@ -350,15 +342,9 @@ class KitchenTest extends TestCase
 
     public function test_kitchen_user_cannot_update_ticket_from_another_branch(): void
     {
-        $branchOne = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branchOne = $this->createBranch('Riverside', 'PP-01');
 
-        $branchTwo = Branch::create([
-            'name' => 'Downtown',
-            'code' => 'PP-02',
-        ]);
+        $branchTwo = $this->createBranch('Downtown', 'PP-02');
 
         $user = $this->makeKitchenUser($branchOne);
         $branchTwoUser = $this->makeKitchenUser($branchTwo);

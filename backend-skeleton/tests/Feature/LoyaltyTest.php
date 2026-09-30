@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\LoyaltySetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,23 @@ class LoyaltyTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
+
+    private function createBranch(string $name, string $code): Branch
+    {
+        return Branch::create([
+            'business_id' => $this->business->id,
+            'name' => $name,
+            'code' => $code,
+        ]);
+    }
     private function makeLoyaltyUser(Branch $branch): User
     {
         Permission::firstOrCreate([
@@ -36,10 +54,7 @@ class LoyaltyTest extends TestCase
 
     public function test_get_settings_returns_default_branch_settings(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeLoyaltyUser($branch);
 
@@ -67,10 +82,7 @@ class LoyaltyTest extends TestCase
 
     public function test_update_settings_saves_loyalty_rules(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeLoyaltyUser($branch);
 
@@ -112,10 +124,7 @@ class LoyaltyTest extends TestCase
 
     public function test_update_settings_rejects_invalid_values(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeLoyaltyUser($branch);
 

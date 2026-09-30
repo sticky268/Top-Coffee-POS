@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -15,6 +16,15 @@ use Tests\TestCase;
 class ProductManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
 
     private function seedPermissions(): void
     {
@@ -63,7 +73,7 @@ class ProductManagementTest extends TestCase
 
     public function test_authorized_user_can_create_a_product(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -82,7 +92,7 @@ class ProductManagementTest extends TestCase
 
     public function test_created_product_is_saved_in_the_database(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -97,7 +107,7 @@ class ProductManagementTest extends TestCase
 
     public function test_created_product_appears_in_the_products_listing(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -117,7 +127,7 @@ class ProductManagementTest extends TestCase
 
     public function test_unauthorized_user_cannot_create_a_product(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $cashier = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -133,7 +143,7 @@ class ProductManagementTest extends TestCase
 
     public function test_invalid_product_data_returns_validation_errors(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
 
         $response = $this->actingAs($manager)->postJson('/api/v1/products', [
@@ -148,8 +158,8 @@ class ProductManagementTest extends TestCase
 
     public function test_a_branch_restricted_manager_cannot_assign_availability_to_another_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -168,8 +178,8 @@ class ProductManagementTest extends TestCase
 
     public function test_admin_with_view_all_can_assign_availability_to_any_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $this->seedPermissions();
         $admin = User::factory()->create();
         $admin->assignRole('admin');
@@ -190,7 +200,7 @@ class ProductManagementTest extends TestCase
 
     public function test_variants_and_branch_pricing_are_created_with_the_product(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
 
@@ -219,7 +229,7 @@ class ProductManagementTest extends TestCase
 
     public function test_authorized_user_can_update_a_product(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -236,7 +246,7 @@ class ProductManagementTest extends TestCase
 
     public function test_unauthorized_user_cannot_update_a_product(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $cashier = $this->makeCashier($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -251,7 +261,7 @@ class ProductManagementTest extends TestCase
 
     public function test_product_can_be_safely_disabled_via_is_active(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -274,7 +284,7 @@ class ProductManagementTest extends TestCase
 
     public function test_updating_variants_upserts_without_deleting_omitted_ones(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -298,7 +308,7 @@ class ProductManagementTest extends TestCase
 
     public function test_updating_a_variant_by_id_modifies_it_in_place(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -317,8 +327,8 @@ class ProductManagementTest extends TestCase
 
     public function test_branch_update_does_not_wipe_out_another_branchs_availability(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $this->seedPermissions();
         $admin = User::factory()->create();
         $admin->assignRole('admin');
@@ -346,8 +356,8 @@ class ProductManagementTest extends TestCase
 
     public function test_a_branch_restricted_manager_cannot_update_availability_for_another_branch(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
-        $otherBranch = Branch::create(['name' => 'BKK1', 'code' => 'PP-02']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
+        $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
@@ -363,7 +373,7 @@ class ProductManagementTest extends TestCase
 
     public function test_updating_a_nonexistent_product_returns_404(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
 
         $response = $this->actingAs($manager)->patchJson('/api/v1/products/999999', ['name' => 'X']);
@@ -373,7 +383,7 @@ class ProductManagementTest extends TestCase
 
     public function test_sku_uniqueness_ignores_the_products_own_current_sku_on_update(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
@@ -394,7 +404,7 @@ class ProductManagementTest extends TestCase
 
     public function test_existing_product_listing_behavior_is_unaffected(): void
     {
-        $branch = Branch::create(['name' => 'Riverside', 'code' => 'PP-01']);
+        $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);

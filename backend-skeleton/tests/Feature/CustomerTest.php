@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\LoyaltyTransaction;
@@ -16,6 +17,24 @@ use Tests\TestCase;
 class CustomerTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->business = Business::factory()->create();
+    }
+
+    private function createBranch(string $name, string $code): Branch
+    {
+        return Branch::create([
+            'business_id' => $this->business->id,
+            'name' => $name,
+            'code' => $code,
+        ]);
+    }
 
     private function createCustomerOrder(
         Branch $branch,
@@ -66,15 +85,9 @@ class CustomerTest extends TestCase
 
     public function test_returns_global_and_own_branch_customers_by_default(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -110,10 +123,7 @@ class CustomerTest extends TestCase
 
     public function test_explicit_branch_id_for_assigned_branch_is_allowed(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -132,15 +142,9 @@ class CustomerTest extends TestCase
 
     public function test_explicit_branch_id_for_unassigned_branch_is_rejected(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -154,15 +158,9 @@ class CustomerTest extends TestCase
 
     public function test_admin_with_view_all_permission_can_request_any_branch(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         Permission::firstOrCreate([
             'name' => 'customers.manage',
@@ -232,10 +230,7 @@ class CustomerTest extends TestCase
 
     public function test_invalid_branch_id_fails_validation(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -249,10 +244,7 @@ class CustomerTest extends TestCase
 
     public function test_customer_search_matches_name_phone_or_email(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -286,10 +278,7 @@ class CustomerTest extends TestCase
 
     public function test_store_creates_customer_in_current_branch(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -318,15 +307,9 @@ class CustomerTest extends TestCase
 
     public function test_store_with_unassigned_branch_is_rejected(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -347,10 +330,7 @@ class CustomerTest extends TestCase
 
     public function test_update_customer_in_own_branch_works(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -381,15 +361,9 @@ class CustomerTest extends TestCase
 
     public function test_update_customer_in_another_branch_is_rejected(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -415,10 +389,7 @@ class CustomerTest extends TestCase
 
     public function test_global_customer_cannot_be_updated(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -445,10 +416,7 @@ class CustomerTest extends TestCase
 
     public function test_show_customer_in_own_branch_works(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -470,15 +438,9 @@ class CustomerTest extends TestCase
 
     public function test_show_customer_in_another_branch_is_rejected(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -497,10 +459,7 @@ class CustomerTest extends TestCase
 
     public function test_destroy_customer_soft_deletes_own_branch_customer(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -523,15 +482,9 @@ class CustomerTest extends TestCase
 
     public function test_destroy_customer_in_another_branch_is_rejected(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -556,10 +509,7 @@ class CustomerTest extends TestCase
 
     public function test_global_customer_cannot_be_deleted(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -584,10 +534,7 @@ class CustomerTest extends TestCase
 
     public function test_customer_orders_returns_completed_orders(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -618,10 +565,7 @@ class CustomerTest extends TestCase
 
     public function test_customer_orders_excludes_non_completed_orders(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -666,10 +610,7 @@ class CustomerTest extends TestCase
 
     public function test_customer_orders_are_limited_to_that_customer(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -710,15 +651,9 @@ class CustomerTest extends TestCase
 
     public function test_customer_orders_rejects_customer_from_another_branch(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
-        $otherBranch = Branch::create([
-            'name' => 'BKK1',
-            'code' => 'PP-02',
-        ]);
+        $otherBranch = $this->createBranch('BKK1', 'PP-02');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -737,10 +672,7 @@ class CustomerTest extends TestCase
 
     public function test_customer_orders_support_pagination(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -772,10 +704,7 @@ class CustomerTest extends TestCase
 
     public function test_manual_loyalty_adjustment_adds_points_and_creates_transaction(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
@@ -827,10 +756,7 @@ class CustomerTest extends TestCase
 
     public function test_manual_loyalty_adjustment_cannot_make_balance_negative(): void
     {
-        $branch = Branch::create([
-            'name' => 'Riverside',
-            'code' => 'PP-01',
-        ]);
+        $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
 
