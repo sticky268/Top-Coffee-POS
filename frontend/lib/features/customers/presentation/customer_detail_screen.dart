@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/app_router.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 
 import '../application/customer_detail_controller.dart';
 import '../application/customer_detail_state.dart';
@@ -25,8 +26,7 @@ class CustomerDetailScreen extends ConsumerStatefulWidget {
       _CustomerDetailScreenState();
 }
 
-class _CustomerDetailScreenState
-    extends ConsumerState<CustomerDetailScreen>
+class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     with RouteAware {
   @override
   void didChangeDependencies() {
@@ -48,6 +48,7 @@ class _CustomerDetailScreenState
     appRouteObserver.unsubscribe(this);
     super.dispose();
   }
+
   Future<void> _refresh() async {
     await Future.wait([
       ref
@@ -61,8 +62,6 @@ class _CustomerDetailScreenState
           .refresh(),
     ]);
   }
-
-
 
   Future<void> _deleteCustomer() async {
     final confirmed = await showDialog<bool>(
@@ -104,6 +103,7 @@ class _CustomerDetailScreenState
       context.pop(true);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final detailState =
@@ -168,7 +168,6 @@ class _CustomerDetailContent extends StatelessWidget {
   final CustomerOrdersState ordersState;
   final CustomerLoyaltyState loyaltyState;
 
-
   @override
   Widget build(BuildContext context) {
     final averageOrder = customer.completedOrdersCount == 0
@@ -194,8 +193,7 @@ class _CustomerDetailContent extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 label: 'Total Spent',
-                value:
-                    '\$${customer.completedOrdersTotal.toStringAsFixed(2)}',
+                value: '\$${customer.completedOrdersTotal.toStringAsFixed(2)}',
                 icon: Icons.payments_outlined,
               ),
             ),
@@ -233,16 +231,14 @@ class _CustomerDetailContent extends StatelessWidget {
           CustomerOrdersLoaded(:final orders) => orders.isEmpty
               ? const _EmptyOrders()
               : Column(
-                  children: orders
-                      .map((order) => _OrderCard(order: order))
-                      .toList(),
+                  children:
+                      orders.map((order) => _OrderCard(order: order)).toList(),
                 ),
         },
       ],
     );
   }
 }
-
 
 class _LoyaltyCard extends ConsumerWidget {
   const _LoyaltyCard({
@@ -257,6 +253,8 @@ class _LoyaltyCard extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
+    if (!SubscriptionActionGuard.canModify(ref)) return;
+
     var pointsText = '';
     var descriptionText = '';
 
@@ -312,8 +310,7 @@ class _LoyaltyCard extends ConsumerWidget {
 
                 final success = await ref
                     .read(
-                      customerLoyaltyControllerProvider(customerId)
-                          .notifier,
+                      customerLoyaltyControllerProvider(customerId).notifier,
                     )
                     .adjustPoints(
                       points: points,
@@ -341,6 +338,7 @@ class _LoyaltyCard extends ConsumerWidget {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
@@ -393,10 +391,12 @@ class _LoyaltyCard extends ConsumerWidget {
                       ),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => _showAdjustmentDialog(
-                        context,
-                        ref,
-                      ),
+                      onPressed: SubscriptionActionGuard.canModify(ref)
+                          ? () => _showAdjustmentDialog(
+                                context,
+                                ref,
+                              )
+                          : null,
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('Adjust'),
                     ),
@@ -460,13 +460,13 @@ class _LoyaltyStat extends StatelessWidget {
     );
   }
 }
+
 class _CustomerHeader extends StatelessWidget {
   const _CustomerHeader({
     required this.customer,
   });
 
   final Customer customer;
-
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +531,6 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
 
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -573,7 +572,6 @@ class _OrderCard extends StatelessWidget {
   });
 
   final CustomerOrder order;
-
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +615,6 @@ class _OrderCard extends StatelessWidget {
 class _EmptyOrders extends StatelessWidget {
   const _EmptyOrders();
 
-
   @override
   Widget build(BuildContext context) {
     return const Padding(
@@ -635,7 +632,6 @@ class _ErrorView extends StatelessWidget {
   });
 
   final String message;
-
 
   @override
   Widget build(BuildContext context) {

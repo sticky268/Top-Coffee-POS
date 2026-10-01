@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/subscription/subscription_action_guard.dart';
+
 import '../application/customer_detail_controller.dart';
 import '../application/customer_detail_state.dart';
 
@@ -15,12 +17,10 @@ class EditCustomerScreen extends ConsumerStatefulWidget {
   final CustomerDetailLoaded customer;
 
   @override
-  ConsumerState<EditCustomerScreen> createState() =>
-      _EditCustomerScreenState();
+  ConsumerState<EditCustomerScreen> createState() => _EditCustomerScreenState();
 }
 
-class _EditCustomerScreenState
-    extends ConsumerState<EditCustomerScreen> {
+class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
@@ -50,6 +50,8 @@ class _EditCustomerScreenState
   }
 
   Future<void> _save() async {
+    if (!SubscriptionActionGuard.canModify(ref)) return;
+
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
@@ -116,7 +118,7 @@ class _EditCustomerScreenState
         children: [
           TextFormField(
             controller: _nameController,
-            enabled: !_isSaving,
+            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               labelText: 'Name',
@@ -126,7 +128,7 @@ class _EditCustomerScreenState
           const SizedBox(height: 16),
           TextFormField(
             controller: _phoneController,
-            enabled: !_isSaving,
+            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
@@ -137,7 +139,7 @@ class _EditCustomerScreenState
           const SizedBox(height: 16),
           TextFormField(
             controller: _emailController,
-            enabled: !_isSaving,
+            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
@@ -148,7 +150,7 @@ class _EditCustomerScreenState
           const SizedBox(height: 16),
           TextFormField(
             controller: _notesController,
-            enabled: !_isSaving,
+            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Notes',
@@ -158,7 +160,9 @@ class _EditCustomerScreenState
           ),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: _isSaving ? null : _save,
+            onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
+                ? null
+                : _save,
             child: _isSaving
                 ? const SizedBox(
                     height: 20,

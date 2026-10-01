@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/subscription/subscription_action_guard.dart';
+
 import '../application/customers_list_controller.dart';
 import '../application/customers_list_state.dart';
 import '../domain/customer_models.dart';
@@ -35,21 +37,24 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(customersListControllerProvider);
+    final canModify = SubscriptionActionGuard.canModify(ref);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customers'),
         actions: [
           IconButton(
-            onPressed: () async {
-              final created = await context.push<bool>('/customers/add');
+            onPressed: canModify
+                ? () async {
+                    final created = await context.push<bool>('/customers/add');
 
-              if (created == true && mounted) {
-                await ref
-                    .read(customersListControllerProvider.notifier)
-                    .refresh();
-              }
-            },
+                    if (created == true && mounted) {
+                      await ref
+                          .read(customersListControllerProvider.notifier)
+                          .refresh();
+                    }
+                  }
+                : null,
             icon: const Icon(Icons.person_add_outlined),
             tooltip: 'Add customer',
           ),

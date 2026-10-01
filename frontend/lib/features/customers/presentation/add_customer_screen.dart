@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../data/customers_repository.dart';
 
 class AddCustomerScreen extends ConsumerStatefulWidget {
@@ -29,6 +30,8 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   }
 
   Future<void> _saveCustomer() async {
+    if (!SubscriptionActionGuard.canModify(ref)) return;
+
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
@@ -155,7 +158,9 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: _isSaving ? null : _saveCustomer,
+              onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
+                  ? null
+                  : _saveCustomer,
               child: _isSaving
                   ? const SizedBox(
                       height: 20,
