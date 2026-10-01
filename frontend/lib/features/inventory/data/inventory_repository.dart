@@ -35,6 +35,10 @@ abstract class InventoryRepository {
     required bool isActive,
   });
 
+  Future<void> deleteIngredient({
+    required int ingredientId,
+  });
+
   Future<List<InventoryStockMovement>> getStockMovements({
     required int ingredientId,
     String? type,
@@ -166,6 +170,15 @@ class ApiInventoryRepository implements InventoryRepository {
 
     return InventoryIngredient.fromJson(
       response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<void> deleteIngredient({
+    required int ingredientId,
+  }) async {
+    await _apiClient.request(
+      (dio) => dio.delete('/ingredients/$ingredientId'),
     );
   }
 

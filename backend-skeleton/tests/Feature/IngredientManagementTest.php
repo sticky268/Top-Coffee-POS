@@ -298,6 +298,156 @@ class IngredientManagementTest extends TestCase
         ]);
     }
 
+    public function test_manager_can_soft_delete_unused_ingredient(): void
+    {
+        $branch = Branch::factory()->create();
+        $manager = $this->makeManager($branch);
+
+        $unitId = $this->createUnit();
+
+        $ingredient = $this->createIngredient(
+            branch: $branch,
+            unitId: $unitId,
+            name: 'Test Ingredient',
+        );
+
+        $response = $this
+            ->actingAs($manager)
+            ->deleteJson("/api/v1/ingredients/{$ingredient->id}");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Ingredient deleted successfully.');
+
+        $this->assertSoftDeleted('ingredients', [
+            'id' => $ingredient->id,
+        ]);
+    }
+
+    public function test_manager_can_soft_delete_ingredient_with_stock_movements_while_preserving_history(): void
+    {
+        $branch = Branch::factory()->create();
+        $manager = $this->makeManager($branch);
+
+        $unitId = $this->createUnit();
+
+        $ingredient = $this->createIngredient(
+            branch: $branch,
+            unitId: $unitId,
+        );
+
+        $movementId = DB::table('stock_movements')->insertGetId([
+            'branch_id' => $branch->id,
+            'ingredient_id' => $ingredient->id,
+            'created_by' => $manager->id,
+            'type' => 'purchase',
+            'quantity' => 10,
+            'balance_after' => 110,
+            'reason' => 'Initial stock',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this
+            ->actingAs($manager)
+            ->deleteJson("/api/v1/ingredients/{$ingredient->id}");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Ingredient deleted successfully.');
+
+        $this->assertSoftDeleted('ingredients', [
+            'id' => $ingredient->id,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movementId,
+            'ingredient_id' => $ingredient->id,
+            'type' => 'purchase',
+            'quantity' => 10,
+            'balance_after' => 110,
+            'reason' => 'Initial stock',
+        ]);
+    }
+
+    public function test_ingredient_used_in_recipe_cannot_be_deleted(): void
+    {
+        $branch = Branch::factory()->create();
+        $manager = $this->makeManager($branch);
+
+        $unitId = $this->createUnit();
+
+        $ingredient = $this->createIngredient(
+            branch: $branch,
+            unitId: $unitId,
+        );
+
+        $product = $this->createProduct();
+
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'modifier_id' => null,
+            'ingredient_id' => $ingredient->id,
+            'quantity_used' => 18,
+        ]);
+
+        $response = $this
+            ->actingAs($manager)
+            ->deleteJson("/api/v1/ingredients/{$ingredient->id}");
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('ingredients', [
+            'id' => $ingredient->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_cashier_cannot_delete_ingredient(): void
+    {
+        $branch = Branch::factory()->create();
+        $cashier = $this->makeCashier($branch);
+
+        $unitId = $this->createUnit();
+
+        $ingredient = $this->createIngredient(
+            branch: $branch,
+            unitId: $unitId,
+        );
+
+        $response = $this
+            ->actingAs($cashier)
+            ->deleteJson("/api/v1/ingredients/{$ingredient->id}");
+
+        $response
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('ingredients', [
+            'id' => $ingredient->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_deleting_nonexistent_ingredient_returns_not_found(): void
+    {
+        $branch = Branch::factory()->create();
+        $manager = $this->makeManager($branch);
+
+        $response = $this
+            ->actingAs($manager)
+            ->deleteJson('/api/v1/ingredients/999999');
+
+        $response
+            ->assertStatus(404)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Ingredient not found.');
+    }
     public function test_unit_change_is_rejected_after_recipe_usage(): void
     {
         $branch = Branch::factory()->create();

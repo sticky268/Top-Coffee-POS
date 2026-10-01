@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../auth/domain/auth_models.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../data/staff_repository.dart';
 import '../domain/staff_models.dart';
 
@@ -37,8 +38,7 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
   List<String> _availableRoles() {
     final authState = ref.read(authControllerProvider);
 
-    if (authState is AuthAuthenticated &&
-        authState.user.hasRole('admin')) {
+    if (authState is AuthAuthenticated && authState.user.hasRole('admin')) {
       return _roles;
     }
 
@@ -147,8 +147,7 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
     if (_staff != null && _selectedRole != _staff!.primaryRole) {
       final confirmed = await _confirmChange(
         title: 'Change role?',
-        message:
-            'This will change ${_staff!.name} from '
+        message: 'This will change ${_staff!.name} from '
             '${_roleLabel(_staff!.primaryRole)} to '
             '${_roleLabel(_selectedRole!)}.',
       );
@@ -158,13 +157,10 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
       }
     }
 
-    if (_staff != null &&
-        _isActive != _staff!.isActive &&
-        !_isActive) {
+    if (_staff != null && _isActive != _staff!.isActive && !_isActive) {
       final confirmed = await _confirmChange(
         title: 'Deactivate account?',
-        message:
-            'This will prevent ${_staff!.name} from using the system.',
+        message: 'This will prevent ${_staff!.name} from using the system.',
       );
 
       if (!confirmed || !mounted) {
@@ -283,11 +279,12 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canModify = SubscriptionActionGuard.canModify(ref);
     final theme = Theme.of(context);
     final branches = _availableBranches();
     final authState = ref.watch(authControllerProvider);
-    final isEditingSelf = authState is AuthAuthenticated &&
-        authState.user.id == widget.staffId;
+    final isEditingSelf =
+        authState is AuthAuthenticated && authState.user.id == widget.staffId;
 
     return Scaffold(
       appBar: AppBar(
@@ -371,15 +368,17 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
                               textInputAction: TextInputAction.done,
                               decoration: const InputDecoration(
                                 labelText: 'New password',
-                                hintText: 'Leave blank to keep current password',
+                                hintText:
+                                    'Leave blank to keep current password',
                               ),
                               validator: _passwordValidator,
                             ),
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
-                              initialValue: _availableRoles().contains(_selectedRole)
-                                  ? _selectedRole
-                                  : null,
+                              initialValue:
+                                  _availableRoles().contains(_selectedRole)
+                                      ? _selectedRole
+                                      : null,
                               decoration: const InputDecoration(
                                 labelText: 'Role',
                               ),
@@ -398,9 +397,8 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
                                         _selectedRole = value;
                                       });
                                     },
-                              validator: (value) => value == null
-                                  ? 'Role is required.'
-                                  : null,
+                              validator: (value) =>
+                                  value == null ? 'Role is required.' : null,
                             ),
                             const SizedBox(height: 8),
                             SwitchListTile.adaptive(
@@ -445,9 +443,11 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
                                             if (selected == true) {
                                               _selectedBranchIds.add(branch.id);
                                             } else {
-                                              _selectedBranchIds.remove(branch.id);
+                                              _selectedBranchIds
+                                                  .remove(branch.id);
 
-                                              if (_primaryBranchId == branch.id) {
+                                              if (_primaryBranchId ==
+                                                  branch.id) {
                                                 _primaryBranchId = null;
                                               }
                                             }
@@ -470,8 +470,8 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
                                 ),
                                 items: branches
                                     .where(
-                                      (branch) =>
-                                          _selectedBranchIds.contains(branch.id),
+                                      (branch) => _selectedBranchIds
+                                          .contains(branch.id),
                                     )
                                     .map(
                                       (branch) => DropdownMenuItem<int>(
@@ -528,7 +528,8 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
                         SizedBox(
                           height: 52,
                           child: FilledButton(
-                            onPressed: _isSaving ? null : _updateStaff,
+                            onPressed:
+                                _isSaving || !canModify ? null : _updateStaff,
                             child: _isSaving
                                 ? const SizedBox(
                                     width: 22,

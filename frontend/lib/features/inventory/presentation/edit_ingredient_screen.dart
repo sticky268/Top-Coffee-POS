@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/subscription/subscription_action_guard.dart';
+
 import '../application/inventory_list_controller.dart';
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
@@ -18,8 +20,7 @@ class EditIngredientScreen extends ConsumerStatefulWidget {
       _EditIngredientScreenState();
 }
 
-class _EditIngredientScreenState
-    extends ConsumerState<EditIngredientScreen> {
+class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   late final TextEditingController _thresholdController;
@@ -84,6 +85,10 @@ class _EditIngredientScreenState
   }
 
   Future<void> _save() async {
+    if (!SubscriptionActionGuard.canModify(ref)) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -95,8 +100,7 @@ class _EditIngredientScreenState
       return;
     }
 
-    final threshold =
-        double.tryParse(_thresholdController.text.trim());
+    final threshold = double.tryParse(_thresholdController.text.trim());
 
     if (threshold == null || threshold < 0) {
       setState(() {
@@ -183,6 +187,7 @@ class _EditIngredientScreenState
   }
 
   Widget _buildForm() {
+    final canModify = SubscriptionActionGuard.canModify(ref);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -202,6 +207,7 @@ class _EditIngredientScreenState
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _nameController,
+                  enabled: !_isSaving && canModify,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Ingredient Name',
@@ -237,7 +243,7 @@ class _EditIngredientScreenState
                       ),
                     );
                   }).toList(),
-                  onChanged: _isSaving
+                  onChanged: _isSaving || !canModify
                       ? null
                       : (unit) {
                           setState(() {
@@ -248,6 +254,7 @@ class _EditIngredientScreenState
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _thresholdController,
+                  enabled: !_isSaving && canModify,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
@@ -259,8 +266,7 @@ class _EditIngredientScreenState
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    final number =
-                        double.tryParse(value?.trim() ?? '');
+                    final number = double.tryParse(value?.trim() ?? '');
 
                     if (number == null || number < 0) {
                       return 'Enter a valid threshold.';
@@ -283,7 +289,7 @@ class _EditIngredientScreenState
                     'Allow this ingredient to be used for inventory tracking.',
                   ),
                   value: _isActive,
-                  onChanged: _isSaving
+                  onChanged: _isSaving || !canModify
                       ? null
                       : (value) {
                           setState(() {
@@ -324,7 +330,7 @@ class _EditIngredientScreenState
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton(
-                        onPressed: _isSaving ? null : _save,
+                        onPressed: _isSaving || !canModify ? null : _save,
                         child: _isSaving
                             ? const SizedBox(
                                 width: 20,

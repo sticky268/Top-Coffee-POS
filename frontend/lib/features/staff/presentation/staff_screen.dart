@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../application/staff_list_controller.dart';
 import '../application/staff_list_state.dart';
 import '../domain/staff_models.dart';
@@ -43,9 +44,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       _selectedRole = role;
     });
 
-    await ref
-        .read(staffListControllerProvider.notifier)
-        .setRole(role);
+    await ref.read(staffListControllerProvider.notifier).setRole(role);
   }
 
   Future<void> _setBranch(int? branchId) async {
@@ -53,9 +52,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       _selectedBranchId = branchId;
     });
 
-    await ref
-        .read(staffListControllerProvider.notifier)
-        .setBranch(branchId);
+    await ref.read(staffListControllerProvider.notifier).setBranch(branchId);
   }
 
   Future<void> _setActive(bool? isActive) async {
@@ -63,9 +60,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       _selectedActive = isActive;
     });
 
-    await ref
-        .read(staffListControllerProvider.notifier)
-        .setActive(isActive);
+    await ref.read(staffListControllerProvider.notifier).setActive(isActive);
   }
 
   Future<void> _clearFilters() async {
@@ -77,9 +72,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       _selectedActive = null;
     });
 
-    await ref
-        .read(staffListControllerProvider.notifier)
-        .clearFilters();
+    await ref.read(staffListControllerProvider.notifier).clearFilters();
   }
 
   @override
@@ -113,6 +106,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       );
     }
 
+    final canModify = SubscriptionActionGuard.canModify(ref);
     final state = ref.watch(staffListControllerProvider);
 
     return Scaffold(
@@ -120,17 +114,19 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
         title: const Text('Staff & Permissions'),
         actions: [
           IconButton(
-            onPressed: () async {
-              final created = await context.push<bool>('/staff/add');
+            onPressed: canModify
+                ? () async {
+                    final created = await context.push<bool>('/staff/add');
 
-              if (created == true && mounted) {
-                await ref
-                    .read(staffListControllerProvider.notifier)
-                    .refresh();
-              }
-            },
+                    if (created == true && mounted) {
+                      await ref
+                          .read(staffListControllerProvider.notifier)
+                          .refresh();
+                    }
+                  }
+                : null,
             icon: const Icon(Icons.person_add_outlined),
-            tooltip: 'Add staff',
+            tooltip: canModify ? 'Add staff' : 'Subscription is read-only',
           ),
         ],
       ),
@@ -340,8 +336,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
         child: ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          itemCount:
-              loaded.staff.length + (loaded.isLoadingMore ? 1 : 0),
+          itemCount: loaded.staff.length + (loaded.isLoadingMore ? 1 : 0),
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             if (index >= loaded.staff.length) {
@@ -398,9 +393,7 @@ class _StaffCard extends StatelessWidget {
         ),
         leading: CircleAvatar(
           child: Text(
-            staff.name.isEmpty
-                ? '?'
-                : staff.name.substring(0, 1).toUpperCase(),
+            staff.name.isEmpty ? '?' : staff.name.substring(0, 1).toUpperCase(),
           ),
         ),
         title: Text(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../auth/domain/auth_models.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../data/staff_repository.dart';
 
 class AddStaffScreen extends ConsumerStatefulWidget {
@@ -38,8 +39,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
   List<String> _availableRoles() {
     final authState = ref.read(authControllerProvider);
 
-    if (authState is AuthAuthenticated &&
-        authState.user.hasRole('admin')) {
+    if (authState is AuthAuthenticated && authState.user.hasRole('admin')) {
       return _roles;
     }
 
@@ -184,6 +184,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final branches = _availableBranches();
+    final canModify = SubscriptionActionGuard.canModify(ref);
 
     return Scaffold(
       appBar: AppBar(
@@ -335,16 +336,16 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                   if (_selectedBranchIds.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
-                      initialValue: _selectedBranchIds.contains(_primaryBranchId)
-                          ? _primaryBranchId
-                          : null,
+                      initialValue:
+                          _selectedBranchIds.contains(_primaryBranchId)
+                              ? _primaryBranchId
+                              : null,
                       decoration: const InputDecoration(
                         labelText: 'Primary branch',
                       ),
                       items: branches
                           .where(
-                            (branch) =>
-                                _selectedBranchIds.contains(branch.id),
+                            (branch) => _selectedBranchIds.contains(branch.id),
                           )
                           .map(
                             (branch) => DropdownMenuItem<int>(
@@ -362,9 +363,8 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                                 _primaryBranchId = value;
                               });
                             },
-                      validator: (value) => value == null
-                          ? 'Primary branch is required.'
-                          : null,
+                      validator: (value) =>
+                          value == null ? 'Primary branch is required.' : null,
                     ),
                   ],
                 ],
@@ -401,7 +401,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
               SizedBox(
                 height: 52,
                 child: FilledButton(
-                  onPressed: _isSaving ? null : _createStaff,
+                  onPressed: _isSaving || !canModify ? null : _createStaff,
                   child: _isSaving
                       ? const SizedBox(
                           width: 22,

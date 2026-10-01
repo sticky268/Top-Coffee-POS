@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../../pos/domain/pos_models.dart';
 import '../../pos/presentation/widgets/category_selector.dart';
 import '../../pos/presentation/widgets/product_search_field.dart';
@@ -22,7 +23,7 @@ class ProductsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(productsControllerProvider);
-
+    final canModify = SubscriptionActionGuard.canModify(ref);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Products'),
@@ -42,10 +43,13 @@ class ProductsScreen extends ConsumerWidget {
       // the only place that data comes from (no second fetch).
       floatingActionButton: state is ProductsLoaded
           ? FloatingActionButton.extended(
-              onPressed: () => context.push(
-                '/products/form',
-                extra: ProductFormArgs(categories: state.categories),
-              ),
+              onPressed: canModify
+                  ? () => context.push(
+                        '/products/form',
+                        extra: ProductFormArgs(categories: state.categories),
+                      )
+                  : null,
+              tooltip: canModify ? 'Add Product' : 'Subscription is read-only',
               icon: const Icon(Icons.add),
               label: const Text('Add Product'),
             )
@@ -54,18 +58,26 @@ class ProductsScreen extends ConsumerWidget {
         ProductsLoading() => const Center(child: CircularProgressIndicator()),
         ProductsError(:final message) => _ProductsErrorView(
             message: message,
-            onRetry: () => ref.read(productsControllerProvider.notifier).refresh(),
+            onRetry: () =>
+                ref.read(productsControllerProvider.notifier).refresh(),
           ),
-        ProductsLoaded loaded => _ProductsBody(state: loaded),
+        ProductsLoaded loaded => _ProductsBody(
+            state: loaded,
+            canModify: canModify,
+          ),
       },
     );
   }
 }
 
 class _ProductsBody extends ConsumerStatefulWidget {
-  const _ProductsBody({required this.state});
+  const _ProductsBody({
+    required this.state,
+    required this.canModify,
+  });
 
   final ProductsLoaded state;
+  final bool canModify;
 
   @override
   ConsumerState<_ProductsBody> createState() => _ProductsBodyState();
@@ -87,8 +99,12 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
           'it is not deleted.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Disable')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Disable')),
         ],
       ),
     );
@@ -103,7 +119,9 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
       // pattern elsewhere in the app (confirm dialog + direct call +
       // feedback), rather than building a dedicated state machine for a
       // single fire-and-forget action.
-      await ref.read(productsRepositoryProvider).setProductActive(product.id, false);
+      await ref
+          .read(productsRepositoryProvider)
+          .setProductActive(product.id, false);
       if (!mounted) return;
       ref.read(productsControllerProvider.notifier).refresh();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,8 +129,10 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
       );
     } catch (e) {
       if (!mounted) return;
-      final message = e is ApiException ? e.message : 'Could not disable this product';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      final message =
+          e is ApiException ? e.message : 'Could not disable this product';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _disablingIds.remove(product.id));
     }
@@ -135,7 +155,9 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
                     // Kept scrollable (even though empty) so
                     // pull-to-refresh still works from this state.
                     physics: const AlwaysScrollableScrollPhysics(),
-                    children: [_EmptyProducts(isFiltered: widget.state.isFiltered)],
+                    children: [
+                      _EmptyProducts(isFiltered: widget.state.isFiltered)
+                    ],
                   )
                 : ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -145,12 +167,14 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
                       final product = visible[index];
                       return ProductListTile(
                         product: product,
+                        canModify: widget.canModify,
                         isDisabling: _disablingIds.contains(product.id),
                         onEdit: () => context.push(
                           '/products/form',
                           extra: ProductFormArgs(
                             categories: widget.state.categories,
-                            initialProduct: ManagedProduct.fromPosProduct(product),
+                            initialProduct:
+                                ManagedProduct.fromPosProduct(product),
                           ),
                         ),
                         onDisable: () => _confirmAndDisable(product),
@@ -177,13 +201,16 @@ class _SearchAndCategoryRow extends ConsumerWidget {
     return Column(
       children: [
         ProductSearchField(
-          onChanged: (query) => ref.read(productsControllerProvider.notifier).updateSearchQuery(query),
+          onChanged: (query) => ref
+              .read(productsControllerProvider.notifier)
+              .updateSearchQuery(query),
         ),
         const SizedBox(height: 8),
         CategorySelector(
           categories: state.categories,
           selectedCategoryId: state.selectedCategoryId,
-          onSelected: (id) => ref.read(productsControllerProvider.notifier).selectCategory(id),
+          onSelected: (id) =>
+              ref.read(productsControllerProvider.notifier).selectCategory(id),
         ),
       ],
     );
@@ -218,9 +245,12 @@ class _EmptyProducts extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            isFiltered ? 'Try a different search or category' : 'Check back once products are added',
+            isFiltered
+                ? 'Try a different search or category'
+                : 'Check back once products are added',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -250,7 +280,8 @@ class _ProductsErrorView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

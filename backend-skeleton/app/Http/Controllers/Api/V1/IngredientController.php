@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
+use App\Models\RecipeItem;
 use App\Models\StockMovement;
+use App\Services\StockMovementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class IngredientController extends Controller
 {
@@ -42,7 +45,7 @@ class IngredientController extends Controller
             ], 422);
         }
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             $request->all(),
             [
                 'name' => ['required', 'string', 'max:255'],
@@ -106,7 +109,7 @@ class IngredientController extends Controller
             ], 404);
         }
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             $request->all(),
             [
                 'name' => ['required', 'string', 'max:255'],
@@ -129,7 +132,7 @@ class IngredientController extends Controller
         if ($newUnitId !== (int) $ingredient->unit_id) {
             $hasMovements = $ingredient->movements()->exists();
 
-            $hasRecipeItems = \App\Models\RecipeItem::query()
+            $hasRecipeItems = RecipeItem::query()
                 ->where('ingredient_id', $ingredient->id)
                 ->exists();
 
@@ -165,6 +168,46 @@ class IngredientController extends Controller
             ],
         ]);
     }
+
+    public function destroy(Request $request, $id)
+    {
+        if (! $request->user()->can('inventory.manage')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Forbidden',
+            ], 403);
+        }
+
+        $ingredient = Ingredient::query()
+            ->whereKey($id)
+            ->first();
+
+        if (! $ingredient) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ingredient not found.',
+            ], 404);
+        }
+
+        $hasRecipeItems = RecipeItem::query()
+            ->where('ingredient_id', $ingredient->id)
+            ->exists();
+
+        if ($hasRecipeItems) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This ingredient cannot be deleted because it is used in a recipe. Remove it from the recipe first.',
+            ], 422);
+        }
+
+        $ingredient->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ingredient deleted successfully.',
+        ]);
+    }
+
     public function movements(Request $request, $id)
     {
         if (! $request->user()->can('inventory.view')) {
@@ -186,7 +229,7 @@ class IngredientController extends Controller
             ], 404);
         }
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             $request->all(),
             [
                 'type' => ['nullable', 'string', 'in:purchase,adjustment,wastage,sale_deduction'],
@@ -235,6 +278,7 @@ class IngredientController extends Controller
             ],
         ]);
     }
+
     public function recordMovement(Request $request, $id)
     {
         if (! $request->user()->can('inventory.adjust')) {
@@ -244,7 +288,7 @@ class IngredientController extends Controller
             ], 403);
         }
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             $request->all(),
             [
                 'type' => ['required', 'string', 'in:purchase,adjustment,wastage,sale_deduction'],
@@ -295,7 +339,7 @@ class IngredientController extends Controller
         }
 
         try {
-            $movement = app(\App\Services\StockMovementService::class)->record(
+            $movement = app(StockMovementService::class)->record(
                 $ingredient,
                 $type,
                 $quantity,

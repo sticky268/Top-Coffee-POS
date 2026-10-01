@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../data/staff_repository.dart';
 import '../domain/staff_models.dart';
 import 'edit_staff_screen.dart';
@@ -14,8 +15,7 @@ class StaffDetailScreen extends ConsumerStatefulWidget {
   final int staffId;
 
   @override
-  ConsumerState<StaffDetailScreen> createState() =>
-      _StaffDetailScreenState();
+  ConsumerState<StaffDetailScreen> createState() => _StaffDetailScreenState();
 }
 
 class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
@@ -28,31 +28,34 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
   }
 
   void _loadStaff() {
-    _staffFuture = ref
-        .read(staffRepositoryProvider)
-        .getStaffMember(widget.staffId);
+    _staffFuture =
+        ref.read(staffRepositoryProvider).getStaffMember(widget.staffId);
   }
 
   @override
   Widget build(BuildContext context) {
+    final canModify = SubscriptionActionGuard.canModify(ref);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Staff Profile'),
         actions: [
           IconButton(
-            tooltip: 'Edit staff',
+            tooltip: canModify ? 'Edit staff' : 'Subscription is read-only',
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              final changed = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(
-                  builder: (_) => EditStaffScreen(staffId: widget.staffId),
-                ),
-              );
+            onPressed: canModify
+                ? () async {
+                    final changed = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EditStaffScreen(staffId: widget.staffId),
+                      ),
+                    );
 
-              if (changed == true && mounted) {
-                setState(_loadStaff);
-              }
-            },
+                    if (changed == true && mounted) {
+                      setState(_loadStaff);
+                    }
+                  }
+                : null,
           ),
         ],
       ),
@@ -158,8 +161,7 @@ class _StaffProfile extends StatelessWidget {
                 if (primaryBranch != null)
                   _InfoRow(
                     label: 'Primary Branch',
-                    value:
-                        '${primaryBranch.name} · ${primaryBranch.code}',
+                    value: '${primaryBranch.name} · ${primaryBranch.code}',
                   ),
               ],
             ),

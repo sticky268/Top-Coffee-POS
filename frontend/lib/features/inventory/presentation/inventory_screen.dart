@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/api_exceptions.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
+
 import '../application/inventory_list_controller.dart';
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
@@ -43,6 +46,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final inventoryState = ref.watch(inventoryListControllerProvider);
+    final canModify = SubscriptionActionGuard.canModify(ref);
 
     return Scaffold(
       appBar: AppBar(
@@ -84,9 +88,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       _searchQuery = value;
                     });
                   },
-                  onAddIngredient: () {
-                    context.push('/inventory/add');
-                  },
+                  onAddIngredient: canModify
+                      ? () {
+                          context.push('/inventory/add');
+                        }
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 if (data.ingredients.isEmpty)
@@ -99,11 +105,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _IngredientCard(
                         ingredient: ingredient,
-                        onEdit: () => context.push(
-                          '/inventory/edit',
-                          extra: ingredient,
-                        ),
-                        onStockAction: () => _showStockActionDialog(ingredient),
+                        onEdit: canModify
+                            ? () => context.push(
+                                  '/inventory/edit',
+                                  extra: ingredient,
+                                )
+                            : null,
+                        onStockAction: canModify
+                            ? () => _showStockActionDialog(ingredient)
+                            : null,
+                        onDelete: canModify
+                            ? () => _deleteIngredient(ingredient)
+                            : null,
                         onHistory: () => context.push(
                           '/inventory/history',
                           extra: ingredient,
@@ -117,6 +130,72 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _deleteIngredient(
+    InventoryIngredient ingredient,
+  ) async {
+    if (!SubscriptionActionGuard.canModify(ref)) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Ingredient?'),
+          content: Text(
+            'Are you sure you want to delete "${ingredient.name}"? '
+            'The ingredient will be removed from active inventory, but '
+            'its stock history will be preserved.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      final repository = ref.read(inventoryRepositoryProvider);
+
+      await repository.deleteIngredient(
+        ingredientId: ingredient.id,
+      );
+
+      if (!mounted) return;
+
+      ref.invalidate(inventoryListControllerProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${ingredient.name} deleted successfully.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is ValidationException
+                ? error.message
+                : 'Could not delete ${ingredient.name}: $error',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _showStockActionDialog(
@@ -181,8 +260,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               }
 
               return AlertDialog(
-                title:
-                    Text('Stock Action ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${ingredient.name}'),
+                title: Text('Stock Action - ${ingredient.name}'),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -294,7 +372,7 @@ class _InventoryHeader extends StatelessWidget {
 
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
-  final VoidCallback onAddIngredient;
+  final VoidCallback? onAddIngredient;
 
   @override
   Widget build(BuildContext context) {
@@ -346,13 +424,16 @@ class _IngredientCard extends StatelessWidget {
     required this.ingredient,
     required this.onEdit,
     required this.onStockAction,
+    required this.onDelete,
     required this.onHistory,
   });
 
   final InventoryIngredient ingredient;
-  final VoidCallback onEdit;
-  final VoidCallback onStockAction;
+  final VoidCallback? onEdit;
+  final VoidCallback? onStockAction;
+  final VoidCallback? onDelete;
   final VoidCallback onHistory;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -453,6 +534,15 @@ class _IngredientCard extends StatelessWidget {
                         size: 18,
                       ),
                       label: const Text('History'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 18,
+                      ),
+                      label: const Text('Delete'),
                     ),
                   ],
                 ),

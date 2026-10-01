@@ -13,11 +13,15 @@ class ProductListTile extends StatelessWidget {
     super.key,
     required this.product,
     required this.onEdit,
+    required this.canModify,
     required this.onDisable,
     this.isDisabling = false,
   });
 
   final PosProduct product;
+
+  /// Whether subscription write access is currently available.
+  final bool canModify;
 
   /// The whole row is tappable for Edit — the most common action.
   final VoidCallback onEdit;
@@ -48,31 +52,32 @@ class ProductListTile extends StatelessWidget {
     ];
 
     return ListTile(
-      onTap: isDisabling ? null : onEdit,
-leading: CircleAvatar(
-  backgroundColor: theme.colorScheme.primaryContainer,
-  child: product.imageUrl != null && product.imageUrl!.isNotEmpty
-      ? ClipOval(
-          child: Image.network(
-            product.imageUrl!,
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.local_cafe_outlined,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-        )
-      : Icon(
-          Icons.local_cafe_outlined,
-          color: theme.colorScheme.onPrimaryContainer,
-        ),
-),
+      onTap: !canModify || isDisabling ? null : onEdit,
+      leading: CircleAvatar(
+        backgroundColor: theme.colorScheme.primaryContainer,
+        child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+            ? ClipOval(
+                child: Image.network(
+                  product.imageUrl!,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.local_cafe_outlined,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              )
+            : Icon(
+                Icons.local_cafe_outlined,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+      ),
       title: Text(product.name),
       subtitle: subtitleParts.isEmpty
           ? null
-          : Text(subtitleParts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
+          : Text(subtitleParts.join(' · '),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: isDisabling
           ? const SizedBox(
               width: 20,
@@ -84,9 +89,13 @@ leading: CircleAvatar(
               children: [
                 Text(priceLabel, style: theme.textTheme.titleMedium),
                 PopupMenuButton<String>(
-                  tooltip: 'More actions',
+                  enabled: canModify && !isDisabling,
+                  tooltip:
+                      canModify ? 'More actions' : 'Subscription is read-only',
                   onSelected: (value) {
-                    if (value == 'disable') onDisable();
+                    if (value == 'disable' && canModify) {
+                      onDisable();
+                    }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(value: 'disable', child: Text('Disable')),

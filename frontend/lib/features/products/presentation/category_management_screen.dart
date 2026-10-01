@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/subscription/subscription_action_guard.dart';
 import '../application/products_controller.dart';
 import '../application/products_state.dart';
 import '../data/products_repository.dart';
@@ -255,6 +256,7 @@ class _CategoryManagementScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(productsControllerProvider);
     final branch = ref.watch(currentBranchProvider);
+    final canModify = SubscriptionActionGuard.canModify(ref);
 
     return Scaffold(
       appBar: AppBar(
@@ -279,9 +281,9 @@ class _CategoryManagementScreenState
                   Expanded(
                     child: TextField(
                       controller: _nameController,
-                      enabled: !_isSaving,
+                      enabled: !_isSaving && canModify,
                       textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _createCategory(),
+                      onSubmitted: canModify ? (_) => _createCategory() : null,
                       decoration: const InputDecoration(
                         labelText: 'Category name',
                         border: OutlineInputBorder(),
@@ -290,7 +292,7 @@ class _CategoryManagementScreenState
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: _isSaving ? null : _createCategory,
+                    onPressed: _isSaving || !canModify ? null : _createCategory,
                     child: _isSaving
                         ? const SizedBox(
                             height: 20,
@@ -318,8 +320,7 @@ class _CategoryManagementScreenState
                         )
                       : ListView.separated(
                           itemCount: categories.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1),
+                          separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final category = categories[index];
                             final isGlobal = category.branchId == null;
@@ -340,14 +341,14 @@ class _CategoryManagementScreenState
                                       children: [
                                         IconButton(
                                           tooltip: 'Edit',
-                                          onPressed: _isSaving
+                                          onPressed: _isSaving || !canModify
                                               ? null
                                               : () => _editCategory(category),
                                           icon: const Icon(Icons.edit_outlined),
                                         ),
                                         IconButton(
                                           tooltip: 'Deactivate',
-                                          onPressed: _isSaving
+                                          onPressed: _isSaving || !canModify
                                               ? null
                                               : () =>
                                                   _deactivateCategory(category),
