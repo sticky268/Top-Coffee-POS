@@ -393,6 +393,19 @@ class KitchenTest extends TestCase
         $this->assertSame(2, (int) $tickets[0]->items()->sum('kitchen_ticket_items.quantity'));
         $this->assertSame(1, (int) $tickets[1]->items()->sum('kitchen_ticket_items.quantity'));
 
+        // The kitchen API must preserve each ticket's original items even
+        // after a subsequent batch is submitted for the same order.
+        $kitchenUser = $this->makeKitchenUser($branch);
+        $response = $this->actingAs($kitchenUser)->getJson(
+            '/api/v1/kitchen/tickets?branch_id=' . $branch->id
+        )->assertOk();
+        $ticketData = collect($response->json('data'))->keyBy('id');
+        $this->assertCount(2, $ticketData);
+        $this->assertSame(2, $ticketData[$tickets[0]->id]['order']['items'][0]['quantity']);
+        $this->assertSame(1, $ticketData[$tickets[1]->id]['order']['items'][0]['quantity']);
+        $this->assertSame($product->id, $ticketData[$tickets[0]->id]['order']['items'][0]['product_id']);
+        $this->assertSame($product->id, $ticketData[$tickets[1]->id]['order']['items'][0]['product_id']);
+
         // Saving the same complete bill again must not generate another batch.
         $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
             'items' => [['product_id' => $product->id, 'quantity' => 3]],
