@@ -203,17 +203,29 @@ class _DiscountRowState extends State<_DiscountRow> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Discount', style: theme.textTheme.bodyMedium),
-            pos_ui.SecondaryButton(
-              onPressed: () => setState(() => _editing = true),
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Discount', style: theme.textTheme.bodyMedium),
+                  if (widget.discountTotal > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '- ${widget.currency.format(widget.discountTotal)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              child: Text(
-                widget.discountTotal > 0
-                    ? '- ${widget.currency.format(widget.discountTotal)}'
-                    : 'Add',
+            ),
+            const SizedBox(width: 8),
+            pos_ui.OutlinedButton.icon(
+              onPressed: () => setState(() => _editing = true),
+              icon: const Icon(Icons.discount_outlined, size: 18),
+              label: Text(
+                widget.discountTotal > 0 ? 'Edit discount' : 'Add discount',
               ),
             ),
           ],
