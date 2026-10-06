@@ -97,25 +97,37 @@ class _ReportsContent extends StatelessWidget {
                 : _SalesOverviewChart(data: report.salesOverview),
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _SectionCard(
-                  title: 'Payment Methods',
-                  icon: Icons.payments_outlined,
-                  child: _PaymentMethodsList(data: report.paymentMethods),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _SectionCard(
-                  title: 'Order Types',
-                  icon: Icons.receipt_long_outlined,
-                  child: _OrderTypesList(data: report.orderTypes),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final paymentMethods = _SectionCard(
+                title: 'Payment Methods',
+                icon: Icons.payments_outlined,
+                child: _PaymentMethodsList(data: report.paymentMethods),
+              );
+              final orderTypes = _SectionCard(
+                title: 'Order Types',
+                icon: Icons.receipt_long_outlined,
+                child: _OrderTypesList(data: report.orderTypes),
+              );
+              if (constraints.maxWidth < 700) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    paymentMethods,
+                    const SizedBox(height: 16),
+                    orderTypes,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: paymentMethods),
+                  const SizedBox(width: 16),
+                  Expanded(child: orderTypes),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _SectionCard(
@@ -181,7 +193,7 @@ class _SummaryGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: columns == 3 ? 2.5 : 3.2,
+          mainAxisExtent: 112 * MediaQuery.textScalerOf(context).scale(1),
           children: [
             _SummaryCard(
               icon: Icons.attach_money,
