@@ -2584,4 +2584,36 @@ class OrderTest extends TestCase
         $this->assertDatabaseCount('payments', 1);
     }
 
+
+    public function test_order_uuid_cannot_be_reused_by_another_cashier(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $firstCashier = $this->makeCashier($branch);
+        $secondCashier = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.50,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $payload = [
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ];
+
+        $this->actingAs($firstCashier)->postJson('/api/v1/orders', $payload)->assertCreated();
+        $this->actingAs($secondCashier)->postJson('/api/v1/orders', $payload)->assertStatus(409);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseCount('kitchen_tickets', 1);
+    }
+
 }
