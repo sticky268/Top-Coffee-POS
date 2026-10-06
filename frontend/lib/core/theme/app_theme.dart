@@ -56,15 +56,15 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.all(Radius.circular(14)),
     );
     const buttonStyle = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
-      padding: const WidgetStatePropertyAll(
+      minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+      padding: WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       ),
-      shape: const WidgetStatePropertyAll(controlShape),
-      textStyle: const WidgetStatePropertyAll(
+      shape: WidgetStatePropertyAll(controlShape),
+      textStyle: WidgetStatePropertyAll(
         TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
-      animationDuration: const Duration(milliseconds: 180),
+      animationDuration: Duration(milliseconds: 180),
       tapTargetSize: MaterialTapTargetSize.padded,
     );
     final base = ThemeData(
@@ -149,7 +149,7 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      textButtonTheme: TextButtonThemeData(style: buttonStyle),
+      textButtonTheme: const TextButtonThemeData(style: buttonStyle),
       iconButtonTheme: IconButtonThemeData(
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
