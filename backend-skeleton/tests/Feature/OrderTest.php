@@ -184,6 +184,52 @@ class OrderTest extends TestCase
         $this->assertSame(10.0, (float) $auditLog->new_values['total']);
     }
 
+    public function test_immediate_checkout_rejects_insufficient_cash(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $user = $this->makeCashier($branch);
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.50,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 2.00,
+            ],
+        ]);
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('order_items', 0);
+        $this->assertDatabaseCount('payments', 0);
+    }
+
     public function test_creates_an_order_for_a_customer(): void
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
