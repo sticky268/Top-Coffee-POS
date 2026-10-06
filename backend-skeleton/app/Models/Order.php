@@ -11,7 +11,7 @@ class Order extends Model
     use BranchScoped, SoftDeletes;
 
     protected $fillable = [
-        'uuid', 'branch_id', 'user_id', 'customer_id', 'table_id', 'order_type',
+        'uuid', 'request_fingerprint', 'branch_id', 'user_id', 'customer_id', 'table_id', 'order_type',
         'status', 'subtotal', 'discount_total', 'tax_total', 'total',
         'held_at', 'completed_at', 'sync_status', 'created_offline_at',
     ];
