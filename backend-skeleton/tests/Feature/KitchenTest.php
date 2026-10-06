@@ -390,8 +390,8 @@ class KitchenTest extends TestCase
         $this->assertCount(2, $tickets);
         $this->assertSame('ready', $tickets[0]->fresh()->status);
         $this->assertSame('new', $tickets[1]->status);
-        $this->assertSame(2, (int) $tickets[0]->items()->sum('quantity'));
-        $this->assertSame(1, (int) $tickets[1]->items()->sum('quantity'));
+        $this->assertSame(2, (int) $tickets[0]->items()->sum('kitchen_ticket_items.quantity'));
+        $this->assertSame(1, (int) $tickets[1]->items()->sum('kitchen_ticket_items.quantity'));
 
         // Saving the same complete bill again must not generate another batch.
         $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
