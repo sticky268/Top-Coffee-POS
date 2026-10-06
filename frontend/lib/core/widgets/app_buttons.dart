@@ -2,7 +2,14 @@ import 'package:flutter/material.dart' as material;
 
 /// Brand controls retain Material focus, keyboard activation, semantics and
 /// animated ink ripples. Loading affects only presentation and tap availability.
-enum _ButtonKind { primary, secondary, outlined, danger, action }
+enum _ButtonKind {
+  primary,
+  secondary,
+  outlined,
+  danger,
+  dangerOutlined,
+  action,
+}
 
 class _BrandButton extends material.StatelessWidget {
   const _BrandButton({
@@ -29,7 +36,8 @@ class _BrandButton extends material.StatelessWidget {
   @override
   material.Widget build(material.BuildContext context) {
     final scheme = material.Theme.of(context).colorScheme;
-    final danger = kind == _ButtonKind.danger;
+    final outlinedDanger = kind == _ButtonKind.dangerOutlined;
+    final danger = kind == _ButtonKind.danger || outlinedDanger;
     final height = kind == _ButtonKind.action ? 56.0 : 48.0;
     // Layout tokens win over legacy compact styles so all controls stay usable.
     final effectiveStyle = (style ?? const material.ButtonStyle()).copyWith(
@@ -53,13 +61,26 @@ class _BrandButton extends material.StatelessWidget {
           ? material.WidgetStateProperty.resolveWith(
               (states) => states.contains(material.WidgetState.disabled)
                   ? scheme.onSurface.withValues(alpha: 0.12)
+                  : outlinedDanger
+                  ? scheme.surface
                   : scheme.error,
             )
           : style?.backgroundColor,
+      side: outlinedDanger
+          ? material.WidgetStateProperty.resolveWith(
+              (states) => material.BorderSide(
+                color: states.contains(material.WidgetState.disabled)
+                    ? scheme.outlineVariant
+                    : scheme.error.withValues(alpha: 0.45),
+              ),
+            )
+          : style?.side,
       foregroundColor: danger
           ? material.WidgetStateProperty.resolveWith(
               (states) => states.contains(material.WidgetState.disabled)
                   ? scheme.onSurface.withValues(alpha: 0.38)
+                  : outlinedDanger
+                  ? scheme.error
                   : scheme.onError,
             )
           : style?.foregroundColor,
@@ -97,6 +118,7 @@ class _BrandButton extends material.StatelessWidget {
                 label: content,
               );
       case _ButtonKind.outlined:
+      case _ButtonKind.dangerOutlined:
         return leading == null
             ? material.OutlinedButton(
                 onPressed: enabledCallback,
@@ -192,6 +214,25 @@ class OutlinedButton extends _BrandButton {
 }
 
 class DangerButton extends _BrandButton {
+  const DangerButton.outlined({
+    super.key,
+    required super.onPressed,
+    required material.Widget child,
+    super.style,
+    super.isLoading,
+    super.loadingLabel,
+  }) : super(kind: _ButtonKind.dangerOutlined, child: child);
+
+  const DangerButton.outlinedIcon({
+    super.key,
+    required super.onPressed,
+    required material.Widget icon,
+    required material.Widget label,
+    super.style,
+    super.isLoading,
+    super.loadingLabel,
+  }) : super(kind: _ButtonKind.dangerOutlined, icon: icon, label: label);
+
   const DangerButton({
     super.key,
     required super.onPressed,

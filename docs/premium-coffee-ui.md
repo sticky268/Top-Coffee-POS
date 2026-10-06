@@ -122,3 +122,11 @@ Review light/dark mode on a phone and a POS tablet, especially cart quantity con
 ## First Windows validation follow-up
 
 The first Windows run reported 199 passing tests and two test files blocked at compilation by a UTF-8 marker moved into the middle of orders_screen.dart. That marker and all 21 reported analyzer lint findings have been corrected. The existing encoding markers at the beginning of unrelated files are valid and remain unchanged. Analysis and the full test suite must be rerun after pulling the follow-up commit.
+
+## Tablet screenshot refinements
+
+Product cards and secondary dashboard actions now use the surface color and soft outline. Customer, order and payment sections use white light-mode surfaces with corresponding dark-mode surfaces. Selected order/payment tabs use the primary color and its contrasting foreground. Clear Cart uses an outlined DangerButton while the destructive confirmation stays filled.
+
+The sidebar receives the current URI path from the shell builder and highlights POS across cart and checkout routes. Route destinations, redirects, business state and API calls are unchanged. A navigation regression test exercises Dashboard -> cart -> checkout and back, and the shared-control test includes the outlined danger variant.
+
+User verification: 208 tests passed before the screenshot refinements; analysis was clean after the theme const cleanup. The screenshot refinements require a fresh analyze/test run on Windows.

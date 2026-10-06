@@ -37,6 +37,11 @@ void main() {
         onPressed: () => presses++,
         child: const Text('Delete'),
       ),
+      pos_ui.DangerButton.outlinedIcon(
+        onPressed: () => presses++,
+        icon: const Icon(Icons.delete_outline),
+        label: const Text('Clear Cart'),
+      ),
       pos_ui.PosActionButton(
         onPressed: () => presses++,
         child: const Text('Pay'),

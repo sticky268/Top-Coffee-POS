@@ -50,7 +50,7 @@ class CartPanel extends ConsumerWidget {
                 ),
               ),
               if (!cart.isEmpty)
-                pos_ui.DangerButton.icon(
+                pos_ui.DangerButton.outlinedIcon(
                   onPressed: () => _confirmClearCart(context, cartNotifier),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('Clear Cart'),

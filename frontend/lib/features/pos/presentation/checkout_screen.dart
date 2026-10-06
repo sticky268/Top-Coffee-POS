@@ -383,6 +383,7 @@ class _CheckoutForm extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
                 border: Border.all(color: theme.colorScheme.outlineVariant),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -449,9 +450,10 @@ class _CheckoutForm extends StatelessWidget {
           const SizedBox(height: 16),
           Card(
             elevation: 1,
-            color: theme.colorScheme.surfaceContainerLow,
+            color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -569,9 +571,10 @@ class _CheckoutForm extends StatelessWidget {
             const SizedBox(height: 16),
             Card(
               elevation: 1,
-              color: theme.colorScheme.surfaceContainerLow,
+              color: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -668,9 +671,10 @@ class _CheckoutForm extends StatelessWidget {
           if (paymentMethod == 'split') ...[
             Card(
               elevation: 1,
-              color: theme.colorScheme.surfaceContainerLow,
+              color: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -852,9 +856,10 @@ class _CheckoutForm extends StatelessWidget {
           if (paymentMethod == 'cash') ...[
             Card(
               elevation: 1,
-              color: theme.colorScheme.surfaceContainerLow,
+              color: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -1239,7 +1244,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     vertical: 32,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
@@ -1269,7 +1274,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(

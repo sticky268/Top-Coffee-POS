@@ -14,7 +14,9 @@ import '../../features/customers/presentation/edit_customer_screen.dart';
 import '../../features/customers/application/customer_detail_state.dart';
 import '../../features/expenses/presentation/expenses_screen.dart';
 import '../../features/expenses/presentation/add_expense_screen.dart';
+
 import 'package:top_coffee_pos/features/inventory/presentation/inventory_screen.dart';
+
 import '../../features/inventory/presentation/add_ingredient_screen.dart';
 import '../../features/inventory/presentation/edit_ingredient_screen.dart';
 import '../../features/inventory/presentation/inventory_movement_history_screen.dart';
@@ -43,12 +45,14 @@ import '../../features/settings/presentation/receipt_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/about_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
+
 import 'package:top_coffee_pos/features/staff/presentation/staff_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/staff_detail_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/add_staff_screen.dart';
 import 'package:top_coffee_pos/features/branches/presentation/branches_screen.dart';
 import 'package:top_coffee_pos/features/branches/presentation/add_branch_screen.dart';
 import 'package:top_coffee_pos/features/branches/presentation/edit_branch_screen.dart';
+
 import '../../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
 
@@ -97,18 +101,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
+        builder: (context, state, child) =>
+            AppShell(selectedRoute: state.uri.path, child: child),
         routes: [
-
           GoRoute(
             path: '/home',
             builder: (context, state) => const DashboardScreen(),
@@ -117,22 +115,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/audit-log',
             builder: (context, state) => const AuditLogScreen(),
           ),
-          GoRoute(
-            path: '/kds',
-            builder: (context, state) => const KdsScreen(),
-          ),
+          GoRoute(path: '/kds', builder: (context, state) => const KdsScreen()),
           GoRoute(
             path: '/pos',
             builder: (context, state) => PosScreen(
-              initialTable:
-                  state.extra is PosTable ? state.extra as PosTable : null,
+              initialTable: state.extra is PosTable
+                  ? state.extra as PosTable
+                  : null,
             ),
           ),
           GoRoute(
             path: '/pos/checkout',
             builder: (context, state) => CheckoutScreen(
-              initialTable:
-                  state.extra is PosTable ? state.extra as PosTable : null,
+              initialTable: state.extra is PosTable
+                  ? state.extra as PosTable
+                  : null,
             ),
           ),
           GoRoute(
@@ -195,48 +192,42 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(
-              path: '/customers',
-              builder: (context, state) => const CustomersScreen(),
-              routes: [
-                GoRoute(
-                  path: 'add',
-                  builder: (context, state) => const AddCustomerScreen(),
-                ),
-                GoRoute(
-                  path: ':id',
-                  builder: (context, state) {
-                    final customerId =
-                        int.parse(state.pathParameters['id']!);
+            path: '/customers',
+            builder: (context, state) => const CustomersScreen(),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder: (context, state) => const AddCustomerScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) {
+                  final customerId = int.parse(state.pathParameters['id']!);
 
-                    return CustomerDetailScreen(
-                      customerId: customerId,
-                    );
-                  },
-                  routes: [
-                    GoRoute(
-                      path: 'edit',
-                      builder: (context, state) {
-                        final customer =
-                            state.extra as CustomerDetailLoaded;
+                  return CustomerDetailScreen(customerId: customerId);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final customer = state.extra as CustomerDetailLoaded;
 
-                        return EditCustomerScreen(
-                          customerId: int.parse(
-                            state.pathParameters['id']!,
-                          ),
-                          customer: customer,
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            GoRoute(
-              path: '/loyalty',
-              builder: (context, state) => const LoyaltySettingsScreen(),
-            ),
-            GoRoute(
-              path: '/products',
+                      return EditCustomerScreen(
+                        customerId: int.parse(state.pathParameters['id']!),
+                        customer: customer,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/loyalty',
+            builder: (context, state) => const LoyaltySettingsScreen(),
+          ),
+          GoRoute(
+            path: '/products',
             builder: (context, state) => const ProductsScreen(),
           ),
           GoRoute(
@@ -266,18 +257,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'edit',
                 builder: (context, state) {
                   final ingredient = state.extra as InventoryIngredient;
-                  return EditIngredientScreen(
-                    ingredient: ingredient,
-                  );
+                  return EditIngredientScreen(ingredient: ingredient);
                 },
               ),
               GoRoute(
                 path: 'history',
                 builder: (context, state) {
                   final ingredient = state.extra as InventoryIngredient;
-                  return InventoryMovementHistoryScreen(
-                    ingredient: ingredient,
-                  );
+                  return InventoryMovementHistoryScreen(ingredient: ingredient);
                 },
               ),
             ],

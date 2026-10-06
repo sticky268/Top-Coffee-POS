@@ -59,12 +59,15 @@ class _QuickActionButton extends StatelessWidget {
         : theme.colorScheme.onSurface;
 
     return Material(
-      color: isPrimary
-          ? theme.colorScheme.primary
-          : theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
+      color: isPrimary ? theme.colorScheme.primary : theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: isPrimary
+            ? BorderSide.none
+            : BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
       child: pos_ui.ActionSurface(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: action.onTap,
         child: LayoutBuilder(
           builder: (context, constraints) {

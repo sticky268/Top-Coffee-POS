@@ -300,7 +300,9 @@ class _NavigationItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selected = selectedRoute == route;
+    final selected = route == '/pos/select-table'
+        ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
+        : selectedRoute == route;
 
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer

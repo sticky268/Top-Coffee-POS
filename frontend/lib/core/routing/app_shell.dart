@@ -1,33 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../features/dashboard/presentation/widgets/dashboard_navigation.dart';
 
 class AppShell extends StatelessWidget {
-  const AppShell({
-    super.key,
-    required this.child,
-  });
+  const AppShell({super.key, required this.child, required this.selectedRoute});
 
   final Widget child;
+  final String selectedRoute;
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 900;
 
         if (!isDesktop) {
           return Scaffold(
-            appBar: AppBar(
-              title: const Text('Top Coffee POS'),
-            ),
+            appBar: AppBar(title: const Text('Top Coffee POS')),
             drawer: Drawer(
-              child: DashboardNavigation(
-                selectedRoute: location,
-              ),
+              child: DashboardNavigation(selectedRoute: selectedRoute),
             ),
             body: child,
           );
@@ -36,12 +27,8 @@ class AppShell extends StatelessWidget {
         return Scaffold(
           body: Row(
             children: [
-              DashboardNavigation(
-                selectedRoute: location,
-              ),
-              Expanded(
-                child: child,
-              ),
+              DashboardNavigation(selectedRoute: selectedRoute),
+              Expanded(child: child),
             ],
           ),
         );
@@ -49,4 +36,3 @@ class AppShell extends StatelessWidget {
     );
   }
 }
-
