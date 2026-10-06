@@ -2474,4 +2474,41 @@ class OrderTest extends TestCase
         $this->assertDatabaseMissing('payments', ['order_id' => $orderId]);
     }
 
+
+    public function test_retrying_checkout_with_same_uuid_does_not_create_duplicate_order(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.50,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $payload = [
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ];
+
+        $first = $this->actingAs($user)->postJson('/api/v1/orders', $payload);
+        $first->assertCreated();
+
+        $retry = $this->postJson('/api/v1/orders', $payload);
+        $retry->assertSuccessful();
+
+        $this->assertSame($payload['uuid'], $first->json('data.uuid'));
+        $this->assertSame($first->json('data.id'), $retry->json('data.id'));
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseCount('kitchen_tickets', 1);
+    }
+
 }
