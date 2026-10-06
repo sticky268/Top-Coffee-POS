@@ -302,7 +302,7 @@ class _NavigationItem extends StatelessWidget {
     final theme = Theme.of(context);
     final selected = route == '/pos/select-table'
         ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
-        : selectedRoute == route;
+        : selectedRoute == route || selectedRoute.startsWith('$route/');
 
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
