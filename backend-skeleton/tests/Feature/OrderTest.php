@@ -2331,4 +2331,101 @@ class OrderTest extends TestCase
         $this->assertSame('available', $table->fresh()->status);
     }
 
+    private function makeHeldBillForPaymentReview(): array
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['name' => 'Coffee', 'branch_id' => null]);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.50,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Regular Customer',
+        ]);
+        $ingredient = $this->createIngredient($branch, $this->createUnit(), 'Coffee', 100);
+        RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'ingredient_id' => $ingredient->id,
+            'quantity_used' => 10,
+        ]);
+        $held = $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(201);
+
+        return [$held->json('data.id'), $product, $table, $customer, $ingredient];
+    }
+
+    public function test_saving_held_bill_preserves_customer_and_payment_uses_saved_items(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+
+        $this->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertOk()->assertJsonPath('data.total', 7);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'customer_id' => $customer->id,
+        ]);
+        $this->postJson("/api/v1/orders/{$orderId}/pay", [
+            'expected_total' => 7,
+            'payment' => ['method' => 'cash', 'tendered' => 10],
+        ])->assertOk()->assertJsonPath('data.payment.amount', 7);
+
+        $this->assertSame(80.0, (float) $ingredient->fresh()->current_stock);
+        $this->assertSame('available', $table->fresh()->status);
+    }
+
+    public function test_held_payment_rejects_stale_total_without_changing_stock_or_table(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $this->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertOk();
+
+        $this->postJson("/api/v1/orders/{$orderId}/pay", [
+            'expected_total' => 3.50,
+            'payment' => ['method' => 'cash', 'tendered' => 10],
+        ])->assertStatus(409)->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'held']);
+        $this->assertDatabaseMissing('payments', ['order_id' => $orderId]);
+        $this->assertDatabaseMissing('stock_movements', [
+            'reference_type' => Order::class,
+            'reference_id' => $orderId,
+            'type' => 'sale_deduction',
+        ]);
+        $this->assertSame(100.0, (float) $ingredient->fresh()->current_stock);
+        $this->assertSame('occupied', $table->fresh()->status);
+    }
+
+    public function test_held_payment_rejects_invalid_expected_total(): void
+    {
+        [$orderId] = $this->makeHeldBillForPaymentReview();
+        $this->postJson("/api/v1/orders/{$orderId}/pay", [
+            'expected_total' => -1,
+            'payment' => ['method' => 'cash', 'tendered' => 10],
+        ])->assertStatus(422);
+        $this->assertDatabaseMissing('payments', ['order_id' => $orderId]);
+    }
+
 }

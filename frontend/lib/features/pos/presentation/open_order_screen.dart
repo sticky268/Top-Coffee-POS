@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../orders/application/order_detail_controller.dart';
 import '../../orders/application/order_detail_state.dart';
+import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order_models.dart';
 import '../application/pos_catalog_controller.dart';
 import '../data/pos_repository.dart';
@@ -125,33 +126,32 @@ class _OpenOrderContent extends ConsumerStatefulWidget {
 
 class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   late List<_EditableOrderLine> _lines;
+  late OrderDetail _order;
+  bool _isBusy = false;
+  bool _isShowingPayment = false;
 
   @override
   void initState() {
     super.initState();
-    _lines = widget.order.items.map(_EditableOrderLine.fromOrderItem).toList();
+    _order = widget.order;
+    _lines = _order.items.map(_EditableOrderLine.fromOrderItem).toList();
   }
 
   double get _subtotal => _lines.fold(0.0, (sum, line) => sum + line.lineTotal);
 
-  double get _discount => widget.order.discountTotal;
+  double get _discount => _order.discountTotal;
 
   double get _total {
     final result = _subtotal - _discount;
     return result < 0 ? 0 : result;
   }
 
-  void _addProduct(
-    PosProduct product, {
-    PosProductVariant? variant,
-  }) {
-    final newLine = _EditableOrderLine.fromProduct(
-      product,
-      variant: variant,
-    );
+  void _addProduct(PosProduct product, {PosProductVariant? variant}) {
+    final newLine = _EditableOrderLine.fromProduct(product, variant: variant);
 
-    final existingIndex =
-        _lines.indexWhere((line) => line.lineKey == newLine.lineKey);
+    final existingIndex = _lines.indexWhere(
+      (line) => line.lineKey == newLine.lineKey,
+    );
 
     setState(() {
       if (existingIndex == -1) {
@@ -175,10 +175,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     ref.read(posCatalogControllerProvider.notifier).selectCategory(categoryId);
   }
 
-  void _addProductVariant(
-    PosProduct product,
-    PosProductVariant variant,
-  ) {
+  void _addProductVariant(PosProduct product, PosProductVariant variant) {
     _addProduct(product, variant: variant);
   }
 
@@ -217,9 +214,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Discard changes?'),
-        content: const Text(
-          'Any changes made to this order will be lost.',
-        ),
+        content: const Text('Any changes made to this order will be lost.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -238,16 +233,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     context.pushReplacement('/pos/select-table');
   }
 
-  Future<void> _saveOrder() async {
-    if (_lines.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least one item before saving the order.'),
-        ),
-      );
-      return;
-    }
-
+  Future<OrderDetail> _saveCurrentOrder() async {
     final items = _lines
         .map(
           (line) => <String, dynamic>{
@@ -258,76 +244,102 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         )
         .toList();
 
+    await ref
+        .read(posRepositoryProvider)
+        .updateHeldOrder(
+          orderId: _order.id,
+          items: items,
+          discountTotal: _discount,
+          branchId: _order.branch?.id,
+        );
+
+    final saved = await ref.read(ordersRepositoryProvider).getOrder(_order.id);
+    if (saved.status != 'held') {
+      throw StateError('This order is no longer open. Reload its details.');
+    }
+    if (mounted) {
+      setState(() {
+        _order = saved;
+        _lines = saved.items.map(_EditableOrderLine.fromOrderItem).toList();
+      });
+    }
+    return saved;
+  }
+
+  Future<void> _saveOrder() async {
+    if (_isBusy || _lines.isEmpty) return;
+    setState(() => _isBusy = true);
+
     try {
-      await ref.read(posRepositoryProvider).updateHeldOrder(
-            orderId: widget.order.id,
-            items: items,
-            discountTotal: _discount,
-          );
-
+      await _saveCurrentOrder();
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order saved successfully.'),
-        ),
+        const SnackBar(content: Text('Order saved successfully.')),
       );
-
       context.go('/pos/select-table');
     } catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not save order: $error'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save order: $error')));
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
     }
   }
 
   Future<void> _payOrder() async {
-    if (_lines.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least one item before paying the order.'),
-        ),
-      );
-      return;
-    }
-
-    final result = await showDialog<_PaymentResult>(
-      context: context,
-      builder: (dialogContext) => _PaymentDialog(
-        total: _total,
-      ),
-    );
-
-    if (result == null || !mounted) return;
+    if (_isBusy || _lines.isEmpty) return;
+    setState(() => _isBusy = true);
+    var isPaying = false;
 
     try {
-      await ref.read(posRepositoryProvider).payHeldOrder(
-            orderId: widget.order.id,
+      // Save the edited bill before asking the cashier to collect payment.
+      final saved = await _saveCurrentOrder();
+      if (!mounted) return;
+
+      setState(() => _isShowingPayment = true);
+      final result = await showDialog<_PaymentResult>(
+        context: context,
+        builder: (_) => _PaymentDialog(total: saved.total),
+      );
+      if (!mounted) return;
+      setState(() => _isShowingPayment = false);
+      if (result == null) return;
+
+      isPaying = true;
+      await ref
+          .read(posRepositoryProvider)
+          .payHeldOrder(
+            orderId: saved.id,
             paymentMethod: result.method,
             tendered: result.tendered,
+            expectedTotal: saved.total,
+            branchId: saved.branch?.id,
           );
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment completed successfully.'),
-        ),
+        const SnackBar(content: Text('Payment completed successfully.')),
       );
-
       context.go('/pos/select-table');
     } catch (error) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not complete payment: $error'),
+          content: Text(
+            isPaying
+                ? 'Could not complete payment: $error'
+                : 'Could not save order. Payment was not started: $error',
+          ),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+          _isShowingPayment = false;
+        });
+      }
     }
   }
 
@@ -336,60 +348,66 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     final currency = NumberFormat.currency(symbol: '\$');
     final catalogState = ref.watch(posCatalogControllerProvider);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 900;
+    return PopScope(
+      canPop: !_isBusy,
+      child: Stack(
+        children: [
+          AbsorbPointer(
+            absorbing: _isBusy,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 900;
 
-        final orderPanel = _OrderPanel(
-          order: widget.order,
-          lines: _lines,
-          subtotal: _subtotal,
-          discount: _discount,
-          total: _total,
-          currency: currency,
-          onSave: _saveOrder,
-          onPay: _payOrder,
-          onDiscard: _discardChanges,
-          onIncrement: (lineKey) => _changeQuantity(lineKey, 1),
-          onDecrement: (lineKey) => _changeQuantity(lineKey, -1),
-          onRemove: _removeLine,
-        );
+                final orderPanel = _OrderPanel(
+                  order: _order,
+                  lines: _lines,
+                  subtotal: _subtotal,
+                  discount: _discount,
+                  total: _total,
+                  currency: currency,
+                  onSave: _saveOrder,
+                  onPay: _payOrder,
+                  onDiscard: _discardChanges,
+                  onIncrement: (lineKey) => _changeQuantity(lineKey, 1),
+                  onDecrement: (lineKey) => _changeQuantity(lineKey, -1),
+                  onRemove: _removeLine,
+                );
 
-        final productPanel = _ProductCatalogPanel(
-          state: catalogState,
-          onProductSelected: _addProduct,
-          onVariantSelected: _addProductVariant,
-        );
+                final productPanel = _ProductCatalogPanel(
+                  state: catalogState,
+                  onProductSelected: _addProduct,
+                  onVariantSelected: _addProductVariant,
+                );
 
-        if (isWide) {
-          return Row(
-            children: [
-              SizedBox(
-                width: 420,
-                child: orderPanel,
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: productPanel,
-              ),
-            ],
-          );
-        }
+                if (isWide) {
+                  return Row(
+                    children: [
+                      SizedBox(width: 420, child: orderPanel),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: productPanel),
+                    ],
+                  );
+                }
 
-        return Column(
-          children: [
-            Expanded(
-              flex: 3,
-              child: orderPanel,
+                return Column(
+                  children: [
+                    Expanded(flex: 3, child: orderPanel),
+                    const Divider(height: 1),
+                    Expanded(flex: 2, child: productPanel),
+                  ],
+                );
+              },
             ),
-            const Divider(height: 1),
-            Expanded(
-              flex: 2,
-              child: productPanel,
+          ),
+          if (_isBusy && !_isShowingPayment)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0x33000000),
+                child: Center(child: CircularProgressIndicator()),
+              ),
             ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -477,6 +495,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Text('Order changes are saved. Cancelling here leaves the bill open.'),
+            const SizedBox(height: 12),
             Text(
               'Total',
               style: Theme.of(context).textTheme.bodyMedium,

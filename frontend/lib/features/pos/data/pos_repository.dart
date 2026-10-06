@@ -57,6 +57,7 @@ abstract class PosRepository {
   Future<OrderConfirmation> payHeldOrder({
     required int orderId,
     required String paymentMethod,
+    double? expectedTotal,
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     int? branchId,
@@ -279,6 +280,7 @@ class ApiPosRepository implements PosRepository {
   Future<OrderConfirmation> payHeldOrder({
     required int orderId,
     required String paymentMethod,
+    double? expectedTotal,
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     int? branchId,
@@ -288,6 +290,7 @@ class ApiPosRepository implements PosRepository {
         '/orders/$orderId/pay',
         data: {
           if (branchId != null) 'branch_id': branchId,
+          if (expectedTotal != null) 'expected_total': expectedTotal,
           'payment': {
             'method': paymentMethod,
             if (tendered != null) 'tendered': tendered,
