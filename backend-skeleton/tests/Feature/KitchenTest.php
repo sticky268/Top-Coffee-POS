@@ -364,6 +364,65 @@ class KitchenTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_adding_to_held_order_creates_a_separate_kitchen_ticket(): void
+    {
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $cashier = $this->makeCashier($branch);
+        $product = $this->createProduct($branch);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id, 'name' => 'T1',
+            'capacity' => 4, 'status' => 'available', 'is_active' => true,
+        ]);
+
+        $held = $this->actingAs($cashier)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertStatus(201);
+        $orderId = $held->json('data.id');
+        $firstTicket = KitchenTicket::where('order_id', $orderId)->firstOrFail();
+        $firstTicket->update(['status' => 'ready', 'ready_at' => now()]);
+
+        $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ])->assertStatus(200)->assertJsonPath('data.total', 10.5);
+
+        $tickets = KitchenTicket::where('order_id', $orderId)->orderBy('id')->get();
+        $this->assertCount(2, $tickets);
+        $this->assertSame('ready', $tickets[0]->fresh()->status);
+        $this->assertSame('new', $tickets[1]->status);
+        $this->assertSame(2, (int) $tickets[0]->items()->sum('quantity'));
+        $this->assertSame(1, (int) $tickets[1]->items()->sum('quantity'));
+
+        // Saving the same complete bill again must not generate another batch.
+        $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ])->assertStatus(200);
+        $this->assertSame(2, KitchenTicket::where('order_id', $orderId)->count());
+    }
+
+    public function test_held_order_rejects_reducing_already_submitted_quantities(): void
+    {
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $cashier = $this->makeCashier($branch);
+        $product = $this->createProduct($branch);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id, 'name' => 'T1',
+            'capacity' => 4, 'status' => 'available', 'is_active' => true,
+        ]);
+        $held = $this->actingAs($cashier)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertStatus(201);
+        $orderId = $held->json('data.id');
+
+        $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(422);
+
+        $this->assertSame(1, KitchenTicket::where('order_id', $orderId)->count());
+        $this->assertSame(2, (int) \App\Models\OrderItem::where('order_id', $orderId)->sum('quantity'));
+    }
+
     private function createOrder(Branch $branch, User $user): int
     {
         $product = $this->createProduct($branch);
