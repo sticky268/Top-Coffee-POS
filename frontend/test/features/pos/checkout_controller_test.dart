@@ -50,6 +50,7 @@ void main() {
 
   test('submit() transitions to CheckoutSuccess on success', () async {
     when(() => repository.createOrder(
+          requestUuid: any(named: 'requestUuid'),
           items: any(named: 'items'),
           paymentMethod: any(named: 'paymentMethod'),
           orderType: any(named: 'orderType'),
@@ -73,6 +74,7 @@ void main() {
 
   test('hold() forwards the selected customer ID', () async {
     when(() => repository.holdOrder(
+          requestUuid: any(named: 'requestUuid'),
           items: any(named: 'items'),
           orderType: any(named: 'orderType'),
           tableId: any(named: 'tableId'),
@@ -96,6 +98,7 @@ void main() {
     );
 
     verify(() => repository.holdOrder(
+          requestUuid: any(named: 'requestUuid'),
           items: any(named: 'items'),
           orderType: 'dine_in',
           tableId: 1,
@@ -105,6 +108,7 @@ void main() {
   });
   test('submit() transitions to CheckoutError with the backend message on failure', () async {
     when(() => repository.createOrder(
+          requestUuid: any(named: 'requestUuid'),
           items: any(named: 'items'),
           paymentMethod: any(named: 'paymentMethod'),
           orderType: any(named: 'orderType'),
@@ -127,6 +131,7 @@ void main() {
 
   test('a failed checkout does not throw when the container is disposed mid-submit', () async {
     when(() => repository.createOrder(
+          requestUuid: any(named: 'requestUuid'),
           items: any(named: 'items'),
           paymentMethod: any(named: 'paymentMethod'),
           orderType: any(named: 'orderType'),
