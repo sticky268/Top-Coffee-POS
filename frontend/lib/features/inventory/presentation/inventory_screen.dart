@@ -446,93 +446,107 @@ class _IngredientCard extends StatelessWidget {
         ? theme.colorScheme.error
         : AppColors.semantic(context, AppColors.success);
 
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          ingredient.name,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Reorder at ${ingredient.reorderThreshold.toStringAsFixed(3)} ${ingredient.unit.abbreviation}',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+    final stock = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '${ingredient.currentStock.toStringAsFixed(3)} ${ingredient.unit.abbreviation}',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          statusText,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: statusColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            pos_ui.OutlinedButton.icon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit'),
+            ),
+            pos_ui.OutlinedButton.icon(
+              onPressed: onStockAction,
+              icon: const Icon(Icons.inventory_2_outlined, size: 18),
+              label: const Text('Stock Action'),
+            ),
+            pos_ui.OutlinedButton.icon(
+              onPressed: onHistory,
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('History'),
+            ),
+            pos_ui.DangerButton.outlinedIcon(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Delete'),
+            ),
+          ],
+        ),
+      ],
+    );
     return Card(
       elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.inventory_2_outlined,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    ingredient.name,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Reorder at ${ingredient.reorderThreshold.toStringAsFixed(3)} ${ingredient.unit.abbreviation}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final heading = Row(
               children: [
-                Text(
-                  '${ingredient.currentStock.toStringAsFixed(3)} ${ingredient.unit.abbreviation}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.inventory_2_outlined,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  statusText,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    pos_ui.OutlinedButton.icon(
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Edit'),
-                    ),
-                    const SizedBox(width: 8),
-                    pos_ui.OutlinedButton.icon(
-                      onPressed: onStockAction,
-                      icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                      label: const Text('Stock Action'),
-                    ),
-                    const SizedBox(width: 8),
-                    pos_ui.OutlinedButton.icon(
-                      onPressed: onHistory,
-                      icon: const Icon(Icons.history, size: 18),
-                      label: const Text('History'),
-                    ),
-                    const SizedBox(width: 8),
-                    pos_ui.DangerButton.outlinedIcon(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Delete'),
-                    ),
-                  ],
-                ),
+                const SizedBox(width: 16),
+                Expanded(child: details),
               ],
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 760) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [heading, const SizedBox(height: 16), stock],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: heading),
+                const SizedBox(width: 16),
+                SizedBox(width: 560, child: stock),
+              ],
+            );
+          },
         ),
       ),
     );
