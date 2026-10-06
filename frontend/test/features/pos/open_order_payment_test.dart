@@ -124,6 +124,8 @@ void main() {
     await tester.tap(find.text('Pay'));
     await tester.pumpAndSettle();
 
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
     final items =
         verify(
               () => pos.updateHeldOrder(
