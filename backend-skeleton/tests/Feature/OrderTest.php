@@ -695,6 +695,10 @@ class OrderTest extends TestCase
             [
                 'items' => [
                     [
+                        'product_id' => $latte->id,
+                        'quantity' => 1,
+                    ],
+                    [
                         'product_id' => $americano->id,
                         'quantity' => 2,
                     ],
@@ -706,7 +710,7 @@ class OrderTest extends TestCase
             ->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'held')
-            ->assertJsonPath('data.total', 6);
+            ->assertJsonPath('data.total', 11);
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $user->id,
@@ -721,7 +725,7 @@ class OrderTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(5.0, (float) $auditLog->old_values['total']);
-        $this->assertSame(6.0, (float) $auditLog->new_values['total']);
+        $this->assertSame(11.0, (float) $auditLog->new_values['total']);
         $this->assertSame('held', $auditLog->new_values['status']);
         $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
         $this->assertSame($table->id, $auditLog->new_values['table_id']);
