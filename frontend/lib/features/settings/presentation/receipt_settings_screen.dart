@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/printer/printer_service.dart';
+import '../../../features/pos/domain/pos_models.dart';
 import '../data/receipt_settings.dart';
 
 class ReceiptSettingsScreen extends StatefulWidget {
@@ -65,6 +66,62 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
   final TextEditingController footerController =
       TextEditingController(text: 'Thank you for visiting Top Coffee!');
+
+  OrderReceipt _buildBitmapTestReceipt() {
+    const items = <OpenOrderItem>[
+      OpenOrderItem(
+        id: 1,
+        productName: 'Iced Latte',
+        variantName: 'Large',
+        quantity: 2,
+        unitPrice: 3.50,
+        lineTotal: 7.00,
+      ),
+      OpenOrderItem(
+        id: 2,
+        productName: 'Cappuccino',
+        variantName: 'Medium',
+        quantity: 1,
+        unitPrice: 3.00,
+        lineTotal: 3.00,
+      ),
+      OpenOrderItem(
+        id: 3,
+        productName: 'សូកូឡាក្តៅ',
+        variantName: null,
+        quantity: 1,
+        unitPrice: 2.50,
+        lineTotal: 2.50,
+      ),
+    ];
+
+    const payment = PaymentConfirmation(
+      id: 1,
+      method: 'Cash',
+      amount: 12.00,
+      tendered: 15.00,
+      changeDue: 2.50,
+      status: 'completed',
+    );
+
+    return OrderReceipt(
+      orderId: 9999,
+      uuid: 'bitmap-test-receipt',
+      orderType: 'Dine In',
+      status: 'completed',
+      subtotal: 12.50,
+      discountTotal: 0.50,
+      total: 12.00,
+      branchName: 'Phnom Penh Branch',
+      branchCode: 'PP01',
+      cashierName: 'Test Cashier',
+      tableName: 'T3',
+      items: items,
+      payment: payment,
+      payments: const [payment],
+      createdAt: DateTime.now(),
+    );
+  }
 
   @override
   void dispose() {
@@ -546,6 +603,174 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 },
                 icon: const Icon(Icons.print_outlined),
                 label: const Text('Test Print'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final ipAddress = printerIpController.text.trim();
+
+                  if (ipAddress.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter the printer IP address first.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final printerService = PrinterService();
+
+                  try {
+                    await printerService.connect(ipAddress);
+                    await printerService.printKhmerTest();
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Khmer test print sent successfully.'),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Khmer printer test failed: ' + e.toString(),
+                        ),
+                      ),
+                    );
+                  } finally {
+                    try {
+                      await printerService.disconnect();
+                    } catch (_) {
+                      // Ignore disconnect errors after the test.
+                    }
+                  }
+                },
+                icon: const Icon(Icons.language_outlined),
+                label: const Text('Print Khmer Test'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final ipAddress = printerIpController.text.trim();
+
+                  if (ipAddress.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter the printer IP address first.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final printerService = PrinterService();
+
+                  try {
+                    await printerService.connect(ipAddress);
+
+                    final receipt = _buildBitmapTestReceipt();
+
+                    await printerService.printReceiptBitmapTest(receipt);
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Bitmap receipt test sent successfully.',
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Bitmap receipt test failed: ' + e.toString(),
+                        ),
+                      ),
+                    );
+                  } finally {
+                    try {
+                      await printerService.disconnect();
+                    } catch (_) {
+                      // Ignore disconnect errors after the test.
+                    }
+                  }
+                },
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Print Bitmap Receipt Test'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final ipAddress = printerIpController.text.trim();
+
+                  if (ipAddress.isEmpty) {
+                    return;
+                  }
+
+                  final printerService = PrinterService();
+
+                  try {
+                    await printerService.connect(ipAddress);
+
+                    await printerService.printBitmapStressTest();
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Bitmap stress test sent successfully.',
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) {
+                      return;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Bitmap stress test failed: ' + e.toString(),
+                        ),
+                      ),
+                    );
+                  } finally {
+                    try {
+                      await printerService.disconnect();
+                    } catch (_) {
+                      // Ignore disconnect errors after the test.
+                    }
+                  }
+                },
+                icon: const Icon(Icons.height_outlined),
+                label: const Text('Print Bitmap Stress Test'),
               ),
             ),
           ],

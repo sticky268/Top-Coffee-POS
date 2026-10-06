@@ -593,7 +593,7 @@ class _OrderCard extends StatelessWidget {
           [
             order.orderType == 'dine_in' ? 'Dine In' : 'Takeaway',
             if (date != null) _formatDate(date),
-          ].join(' Ã¢â‚¬Â¢ '),
+          ].join(' • '),
         ),
         trailing: Text(
           '\$${order.total.toStringAsFixed(2)}',

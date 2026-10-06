@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_exceptions.dart';
+
 import '../data/branch_repository.dart';
 
 class AddBranchScreen extends ConsumerStatefulWidget {
@@ -64,7 +66,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e is ApiException ? e.message : 'Something went wrong. Please try again.';
         _isSaving = false;
       });
     }

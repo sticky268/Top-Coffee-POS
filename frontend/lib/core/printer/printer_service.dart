@@ -24,6 +24,13 @@ class PrinterService {
     await _channel.invokeMethod<bool>('printTest');
   }
 
+  Future<void> printKhmerTest() async {
+    await _channel.invokeMethod<bool>('printKhmerTest');
+  }
+  Future<void> printBitmapStressTest() async {
+    await _channel.invokeMethod<bool>('printBitmapStressTest');
+  }
+
   Future<Uint8List?> _loadLogoBytes() async {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/receipt_logo.png');
@@ -84,6 +91,93 @@ class PrinterService {
       'printReceipt',
       <String, dynamic>{
         'logoBytes': logoBytes,
+        'logoPosition': settings.logoPosition,
+        'logoSize': settings.logoSize,
+        'bodyFontSize': settings.bodyFontSize,
+        'businessFontSize': settings.businessFontSize,
+        'footerFontSize': settings.footerFontSize,
+        'boldBusinessName': settings.boldBusinessName,
+        'boldTotal': settings.boldTotal,
+        'boldFooter': settings.boldFooter,
+        'orderNumber': settings.showOrderNumber
+            ? receipt.orderId.toString()
+            : '',
+        'businessName': settings.businessName,
+        'branchName': settings.branchName,
+        'cashierName':
+            settings.showCashier ? receipt.cashierName ?? '' : '',
+        'tableName':
+            settings.showTable ? receipt.tableName ?? '' : '',
+        'orderType':
+            settings.showOrderType ? receipt.orderType : '',
+        'subtotal': receipt.subtotal.toStringAsFixed(2),
+        'discount': receipt.discountTotal.toStringAsFixed(2),
+        'total': receipt.total.toStringAsFixed(2),
+        'paymentMethod':
+            settings.showPaymentMethod ? paymentMethod : '',
+        'tendered': tendered,
+        'changeDue': changeDue,
+        'showSplitPayments': settings.showSplitPayments,
+        'payments': payments
+            .map(
+              (payment) => <String, dynamic>{
+                'method': payment.method,
+                'amount': payment.amount.toStringAsFixed(2),
+              },
+            )
+            .toList(),
+        'footer': settings.footer,
+        'items': items,
+      },
+    );
+  }
+  Future<void> printReceiptBitmapTest(OrderReceipt receipt) async {
+    final settings = await ReceiptSettings.load();
+
+    final payments = receipt.payments.isNotEmpty
+        ? receipt.payments
+        : receipt.payment != null
+            ? <PaymentConfirmation>[receipt.payment!]
+            : <PaymentConfirmation>[];
+
+    final paymentMethod = payments.length > 1
+        ? 'Split'
+        : payments.isNotEmpty
+            ? payments.first.method
+            : '';
+
+    final tendered = payments.length == 1 &&
+            payments.first.tendered != null &&
+            settings.showTendered
+        ? payments.first.tendered!.toStringAsFixed(2)
+        : null;
+
+    final changeDue = payments.length == 1 &&
+            payments.first.changeDue != null &&
+            settings.showChange
+        ? payments.first.changeDue!.toStringAsFixed(2)
+        : null;
+
+    final items = receipt.items.map((item) {
+      return <String, dynamic>{
+        'name': settings.showItemName ? item.productName : '',
+        'variant': settings.showItemName
+            ? item.variantName ?? ''
+            : '',
+        'quantity': settings.showQuantity ? item.quantity : '',
+        'unitPrice': settings.showUnitPrice
+            ? item.unitPrice.toStringAsFixed(2)
+            : '',
+        'lineTotal': settings.showLineTotal
+            ? item.lineTotal.toStringAsFixed(2)
+            : '',
+      };
+    }).toList();
+
+    await _channel.invokeMethod<bool>(
+      'printReceiptBitmapTest',
+      <String, dynamic>{
+        'logoBytes': null,
         'logoPosition': settings.logoPosition,
         'logoSize': settings.logoSize,
         'bodyFontSize': settings.bodyFontSize,

@@ -14,14 +14,6 @@ class DashboardNavigation extends StatelessWidget {
     context.go(route);
   }
 
-  void _showComingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label is coming soon.'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,8 +173,8 @@ class DashboardNavigation extends StatelessWidget {
                         label: 'Customers',
                         route: '/customers',
                         selectedRoute: selectedRoute,
-                        enabled: false,
-                        onTap: () => _showComingSoon(context, 'Customers'),
+                        enabled: true,
+                        onTap: () => _navigate(context, '/customers'),
                       ),
                       _NavigationItem(
                         icon: Icons.card_giftcard_outlined,
@@ -190,8 +182,8 @@ class DashboardNavigation extends StatelessWidget {
                         label: 'Loyalty',
                         route: '/loyalty',
                         selectedRoute: selectedRoute,
-                        enabled: false,
-                        onTap: () => _showComingSoon(context, 'Loyalty'),
+                        enabled: true,
+                        onTap: () => _navigate(context, '/loyalty'),
                       ),
                     ],
                   ),

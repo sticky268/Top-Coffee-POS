@@ -27,6 +27,18 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             child: ListTile(
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: const Text('Subscription'),
+              subtitle: const Text(
+                'View your plan, branch usage, and subscription status',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/settings/subscription'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
               leading: const Icon(Icons.info_outline),
               title: const Text('About'),
               subtitle: const Text('App information'),

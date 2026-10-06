@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Customer;
@@ -25,19 +26,19 @@ class OrderController extends Controller
      * POST /api/v1/orders
      *
      * Creates an order + its items + its payment inside a single DB
-     * transaction Ã¢â‚¬â€ the Phase 1 architecture requirement that a payment
+     * transaction ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the Phase 1 architecture requirement that a payment
      * succeeding while another write fails must never leave inconsistent
      * records. Every line's price is recomputed server-side from
      * Product/ProductVariant + the resolved branch's branch_product pivot
      * (identical resolution logic to ProductController::index()) rather
-     * than trusting whatever price the Flutter cart submits Ã¢â‚¬â€ a client
+     * than trusting whatever price the Flutter cart submits ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a client
      * payload is a request, not a source of truth, for anything touching
      * payment amounts.
      *
      * Requires the 'orders.create' permission (already seeded on the
      * cashier role, and implicitly on admin via branches.view-all's
      * sibling grant of all permissions). Note: the existing manager role
-     * does NOT have 'orders.create' in RolePermissionSeeder Ã¢â‚¬â€ a
+     * does NOT have 'orders.create' in RolePermissionSeeder ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a
      * pre-existing seeder gap, not introduced or fixed here.
      *
      * Deliberately NOT implemented here (out of scope for this task):
@@ -147,7 +148,7 @@ class OrderController extends Controller
                         ->find($itemInput['product_id']);
 
                     if (! $product) {
-                        // Aborting here rolls back the whole transaction Ã¢â‚¬â€
+                        // Aborting here rolls back the whole transaction ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
                         // no partial order is ever left behind because one
                         // line referenced an unavailable product.
                         abort(422, "Product {$itemInput['product_id']} is not available at this branch.");
@@ -196,7 +197,7 @@ class OrderController extends Controller
                     'order_type' => $request->input('order_type'),
                     'table_id' => $request->input('table_id'),
                     // No kitchen/hold workflow yet (Phase 10/11 territory)
-                    // Ã¢â‚¬â€ payment confirmation marks the order completed
+                    // ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â payment confirmation marks the order completed
                     // immediately.
                     'status' => 'completed',
                     'subtotal' => round($subtotal, 2),
@@ -344,24 +345,24 @@ class OrderController extends Controller
      * other:
      *  1. The Order model's existing BranchScoped trait always restricts
      *     Order::query() to the authenticated user's own branches (or
-     *     leaves it unrestricted for branches.view-all holders) Ã¢â‚¬â€ this
+     *     leaves it unrestricted for branches.view-all holders) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this
      *     alone already makes it impossible for a user to see another
      *     branch's orders, with or without the parameter below.
      *  2. The new `branch_id` param ADDITIONALLY narrows within that
-     *     already-safe set, to a single branch Ã¢â‚¬â€ this is what lets a
+     *     already-safe set, to a single branch ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this is what lets a
      *     multi-branch user (e.g. an admin switching branches in the
      *     Flutter app) scope the list to just the branch they're
      *     currently viewing, rather than always seeing every branch they
      *     have access to at once. An explicit 403 (matching Category/
      *     Product/Order-create's existing convention) is returned for a
      *     branch_id the user doesn't have access to, rather than
-     *     silently returning zero rows Ã¢â‚¬â€ that ambiguity (no access vs.
+     *     silently returning zero rows ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â that ambiguity (no access vs.
      *     genuinely empty) is worse for a UI to interpret correctly.
      *
      * "order_number" matches this app's existing convention (see
      * OrderController::store()'s response and the Flutter checkout
      * confirmation screen) of using the numeric `id` as the user-facing
-     * order number Ã¢â‚¬â€ there is no separate order_number column. A numeric
+     * order number ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â there is no separate order_number column. A numeric
      * value matches `id` exactly; anything else is matched against `uuid`
      * as a partial search.
      */
@@ -1346,6 +1347,7 @@ class OrderController extends Controller
                     'change_due' => $isSplit || $payment->change_due === null
                         ? null
                         : (float) $payment->change_due,
+                    'status' => $payment->status,
                 ] : null,
                 'payments' => $payments->map(fn (Payment $payment) => [
                     'id' => $payment->id,
@@ -1408,7 +1410,7 @@ class OrderController extends Controller
 
         $orders = Order::query()
             // Eager-loaded up front so mapping each row in summarize()
-            // below touches no additional queries (no N+1) Ã¢â‚¬â€ branch/
+            // below touches no additional queries (no N+1) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â branch/
             // cashier/payments are exactly what the list response needs,
             // items are deliberately NOT loaded here (that's show()'s job).
             ->with(['branch:id,name,code', 'cashier:id,name', 'payments'])
@@ -1451,7 +1453,7 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'data' => $orders->getCollection()->map(fn (Order $order) => $this->summarize($order))->values(),
-            // Additive to the existing {success, data} envelope Ã¢â‚¬â€ every
+            // Additive to the existing {success, data} envelope ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â every
             // other endpoint's shape is unchanged.
             'meta' => [
                 'current_page' => $orders->currentPage(),
@@ -1465,7 +1467,7 @@ class OrderController extends Controller
     /**
      * GET /api/v1/orders/{id}
      *
-     * Order::find($id) is already branch-scoped by BranchScoped Ã¢â‚¬â€ an
+     * Order::find($id) is already branch-scoped by BranchScoped ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â an
      * order belonging to a branch outside this user's access simply isn't
      * found, which is indistinguishable from it not existing at all. That
      * is what correctly prevents viewing another branch's order without
@@ -1527,7 +1529,7 @@ class OrderController extends Controller
                     'status' => $order->table->status,
                 ] : null,
                 // Defensive against a soft-deleted/missing product or
-                // variant on a historical order Ã¢â‚¬â€ never lets a null
+                // variant on a historical order ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â never lets a null
                 // relationship crash this response.
                 'items' => $order->items->map(fn (OrderItem $item) => [
                     'id' => $item->id,
@@ -1560,7 +1562,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Shared row shape for the list endpoint Ã¢â‚¬â€ deliberately lighter than
+     * Shared row shape for the list endpoint ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â deliberately lighter than
      * show()'s response (no line items), matching what the Flutter list
      * screen actually needs per row.
      */

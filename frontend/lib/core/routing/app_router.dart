@@ -24,6 +24,7 @@ import '../../features/kds/presentation/kds_screen.dart';
 import '../../features/orders/presentation/edit_order_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
+import '../../features/loyalty/presentation/loyalty_settings_screen.dart';
 import '../../features/pos/presentation/checkout_screen.dart';
 
 import '../../features/pos/presentation/pos_screen.dart';
@@ -42,6 +43,7 @@ import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/settings/presentation/receipt_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/about_screen.dart';
+import '../../features/subscription/presentation/subscription_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/staff_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/staff_detail_screen.dart';
 import 'package:top_coffee_pos/features/staff/presentation/add_staff_screen.dart';
@@ -231,6 +233,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ],
             ),
             GoRoute(
+              path: '/loyalty',
+              builder: (context, state) => const LoyaltySettingsScreen(),
+            ),
+            GoRoute(
               path: '/products',
             builder: (context, state) => const ProductsScreen(),
           ),
@@ -306,6 +312,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings/about',
             builder: (context, state) => const AboutScreen(),
+          ),
+          GoRoute(
+            path: '/settings/subscription',
+            builder: (context, state) => const SubscriptionScreen(),
           ),
           GoRoute(
             path: '/expenses',
