@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
 
@@ -20,7 +22,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
   VoidCallback? _routerListener;
   GoRouter? _router;
 
-// 0 = Auto, otherwise fixed column count.
+  // 0 = Auto, otherwise fixed column count.
   int _tableColumns = 0;
 
   Future<void> _loadTableLayoutPreference() async {
@@ -90,7 +92,8 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
 
       if (!mounted) return;
 
-      final sortedTables = [...tables]..sort((a, b) {
+      final sortedTables = [...tables]
+        ..sort((a, b) {
           final aNumber =
               int.tryParse(a.name.replaceFirst(RegExp(r'^\D+'), '')) ?? 0;
           final bNumber =
@@ -129,15 +132,13 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
   }
 
   Color _statusColor(BuildContext context, String status) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     switch (status) {
       case 'occupied':
-        return colorScheme.error;
+        return AppColors.semantic(context, AppColors.warning);
       case 'reserved':
-        return colorScheme.tertiary;
+        return AppColors.semantic(context, AppColors.info);
       default:
-        return colorScheme.primary;
+        return AppColors.semantic(context, AppColors.success);
     }
   }
 
@@ -154,10 +155,9 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
 
   Future<void> _updateTableStatus(PosTable table, String status) async {
     try {
-      await ref.read(posRepositoryProvider).updateTable(
-            tableId: table.id,
-            status: status,
-          );
+      await ref
+          .read(posRepositoryProvider)
+          .updateTable(tableId: table.id, status: status);
 
       await _loadTables();
     } catch (e) {
@@ -213,13 +213,13 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
           title: Row(
             children: [
               Icon(icon),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(child: Text(title)),
             ],
           ),
           content: Text(message),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('OK'),
             ),
@@ -235,7 +235,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
       appBar: AppBar(
         title: const Text('Select Table'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: _isLoading ? null : _loadTables,
             icon: const Icon(Icons.refresh),
@@ -246,9 +246,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
         children: [
           _buildToolbar(context),
           const Divider(height: 1),
-          Expanded(
-            child: _buildContent(context),
-          ),
+          Expanded(child: _buildContent(context)),
         ],
       ),
       floatingActionButton: _tables.isEmpty || _isLoading
@@ -265,22 +263,22 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
 
   Widget _buildToolbar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Wrap(
         spacing: 16,
-        runSpacing: 10,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _LegendItem(
-            color: Colors.green,
+            color: AppColors.semantic(context, AppColors.success),
             label: 'Available',
           ),
           _LegendItem(
-            color: Colors.orange,
+            color: AppColors.semantic(context, AppColors.warning),
             label: 'Occupied',
           ),
           _LegendItem(
-            color: Colors.blue,
+            color: AppColors.semantic(context, AppColors.info),
             label: 'Reserved',
           ),
           const SizedBox(width: 8),
@@ -319,9 +317,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
 
   Widget _buildContent(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -329,14 +325,11 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 16),
             Text(_error!),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
+            const SizedBox(height: 16),
+            pos_ui.OutlinedButton.icon(
               onPressed: _loadTables,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
@@ -347,9 +340,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     }
 
     if (_tables.isEmpty) {
-      return const Center(
-        child: Text('No tables available.'),
-      );
+      return const Center(child: Text('No tables available.'));
     }
 
     return LayoutBuilder(
@@ -375,25 +366,26 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
         }
 
         return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            gridDelegate: gridDelegate,
-            itemCount: _tables.length,
-            itemBuilder: (context, index) {
-              final table = _tables[index];
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          gridDelegate: gridDelegate,
+          itemCount: _tables.length,
+          itemBuilder: (context, index) {
+            final table = _tables[index];
 
-              if (!table.isActive) {
-                return const SizedBox.shrink();
-              }
+            if (!table.isActive) {
+              return const SizedBox.shrink();
+            }
 
-              return _SelectTableCard(
-                table: table,
-                statusLabel: _statusLabel(table.status),
-                statusColor: _statusColor(context, table.status),
-                enabled: true,
-                onTap: () => _selectTable(table),
-                onManage: () => _manageTable(table),
-              );
-            });
+            return _SelectTableCard(
+              table: table,
+              statusLabel: _statusLabel(table.status),
+              statusColor: _statusColor(context, table.status),
+              enabled: true,
+              onTap: () => _selectTable(table),
+              onManage: () => _manageTable(table),
+            );
+          },
+        );
       },
     );
   }
@@ -421,9 +413,9 @@ class _SelectTableCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     final cardBackgroundColor = switch (table.status) {
-      'occupied' => Colors.orange.shade50,
-      'reserved' => Colors.blue.shade50,
-      _ => Colors.green.shade50,
+      'occupied' => AppColors.tint(context, AppColors.warning),
+      'reserved' => AppColors.tint(context, AppColors.info),
+      _ => AppColors.tint(context, AppColors.success),
     };
 
     final actionLabel = switch (table.status) {
@@ -438,7 +430,7 @@ class _SelectTableCard extends StatelessWidget {
       color: cardBackgroundColor,
       clipBehavior: Clip.antiAlias,
       elevation: enabled ? 1 : 0,
-      child: InkWell(
+      child: pos_ui.ActionSurface(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -448,88 +440,86 @@ class _SelectTableCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-              if (table.status == 'available' || table.status == 'reserved')
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: PopupMenuButton<String>(
-                    onSelected: (_) => onManage(),
-                    itemBuilder: (context) => [
-                      PopupMenuItem<String>(
-                        value: 'toggle_reservation',
-                        child: Text(
-                          table.status == 'reserved'
-                              ? 'Unreserve Table'
-                              : 'Reserve Table',
+                if (table.status == 'available' || table.status == 'reserved')
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: PopupMenuButton<String>(
+                      onSelected: (_) => onManage(),
+                      itemBuilder: (context) => [
+                        PopupMenuItem<String>(
+                          value: 'toggle_reservation',
+                          child: Text(
+                            table.status == 'reserved'
+                                ? 'Unreserve Table'
+                                : 'Reserve Table',
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.table_restaurant,
+                    size: 32,
+                    color: statusColor,
                   ),
                 ),
-              const SizedBox(height: 4),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+                const SizedBox(height: 16),
+                Text(
+                  table.name,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                child: Icon(
-                  Icons.table_restaurant,
-                  size: 32,
-                  color: statusColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                table.name,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${table.capacity} ${table.capacity == 1 ? 'seat' : 'seats'}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              if (table.section != null &&
-                  table.section!.trim().isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
-                  table.section!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  '${table.capacity} ${table.capacity == 1 ? 'seat' : 'seats'}',
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
-              ],
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.w600,
+                if (table.section != null &&
+                    table.section!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    table.section!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                actionLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                    ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  actionLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
               ],
             ),
           ),
@@ -540,10 +530,7 @@ class _SelectTableCard extends StatelessWidget {
 }
 
 class _LegendItem extends StatelessWidget {
-  const _LegendItem({
-    required this.color,
-    required this.label,
-  });
+  const _LegendItem({required this.color, required this.label});
 
   final Color color;
   final String label;
@@ -556,12 +543,9 @@ class _LegendItem extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Text(label),
       ],
     );

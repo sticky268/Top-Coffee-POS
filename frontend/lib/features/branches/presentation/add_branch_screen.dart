@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
-
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/branch_repository.dart';
 
 class AddBranchScreen extends ConsumerStatefulWidget {
@@ -18,8 +18,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
   final _codeController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _timezoneController =
-      TextEditingController(text: 'Asia/Phnom_Penh');
+  final _timezoneController = TextEditingController(text: 'Asia/Phnom_Penh');
 
   bool _isActive = true;
   bool _isSaving = false;
@@ -44,7 +43,9 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
     });
 
     try {
-      await ref.read(branchRepositoryProvider).createBranch(
+      await ref
+          .read(branchRepositoryProvider)
+          .createBranch(
             name: _nameController.text.trim(),
             code: _codeController.text.trim(),
             address: _addressController.text.trim(),
@@ -56,9 +57,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Branch created successfully'),
-        ),
+        const SnackBar(content: Text('Branch created successfully')),
       );
 
       Navigator.of(context).pop(true);
@@ -66,7 +65,9 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = e is ApiException ? e.message : 'Something went wrong. Please try again.';
+        _errorMessage = e is ApiException
+            ? e.message
+            : 'Something went wrong. Please try again.';
         _isSaving = false;
       });
     }
@@ -75,9 +76,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Branch'),
-      ),
+      appBar: AppBar(title: const Text('Add Branch')),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -167,7 +166,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Card(
                 child: SwitchListTile(
                   title: const Text('Active'),
@@ -185,7 +184,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
                 ),
               ),
               if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Card(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: Padding(
@@ -193,28 +192,19 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
                     child: Text(
                       _errorMessage!,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onErrorContainer,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
                       ),
                     ),
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               SizedBox(
                 height: 52,
-                child: FilledButton(
+                child: pos_ui.PrimaryButton(
                   onPressed: _isSaving ? null : _save,
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('Create Branch'),
+                  isLoading: _isSaving,
+                  child: const Text('Create Branch'),
                 ),
               ),
             ],

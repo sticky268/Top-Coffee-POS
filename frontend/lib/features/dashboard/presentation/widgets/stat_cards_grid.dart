@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/dashboard_models.dart';
 
 class StatCardsGrid extends StatelessWidget {
-  const StatCardsGrid({super.key, required this.stats, required this.crossAxisCount});
+  const StatCardsGrid({
+    super.key,
+    required this.stats,
+    required this.crossAxisCount,
+  });
 
   final DashboardStats stats;
   final int crossAxisCount;
@@ -18,25 +23,27 @@ class StatCardsGrid extends StatelessWidget {
         label: "Today's Sales",
         value: currency.format(stats.todaysSales),
         icon: Icons.point_of_sale,
-        color: Colors.green,
+        color: AppColors.semantic(context, AppColors.success),
       ),
       _StatCardData(
         label: "Today's Orders",
         value: '${stats.todaysOrders}',
         icon: Icons.receipt_long,
-        color: Colors.blue,
+        color: AppColors.semantic(context, AppColors.info),
       ),
       _StatCardData(
         label: 'Average Order',
         value: currency.format(stats.averageOrderValue),
         icon: Icons.trending_up,
-        color: Colors.purple,
+        color: AppColors.semantic(context, AppColors.plum),
       ),
       _StatCardData(
         label: 'Low Stock',
         value: '${stats.lowStockItemCount} items',
         icon: Icons.warning_amber_rounded,
-        color: stats.lowStockItemCount > 0 ? Colors.orange : Colors.grey,
+        color: stats.lowStockItemCount > 0
+            ? AppColors.semantic(context, AppColors.warning)
+            : AppColors.semantic(context, AppColors.muted),
       ),
     ];
 
@@ -44,8 +51,8 @@ class StatCardsGrid extends StatelessWidget {
       crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
       // 1.45 rather than 1.6 — gives cells a little more height headroom
       // before the responsive tier below even has to kick in. This alone
       // doesn't guarantee no overflow (see _StatCard for the actual fix);
@@ -122,7 +129,9 @@ class _StatCard extends StatelessWidget {
                       child: Text(
                         data.value,
                         maxLines: 1,
-                        style: theme.textTheme.headlineMedium?.copyWith(fontSize: valueFontSize),
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: valueFontSize,
+                        ),
                       ),
                     ),
                   ),

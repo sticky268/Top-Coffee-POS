@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/reports_controller.dart';
 import '../application/reports_state.dart';
 import '../domain/reports_models.dart';
@@ -14,19 +15,15 @@ class ReportsScreen extends ConsumerWidget {
     final state = ref.watch(reportsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports'),
-      ),
+      appBar: AppBar(title: const Text('Reports')),
       body: switch (state) {
-        ReportsLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+        ReportsLoading() => const Center(child: CircularProgressIndicator()),
         ReportsError(:final message) => _ErrorView(
-            message: message,
-            onRetry: () {
-              ref.read(reportsControllerProvider.notifier).refresh();
-            },
-          ),
+          message: message,
+          onRetry: () {
+            ref.read(reportsControllerProvider.notifier).refresh();
+          },
+        ),
         ReportsLoaded(:final report, :final dateFrom, :final dateTo) =>
           _ReportsContent(
             report: report,
@@ -36,14 +33,10 @@ class ReportsScreen extends ConsumerWidget {
                 .read(reportsControllerProvider.notifier)
                 .selectedRange,
             onRangeSelected: (range) {
-              ref
-                  .read(reportsControllerProvider.notifier)
-                  .selectRange(range);
+              ref.read(reportsControllerProvider.notifier).selectRange(range);
             },
             onRefresh: () {
-              return ref
-                  .read(reportsControllerProvider.notifier)
-                  .refresh();
+              return ref.read(reportsControllerProvider.notifier).refresh();
             },
           ),
       },
@@ -96,48 +89,51 @@ class _ReportsContent extends StatelessWidget {
           _SectionCard(
             title: 'Sales Overview',
             icon: Icons.bar_chart_outlined,
-            child: dateFrom.year == dateTo.year &&
+            child:
+                dateFrom.year == dateTo.year &&
                     dateFrom.month == dateTo.month &&
                     dateFrom.day == dateTo.day
-                ? _HourlySalesChart(
-                    data: report.hourlySales,
-                  )
-                : _SalesOverviewChart(
-                    data: report.salesOverview,
-                  ),
+                ? _HourlySalesChart(data: report.hourlySales)
+                : _SalesOverviewChart(data: report.salesOverview),
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _SectionCard(
-                  title: 'Payment Methods',
-                  icon: Icons.payments_outlined,
-                  child: _PaymentMethodsList(
-                    data: report.paymentMethods,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _SectionCard(
-                  title: 'Order Types',
-                  icon: Icons.receipt_long_outlined,
-                  child: _OrderTypesList(
-                    data: report.orderTypes,
-                  ),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final paymentMethods = _SectionCard(
+                title: 'Payment Methods',
+                icon: Icons.payments_outlined,
+                child: _PaymentMethodsList(data: report.paymentMethods),
+              );
+              final orderTypes = _SectionCard(
+                title: 'Order Types',
+                icon: Icons.receipt_long_outlined,
+                child: _OrderTypesList(data: report.orderTypes),
+              );
+              if (constraints.maxWidth < 700) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    paymentMethods,
+                    const SizedBox(height: 16),
+                    orderTypes,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: paymentMethods),
+                  const SizedBox(width: 16),
+                  Expanded(child: orderTypes),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _SectionCard(
             title: 'Top-Selling Products',
             icon: Icons.trending_up,
-            child: _TopProductsList(
-              data: report.topProducts,
-            ),
+            child: _TopProductsList(data: report.topProducts),
           ),
         ],
       ),
@@ -158,18 +154,12 @@ class _DateRangeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<ReportsDateRange>(
       segments: const [
-        ButtonSegment(
-          value: ReportsDateRange.today,
-          label: Text('Today'),
-        ),
+        ButtonSegment(value: ReportsDateRange.today, label: Text('Today')),
         ButtonSegment(
           value: ReportsDateRange.yesterday,
           label: Text('Yesterday'),
         ),
-        ButtonSegment(
-          value: ReportsDateRange.last7Days,
-          label: Text('7 Days'),
-        ),
+        ButtonSegment(value: ReportsDateRange.last7Days, label: Text('7 Days')),
         ButtonSegment(
           value: ReportsDateRange.last30Days,
           label: Text('30 Days'),
@@ -187,9 +177,7 @@ class _DateRangeSelector extends StatelessWidget {
 }
 
 class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid({
-    required this.summary,
-  });
+  const _SummaryGrid({required this.summary});
 
   final ReportSummary summary;
 
@@ -203,9 +191,9 @@ class _SummaryGrid extends StatelessWidget {
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: columns == 3 ? 2.5 : 3.2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          mainAxisExtent: 112 * MediaQuery.textScalerOf(context).scale(1),
           children: [
             _SummaryCard(
               icon: Icons.attach_money,
@@ -249,11 +237,7 @@ class _SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 30,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(icon, size: 30, color: theme.colorScheme.primary),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -308,9 +292,8 @@ class _SectionCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -324,9 +307,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _HourlySalesChart extends StatelessWidget {
-  const _HourlySalesChart({
-    required this.data,
-  });
+  const _HourlySalesChart({required this.data});
 
   final List<ReportHourlySalesPoint> data;
 
@@ -337,9 +318,7 @@ class _HourlySalesChart extends StatelessWidget {
     if (data.isEmpty) {
       return const SizedBox(
         height: 160,
-        child: Center(
-          child: Text('No sales data yet'),
-        ),
+        child: Center(child: Text('No sales data yet')),
       );
     }
 
@@ -366,8 +345,10 @@ class _HourlySalesChart extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.bottomCenter,
                         child: FractionallySizedBox(
-                          heightFactor:
-                              (data[index].total / safeMax).clamp(0.03, 1.0),
+                          heightFactor: (data[index].total / safeMax).clamp(
+                            0.03,
+                            1.0,
+                          ),
                           child: Container(
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primary,
@@ -414,9 +395,7 @@ class _HourlySalesChart extends StatelessWidget {
 }
 
 class _SalesOverviewChart extends StatelessWidget {
-  const _SalesOverviewChart({
-    required this.data,
-  });
+  const _SalesOverviewChart({required this.data});
 
   final List<ReportSalesPoint> data;
 
@@ -427,9 +406,7 @@ class _SalesOverviewChart extends StatelessWidget {
     if (data.isEmpty) {
       return const SizedBox(
         height: 160,
-        child: Center(
-          child: Text('No sales data yet'),
-        ),
+        child: Center(child: Text('No sales data yet')),
       );
     }
 
@@ -457,8 +434,10 @@ class _SalesOverviewChart extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.bottomCenter,
                         child: FractionallySizedBox(
-                          heightFactor:
-                              (point.total / safeMax).clamp(0.03, 1.0),
+                          heightFactor: (point.total / safeMax).clamp(
+                            0.03,
+                            1.0,
+                          ),
                           child: Container(
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primary,
@@ -470,7 +449,7 @@ class _SalesOverviewChart extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       dayFormat.format(point.date),
                       textAlign: TextAlign.center,
@@ -493,9 +472,7 @@ class _SalesOverviewChart extends StatelessWidget {
 }
 
 class _PaymentMethodsList extends StatelessWidget {
-  const _PaymentMethodsList({
-    required this.data,
-  });
+  const _PaymentMethodsList({required this.data});
 
   final List<ReportPaymentMethod> data;
 
@@ -515,9 +492,7 @@ class _PaymentMethodsList extends StatelessWidget {
             subtitle: Text('${item.count} payment(s)'),
             trailing: Text(
               _money(item.total),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
       ],
@@ -526,9 +501,7 @@ class _PaymentMethodsList extends StatelessWidget {
 }
 
 class _OrderTypesList extends StatelessWidget {
-  const _OrderTypesList({
-    required this.data,
-  });
+  const _OrderTypesList({required this.data});
 
   final List<ReportOrderType> data;
 
@@ -548,9 +521,7 @@ class _OrderTypesList extends StatelessWidget {
             subtitle: Text('${item.count} order(s)'),
             trailing: Text(
               _money(item.total),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
       ],
@@ -559,9 +530,7 @@ class _OrderTypesList extends StatelessWidget {
 }
 
 class _TopProductsList extends StatelessWidget {
-  const _TopProductsList({
-    required this.data,
-  });
+  const _TopProductsList({required this.data});
 
   final List<ReportTopProduct> data;
 
@@ -576,17 +545,12 @@ class _TopProductsList extends StatelessWidget {
         for (var index = 0; index < data.length; index++)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              radius: 18,
-              child: Text('${index + 1}'),
-            ),
+            leading: CircleAvatar(radius: 18, child: Text('${index + 1}')),
             title: Text(data[index].productName),
             subtitle: Text('${data[index].quantitySold} sold'),
             trailing: Text(
               _money(data[index].salesTotal),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
       ],
@@ -595,10 +559,7 @@ class _TopProductsList extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -616,13 +577,10 @@ class _ErrorView extends StatelessWidget {
               size: 48,
               color: Theme.of(context).colorScheme.error,
             ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-            ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

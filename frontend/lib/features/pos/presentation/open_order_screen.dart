@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../orders/application/order_detail_controller.dart';
 import '../../orders/application/order_detail_state.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order_models.dart';
 import '../application/pos_catalog_controller.dart';
-import '../data/pos_repository.dart';
 import '../application/pos_catalog_state.dart';
+import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
 import 'widgets/category_selector.dart';
 import 'widgets/product_grid.dart';
@@ -38,9 +40,7 @@ class _EditableOrderLine {
 
   String get lineKey => '$productId:${productVariantId ?? 'base'}';
 
-  _EditableOrderLine copyWith({
-    int? quantity,
-  }) {
+  _EditableOrderLine copyWith({int? quantity}) {
     return _EditableOrderLine(
       productId: productId,
       productVariantId: productVariantId,
@@ -80,10 +80,7 @@ class _EditableOrderLine {
 }
 
 class OpenOrderScreen extends ConsumerWidget {
-  const OpenOrderScreen({
-    super.key,
-    required this.orderId,
-  });
+  const OpenOrderScreen({super.key, required this.orderId});
 
   final int orderId;
 
@@ -92,31 +89,25 @@ class OpenOrderScreen extends ConsumerWidget {
     final state = ref.watch(orderDetailControllerProvider(orderId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Open Order #$orderId'),
-      ),
+      appBar: AppBar(title: Text('Open Order #$orderId')),
       body: switch (state) {
         OrderDetailLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: CircularProgressIndicator(),
+        ),
         OrderDetailError(:final message) => _ErrorView(
-            message: message,
-            onRetry: () => ref
-                .read(orderDetailControllerProvider(orderId).notifier)
-                .refresh(),
-          ),
-        OrderDetailLoaded(:final order) => _OpenOrderContent(
-            order: order,
-          ),
+          message: message,
+          onRetry: () => ref
+              .read(orderDetailControllerProvider(orderId).notifier)
+              .refresh(),
+        ),
+        OrderDetailLoaded(:final order) => _OpenOrderContent(order: order),
       },
     );
   }
 }
 
 class _OpenOrderContent extends ConsumerStatefulWidget {
-  const _OpenOrderContent({
-    required this.order,
-  });
+  const _OpenOrderContent({required this.order});
 
   final OrderDetail order;
 
@@ -216,11 +207,11 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         title: const Text('Discard changes?'),
         content: const Text('Any changes made to this order will be lost.'),
         actions: [
-          TextButton(
+          pos_ui.SecondaryButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Keep Editing'),
           ),
-          FilledButton(
+          pos_ui.DangerButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Discard Changes'),
           ),
@@ -402,7 +393,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
           if (_isBusy && !_isShowingPayment)
             const Positioned.fill(
               child: ColoredBox(
-                color: Color(0x33000000),
+                color: AppColors.scrim,
                 child: Center(child: CircularProgressIndicator()),
               ),
             ),
@@ -413,19 +404,14 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 }
 
 class _PaymentResult {
-  const _PaymentResult({
-    required this.method,
-    this.tendered,
-  });
+  const _PaymentResult({required this.method, this.tendered});
 
   final String method;
   final double? tendered;
 }
 
 class _PaymentDialog extends StatefulWidget {
-  const _PaymentDialog({
-    required this.total,
-  });
+  const _PaymentDialog({required this.total});
 
   final double total;
 
@@ -495,20 +481,18 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Order changes are saved. Cancelling here leaves the bill open.'),
-            const SizedBox(height: 12),
-            Text(
-              'Total',
-              style: Theme.of(context).textTheme.bodyMedium,
+            const Text(
+              'Order changes are saved. Cancelling here leaves the bill open.',
             ),
+            const SizedBox(height: 16),
+            Text('Total', style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 4),
             Text(
               _formatMoney(widget.total),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment<String>(
@@ -535,7 +519,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               },
             ),
             if (isCash) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               TextField(
                 controller: _tenderedController,
                 autofocus: true,
@@ -549,7 +533,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                 ),
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -573,15 +557,15 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                         _tenderedController.text.trim().isEmpty
                             ? 0
                             : (_canConfirm
-                                ? _changeDue
-                                : widget.total - (_tendered ?? 0)),
+                                  ? _changeDue
+                                  : widget.total - (_tendered ?? 0)),
                       ),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _canConfirm
-                                ? null
-                                : Theme.of(context).colorScheme.error,
-                          ),
+                        fontWeight: FontWeight.bold,
+                        color: _canConfirm
+                            ? null
+                            : Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                 ),
@@ -591,11 +575,11 @@ class _PaymentDialogState extends State<_PaymentDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        pos_ui.SecondaryButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
+        pos_ui.PosActionButton(
           onPressed: _canConfirm ? _confirm : null,
           child: const Text('Confirm Payment'),
         ),
@@ -641,9 +625,7 @@ class _OrderPanel extends StatelessWidget {
         const Divider(height: 1),
         Expanded(
           child: lines.isEmpty
-              ? const Center(
-                  child: Text('No items in this order.'),
-                )
+              ? const Center(child: Text('No items in this order.'))
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: lines.length,
@@ -653,7 +635,7 @@ class _OrderPanel extends StatelessWidget {
 
                     return Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
                             Expanded(
@@ -665,9 +647,7 @@ class _OrderPanel extends StatelessWidget {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
                                   if (line.variantName != null) ...[
                                     const SizedBox(height: 3),
@@ -688,7 +668,7 @@ class _OrderPanel extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            IconButton(
+                            pos_ui.IconButton(
                               tooltip: 'Remove item',
                               onPressed: () => onRemove(line.lineKey),
                               icon: const Icon(Icons.delete_outline),
@@ -705,7 +685,7 @@ class _OrderPanel extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
+                                  pos_ui.IconButton(
                                     tooltip: 'Decrease quantity',
                                     visualDensity: VisualDensity.compact,
                                     onPressed: () => onDecrement(line.lineKey),
@@ -724,7 +704,7 @@ class _OrderPanel extends StatelessWidget {
                                           ),
                                     ),
                                   ),
-                                  IconButton(
+                                  pos_ui.IconButton(
                                     tooltip: 'Increase quantity',
                                     visualDensity: VisualDensity.compact,
                                     onPressed: () => onIncrement(line.lineKey),
@@ -733,18 +713,14 @@ class _OrderPanel extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             SizedBox(
                               width: 78,
                               child: Text(
                                 currency.format(line.lineTotal),
                                 textAlign: TextAlign.end,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                             ),
                           ],
@@ -777,33 +753,26 @@ class _ProductCatalogPanel extends StatelessWidget {
 
   final PosCatalogState state;
   final void Function(PosProduct product) onProductSelected;
-  final void Function(
-    PosProduct product,
-    PosProductVariant variant,
-  ) onVariantSelected;
+  final void Function(PosProduct product, PosProductVariant variant)
+  onVariantSelected;
 
   @override
   Widget build(BuildContext context) {
     return switch (state) {
-      PosCatalogLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
+      PosCatalogLoading() => const Center(child: CircularProgressIndicator()),
       PosCatalogError(:final message) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 42),
-                const SizedBox(height: 12),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 42),
+              const SizedBox(height: 16),
+              Text(message, textAlign: TextAlign.center),
+            ],
           ),
         ),
+      ),
       PosCatalogLoaded(
         :final categories,
         :final visibleProducts,
@@ -814,8 +783,8 @@ class _ProductCatalogPanel extends StatelessWidget {
             final crossAxisCount = constraints.maxWidth >= 1200
                 ? 4
                 : constraints.maxWidth >= 800
-                    ? 3
-                    : 2;
+                ? 3
+                : 2;
 
             return Column(
               children: [
@@ -837,9 +806,7 @@ class _ProductCatalogPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 Expanded(
                   child: visibleProducts.isEmpty
-                      ? const Center(
-                          child: Text('No products found.'),
-                        )
+                      ? const Center(child: Text('No products found.'))
                       : ProductGrid(
                           products: visibleProducts,
                           crossAxisCount: crossAxisCount,
@@ -856,9 +823,7 @@ class _ProductCatalogPanel extends StatelessWidget {
 }
 
 class _OrderHeader extends StatelessWidget {
-  const _OrderHeader({
-    required this.order,
-  });
+  const _OrderHeader({required this.order});
 
   final OrderDetail order;
 
@@ -882,35 +847,34 @@ class _OrderHeader extends StatelessWidget {
               color: colorScheme.onPrimaryContainer,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Dine-in Order #${order.id}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 if (order.table != null) ...[
                   const SizedBox(height: 3),
                   Text(
-                     '${order.table!.name} - ${order.table!.capacity} '
+                    '${order.table!.name} - ${order.table!.capacity} '
                     '${order.table!.capacity == 1 ? 'seat' : 'seats'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 4),
                 Text(
                   order.status.toUpperCase(),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -943,51 +907,46 @@ class _OrderTotals extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
         ),
       ),
       child: Column(
         children: [
-          _TotalRow(
-            label: 'Subtotal',
-            value: currency.format(subtotal),
-          ),
+          _TotalRow(label: 'Subtotal', value: currency.format(subtotal)),
           if (discount > 0)
             _TotalRow(
               label: 'Discount',
               value: '-${currency.format(discount)}',
             ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _TotalRow(
             label: 'Total',
             value: currency.format(total),
             emphasized: true,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: TextButton(
+                child: pos_ui.DangerButton.outlined(
                   onPressed: onDiscard,
                   child: const Text('Discard Changes'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton(
+                child: pos_ui.OutlinedButton(
                   onPressed: onSave,
                   child: const Text('Save Order'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton(
+                child: pos_ui.PosActionButton(
                   onPressed: onPay,
                   child: const Text('Pay'),
                 ),
@@ -1014,9 +973,8 @@ class _TotalRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = emphasized
-        ? Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            )
+        ? Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700)
         : Theme.of(context).textTheme.bodyLarge;
 
     return Padding(
@@ -1032,10 +990,7 @@ class _TotalRow extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -1046,14 +1001,11 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-          ),
-          const SizedBox(height: 12),
+          const Icon(Icons.error_outline, size: 48),
+          const SizedBox(height: 16),
           Text(message),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
+          const SizedBox(height: 16),
+          pos_ui.OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),

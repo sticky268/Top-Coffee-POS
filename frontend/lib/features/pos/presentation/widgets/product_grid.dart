@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/cart_controller.dart';
@@ -18,7 +18,8 @@ class ProductGrid extends ConsumerWidget {
   final List<PosProduct> products;
   final int crossAxisCount;
   final void Function(PosProduct product)? onProductSelected;
-  final void Function(PosProduct product, PosProductVariant variant)? onVariantSelected;
+  final void Function(PosProduct product, PosProductVariant variant)?
+  onVariantSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,8 +31,8 @@ class ProductGrid extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
         childAspectRatio: 1.05,
       ),
       itemCount: products.length,
@@ -71,8 +72,12 @@ class _EmptyProducts extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.coffee_outlined, size: 40, color: theme.colorScheme.outline),
-            const SizedBox(height: 12),
+            Icon(
+              Icons.coffee_outlined,
+              size: 40,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
             Text('No products available', style: theme.textTheme.titleMedium),
           ],
         ),
@@ -80,4 +85,3 @@ class _EmptyProducts extends StatelessWidget {
     );
   }
 }
-

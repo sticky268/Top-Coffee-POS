@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-import '../application/expense_summary_controller.dart';
-import '../application/expense_summary_state.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/expense_categories_controller.dart';
 import '../application/expense_categories_state.dart';
+import '../application/expense_summary_controller.dart';
+import '../application/expense_summary_state.dart';
 import '../application/expenses_list_controller.dart';
 import '../application/expenses_list_state.dart';
 import '../data/expenses_repository.dart';
@@ -49,8 +50,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       ref.read(expenseSummaryControllerProvider.notifier).refresh(),
     ]);
   }
+
   Future<void> _search() async {
-    await ref.read(expensesListControllerProvider.notifier).applyFilters(
+    await ref
+        .read(expensesListControllerProvider.notifier)
+        .applyFilters(
           search: _searchController.text.trim().isEmpty
               ? null
               : _searchController.text.trim(),
@@ -77,13 +81,13 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
         actions: [
-          FilledButton.icon(
+          pos_ui.PrimaryButton.icon(
             onPressed: _openAddExpense,
             icon: const Icon(Icons.add),
             label: const Text('Add Expense'),
           ),
           const SizedBox(width: 8),
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: _refreshExpenses,
             icon: const Icon(Icons.refresh),
@@ -93,40 +97,40 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       ),
       body: switch (state) {
         ExpensesListLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: CircularProgressIndicator(),
+        ),
         ExpensesListError(:final message) => _ExpensesErrorView(
-            message: message,
-            onRetry: _refreshExpenses,
-          ),
+          message: message,
+          onRetry: _refreshExpenses,
+        ),
         ExpensesListLoaded loaded => _ExpensesContent(
-            state: loaded,
-            summaryState: summaryState,
-            onRefresh: _refreshExpenses,
-            searchController: _searchController,
-            onSearch: _search,
-            categoryId: _categoryId,
-            dateFrom: _dateFrom,
-            dateTo: _dateTo,
-            onCategoryChanged: (value) {
-              setState(() {
-                _categoryId = value;
-              });
-            },
-            onDateRangeChanged: (from, to) {
-              setState(() {
-                _dateFrom = from;
-                _dateTo = to;
-              });
-            },
-            onClearFilters: () {
-              setState(() {
-                _categoryId = null;
-                _dateFrom = null;
-                _dateTo = null;
-              });
-            },
-          ),
+          state: loaded,
+          summaryState: summaryState,
+          onRefresh: _refreshExpenses,
+          searchController: _searchController,
+          onSearch: _search,
+          categoryId: _categoryId,
+          dateFrom: _dateFrom,
+          dateTo: _dateTo,
+          onCategoryChanged: (value) {
+            setState(() {
+              _categoryId = value;
+            });
+          },
+          onDateRangeChanged: (from, to) {
+            setState(() {
+              _dateFrom = from;
+              _dateTo = to;
+            });
+          },
+          onClearFilters: () {
+            setState(() {
+              _categoryId = null;
+              _dateFrom = null;
+              _dateTo = null;
+            });
+          },
+        ),
       },
     );
   }
@@ -190,7 +194,9 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
   }
 
   Future<void> _applyFilters() async {
-    await ref.read(expensesListControllerProvider.notifier).applyFilters(
+    await ref
+        .read(expensesListControllerProvider.notifier)
+        .applyFilters(
           categoryId: widget.categoryId,
           dateFrom: widget.dateFrom == null
               ? null
@@ -208,7 +214,7 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
     setState(() {
       widget.onCategoryChanged(null);
       widget.onDateRangeChanged(null, null);
-      
+
       widget.searchController.clear();
     });
 
@@ -216,8 +222,7 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
   }
 
   Future<void> _selectCategory() async {
-    final categoryState =
-        ref.read(expenseCategoriesControllerProvider);
+    final categoryState = ref.read(expenseCategoriesControllerProvider);
 
     if (categoryState is! ExpenseCategoriesLoaded) return;
 
@@ -230,13 +235,10 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
             shrinkWrap: true,
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
+                padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
                 child: Text(
                   'Expense Category',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
               ),
               ListTile(
@@ -291,7 +293,6 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
 
     setState(() {
       widget.onDateRangeChanged(range.start, range.end);
-      
     });
 
     await _applyFilters();
@@ -299,9 +300,7 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
 
   Future<void> _editExpense(Expense expense) async {
     final updated = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => AddExpenseScreen(expense: expense),
-      ),
+      MaterialPageRoute(builder: (_) => AddExpenseScreen(expense: expense)),
     );
 
     if (updated == true && mounted) {
@@ -320,11 +319,11 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
             'for \$${expense.amount.toStringAsFixed(2)}?',
           ),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.DangerButton(
               style: FilledButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
               ),
@@ -344,9 +343,7 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Expense deleted successfully.'),
-        ),
+        const SnackBar(content: Text('Expense deleted successfully.')),
       );
 
       await widget.onRefresh();
@@ -354,9 +351,7 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not delete expense: $error'),
-        ),
+        SnackBar(content: Text('Could not delete expense: $error')),
       );
     }
   }
@@ -376,8 +371,7 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
   }
 
   String? _getCategoryName() {
-    final categoryState =
-        ref.read(expenseCategoriesControllerProvider);
+    final categoryState = ref.read(expenseCategoriesControllerProvider);
 
     if (widget.categoryId == null ||
         categoryState is! ExpenseCategoriesLoaded) {
@@ -440,9 +434,10 @@ class _ExpensesContentState extends ConsumerState<_ExpensesContent> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               sliver: SliverList.separated(
-                itemCount: widget.state.expenses.length +
+                itemCount:
+                    widget.state.expenses.length +
                     (widget.state.hasMore ? 1 : 0),
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   if (index >= widget.state.expenses.length) {
                     return Padding(
@@ -502,15 +497,13 @@ class _ExpenseDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (summaryState) {
       ExpenseSummaryLoading() => const _DashboardLoading(),
-      ExpenseSummaryError(:final message) => _DashboardError(
-          message: message,
-        ),
+      ExpenseSummaryError(:final message) => _DashboardError(message: message),
       ExpenseSummaryLoaded(:final summary) => _DashboardLoaded(
-          summary: summary,
-          filteredTotal: filteredTotal,
-          filteredCount: filteredCount,
-          totalCount: totalCount,
-        ),
+        summary: summary,
+        filteredTotal: filteredTotal,
+        filteredCount: filteredCount,
+        totalCount: totalCount,
+      ),
     };
   }
 }
@@ -521,21 +514,17 @@ class _DashboardLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Card(
-      elevation: 0,
+      elevation: 1,
       child: Padding(
         padding: EdgeInsets.all(24),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: Center(child: CircularProgressIndicator()),
       ),
     );
   }
 }
 
 class _DashboardError extends StatelessWidget {
-  const _DashboardError({
-    required this.message,
-  });
+  const _DashboardError({required this.message});
 
   final String message;
 
@@ -544,23 +533,15 @@ class _DashboardError extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: theme.textTheme.bodyMedium,
-              ),
-            ),
+            Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+            const SizedBox(width: 16),
+            Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
           ],
         ),
       ),
@@ -587,14 +568,14 @@ class _DashboardLoaded extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _DashboardPeriodCards(summary: summary),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _DashboardComparisons(summary: summary),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _DashboardTrend(summary: summary),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _DashboardCategories(summary: summary),
         if (filteredCount != totalCount) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _FilteredResultsCard(
             total: filteredTotal,
             count: filteredCount,
@@ -607,9 +588,7 @@ class _DashboardLoaded extends StatelessWidget {
 }
 
 class _DashboardPeriodCards extends StatelessWidget {
-  const _DashboardPeriodCards({
-    required this.summary,
-  });
+  const _DashboardPeriodCards({required this.summary});
 
   final ExpenseSummary summary;
 
@@ -642,7 +621,7 @@ class _DashboardPeriodCards extends StatelessWidget {
             children: [
               for (var i = 0; i < cards.length; i++) ...[
                 cards[i],
-                if (i < cards.length - 1) const SizedBox(height: 10),
+                if (i < cards.length - 1) const SizedBox(height: 8),
               ],
             ],
           );
@@ -652,7 +631,7 @@ class _DashboardPeriodCards extends StatelessWidget {
           children: [
             for (var i = 0; i < cards.length; i++) ...[
               Expanded(child: cards[i]),
-              if (i < cards.length - 1) const SizedBox(width: 10),
+              if (i < cards.length - 1) const SizedBox(width: 8),
             ],
           ],
         );
@@ -677,7 +656,7 @@ class _PeriodCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -690,12 +669,9 @@ class _PeriodCard extends StatelessWidget {
                 color: theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
+              child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,17 +700,11 @@ class _PeriodCard extends StatelessWidget {
 }
 
 class _DashboardComparisons extends StatelessWidget {
-  const _DashboardComparisons({
-    required this.summary,
-  });
+  const _DashboardComparisons({required this.summary});
 
   final ExpenseSummary summary;
 
-  String _comparisonText(
-    double current,
-    double previous,
-    String period,
-  ) {
+  String _comparisonText(double current, double previous, String period) {
     final difference = current - previous;
 
     if (difference == 0) {
@@ -755,7 +725,7 @@ class _DashboardComparisons extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -768,22 +738,14 @@ class _DashboardComparisons extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
-              _comparisonText(
-                summary.week,
-                summary.previousWeek,
-                'week',
-              ),
+              _comparisonText(summary.week, summary.previousWeek, 'week'),
               style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
-              _comparisonText(
-                summary.month,
-                summary.previousMonth,
-                'month',
-              ),
+              _comparisonText(summary.month, summary.previousMonth, 'month'),
               style: theme.textTheme.bodyMedium,
             ),
           ],
@@ -794,9 +756,7 @@ class _DashboardComparisons extends StatelessWidget {
 }
 
 class _DashboardTrend extends StatelessWidget {
-  const _DashboardTrend({
-    required this.summary,
-  });
+  const _DashboardTrend({required this.summary});
 
   final ExpenseSummary summary;
 
@@ -813,7 +773,7 @@ class _DashboardTrend extends StatelessWidget {
         .fold<double>(0, (max, value) => value > max ? value : max);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -836,10 +796,7 @@ class _DashboardTrend extends StatelessWidget {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
-                        child: _TrendBar(
-                          point: point,
-                          maxAmount: maxAmount,
-                        ),
+                        child: _TrendBar(point: point, maxAmount: maxAmount),
                       ),
                     ),
                 ],
@@ -853,10 +810,7 @@ class _DashboardTrend extends StatelessWidget {
 }
 
 class _TrendBar extends StatelessWidget {
-  const _TrendBar({
-    required this.point,
-    required this.maxAmount,
-  });
+  const _TrendBar({required this.point, required this.maxAmount});
 
   final ExpenseTrendPoint point;
   final double maxAmount;
@@ -873,24 +827,20 @@ class _TrendBar extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
-          point.amount == 0
-              ? '\$0'
-              : '\$${point.amount.toStringAsFixed(0)}',
+          point.amount == 0 ? '\$0' : '\$${point.amount.toStringAsFixed(0)}',
           style: theme.textTheme.labelSmall,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Container(
           height: height,
           decoration: BoxDecoration(
             color: theme.colorScheme.primary,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(6),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           point.day,
           style: theme.textTheme.labelSmall?.copyWith(
@@ -903,9 +853,7 @@ class _TrendBar extends StatelessWidget {
 }
 
 class _DashboardCategories extends StatelessWidget {
-  const _DashboardCategories({
-    required this.summary,
-  });
+  const _DashboardCategories({required this.summary});
 
   final ExpenseSummary summary;
 
@@ -915,7 +863,7 @@ class _DashboardCategories extends StatelessWidget {
 
     if (summary.categories.isEmpty) {
       return Card(
-        elevation: 0,
+        elevation: 1,
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -932,7 +880,7 @@ class _DashboardCategories extends StatelessWidget {
         .fold<double>(0, (max, value) => value > max ? value : max);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -951,8 +899,7 @@ class _DashboardCategories extends StatelessWidget {
                 category: summary.categories[i],
                 maxAmount: maxAmount,
               ),
-              if (i < summary.categories.length - 1)
-                const SizedBox(height: 12),
+              if (i < summary.categories.length - 1) const SizedBox(height: 16),
             ],
           ],
         ),
@@ -962,10 +909,7 @@ class _DashboardCategories extends StatelessWidget {
 }
 
 class _CategoryExpenseRow extends StatelessWidget {
-  const _CategoryExpenseRow({
-    required this.category,
-    required this.maxAmount,
-  });
+  const _CategoryExpenseRow({required this.category, required this.maxAmount});
 
   final ExpenseCategorySummary category;
   final double maxAmount;
@@ -999,13 +943,10 @@ class _CategoryExpenseRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 7,
-          ),
+          child: LinearProgressIndicator(value: fraction, minHeight: 7),
         ),
       ],
     );
@@ -1028,17 +969,14 @@ class _FilteredResultsCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
-              Icons.filter_alt_outlined,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
+            Icon(Icons.filter_alt_outlined, color: theme.colorScheme.primary),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1071,6 +1009,7 @@ class _FilteredResultsCard extends StatelessWidget {
     );
   }
 }
+
 class _FilterSection extends StatefulWidget {
   const _FilterSection({
     required this.searchController,
@@ -1151,7 +1090,7 @@ class _FilterSectionState extends State<_FilterSection> {
             hintText: 'Search expenses...',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: widget.searchController.text.isNotEmpty
-                ? IconButton(
+                ? pos_ui.IconButton(
                     tooltip: 'Clear search',
                     onPressed: () {
                       widget.searchController.clear();
@@ -1167,36 +1106,25 @@ class _FilterSectionState extends State<_FilterSection> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            OutlinedButton.icon(
+            pos_ui.OutlinedButton.icon(
               onPressed: widget.onCategoryTap,
-              icon: const Icon(
-                Icons.category_outlined,
-                size: 18,
-              ),
-              label: Text(
-                widget.categoryName ?? 'Category',
-              ),
+              icon: const Icon(Icons.category_outlined, size: 18),
+              label: Text(widget.categoryName ?? 'Category'),
             ),
-            OutlinedButton.icon(
+            pos_ui.OutlinedButton.icon(
               onPressed: widget.onDateTap,
-              icon: const Icon(
-                Icons.date_range_outlined,
-                size: 18,
-              ),
+              icon: const Icon(Icons.date_range_outlined, size: 18),
               label: Text(dateLabel),
             ),
             if (widget.hasFilters)
-              TextButton.icon(
+              pos_ui.SecondaryButton.icon(
                 onPressed: widget.onClear,
-                icon: const Icon(
-                  Icons.clear_all,
-                  size: 18,
-                ),
+                icon: const Icon(Icons.clear_all, size: 18),
                 label: const Text('Clear filters'),
               ),
           ],
@@ -1214,6 +1142,7 @@ class _FilterSectionState extends State<_FilterSection> {
     );
   }
 }
+
 class _ExpenseCard extends StatelessWidget {
   const _ExpenseCard({
     required this.expense,
@@ -1231,7 +1160,7 @@ class _ExpenseCard extends StatelessWidget {
     final date = DateFormat('MMM d, yyyy').format(expense.spentAt.toLocal());
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1307,20 +1236,17 @@ class _ExpenseCard extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      TextButton.icon(
+                      pos_ui.SecondaryButton.icon(
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit_outlined, size: 18),
                         label: const Text('Edit'),
                       ),
                       const SizedBox(width: 4),
-                      TextButton.icon(
+                      pos_ui.DangerButton.outlinedIcon(
                         onPressed: onDelete,
-                        style: TextButton.styleFrom(
-                          foregroundColor: theme.colorScheme.error,
-                        ),
                         icon: const Icon(Icons.delete_outline, size: 18),
                         label: const Text('Delete'),
                       ),
@@ -1337,10 +1263,7 @@ class _ExpenseCard extends StatelessWidget {
 }
 
 class _MetaItem extends StatelessWidget {
-  const _MetaItem({
-    required this.icon,
-    required this.text,
-  });
+  const _MetaItem({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -1352,11 +1275,7 @@ class _MetaItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+        Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(
           text,
@@ -1394,7 +1313,7 @@ class _EmptyExpenses extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Try changing your filters or add a new expense.',
               textAlign: TextAlign.center,
@@ -1410,10 +1329,7 @@ class _EmptyExpenses extends StatelessWidget {
 }
 
 class _ExpensesErrorView extends StatelessWidget {
-  const _ExpensesErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ExpensesErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -1428,19 +1344,15 @@ class _ExpensesErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 44,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 12),
+            Icon(Icons.error_outline, size: 44, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
             Text(
               'Could not load expenses',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
@@ -1449,7 +1361,7 @@ class _ExpensesErrorView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

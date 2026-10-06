@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/subscription/subscription_action_guard.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../../core/subscription/subscription_action_guard.dart';
 import '../application/staff_list_controller.dart';
 import '../application/staff_list_state.dart';
 import '../domain/staff_models.dart';
@@ -80,21 +81,15 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final authState = ref.watch(authControllerProvider);
 
     if (authState is! AuthAuthenticated) {
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final user = authState.user;
 
     if (!user.hasPermission('users.manage')) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('Staff & Permissions'),
-        ),
-        body: Center(
+        appBar: AppBar(title: const Text('Staff & Permissions')),
+        body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(
@@ -113,7 +108,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       appBar: AppBar(
         title: const Text('Staff & Permissions'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             onPressed: canModify
                 ? () async {
                     final created = await context.push<bool>('/staff/add');
@@ -134,9 +129,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
         children: [
           _buildSearch(),
           _buildFilters(user),
-          Expanded(
-            child: _buildBody(state),
-          ),
+          Expanded(child: _buildBody(state)),
         ],
       ),
     );
@@ -144,7 +137,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
 
   Widget _buildSearch() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: TextField(
         controller: _searchController,
         textInputAction: TextInputAction.search,
@@ -154,7 +147,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
               ? null
-              : IconButton(
+              : pos_ui.IconButton(
                   onPressed: () async {
                     _searchController.clear();
 
@@ -168,7 +161,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                   },
                   icon: const Icon(Icons.clear),
                 ),
-          border: const OutlineInputBorder(),
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+          ),
         ),
         onChanged: (_) {
           setState(() {});
@@ -194,10 +189,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                   value: null,
                   child: Text('All roles'),
                 ),
-                DropdownMenuItem<String?>(
-                  value: 'admin',
-                  child: Text('Admin'),
-                ),
+                DropdownMenuItem<String?>(value: 'admin', child: Text('Admin')),
                 DropdownMenuItem<String?>(
                   value: 'manager',
                   child: Text('Manager'),
@@ -240,18 +232,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
               value: _selectedActive,
               hint: const Text('Status'),
               items: const [
-                DropdownMenuItem<bool?>(
-                  value: null,
-                  child: Text('All status'),
-                ),
-                DropdownMenuItem<bool?>(
-                  value: true,
-                  child: Text('Active'),
-                ),
-                DropdownMenuItem<bool?>(
-                  value: false,
-                  child: Text('Inactive'),
-                ),
+                DropdownMenuItem<bool?>(value: null, child: Text('All status')),
+                DropdownMenuItem<bool?>(value: true, child: Text('Active')),
+                DropdownMenuItem<bool?>(value: false, child: Text('Inactive')),
               ],
               onChanged: _setActive,
             ),
@@ -261,7 +244,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
               _selectedActive != null ||
               _searchController.text.isNotEmpty) ...[
             const SizedBox(width: 8),
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: _clearFilters,
               child: const Text('Clear'),
             ),
@@ -273,9 +256,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
 
   Widget _buildBody(StaffListState state) {
     if (state is StaffListLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state is StaffListError) {
@@ -288,10 +269,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  state.message,
-                  textAlign: TextAlign.center,
-                ),
+                child: Text(state.message, textAlign: TextAlign.center),
               ),
             ),
           ],
@@ -308,14 +286,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 180),
-            Icon(
-              Icons.people_outline,
-              size: 64,
-            ),
+            Icon(Icons.people_outline, size: 64),
             SizedBox(height: 16),
-            Center(
-              child: Text('No staff found'),
-            ),
+            Center(child: Text('No staff found')),
           ],
         ),
       );
@@ -337,14 +310,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           itemCount: loaded.staff.length + (loaded.isLoadingMore ? 1 : 0),
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             if (index >= loaded.staff.length) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
@@ -353,9 +324,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
             return _StaffCard(
               staff: staff,
               onTap: () async {
-                final changed = await context.push<bool>(
-                  '/staff/${staff.id}',
-                );
+                final changed = await context.push<bool>('/staff/${staff.id}');
 
                 if (changed == true && mounted) {
                   await ref
@@ -372,10 +341,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
 }
 
 class _StaffCard extends StatelessWidget {
-  const _StaffCard({
-    required this.staff,
-    required this.onTap,
-  });
+  const _StaffCard({required this.staff, required this.onTap});
 
   final StaffMember staff;
   final VoidCallback onTap;
@@ -387,30 +353,19 @@ class _StaffCard extends StatelessWidget {
     return Card(
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           child: Text(
             staff.name.isEmpty ? '?' : staff.name.substring(0, 1).toUpperCase(),
           ),
         ),
-        title: Text(
-          staff.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(staff.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                staff.email,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(staff.email, maxLines: 1, overflow: TextOverflow.ellipsis),
               if (primaryBranch != null)
                 Text(
                   '${primaryBranch.name} � ${primaryBranch.code}',
@@ -426,14 +381,10 @@ class _StaffCard extends StatelessWidget {
           children: [
             Text(
               _roleLabel(staff.primaryRole),
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 6),
-            Text(
-              staff.isActive ? 'Active' : 'Inactive',
-            ),
+            const SizedBox(height: 8),
+            Text(staff.isActive ? 'Active' : 'Inactive'),
           ],
         ),
       ),

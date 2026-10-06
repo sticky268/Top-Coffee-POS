@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/subscription/subscription_action_guard.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/customers_repository.dart';
 
 class AddCustomerScreen extends ConsumerStatefulWidget {
@@ -36,9 +37,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the customer name.'),
-        ),
+        const SnackBar(content: Text('Please enter the customer name.')),
       );
       return;
     }
@@ -72,28 +71,21 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Customer created successfully.'),
-        ),
+        const SnackBar(content: Text('Customer created successfully.')),
       );
 
       Navigator.of(context).pop(true);
     } on ApiException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save customer.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not save customer.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -106,9 +98,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Customer'),
-      ),
+      appBar: AppBar(title: const Text('Add Customer')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -157,19 +147,12 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton(
+            pos_ui.PrimaryButton(
               onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
                   ? null
                   : _saveCustomer,
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text('Save Customer'),
+              isLoading: _isSaving,
+              child: const Text('Save Customer'),
             ),
           ],
         ),

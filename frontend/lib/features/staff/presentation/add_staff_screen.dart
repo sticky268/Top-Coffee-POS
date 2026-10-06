@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/subscription/subscription_action_guard.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../auth/domain/auth_models.dart';
-import '../../../core/subscription/subscription_action_guard.dart';
 import '../data/staff_repository.dart';
 
 class AddStaffScreen extends ConsumerStatefulWidget {
@@ -43,10 +44,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
       return _roles;
     }
 
-    return const [
-      'cashier',
-      'kitchen_staff',
-    ];
+    return const ['cashier', 'kitchen_staff'];
   }
 
   @override
@@ -103,7 +101,9 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
     });
 
     try {
-      await ref.read(staffRepositoryProvider).createStaff(
+      await ref
+          .read(staffRepositoryProvider)
+          .createStaff(
             name: _nameController.text.trim(),
             email: _emailController.text.trim(),
             phone: _phoneController.text.trim().isEmpty
@@ -119,9 +119,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Staff member created successfully.'),
-        ),
+        const SnackBar(content: Text('Staff member created successfully.')),
       );
 
       Navigator.of(context).pop(true);
@@ -187,14 +185,12 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
     final canModify = SubscriptionActionGuard.canModify(ref);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Staff'),
-      ),
+      appBar: AppBar(title: const Text('Add Staff')),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
             children: [
               Text(
                 'Create staff account',
@@ -202,7 +198,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 'Add a staff member and assign their role and branches.',
                 style: theme.textTheme.bodyMedium,
@@ -261,9 +257,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: _selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'Role',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Role'),
                     items: _availableRoles()
                         .map(
                           (role) => DropdownMenuItem<String>(
@@ -334,12 +328,12 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                       ),
                     ),
                   if (_selectedBranchIds.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       initialValue:
                           _selectedBranchIds.contains(_primaryBranchId)
-                              ? _primaryBranchId
-                              : null,
+                          ? _primaryBranchId
+                          : null,
                       decoration: const InputDecoration(
                         labelText: 'Primary branch',
                       ),
@@ -350,9 +344,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                           .map(
                             (branch) => DropdownMenuItem<int>(
                               value: branch.id,
-                              child: Text(
-                                '${branch.name} (${branch.code})',
-                              ),
+                              child: Text('${branch.name} (${branch.code})'),
                             ),
                           )
                           .toList(),
@@ -384,7 +376,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                         Icons.error_outline,
                         color: theme.colorScheme.onErrorContainer,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
@@ -400,17 +392,10 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
               const SizedBox(height: 24),
               SizedBox(
                 height: 52,
-                child: FilledButton(
+                child: pos_ui.PrimaryButton(
                   onPressed: _isSaving || !canModify ? null : _createStaff,
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('Create Staff'),
+                  isLoading: _isSaving,
+                  child: const Text('Create Staff'),
                 ),
               ),
             ],
@@ -437,10 +422,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.children,
-  });
+  const _SectionCard({required this.title, required this.children});
 
   final String title;
   final List<Widget> children;
@@ -450,9 +432,9 @@ class _SectionCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

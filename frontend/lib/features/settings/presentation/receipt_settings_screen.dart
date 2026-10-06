@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/printer/printer_service.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../features/pos/domain/pos_models.dart';
 import '../data/receipt_settings.dart';
 
@@ -55,17 +57,21 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
   bool printerEnabled = true;
 
-  final TextEditingController printerIpController =
-      TextEditingController(text: '192.168.1.111');
+  final TextEditingController printerIpController = TextEditingController(
+    text: '192.168.1.111',
+  );
 
-  final TextEditingController businessNameController =
-      TextEditingController(text: 'TOP COFFEE');
+  final TextEditingController businessNameController = TextEditingController(
+    text: 'TOP COFFEE',
+  );
 
-  final TextEditingController branchNameController =
-      TextEditingController(text: 'Phnom Penh Branch');
+  final TextEditingController branchNameController = TextEditingController(
+    text: 'Phnom Penh Branch',
+  );
 
-  final TextEditingController footerController =
-      TextEditingController(text: 'Thank you for visiting Top Coffee!');
+  final TextEditingController footerController = TextEditingController(
+    text: 'Thank you for visiting Top Coffee!',
+  );
 
   OrderReceipt _buildBitmapTestReceipt() {
     const items = <OpenOrderItem>[
@@ -135,9 +141,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Receipt Settings'),
-      ),
+      appBar: AppBar(title: const Text('Receipt Settings')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;
@@ -148,15 +152,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 3,
-                    child: _buildSettingsPanel(),
-                  ),
+                  Expanded(flex: 3, child: _buildSettingsPanel()),
                   const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: _buildPreviewPanel(),
-                  ),
+                  Expanded(flex: 2, child: _buildPreviewPanel()),
                 ],
               ),
             );
@@ -192,7 +190,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
               controller: branchNameController,
               decoration: const InputDecoration(
@@ -221,18 +219,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'Left',
-                  child: Text('Left'),
-                ),
-                DropdownMenuItem(
-                  value: 'Center',
-                  child: Text('Center'),
-                ),
-                DropdownMenuItem(
-                  value: 'Right',
-                  child: Text('Right'),
-                ),
+                DropdownMenuItem(value: 'Left', child: Text('Left')),
+                DropdownMenuItem(value: 'Center', child: Text('Center')),
+                DropdownMenuItem(value: 'Right', child: Text('Right')),
               ],
               onChanged: showLogo
                   ? (value) {
@@ -242,7 +231,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
                   : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: logoSize,
               decoration: const InputDecoration(
@@ -250,18 +239,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'Small',
-                  child: Text('Small'),
-                ),
-                DropdownMenuItem(
-                  value: 'Medium',
-                  child: Text('Medium'),
-                ),
-                DropdownMenuItem(
-                  value: 'Large',
-                  child: Text('Large'),
-                ),
+                DropdownMenuItem(value: 'Small', child: Text('Small')),
+                DropdownMenuItem(value: 'Medium', child: Text('Medium')),
+                DropdownMenuItem(value: 'Large', child: Text('Large')),
               ],
               onChanged: showLogo
                   ? (value) {
@@ -271,20 +251,18 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
                   : null,
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
+            const SizedBox(height: 16),
+            pos_ui.OutlinedButton.icon(
               onPressed: showLogo ? _pickLogo : null,
               icon: const Icon(Icons.upload_outlined),
-              label: Text(
-                logoBytes == null ? 'Upload Logo' : 'Change Logo',
-              ),
+              label: Text(logoBytes == null ? 'Upload Logo' : 'Change Logo'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
             if (logoBytes != null) ...[
               const SizedBox(height: 8),
-              OutlinedButton.icon(
+              pos_ui.DangerButton.outlinedIcon(
                 onPressed: _removeLogo,
                 icon: const Icon(Icons.delete_outline),
                 label: const Text('Remove Logo'),
@@ -307,22 +285,13 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'Default',
-                  child: Text('Default'),
-                ),
+                DropdownMenuItem(value: 'Default', child: Text('Default')),
                 DropdownMenuItem(
                   value: 'Sans Serif',
                   child: Text('Sans Serif'),
                 ),
-                DropdownMenuItem(
-                  value: 'Serif',
-                  child: Text('Serif'),
-                ),
-                DropdownMenuItem(
-                  value: 'Monospace',
-                  child: Text('Monospace'),
-                ),
+                DropdownMenuItem(value: 'Serif', child: Text('Serif')),
+                DropdownMenuItem(value: 'Monospace', child: Text('Monospace')),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -330,7 +299,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 }
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: businessFontSize,
               decoration: const InputDecoration(
@@ -338,18 +307,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'Small',
-                  child: Text('Small'),
-                ),
-                DropdownMenuItem(
-                  value: 'Medium',
-                  child: Text('Medium'),
-                ),
-                DropdownMenuItem(
-                  value: 'Large',
-                  child: Text('Large'),
-                ),
+                DropdownMenuItem(value: 'Small', child: Text('Small')),
+                DropdownMenuItem(value: 'Medium', child: Text('Medium')),
+                DropdownMenuItem(value: 'Large', child: Text('Large')),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -357,7 +317,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 }
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: bodyFontSize,
               decoration: const InputDecoration(
@@ -365,18 +325,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'Small',
-                  child: Text('Small'),
-                ),
-                DropdownMenuItem(
-                  value: 'Medium',
-                  child: Text('Medium'),
-                ),
-                DropdownMenuItem(
-                  value: 'Large',
-                  child: Text('Large'),
-                ),
+                DropdownMenuItem(value: 'Small', child: Text('Small')),
+                DropdownMenuItem(value: 'Medium', child: Text('Medium')),
+                DropdownMenuItem(value: 'Large', child: Text('Large')),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -384,7 +335,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 }
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: footerFontSize,
               decoration: const InputDecoration(
@@ -392,18 +343,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'Small',
-                  child: Text('Small'),
-                ),
-                DropdownMenuItem(
-                  value: 'Medium',
-                  child: Text('Medium'),
-                ),
-                DropdownMenuItem(
-                  value: 'Large',
-                  child: Text('Large'),
-                ),
+                DropdownMenuItem(value: 'Small', child: Text('Small')),
+                DropdownMenuItem(value: 'Medium', child: Text('Medium')),
+                DropdownMenuItem(value: 'Large', child: Text('Large')),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -541,7 +483,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               printerEnabled,
               (value) => setState(() => printerEnabled = value),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
               controller: printerIpController,
               keyboardType: TextInputType.number,
@@ -552,10 +494,10 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 prefixIcon: Icon(Icons.lan_outlined),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: pos_ui.OutlinedButton.icon(
                 onPressed: () async {
                   final ipAddress = printerIpController.text.trim();
 
@@ -589,9 +531,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Printer test failed: ' + e.toString()),
-                      ),
+                      SnackBar(content: Text('Printer test failed: $e')),
                     );
                   } finally {
                     try {
@@ -605,10 +545,10 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 label: const Text('Test Print'),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: pos_ui.OutlinedButton.icon(
                 onPressed: () async {
                   final ipAddress = printerIpController.text.trim();
 
@@ -642,11 +582,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Khmer printer test failed: ' + e.toString(),
-                        ),
-                      ),
+                      SnackBar(content: Text('Khmer printer test failed: $e')),
                     );
                   } finally {
                     try {
@@ -660,10 +596,10 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 label: const Text('Print Khmer Test'),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: pos_ui.OutlinedButton.icon(
                 onPressed: () async {
                   final ipAddress = printerIpController.text.trim();
 
@@ -691,9 +627,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Bitmap receipt test sent successfully.',
-                        ),
+                        content: Text('Bitmap receipt test sent successfully.'),
                       ),
                     );
                   } catch (e) {
@@ -702,11 +636,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Bitmap receipt test failed: ' + e.toString(),
-                        ),
-                      ),
+                      SnackBar(content: Text('Bitmap receipt test failed: $e')),
                     );
                   } finally {
                     try {
@@ -720,10 +650,10 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 label: const Text('Print Bitmap Receipt Test'),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: pos_ui.OutlinedButton.icon(
                 onPressed: () async {
                   final ipAddress = printerIpController.text.trim();
 
@@ -744,9 +674,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Bitmap stress test sent successfully.',
-                        ),
+                        content: Text('Bitmap stress test sent successfully.'),
                       ),
                     );
                   } catch (e) {
@@ -755,11 +683,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Bitmap stress test failed: ' + e.toString(),
-                        ),
-                      ),
+                      SnackBar(content: Text('Bitmap stress test failed: $e')),
                     );
                   } finally {
                     try {
@@ -778,7 +702,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: FilledButton.icon(
+          child: pos_ui.PrimaryButton.icon(
             onPressed: () async {
               await _saveSettings();
 
@@ -787,9 +711,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               }
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Receipt settings saved.'),
-                ),
+                const SnackBar(content: Text('Receipt settings saved.')),
               );
             },
             icon: const Icon(Icons.save_outlined),
@@ -803,7 +725,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   Widget _buildPreviewPanel() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -828,9 +750,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   Future<void> _pickLogo() async {
     final picker = ImagePicker();
 
-    final image = await picker.pickImage(
-      source: ImageSource.gallery,
-    );
+    final image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image == null) {
       return;
@@ -920,6 +840,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
     await settings.save();
   }
+
   Future<void> _saveLogo(Uint8List bytes) async {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/receipt_logo.png');
@@ -963,10 +884,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
     });
   }
 
-  TextStyle _receiptFontStyle({
-    double? fontSize,
-    FontWeight? fontWeight,
-  }) {
+  TextStyle _receiptFontStyle({double? fontSize, FontWeight? fontWeight}) {
     String? family;
 
     switch (fontStyle) {
@@ -987,7 +905,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
       fontFamily: family,
       fontSize: fontSize,
       fontWeight: fontWeight,
-      color: Colors.black,
+      color: AppColors.receiptInk,
     );
   }
 
@@ -1066,8 +984,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
           child: Text(
             header ? amount : (showLineTotal ? amount : ''),
             textAlign: TextAlign.right,
-            style: textStyle ??
-                const TextStyle(fontWeight: FontWeight.w600),
+            style: textStyle ?? const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -1078,11 +995,9 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: Colors.grey.shade100,
+      color: AppColors.receiptPaper,
       child: DefaultTextStyle(
-        style: _receiptFontStyle(
-          fontSize: _bodyFontSize(),
-        ),
+        style: _receiptFontStyle(fontSize: _bodyFontSize()),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1091,21 +1006,21 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                 alignment: logoPosition == 'Left'
                     ? Alignment.centerLeft
                     : logoPosition == 'Right'
-                        ? Alignment.centerRight
-                        : Alignment.center,
+                    ? Alignment.centerRight
+                    : Alignment.center,
                 child: logoBytes != null
                     ? Image.memory(
                         logoBytes!,
                         width: logoSize == 'Small'
                             ? 48
                             : logoSize == 'Large'
-                                ? 120
-                                : 80,
+                            ? 120
+                            : 80,
                         height: logoSize == 'Small'
                             ? 32
                             : logoSize == 'Large'
-                                ? 80
-                                : 56,
+                            ? 80
+                            : 56,
                         fit: BoxFit.contain,
                       )
                     : Icon(
@@ -1113,8 +1028,8 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                         size: logoSize == 'Small'
                             ? 32
                             : logoSize == 'Large'
-                                ? 64
-                                : 48,
+                            ? 64
+                            : 48,
                       ),
               ),
             if (showLogo) const SizedBox(height: 8),
@@ -1130,11 +1045,8 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     : FontWeight.normal,
               ),
             ),
-            Text(
-              branchNameController.text,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
+            Text(branchNameController.text, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
             const Divider(),
             if (showOrderNumber) const Text('Order #: 1025'),
             if (showDateTime) const Text('Date: 19/09/2026 10:35 AM'),
@@ -1156,7 +1068,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               price: '\$2.00',
               amount: '\$4.00',
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             _buildPreviewItem(
               name: 'Iced Latte',
               quantity: '1',
@@ -1169,28 +1081,23 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
             Text(
               'TOTAL:                    \$7.00',
               style: _receiptFontStyle(
-                fontWeight: boldTotal
-                    ? FontWeight.bold
-                    : FontWeight.normal,
+                fontWeight: boldTotal ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             const Divider(),
             if (showPaymentMethod) const Text('Payment: CASH'),
             if (showTendered) const Text('Tendered:                \$10.00'),
             if (showChange) const Text('Change:                   \$3.00'),
-            if (showSplitPayments)
-              const SizedBox(height: 4),
+            if (showSplitPayments) const SizedBox(height: 4),
             if (showSplitPayments)
               const Text('Split payments: hidden when not applicable'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               footerController.text,
               textAlign: TextAlign.center,
               style: _receiptFontStyle(
                 fontSize: _footerFontSize(),
-                fontWeight: boldFooter
-                    ? FontWeight.bold
-                    : FontWeight.normal,
+                fontWeight: boldFooter ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ],
@@ -1214,10 +1121,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               children: [
                 Icon(icon),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
             const SizedBox(height: 16),
@@ -1228,11 +1132,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
     );
   }
 
-  Widget _buildSwitch(
-    String title,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
+  Widget _buildSwitch(String title, bool value, ValueChanged<bool> onChanged) {
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(title),

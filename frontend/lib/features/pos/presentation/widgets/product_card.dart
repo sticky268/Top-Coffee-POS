@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/pos_models.dart';
 
 class ProductCard extends StatelessWidget {
@@ -22,10 +23,13 @@ class ProductCard extends StatelessWidget {
         : currency.format(product.price);
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      child: pos_ui.ActionSurface(
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -40,8 +44,8 @@ class ProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: product.imageUrl != null &&
-                            product.imageUrl!.isNotEmpty
+                    child:
+                        product.imageUrl != null && product.imageUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(

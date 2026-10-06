@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/network/api_exceptions.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/expense_categories_controller.dart';
 import '../application/expense_categories_state.dart';
 import '../data/expenses_repository.dart';
 import '../domain/expense_models.dart';
-import '../../../core/network/api_exceptions.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({
-    super.key,
-    this.expense,
-  });
+  const AddExpenseScreen({super.key, this.expense});
 
   final Expense? expense;
 
@@ -40,9 +38,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
 
     Future.microtask(
-      () => ref
-          .read(expenseCategoriesControllerProvider.notifier)
-          .load(),
+      () => ref.read(expenseCategoriesControllerProvider.notifier).load(),
     );
   }
 
@@ -59,18 +55,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (categoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please select an expense category.'),
-        ),
+        const SnackBar(content: Text('Please select an expense category.')),
       );
       return;
     }
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please enter a valid amount.'),
-        ),
+        const SnackBar(content: Text('Please enter a valid amount.')),
       );
       return;
     }
@@ -119,19 +111,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } on ApiException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not save expense.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not save expense.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -167,6 +154,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       });
     }
   }
+
   Future<void> _selectDate() async {
     final selected = await showDatePicker(
       context: context,
@@ -198,13 +186,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             switch (categoryState) {
               ExpenseCategoriesLoading() => const LinearProgressIndicator(),
               ExpenseCategoriesError(:final message) => Text(
-                  message,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
+                message,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
               ExpenseCategoriesLoaded(:final categories) =>
-                InkWell(
+                pos_ui.ActionSurface(
                   onTap: () => _selectCategory(categories),
                   borderRadius: BorderRadius.circular(4),
                   child: InputDecorator(
@@ -216,11 +202,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       _selectedCategoryId == null
                           ? 'Select category'
                           : categories
-                              .firstWhere(
-                                (category) =>
-                                    category.id == _selectedCategoryId,
-                              )
-                              .name,
+                                .firstWhere(
+                                  (category) =>
+                                      category.id == _selectedCategoryId,
+                                )
+                                .name,
                     ),
                   ),
                 ),
@@ -248,7 +234,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            InkWell(
+            pos_ui.ActionSurface(
               onTap: _selectDate,
               borderRadius: BorderRadius.circular(4),
               child: InputDecorator(
@@ -259,23 +245,24 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 child: Row(
                   children: [
                     const Icon(Icons.calendar_today_outlined),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Text(DateFormat('MMM d, yyyy').format(_spentAt)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: _isSaving ? null : _saveExpense,
-              icon: _isSaving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(_isSaving ? 'Saving...' : (widget.expense == null ? 'Save Expense' : 'Update Expense')),
+              isLoading: _isSaving,
+              icon: const Icon(Icons.save_outlined),
+              label: Text(
+                _isSaving
+                    ? 'Saving...'
+                    : (widget.expense == null
+                          ? 'Save Expense'
+                          : 'Update Expense'),
+              ),
             ),
           ],
         ),

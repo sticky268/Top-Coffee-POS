@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/orders_list_controller.dart';
 import '../application/orders_list_state.dart';
 import '../domain/orders_list_filters.dart';
@@ -30,26 +31,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _OrdersFilterSheet(
-        initialFilters: currentFilters,
-      ),
+      builder: (context) => _OrdersFilterSheet(initialFilters: currentFilters),
     );
 
     if (!mounted || result == null) return;
 
     _searchController.text = result.orderNumber ?? '';
 
-    await ref
-        .read(ordersListControllerProvider.notifier)
-        .applyFilters(result);
+    await ref.read(ordersListControllerProvider.notifier).applyFilters(result);
   }
 
   Future<void> _clearFilters() async {
     _searchController.clear();
 
-    await ref
-        .read(ordersListControllerProvider.notifier)
-        .clearFilters();
+    await ref.read(ordersListControllerProvider.notifier).clearFilters();
   }
 
   void _search() {
@@ -77,7 +72,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       appBar: AppBar(
         title: const Text('Orders'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: () {
               ref.read(ordersListControllerProvider.notifier).refresh();
@@ -87,21 +82,19 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         ],
       ),
       body: switch (state) {
-        OrdersListLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+        OrdersListLoading() => const Center(child: CircularProgressIndicator()),
         OrdersListError(:final message) => _OrdersErrorView(
-            message: message,
-            onRetry: () =>
-                ref.read(ordersListControllerProvider.notifier).refresh(),
-          ),
+          message: message,
+          onRetry: () =>
+              ref.read(ordersListControllerProvider.notifier).refresh(),
+        ),
         OrdersListLoaded loaded => _OrdersContent(
-            state: loaded,
-            searchController: _searchController,
-            onSearch: _search,
-            onOpenFilters: () => _openFilters(loaded.filters),
-            onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
-          ),
+          state: loaded,
+          searchController: _searchController,
+          onSearch: _search,
+          onOpenFilters: () => _openFilters(loaded.filters),
+          onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
+        ),
       },
     );
   }
@@ -158,7 +151,7 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
               Expanded(
@@ -170,7 +163,7 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                     hintText: 'Search order number...',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: widget.searchController.text.isNotEmpty
-                        ? IconButton(
+                        ? pos_ui.IconButton(
                             tooltip: 'Clear search',
                             onPressed: () {
                               widget.searchController.clear();
@@ -180,13 +173,15 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                             icon: const Icon(Icons.clear),
                           )
                         : null,
-                    border: const OutlineInputBorder(),
+                    border: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(14)),
+                    ),
                     isDense: true,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              pos_ui.OutlinedButton.icon(
                 onPressed: widget.onOpenFilters,
                 icon: const Icon(Icons.tune),
                 label: const Text('Filter'),
@@ -209,13 +204,10 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                             label: 'Order #${filters.orderNumber!.trim()}',
                           ),
                         if (filters.status != null)
-                          _FilterChip(
-                            label: orderStatusLabel(filters.status!),
-                          ),
+                          _FilterChip(label: orderStatusLabel(filters.status!)),
                         if (filters.paymentMethod != null)
                           _FilterChip(
-                            label:
-                                paymentMethodLabel(filters.paymentMethod!),
+                            label: paymentMethodLabel(filters.paymentMethod!),
                           ),
                         if (filters.dateFrom != null)
                           _FilterChip(
@@ -231,7 +223,7 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                     ),
                   ),
                 ),
-                TextButton(
+                pos_ui.SecondaryButton(
                   onPressed: widget.onClearFilters,
                   child: const Text('Clear'),
                 ),
@@ -245,13 +237,13 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                   onClear: widget.onClearFilters,
                 )
               : RefreshIndicator(
-                  onRefresh: () => ref
-                      .read(ordersListControllerProvider.notifier)
-                      .refresh(),
+                  onRefresh: () =>
+                      ref.read(ordersListControllerProvider.notifier).refresh(),
                   child: ListView.separated(
                     controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: widget.state.orders.length +
+                    itemCount:
+                        widget.state.orders.length +
                         (widget.state.hasMore ? 1 : 0),
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, index) {
@@ -289,19 +281,14 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: Chip(
-        label: Text(label),
-        visualDensity: VisualDensity.compact,
-      ),
+      padding: const EdgeInsets.only(right: 8),
+      child: Chip(label: Text(label), visualDensity: VisualDensity.compact),
     );
   }
 }
 
 class _OrdersFilterSheet extends StatefulWidget {
-  const _OrdersFilterSheet({
-    required this.initialFilters,
-  });
+  const _OrdersFilterSheet({required this.initialFilters});
 
   final OrdersListFilters initialFilters;
 
@@ -399,7 +386,7 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               DropdownButtonFormField<String>(
                 initialValue: _status,
                 decoration: const InputDecoration(
@@ -452,7 +439,7 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
                   setState(() => _paymentMethod = value);
                 },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               Text(
                 'Date range',
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -463,7 +450,7 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: pos_ui.OutlinedButton.icon(
                       onPressed: () => _pickDate(isFrom: true),
                       icon: const Icon(Icons.calendar_today_outlined),
                       label: Text(
@@ -473,9 +460,9 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: pos_ui.OutlinedButton.icon(
                       onPressed: () => _pickDate(isFrom: false),
                       icon: const Icon(Icons.calendar_today_outlined),
                       label: Text(
@@ -491,14 +478,14 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: pos_ui.OutlinedButton(
                       onPressed: _clear,
                       child: const Text('Clear'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: FilledButton(
+                    child: pos_ui.PrimaryButton(
                       onPressed: _apply,
                       child: const Text('Apply Filters'),
                     ),
@@ -514,10 +501,7 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
 }
 
 class _FilteredEmptyOrders extends StatelessWidget {
-  const _FilteredEmptyOrders({
-    required this.hasFilters,
-    required this.onClear,
-  });
+  const _FilteredEmptyOrders({required this.hasFilters, required this.onClear});
 
   final bool hasFilters;
   final VoidCallback? onClear;
@@ -539,7 +523,7 @@ class _FilteredEmptyOrders extends StatelessWidget {
               size: 48,
               color: theme.colorScheme.outline,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               hasFilters ? 'No matching orders' : 'No orders yet',
               style: theme.textTheme.titleMedium,
@@ -556,7 +540,7 @@ class _FilteredEmptyOrders extends StatelessWidget {
             ),
             if (hasFilters && onClear != null) ...[
               const SizedBox(height: 16),
-              OutlinedButton(
+              pos_ui.OutlinedButton(
                 onPressed: onClear,
                 child: const Text('Clear Filters'),
               ),
@@ -569,10 +553,7 @@ class _FilteredEmptyOrders extends StatelessWidget {
 }
 
 class _OrdersErrorView extends StatelessWidget {
-  const _OrdersErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _OrdersErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -587,16 +568,9 @@ class _OrdersErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 40,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Could not load orders',
-              style: theme.textTheme.titleMedium,
-            ),
+            Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
+            Text('Could not load orders', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
               message,
@@ -606,7 +580,7 @@ class _OrdersErrorView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/purchase_creation_controller.dart';
 import '../application/purchase_creation_data_controller.dart';
 
@@ -33,27 +34,17 @@ class _PurchaseCreationScreenState
     super.dispose();
   }
 
-  TextEditingController _quantityController(
-    int ingredientId,
-    double value,
-  ) {
+  TextEditingController _quantityController(int ingredientId, double value) {
     return _quantityControllers.putIfAbsent(
       ingredientId,
-      () => TextEditingController(
-        text: value == 0 ? '' : value.toString(),
-      ),
+      () => TextEditingController(text: value == 0 ? '' : value.toString()),
     );
   }
 
-  TextEditingController _unitCostController(
-    int ingredientId,
-    double value,
-  ) {
+  TextEditingController _unitCostController(int ingredientId, double value) {
     return _unitCostControllers.putIfAbsent(
       ingredientId,
-      () => TextEditingController(
-        text: value == 0 ? '' : value.toString(),
-      ),
+      () => TextEditingController(text: value == 0 ? '' : value.toString()),
     );
   }
 
@@ -62,9 +53,7 @@ class _PurchaseCreationScreenState
     _unitCostControllers.remove(ingredientId)?.dispose();
   }
 
-  Future<void> _selectDate(
-    PurchaseCreationState state,
-  ) async {
+  Future<void> _selectDate(PurchaseCreationState state) async {
     final selectedDate = await showDatePicker(
       context: context,
       initialDate: state.purchasedAt,
@@ -85,8 +74,7 @@ class _PurchaseCreationScreenState
     PurchaseCreationData data,
     PurchaseCreationState state,
   ) async {
-    final selectedIds =
-        state.items.map((item) => item.ingredientId).toSet();
+    final selectedIds = state.items.map((item) => item.ingredientId).toSet();
 
     final availableIngredients = data.ingredients
         .where((ingredient) => !selectedIds.contains(ingredient.id))
@@ -140,8 +128,7 @@ class _PurchaseCreationScreenState
       return;
     }
 
-    final controller =
-        ref.read(purchaseCreationControllerProvider.notifier);
+    final controller = ref.read(purchaseCreationControllerProvider.notifier);
 
     try {
       final purchase = await controller.save();
@@ -151,11 +138,7 @@ class _PurchaseCreationScreenState
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Purchase #${purchase.id} saved successfully.',
-          ),
-        ),
+        SnackBar(content: Text('Purchase #${purchase.id} saved successfully.')),
       );
 
       Navigator.of(context).pop(true);
@@ -164,43 +147,33 @@ class _PurchaseCreationScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString()),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dataAsync =
-        ref.watch(purchaseCreationDataControllerProvider);
-    final state =
-        ref.watch(purchaseCreationControllerProvider);
+    final dataAsync = ref.watch(purchaseCreationDataControllerProvider);
+    final state = ref.watch(purchaseCreationControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('New Purchase'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: state.isSaving
                 ? null
                 : () => ref
-                    .read(
-                      purchaseCreationDataControllerProvider
-                          .notifier,
-                    )
-                    .refresh(),
+                      .read(purchaseCreationDataControllerProvider.notifier)
+                      .refresh(),
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
       body: dataAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _buildErrorState(error),
         data: (data) {
           if (data.suppliers.isEmpty) {
@@ -224,29 +197,18 @@ class _PurchaseCreationScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 16),
             const Text(
               'Unable to load purchase data.',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(
-              error.toString(),
-              textAlign: TextAlign.center,
-            ),
+            Text(error.toString(), textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: () => ref
-                  .read(
-                    purchaseCreationDataControllerProvider
-                        .notifier,
-                  )
+                  .read(purchaseCreationDataControllerProvider.notifier)
                   .refresh(),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -281,20 +243,14 @@ class _PurchaseCreationScreenState
     );
   }
 
-  Widget _buildForm(
-    PurchaseCreationData data,
-    PurchaseCreationState state,
-  ) {
-    final controller =
-        ref.read(purchaseCreationControllerProvider.notifier);
+  Widget _buildForm(PurchaseCreationData data, PurchaseCreationState state) {
+    final controller = ref.read(purchaseCreationControllerProvider.notifier);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 700,
-          ),
+          constraints: const BoxConstraints(maxWidth: 700),
           child: Form(
             key: _formKey,
             child: Column(
@@ -309,9 +265,7 @@ class _PurchaseCreationScreenState
                   initialValue: state.supplierId,
                   decoration: const InputDecoration(
                     labelText: 'Supplier',
-                    prefixIcon: Icon(
-                      Icons.local_shipping_outlined,
-                    ),
+                    prefixIcon: Icon(Icons.local_shipping_outlined),
                     border: OutlineInputBorder(),
                   ),
                   items: data.suppliers.map((supplier) {
@@ -320,9 +274,7 @@ class _PurchaseCreationScreenState
                       child: Text(supplier.name),
                     );
                   }).toList(),
-                  onChanged: state.isSaving
-                      ? null
-                      : controller.setSupplier,
+                  onChanged: state.isSaving ? null : controller.setSupplier,
                   validator: (value) {
                     if (value == null) {
                       return 'Please select a supplier.';
@@ -332,38 +284,30 @@ class _PurchaseCreationScreenState
                   },
                 ),
                 const SizedBox(height: 16),
-                InkWell(
-                  onTap: state.isSaving
-                      ? null
-                      : () => _selectDate(state),
+                pos_ui.ActionSurface(
+                  onTap: state.isSaving ? null : () => _selectDate(state),
                   borderRadius: BorderRadius.circular(4),
                   child: InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Purchase Date',
-                      prefixIcon: Icon(
-                        Icons.calendar_today_outlined,
-                      ),
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
                       border: OutlineInputBorder(),
                     ),
                     child: Text(
-                      DateFormat(
-                        'yyyy-MM-dd',
-                      ).format(state.purchasedAt),
+                      DateFormat('yyyy-MM-dd').format(state.purchasedAt),
                     ),
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         'Purchase Items',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
-                    FilledButton.icon(
+                    pos_ui.PrimaryButton.icon(
                       onPressed: state.isSaving
                           ? null
                           : () => _addIngredient(data, state),
@@ -372,24 +316,19 @@ class _PurchaseCreationScreenState
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 if (state.items.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outline,
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Column(
                       children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 40,
-                        ),
+                        Icon(Icons.inventory_2_outlined, size: 40),
                         SizedBox(height: 8),
                         Text(
                           'No ingredients added yet.',
@@ -405,31 +344,23 @@ class _PurchaseCreationScreenState
                   )
                 else
                   ...state.items.map(
-                    (item) => _buildItemCard(
-                      data,
-                      item,
-                      state.isSaving,
-                      controller,
-                    ),
+                    (item) =>
+                        _buildItemCard(data, item, state.isSaving, controller),
                   ),
                 const SizedBox(height: 24),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     child: Row(
                       children: [
                         Text(
                           'Total Cost',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium,
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const Spacer(),
                         Text(
                           '\$${state.totalCost.toStringAsFixed(2)}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall,
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
                       ],
                     ),
@@ -439,26 +370,19 @@ class _PurchaseCreationScreenState
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
+                      child: pos_ui.OutlinedButton(
                         onPressed: state.isSaving
                             ? null
                             : () => Navigator.of(context).pop(),
                         child: const Text('Cancel'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: FilledButton(
+                      child: pos_ui.PrimaryButton(
                         onPressed: state.isSaving ? null : _save,
-                        child: state.isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Save Purchase'),
+                        isLoading: state.isSaving,
+                        child: const Text('Save Purchase'),
                       ),
                     ),
                   ],
@@ -492,7 +416,7 @@ class _PurchaseCreationScreenState
     );
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -503,20 +427,16 @@ class _PurchaseCreationScreenState
                 Expanded(
                   child: Text(
                     ingredient.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                IconButton(
+                pos_ui.IconButton(
                   tooltip: 'Remove ingredient',
                   onPressed: isSaving
                       ? null
                       : () {
                           _removeControllers(ingredient.id);
-                          controller.removeIngredient(
-                            ingredient.id,
-                          );
+                          controller.removeIngredient(ingredient.id);
                         },
                   icon: const Icon(Icons.delete_outline),
                 ),
@@ -535,20 +455,18 @@ class _PurchaseCreationScreenState
                   child: TextFormField(
                     controller: quantityController,
                     enabled: !isSaving,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
+                    keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     decoration: InputDecoration(
                       labelText: 'Quantity',
-                      suffixText:
-                          ingredient.unit.abbreviation,
-                      border: const OutlineInputBorder(),
+                      suffixText: ingredient.unit.abbreviation,
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(14)),
+                      ),
                     ),
                     validator: (value) {
-                      final quantity = double.tryParse(
-                        value?.trim() ?? '',
-                      );
+                      final quantity = double.tryParse(value?.trim() ?? '');
 
                       if (quantity == null || quantity <= 0) {
                         return 'Enter a quantity greater than 0.';
@@ -557,23 +475,18 @@ class _PurchaseCreationScreenState
                       return null;
                     },
                     onChanged: (value) {
-                      final quantity =
-                          double.tryParse(value.trim()) ?? 0;
+                      final quantity = double.tryParse(value.trim()) ?? 0;
 
-                      controller.updateQuantity(
-                        ingredient.id,
-                        quantity,
-                      );
+                      controller.updateQuantity(ingredient.id, quantity);
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
                     controller: unitCostController,
                     enabled: !isSaving,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
+                    keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
@@ -582,9 +495,7 @@ class _PurchaseCreationScreenState
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
-                      final cost = double.tryParse(
-                        value?.trim() ?? '',
-                      );
+                      final cost = double.tryParse(value?.trim() ?? '');
 
                       if (cost == null || cost < 0) {
                         return 'Enter a valid cost.';
@@ -593,19 +504,15 @@ class _PurchaseCreationScreenState
                       return null;
                     },
                     onChanged: (value) {
-                      final cost =
-                          double.tryParse(value.trim()) ?? 0;
+                      final cost = double.tryParse(value.trim()) ?? 0;
 
-                      controller.updateUnitCost(
-                        ingredient.id,
-                        cost,
-                      );
+                      controller.updateUnitCost(ingredient.id, cost);
                     },
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerRight,
               child: Text(

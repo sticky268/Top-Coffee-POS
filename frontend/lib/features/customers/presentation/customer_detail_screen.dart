@@ -4,20 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/app_router.dart';
 import '../../../core/subscription/subscription_action_guard.dart';
-
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../loyalty/application/customer_loyalty_controller.dart';
+import '../../loyalty/application/customer_loyalty_state.dart';
 import '../application/customer_detail_controller.dart';
 import '../application/customer_detail_state.dart';
 import '../application/customer_orders_controller.dart';
 import '../application/customer_orders_state.dart';
 import '../domain/customer_models.dart';
-import '../../loyalty/application/customer_loyalty_controller.dart';
-import '../../loyalty/application/customer_loyalty_state.dart';
 
 class CustomerDetailScreen extends ConsumerStatefulWidget {
-  const CustomerDetailScreen({
-    required this.customerId,
-    super.key,
-  });
+  const CustomerDetailScreen({required this.customerId, super.key});
 
   final int customerId;
 
@@ -69,15 +66,13 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Delete Customer'),
-          content: const Text(
-            'Are you sure you want to delete this customer?',
-          ),
+          content: const Text('Are you sure you want to delete this customer?'),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.DangerButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Delete'),
             ),
@@ -96,9 +91,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
 
     if (deleted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Customer deleted successfully.'),
-        ),
+        const SnackBar(content: Text('Customer deleted successfully.')),
       );
       context.pop(true);
     }
@@ -106,19 +99,22 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final detailState =
-        ref.watch(customerDetailControllerProvider(widget.customerId));
-    final ordersState =
-        ref.watch(customerOrdersControllerProvider(widget.customerId));
-    final loyaltyState =
-        ref.watch(customerLoyaltyControllerProvider(widget.customerId));
+    final detailState = ref.watch(
+      customerDetailControllerProvider(widget.customerId),
+    );
+    final ordersState = ref.watch(
+      customerOrdersControllerProvider(widget.customerId),
+    );
+    final loyaltyState = ref.watch(
+      customerLoyaltyControllerProvider(widget.customerId),
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer'),
         actions: [
           if (detailState is CustomerDetailLoaded) ...[
-            IconButton(
+            pos_ui.IconButton(
               tooltip: 'Edit customer',
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
@@ -132,7 +128,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                 }
               },
             ),
-            IconButton(
+            pos_ui.IconButton(
               tooltip: 'Delete customer',
               icon: const Icon(Icons.delete_outline),
               onPressed: _deleteCustomer,
@@ -141,17 +137,18 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         ],
       ),
       body: switch (detailState) {
-        CustomerDetailLoading() =>
-          const Center(child: CircularProgressIndicator()),
+        CustomerDetailLoading() => const Center(
+          child: CircularProgressIndicator(),
+        ),
         CustomerDetailError(:final message) => _ErrorView(message: message),
         CustomerDetailLoaded(:final customer) => RefreshIndicator(
-            onRefresh: _refresh,
-            child: _CustomerDetailContent(
-              customer: customer,
-              ordersState: ordersState,
-              loyaltyState: loyaltyState,
-            ),
+          onRefresh: _refresh,
+          child: _CustomerDetailContent(
+            customer: customer,
+            ordersState: ordersState,
+            loyaltyState: loyaltyState,
           ),
+        ),
       },
     );
   }
@@ -189,7 +186,7 @@ class _CustomerDetailContent extends StatelessWidget {
                 icon: Icons.receipt_long_outlined,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: _StatCard(
                 label: 'Total Spent',
@@ -199,41 +196,36 @@ class _CustomerDetailContent extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _StatCard(
           label: 'Average Order',
           value: '\$${averageOrder.toStringAsFixed(2)}',
           icon: Icons.analytics_outlined,
         ),
         const SizedBox(height: 16),
-        _LoyaltyCard(
-          state: loyaltyState,
-          customerId: customer.id,
-        ),
+        _LoyaltyCard(state: loyaltyState, customerId: customer.id),
         const SizedBox(height: 24),
         const Text(
           'Order History',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         switch (ordersState) {
-          CustomerOrdersLoading() =>
-            const Center(child: CircularProgressIndicator()),
+          CustomerOrdersLoading() => const Center(
+            child: CircularProgressIndicator(),
+          ),
           CustomerOrdersError(:final message) => Text(
-              message,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-          CustomerOrdersLoaded(:final orders) => orders.isEmpty
-              ? const _EmptyOrders()
-              : Column(
-                  children:
-                      orders.map((order) => _OrderCard(order: order)).toList(),
-                ),
+            message,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+          CustomerOrdersLoaded(:final orders) =>
+            orders.isEmpty
+                ? const _EmptyOrders()
+                : Column(
+                    children: orders
+                        .map((order) => _OrderCard(order: order))
+                        .toList(),
+                  ),
         },
       ],
     );
@@ -241,10 +233,7 @@ class _CustomerDetailContent extends StatelessWidget {
 }
 
 class _LoyaltyCard extends ConsumerWidget {
-  const _LoyaltyCard({
-    required this.state,
-    required this.customerId,
-  });
+  const _LoyaltyCard({required this.state, required this.customerId});
 
   final CustomerLoyaltyState state;
   final int customerId;
@@ -277,7 +266,7 @@ class _LoyaltyCard extends ConsumerWidget {
                   helperText: 'Use a negative number to remove points.',
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextField(
                 maxLength: 255,
                 onChanged: (value) => descriptionText = value,
@@ -289,20 +278,18 @@ class _LoyaltyCard extends ConsumerWidget {
             ],
           ),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.PrimaryButton(
               onPressed: () async {
                 final points = int.tryParse(pointsText.trim());
 
                 if (points == null || points == 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'Enter a valid non-zero points amount.',
-                      ),
+                      content: Text('Enter a valid non-zero points amount.'),
                     ),
                   );
                   return;
@@ -333,9 +320,7 @@ class _LoyaltyCard extends ConsumerWidget {
     if (!context.mounted || result != true) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Loyalty points adjusted successfully.'),
-      ),
+      const SnackBar(content: Text('Loyalty points adjusted successfully.')),
     );
   }
 
@@ -346,87 +331,82 @@ class _LoyaltyCard extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: switch (state) {
           CustomerLoyaltyLoading() => const Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('Loading loyalty points...'),
-              ],
-            ),
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Loading loyalty points...'),
+            ],
+          ),
           CustomerLoyaltyError(:final message) => Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.stars_outlined,
-                  color: Theme.of(context).colorScheme.error,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.stars_outlined,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    message,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+              ),
+            ],
+          ),
+          CustomerLoyaltyLoaded(:final loyalty) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.stars_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Loyalty',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                ),
-              ],
-            ),
-          CustomerLoyaltyLoaded(:final loyalty) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.stars_outlined,
-                      color: Theme.of(context).colorScheme.primary,
+                  pos_ui.OutlinedButton.icon(
+                    onPressed: SubscriptionActionGuard.canModify(ref)
+                        ? () => _showAdjustmentDialog(context, ref)
+                        : null,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Adjust'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _LoyaltyStat(
+                      label: 'Points',
+                      value: '${loyalty.account.pointsBalance}',
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Loyalty',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                  ),
+                  Expanded(
+                    child: _LoyaltyStat(
+                      label: 'Lifetime Earned',
+                      value: '${loyalty.account.lifetimeEarned}',
                     ),
-                    OutlinedButton.icon(
-                      onPressed: SubscriptionActionGuard.canModify(ref)
-                          ? () => _showAdjustmentDialog(
-                                context,
-                                ref,
-                              )
-                          : null,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Adjust'),
+                  ),
+                  Expanded(
+                    child: _LoyaltyStat(
+                      label: 'Redeemed',
+                      value: '${loyalty.account.lifetimeRedeemed}',
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _LoyaltyStat(
-                        label: 'Points',
-                        value: '${loyalty.account.pointsBalance}',
-                      ),
-                    ),
-                    Expanded(
-                      child: _LoyaltyStat(
-                        label: 'Lifetime Earned',
-                        value: '${loyalty.account.lifetimeEarned}',
-                      ),
-                    ),
-                    Expanded(
-                      child: _LoyaltyStat(
-                        label: 'Redeemed',
-                        value: '${loyalty.account.lifetimeRedeemed}',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         },
       ),
     );
@@ -434,10 +414,7 @@ class _LoyaltyCard extends ConsumerWidget {
 }
 
 class _LoyaltyStat extends StatelessWidget {
-  const _LoyaltyStat({
-    required this.label,
-    required this.value,
-  });
+  const _LoyaltyStat({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -447,24 +424,16 @@ class _LoyaltyStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        Text(value, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }
 }
 
 class _CustomerHeader extends StatelessWidget {
-  const _CustomerHeader({
-    required this.customer,
-  });
+  const _CustomerHeader({required this.customer});
 
   final Customer customer;
 
@@ -475,7 +444,7 @@ class _CustomerHeader extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Row(
           children: [
             CircleAvatar(
@@ -502,7 +471,7 @@ class _CustomerHeader extends StatelessWidget {
                   ),
                   if (customer.phone?.trim().isNotEmpty == true)
                     Padding(
-                      padding: const EdgeInsets.only(top: 6),
+                      padding: const EdgeInsets.only(top: 8),
                       child: Text(customer.phone!),
                     ),
                   if (customer.email?.trim().isNotEmpty == true)
@@ -539,15 +508,12 @@ class _StatCard extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(label, style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 4),
                   Text(
                     value,
@@ -567,9 +533,7 @@ class _StatCard extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({
-    required this.order,
-  });
+  const _OrderCard({required this.order});
 
   final CustomerOrder order;
 
@@ -578,16 +542,12 @@ class _OrderCard extends StatelessWidget {
     final date = order.completedAt ?? order.createdAt;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(Icons.receipt_long_outlined),
-        ),
+        leading: const CircleAvatar(child: Icon(Icons.receipt_long_outlined)),
         title: Text(
           'Order #${order.id}',
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
           [
@@ -597,9 +557,7 @@ class _OrderCard extends StatelessWidget {
         ),
         trailing: Text(
           '\$${order.total.toStringAsFixed(2)}',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -619,17 +577,13 @@ class _EmptyOrders extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Text('No completed orders yet.'),
-      ),
+      child: Center(child: Text('No completed orders yet.')),
     );
   }
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-  });
+  const _ErrorView({required this.message});
 
   final String message;
 
@@ -638,10 +592,7 @@ class _ErrorView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-        ),
+        child: Text(message, textAlign: TextAlign.center),
       ),
     );
   }

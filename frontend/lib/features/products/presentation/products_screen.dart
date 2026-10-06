@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/subscription/subscription_action_guard.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../pos/domain/pos_models.dart';
 import '../../pos/presentation/widgets/category_selector.dart';
 import '../../pos/presentation/widgets/product_search_field.dart';
@@ -29,7 +30,7 @@ class ProductsScreen extends ConsumerWidget {
         title: const Text('Products'),
         actions: [
           if (state is ProductsLoaded)
-            IconButton(
+            pos_ui.IconButton(
               onPressed: () {
                 context.push('/products/categories');
               },
@@ -45,9 +46,9 @@ class ProductsScreen extends ConsumerWidget {
           ? FloatingActionButton.extended(
               onPressed: canModify
                   ? () => context.push(
-                        '/products/form',
-                        extra: ProductFormArgs(categories: state.categories),
-                      )
+                      '/products/form',
+                      extra: ProductFormArgs(categories: state.categories),
+                    )
                   : null,
               tooltip: canModify ? 'Add Product' : 'Subscription is read-only',
               icon: const Icon(Icons.add),
@@ -57,24 +58,21 @@ class ProductsScreen extends ConsumerWidget {
       body: switch (state) {
         ProductsLoading() => const Center(child: CircularProgressIndicator()),
         ProductsError(:final message) => _ProductsErrorView(
-            message: message,
-            onRetry: () =>
-                ref.read(productsControllerProvider.notifier).refresh(),
-          ),
+          message: message,
+          onRetry: () =>
+              ref.read(productsControllerProvider.notifier).refresh(),
+        ),
         ProductsLoaded loaded => _ProductsBody(
-            state: loaded,
-            canModify: canModify,
-          ),
+          state: loaded,
+          canModify: canModify,
+        ),
       },
     );
   }
 }
 
 class _ProductsBody extends ConsumerStatefulWidget {
-  const _ProductsBody({
-    required this.state,
-    required this.canModify,
-  });
+  const _ProductsBody({required this.state, required this.canModify});
 
   final ProductsLoaded state;
   final bool canModify;
@@ -99,12 +97,14 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
           'it is not deleted.',
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Disable')),
+          pos_ui.SecondaryButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          pos_ui.PrimaryButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Disable'),
+          ),
         ],
       ),
     );
@@ -124,13 +124,13 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
           .setProductActive(product.id, false);
       if (!mounted) return;
       ref.read(productsControllerProvider.notifier).refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${product.name}" disabled')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('"${product.name}" disabled')));
     } catch (e) {
       if (!mounted) return;
-      final message =
-          e is ApiException ? e.message : 'Could not disable this product';
+      final message = e is ApiException
+          ? e.message
+          : 'Could not disable this product';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     } finally {
@@ -146,7 +146,7 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
       onRefresh: () => ref.read(productsControllerProvider.notifier).refresh(),
       child: Column(
         children: [
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _SearchAndCategoryRow(state: widget.state),
           const SizedBox(height: 8),
           Expanded(
@@ -156,7 +156,7 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
                     // pull-to-refresh still works from this state.
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      _EmptyProducts(isFiltered: widget.state.isFiltered)
+                      _EmptyProducts(isFiltered: widget.state.isFiltered),
                     ],
                   )
                 : ListView.separated(
@@ -173,8 +173,9 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
                           '/products/form',
                           extra: ProductFormArgs(
                             categories: widget.state.categories,
-                            initialProduct:
-                                ManagedProduct.fromPosProduct(product),
+                            initialProduct: ManagedProduct.fromPosProduct(
+                              product,
+                            ),
                           ),
                         ),
                         onDisable: () => _confirmAndDisable(product),
@@ -238,7 +239,7 @@ class _EmptyProducts extends StatelessWidget {
             size: 48,
             color: theme.colorScheme.outline,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             isFiltered ? 'No matching products found' : 'No products available',
             style: theme.textTheme.titleMedium,
@@ -249,8 +250,9 @@ class _EmptyProducts extends StatelessWidget {
                 ? 'Try a different search or category'
                 : 'Check back once products are added',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -274,17 +276,18 @@ class _ProductsErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text('Could not load products', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

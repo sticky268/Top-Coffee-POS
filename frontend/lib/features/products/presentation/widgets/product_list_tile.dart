@@ -76,8 +76,11 @@ class ProductListTile extends StatelessWidget {
       title: Text(product.name),
       subtitle: subtitleParts.isEmpty
           ? null
-          : Text(subtitleParts.join(' · '),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
+          : Text(
+              subtitleParts.join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
       trailing: isDisabling
           ? const SizedBox(
               width: 20,
@@ -90,8 +93,9 @@ class ProductListTile extends StatelessWidget {
                 Text(priceLabel, style: theme.textTheme.titleMedium),
                 PopupMenuButton<String>(
                   enabled: canModify && !isDisabling,
-                  tooltip:
-                      canModify ? 'More actions' : 'Subscription is read-only',
+                  tooltip: canModify
+                      ? 'More actions'
+                      : 'Subscription is read-only',
                   onSelected: (value) {
                     if (value == 'disable' && canModify) {
                       onDisable();

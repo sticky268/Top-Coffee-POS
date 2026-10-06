@@ -22,7 +22,9 @@ class SalesOverviewChart extends StatelessWidget {
         child: Center(
           child: Text(
             'No sales data yet',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       );
@@ -49,17 +51,22 @@ class SalesOverviewChart extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.bottomCenter,
                         child: FractionallySizedBox(
-                          heightFactor: (point.total / safeMax).clamp(0.03, 1.0),
+                          heightFactor: (point.total / safeMax).clamp(
+                            0.03,
+                            1.0,
+                          ),
                           child: Container(
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primary,
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(4),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       dayFormat.format(point.date),
                       textAlign: TextAlign.center,

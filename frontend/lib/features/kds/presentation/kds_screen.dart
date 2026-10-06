@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/kds_controller.dart';
 import '../application/kds_state.dart';
 import '../domain/kds_models.dart';
@@ -38,9 +39,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
   void _loadForCurrentBranch() {
     final branchId = ref.read(currentBranchProvider)?.id;
 
-    ref.read(kdsControllerProvider.notifier).loadTickets(
-          branchId: branchId,
-        );
+    ref.read(kdsControllerProvider.notifier).loadTickets(branchId: branchId);
   }
 
   @override
@@ -59,7 +58,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
       appBar: AppBar(
         title: const Text('Kitchen Display'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: state.isLoading ? null : _loadForCurrentBranch,
             icon: const Icon(Icons.refresh),
@@ -71,29 +70,17 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
           _loadForCurrentBranch();
 
           while (ref.read(kdsControllerProvider).isLoading) {
-            await Future<void>.delayed(
-              const Duration(milliseconds: 100),
-            );
+            await Future<void>.delayed(const Duration(milliseconds: 100));
           }
         },
-        child: _buildBody(
-          context,
-          state,
-          branch?.name,
-        ),
+        child: _buildBody(context, state, branch?.name),
       ),
     );
   }
 
-  Widget _buildBody(
-    BuildContext context,
-    KdsState state,
-    String? branchName,
-  ) {
+  Widget _buildBody(BuildContext context, KdsState state, String? branchName) {
     if (state.isLoading && state.tickets.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state.errorMessage != null && state.tickets.isEmpty) {
@@ -101,22 +88,16 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-          ),
-          const SizedBox(height: 12),
+          const Icon(Icons.error_outline, size: 48),
+          const SizedBox(height: 16),
           const Text(
             'Unable to load kitchen tickets.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          Text(
-            state.errorMessage!,
-            textAlign: TextAlign.center,
-          ),
+          Text(state.errorMessage!, textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          FilledButton(
+          pos_ui.PrimaryButton(
             onPressed: _loadForCurrentBranch,
             child: const Text('Retry'),
           ),
@@ -125,21 +106,16 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
     }
 
     final newTickets = _ticketsForStatus(state.tickets, 'new');
-    final preparingTickets =
-        _ticketsForStatus(state.tickets, 'preparing');
+    final preparingTickets = _ticketsForStatus(state.tickets, 'preparing');
     final readyTickets = _ticketsForStatus(state.tickets, 'ready');
-    final completedTickets =
-        _ticketsForStatus(state.tickets, 'completed');
+    final completedTickets = _ticketsForStatus(state.tickets, 'completed');
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         if (branchName != null) ...[
-          Text(
-            branchName,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text(branchName, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 16),
         ],
         _buildSection(
@@ -148,21 +124,21 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
           tickets: newTickets,
           emptyText: 'No new orders',
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         _buildSection(
           context,
           title: 'PREPARING',
           tickets: preparingTickets,
           emptyText: 'Nothing is being prepared',
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         _buildSection(
           context,
           title: 'READY',
           tickets: readyTickets,
           emptyText: 'No orders ready',
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         _buildSection(
           context,
           title: 'COMPLETED',
@@ -191,10 +167,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
       children: [
         Row(
           children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 12,
@@ -205,7 +178,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         if (tickets.isEmpty)
           Card(
             child: Padding(
@@ -216,7 +189,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
         else
           ...tickets.map(
             (ticket) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 16),
               child: KdsTicketCard(ticket: ticket),
             ),
           ),
@@ -226,10 +199,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
 }
 
 class KdsTicketCard extends ConsumerWidget {
-  const KdsTicketCard({
-    required this.ticket,
-    super.key,
-  });
+  const KdsTicketCard({required this.ticket, super.key});
 
   final KitchenTicket ticket;
 
@@ -267,9 +237,7 @@ class KdsTicketCard extends ConsumerWidget {
                   ),
                 ),
                 if (ticket.order.table != null)
-                  Chip(
-                    label: Text(ticket.order.table!.name),
-                  ),
+                  Chip(label: Text(ticket.order.table!.name)),
               ],
             ),
             const SizedBox(height: 4),
@@ -277,7 +245,7 @@ class KdsTicketCard extends ConsumerWidget {
               _formatOrderType(ticket.order.orderType),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
             ...ticket.order.items.map(
@@ -290,9 +258,7 @@ class KdsTicketCard extends ConsumerWidget {
                       width: 48,
                       child: Text(
                         _formatQuantity(item.quantity),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                     Expanded(
@@ -303,16 +269,12 @@ class KdsTicketCard extends ConsumerWidget {
                           if (item.variantName != null)
                             Text(
                               item.variantName!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall,
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           if (item.notes?.trim().isNotEmpty ?? false)
                             Text(
                               'Note: ${item.notes}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall,
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                         ],
                       ),
@@ -322,10 +284,10 @@ class KdsTicketCard extends ConsumerWidget {
               ),
             ),
             if (nextStatus != null && buttonText != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
+                child: pos_ui.PrimaryButton(
                   onPressed: isUpdating
                       ? null
                       : () {
@@ -336,15 +298,8 @@ class KdsTicketCard extends ConsumerWidget {
                                 status: nextStatus,
                               );
                         },
-                  child: isUpdating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(buttonText),
+                  isLoading: isUpdating,
+                  child: Text(buttonText),
                 ),
               ),
             ],

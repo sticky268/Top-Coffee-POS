@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../application/branch_list_controller.dart';
@@ -41,9 +42,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
       _selectedActive = isActive;
     });
 
-    await ref
-        .read(branchListControllerProvider.notifier)
-        .setActive(isActive);
+    await ref.read(branchListControllerProvider.notifier).setActive(isActive);
   }
 
   Future<void> _clearFilters() async {
@@ -53,9 +52,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
       _selectedActive = null;
     });
 
-    await ref
-        .read(branchListControllerProvider.notifier)
-        .clearFilters();
+    await ref.read(branchListControllerProvider.notifier).clearFilters();
   }
 
   @override
@@ -63,20 +60,14 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
     final authState = ref.watch(authControllerProvider);
 
     if (authState is! AuthAuthenticated) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final user = authState.user;
 
     if (!user.hasPermission('branches.manage')) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Branches'),
-        ),
+        appBar: AppBar(title: const Text('Branches')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -95,14 +86,12 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
       appBar: AppBar(
         title: const Text('Branches'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             onPressed: () async {
               final created = await context.push<bool>('/branches/add');
 
               if (created == true && mounted) {
-                await ref
-                    .read(branchListControllerProvider.notifier)
-                    .refresh();
+                await ref.read(branchListControllerProvider.notifier).refresh();
               }
             },
             icon: const Icon(Icons.add_business_outlined),
@@ -114,9 +103,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
         children: [
           _buildSearch(),
           _buildFilters(),
-          Expanded(
-            child: _buildBody(state),
-          ),
+          Expanded(child: _buildBody(state)),
         ],
       ),
     );
@@ -124,7 +111,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
 
   Widget _buildSearch() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: TextField(
         controller: _searchController,
         textInputAction: TextInputAction.search,
@@ -134,7 +121,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
               ? null
-              : IconButton(
+              : pos_ui.IconButton(
                   onPressed: () async {
                     _searchController.clear();
 
@@ -148,7 +135,9 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
                   },
                   icon: const Icon(Icons.clear),
                 ),
-          border: const OutlineInputBorder(),
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+          ),
         ),
         onChanged: (_) {
           setState(() {});
@@ -168,26 +157,16 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
               value: _selectedActive,
               hint: const Text('Status'),
               items: const [
-                DropdownMenuItem<bool?>(
-                  value: null,
-                  child: Text('All status'),
-                ),
-                DropdownMenuItem<bool?>(
-                  value: true,
-                  child: Text('Active'),
-                ),
-                DropdownMenuItem<bool?>(
-                  value: false,
-                  child: Text('Inactive'),
-                ),
+                DropdownMenuItem<bool?>(value: null, child: Text('All status')),
+                DropdownMenuItem<bool?>(value: true, child: Text('Active')),
+                DropdownMenuItem<bool?>(value: false, child: Text('Inactive')),
               ],
               onChanged: _setActive,
             ),
           ),
-          if (_selectedActive != null ||
-              _searchController.text.isNotEmpty) ...[
+          if (_selectedActive != null || _searchController.text.isNotEmpty) ...[
             const SizedBox(width: 8),
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: _clearFilters,
               child: const Text('Clear'),
             ),
@@ -199,9 +178,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
 
   Widget _buildBody(BranchListState state) {
     if (state is BranchListLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state is BranchListError) {
@@ -214,10 +191,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  state.message,
-                  textAlign: TextAlign.center,
-                ),
+                child: Text(state.message, textAlign: TextAlign.center),
               ),
             ),
           ],
@@ -234,14 +208,9 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 180),
-            Icon(
-              Icons.account_tree_outlined,
-              size: 64,
-            ),
+            Icon(Icons.account_tree_outlined, size: 64),
             SizedBox(height: 16),
-            Center(
-              child: Text('No branches found'),
-            ),
+            Center(child: Text('No branches found')),
           ],
         ),
       );
@@ -262,16 +231,13 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
         child: ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          itemCount:
-              loaded.branches.length + (loaded.isLoadingMore ? 1 : 0),
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemCount: loaded.branches.length + (loaded.isLoadingMore ? 1 : 0),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             if (index >= loaded.branches.length) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
@@ -299,10 +265,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
 }
 
 class _BranchCard extends StatelessWidget {
-  const _BranchCard({
-    required this.branch,
-    required this.onTap,
-  });
+  const _BranchCard({required this.branch, required this.onTap});
 
   final Branch branch;
   final VoidCallback onTap;
@@ -314,18 +277,9 @@ class _BranchCard extends StatelessWidget {
     return Card(
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
-        leading: const CircleAvatar(
-          child: Icon(Icons.account_tree_outlined),
-        ),
-        title: Text(
-          branch.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: const CircleAvatar(child: Icon(Icons.account_tree_outlined)),
+        title: Text(branch.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Column(
@@ -338,8 +292,7 @@ class _BranchCard extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
               ),
-              if (branch.address != null &&
-                  branch.address!.isNotEmpty)
+              if (branch.address != null && branch.address!.isNotEmpty)
                 Text(
                   branch.address!,
                   maxLines: 1,
@@ -360,14 +313,10 @@ class _BranchCard extends StatelessWidget {
           children: [
             Text(
               '${branch.usersCount} ${branch.usersCount == 1 ? 'user' : 'users'}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 6),
-            Text(
-              branch.isActive ? 'Active' : 'Inactive',
-            ),
+            const SizedBox(height: 8),
+            Text(branch.isActive ? 'Active' : 'Inactive'),
           ],
         ),
       ),

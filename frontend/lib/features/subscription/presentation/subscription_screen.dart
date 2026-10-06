@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/subscription_controller.dart';
 import '../application/subscription_state.dart';
 
@@ -15,12 +16,10 @@ class SubscriptionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Subscription'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: () {
-              ref
-                  .read(subscriptionControllerProvider.notifier)
-                  .refresh();
+              ref.read(subscriptionControllerProvider.notifier).refresh();
             },
             icon: const Icon(Icons.refresh),
           ),
@@ -28,48 +27,38 @@ class SubscriptionScreen extends ConsumerWidget {
       ),
       body: switch (state) {
         SubscriptionLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: CircularProgressIndicator(),
+        ),
         SubscriptionError(:final message) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () {
-                      ref
-                          .read(subscriptionControllerProvider.notifier)
-                          .refresh();
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48),
+                const SizedBox(height: 16),
+                Text(message, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                pos_ui.PrimaryButton(
+                  onPressed: () {
+                    ref.read(subscriptionControllerProvider.notifier).refresh();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
           ),
+        ),
         SubscriptionLoaded(:final subscription) => _SubscriptionContent(
-            subscription: subscription,
-          ),
+          subscription: subscription,
+        ),
       },
     );
   }
 }
 
 class _SubscriptionContent extends StatelessWidget {
-  const _SubscriptionContent({
-    required this.subscription,
-  });
+  const _SubscriptionContent({required this.subscription});
 
   final dynamic subscription;
 
@@ -100,7 +89,7 @@ class _SubscriptionContent extends StatelessWidget {
               ),
             ),
           ),
-        if (subscription.isReadOnly) const SizedBox(height: 12),
+        if (subscription.isReadOnly) const SizedBox(height: 16),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -109,10 +98,7 @@ class _SubscriptionContent extends StatelessWidget {
               children: [
                 const Text(
                   'Current Plan',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -121,15 +107,13 @@ class _SubscriptionContent extends StatelessWidget {
                 ),
                 if (plan != null) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    '${_formatPrice(plan.price)} / ${plan.billingInterval}',
-                  ),
+                  Text('${_formatPrice(plan.price)} / ${plan.billingInterval}'),
                 ],
               ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Card(
           child: ListTile(
             leading: const Icon(Icons.account_tree_outlined),
@@ -145,7 +129,7 @@ class _SubscriptionContent extends StatelessWidget {
                   ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Card(
           child: Column(
             children: [

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
+
 class QuickAction {
-  const QuickAction({required this.label, required this.icon, required this.onTap});
+  const QuickAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   final String label;
   final IconData icon;
@@ -9,7 +15,11 @@ class QuickAction {
 }
 
 class QuickActionsGrid extends StatelessWidget {
-  const QuickActionsGrid({super.key, required this.actions, required this.crossAxisCount});
+  const QuickActionsGrid({
+    super.key,
+    required this.actions,
+    required this.crossAxisCount,
+  });
 
   final List<QuickAction> actions;
   final int crossAxisCount;
@@ -20,12 +30,14 @@ class QuickActionsGrid extends StatelessWidget {
       crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
       // 1.25 rather than 1.4 — a little more height headroom before the
       // compact tier below has to kick in (same rationale as StatCardsGrid).
       childAspectRatio: 1.25,
-      children: [for (final action in actions) _QuickActionButton(action: action)],
+      children: [
+        for (final action in actions) _QuickActionButton(action: action),
+      ],
     );
   }
 }
@@ -39,14 +51,23 @@ class _QuickActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isPrimary = action.label == 'New Order';
-    final iconColor = isPrimary ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant;
-    final textColor = isPrimary ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
+    final iconColor = isPrimary
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurfaceVariant;
+    final textColor = isPrimary
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface;
 
     return Material(
-      color: isPrimary ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+      color: isPrimary ? theme.colorScheme.primary : theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: isPrimary
+            ? BorderSide.none
+            : BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      child: pos_ui.ActionSurface(
+        borderRadius: BorderRadius.circular(14),
         onTap: action.onTap,
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -56,7 +77,9 @@ class _QuickActionButton extends StatelessWidget {
             final isCompact = constraints.maxHeight < 64;
             final padding = isCompact ? 6.0 : 12.0;
             final gap = isCompact ? 2.0 : 8.0;
-            final labelFontSize = isCompact ? 11.0 : null; // null keeps theme default
+            final labelFontSize = isCompact
+                ? 11.0
+                : null; // null keeps theme default
 
             return Padding(
               padding: EdgeInsets.all(padding),

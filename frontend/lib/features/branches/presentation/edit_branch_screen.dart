@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/branch_repository.dart';
 import '../domain/branch_models.dart';
 
 class EditBranchScreen extends ConsumerStatefulWidget {
-  const EditBranchScreen({
-    required this.branchId,
-    super.key,
-  });
+  const EditBranchScreen({required this.branchId, super.key});
 
   final int branchId;
 
@@ -50,8 +48,9 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
 
   Future<void> _loadBranch() async {
     try {
-      final branch =
-          await ref.read(branchRepositoryProvider).getBranch(widget.branchId);
+      final branch = await ref
+          .read(branchRepositoryProvider)
+          .getBranch(widget.branchId);
 
       if (!mounted) return;
 
@@ -84,7 +83,9 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
     });
 
     try {
-      await ref.read(branchRepositoryProvider).updateBranch(
+      await ref
+          .read(branchRepositoryProvider)
+          .updateBranch(
             id: widget.branchId,
             name: _nameController.text.trim(),
             code: _codeController.text.trim(),
@@ -97,9 +98,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Branch updated successfully'),
-        ),
+        const SnackBar(content: Text('Branch updated successfully')),
       );
 
       Navigator.of(context).pop(true);
@@ -126,11 +125,11 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
             'This will delete "${branch.name}". This action cannot be undone.',
           ),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.DangerButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete'),
             ),
@@ -152,9 +151,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Branch deleted successfully'),
-        ),
+        const SnackBar(content: Text('Branch deleted successfully')),
       );
 
       Navigator.of(context).pop(true);
@@ -180,12 +177,8 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Edit Branch'),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        appBar: AppBar(title: const Text('Edit Branch')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -193,18 +186,11 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
       appBar: AppBar(
         title: const Text('Edit Branch'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Delete branch',
             onPressed: _isSaving || _isDeleting ? null : _delete,
-            icon: _isDeleting
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.delete_outline),
+            isLoading: _isDeleting,
+            icon: const Icon(Icons.delete_outline),
           ),
         ],
       ),
@@ -293,7 +279,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Card(
                 child: SwitchListTile(
                   title: const Text('Active'),
@@ -311,7 +297,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
                 ),
               ),
               if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Card(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: Padding(
@@ -319,28 +305,19 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
                     child: Text(
                       _errorMessage!,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onErrorContainer,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
                       ),
                     ),
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               SizedBox(
                 height: 52,
-                child: FilledButton(
+                child: pos_ui.PrimaryButton(
                   onPressed: _isSaving || _isDeleting ? null : _save,
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('Save Changes'),
+                  isLoading: _isSaving,
+                  child: const Text('Save Changes'),
                 ),
               ),
             ],

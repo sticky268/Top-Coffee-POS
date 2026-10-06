@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/branch/current_branch_provider.dart';
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../auth/domain/auth_models.dart';
 
 class DashboardHeader extends ConsumerWidget {
@@ -38,15 +39,12 @@ class DashboardHeader extends ConsumerWidget {
           color: theme.colorScheme.primary,
           size: 32,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Top Coffee POS',
-                style: theme.textTheme.titleLarge,
-              ),
+              Text('Top Coffee POS', style: theme.textTheme.titleLarge),
               const SizedBox(height: 2),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -129,12 +127,12 @@ class DashboardHeader extends ConsumerWidget {
             ],
           ),
         ),
-        const IconButton(
+        const pos_ui.IconButton(
           icon: Icon(Icons.notifications_outlined),
           tooltip: 'Notifications',
           onPressed: null,
         ),
-        IconButton(
+        pos_ui.IconButton(
           icon: const Icon(Icons.logout),
           tooltip: 'Log out',
           onPressed: onLogout,

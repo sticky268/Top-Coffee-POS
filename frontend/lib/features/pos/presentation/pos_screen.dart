@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/pos_catalog_controller.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
@@ -14,10 +15,7 @@ import 'widgets/product_search_field.dart';
 /// in a layout that adapts between a phone (stacked vertically) and a
 /// tablet/desktop (two-panel) arrangement.
 class PosScreen extends ConsumerStatefulWidget {
-  const PosScreen({
-    super.key,
-    this.initialTable,
-  });
+  const PosScreen({super.key, this.initialTable});
 
   final PosTable? initialTable;
 
@@ -57,13 +55,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('New Order'),
-          leading: IconButton(
+          leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
           ),
           actions: [
-            TextButton.icon(
+            pos_ui.SecondaryButton.icon(
               onPressed: _openTableSelector,
               icon: const Icon(Icons.table_restaurant),
               label: const Text('Dine-in'),
@@ -82,15 +80,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               return switch (catalogState) {
                 PosCatalogLoading() => const _CatalogLoading(),
                 PosCatalogError(:final message) => _CatalogErrorView(
-                    message: message,
-                    onRetry: () => ref
-                        .read(posCatalogControllerProvider.notifier)
-                        .refresh(),
-                  ),
+                  message: message,
+                  onRetry: () =>
+                      ref.read(posCatalogControllerProvider.notifier).refresh(),
+                ),
                 PosCatalogLoaded(
                   :final categories,
                   :final selectedCategoryId,
-                  :final visibleProducts
+                  :final visibleProducts,
                 ) =>
                   isCompact
                       ? _PhoneLayout(
@@ -135,7 +132,7 @@ class _PhoneLayout extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         ProductSearchField(
           onChanged: (query) => ref
               .read(posCatalogControllerProvider.notifier)
@@ -158,10 +155,7 @@ class _PhoneLayout extends ConsumerWidget {
           ),
         ),
         const Divider(height: 1),
-        Expanded(
-          flex: 2,
-          child: CartPanel(selectedTable: selectedTable),
-        ),
+        Expanded(flex: 2, child: CartPanel(selectedTable: selectedTable)),
       ],
     );
   }
@@ -191,7 +185,7 @@ class _TabletLayout extends ConsumerWidget {
           flex: 3,
           child: Column(
             children: [
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               ProductSearchField(
                 onChanged: (query) => ref
                     .read(posCatalogControllerProvider.notifier)
@@ -216,10 +210,7 @@ class _TabletLayout extends ConsumerWidget {
           ),
         ),
         const VerticalDivider(width: 1),
-        SizedBox(
-          width: 340,
-          child: CartPanel(selectedTable: selectedTable),
-        ),
+        SizedBox(width: 340, child: CartPanel(selectedTable: selectedTable)),
       ],
     );
   }
@@ -230,17 +221,12 @@ class _CatalogLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
 class _CatalogErrorView extends StatelessWidget {
-  const _CatalogErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _CatalogErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -255,16 +241,9 @@ class _CatalogErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 40,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Could not load the menu',
-              style: theme.textTheme.titleMedium,
-            ),
+            Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
+            Text('Could not load the menu', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
               message,
@@ -274,7 +253,7 @@ class _CatalogErrorView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

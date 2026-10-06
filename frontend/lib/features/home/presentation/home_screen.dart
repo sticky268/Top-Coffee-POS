@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 
@@ -19,7 +20,7 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Top Coffee POS'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
             onPressed: () => ref.read(authControllerProvider.notifier).logout(),
@@ -32,10 +33,15 @@ class HomeScreen extends ConsumerWidget {
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Welcome, ${user.name}', style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'Welcome, ${user.name}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 8),
                   Text('Roles: ${user.roles.join(', ')}'),
-                  Text('Branches: ${user.branches.map((b) => b.name).join(', ')}'),
+                  Text(
+                    'Branches: ${user.branches.map((b) => b.name).join(', ')}',
+                  ),
                 ],
               ),
       ),

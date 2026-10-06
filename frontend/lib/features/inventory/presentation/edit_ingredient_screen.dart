@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
-
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/inventory_list_controller.dart';
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
 
 class EditIngredientScreen extends ConsumerStatefulWidget {
-  const EditIngredientScreen({
-    super.key,
-    required this.ingredient,
-  });
+  const EditIngredientScreen({super.key, required this.ingredient});
 
   final InventoryIngredient ingredient;
 
@@ -143,16 +140,12 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Ingredient'),
-      ),
+      appBar: AppBar(title: const Text('Edit Ingredient')),
       body: _isLoadingUnits
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _units.isEmpty
-              ? _buildNoUnitsState()
-              : _buildForm(),
+          ? _buildNoUnitsState()
+          : _buildForm(),
     );
   }
 
@@ -163,19 +156,14 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.warning_amber_outlined,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.warning_amber_outlined, size: 48),
+            const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'No units are available.',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: _loadUnits,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -192,9 +180,7 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
       padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 600,
-          ),
+          constraints: const BoxConstraints(maxWidth: 600),
           child: Form(
             key: _formKey,
             child: Column(
@@ -238,9 +224,7 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
                   items: _units.map((unit) {
                     return DropdownMenuItem<InventoryUnit>(
                       value: unit,
-                      child: Text(
-                        '${unit.name} (${unit.abbreviation})',
-                      ),
+                      child: Text('${unit.name} (${unit.abbreviation})'),
                     );
                   }).toList(),
                   onChanged: _isSaving || !canModify
@@ -320,26 +304,19 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
+                      child: pos_ui.OutlinedButton(
                         onPressed: _isSaving
                             ? null
                             : () => Navigator.of(context).pop(),
                         child: const Text('Cancel'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: FilledButton(
+                      child: pos_ui.PrimaryButton(
                         onPressed: _isSaving || !canModify ? null : _save,
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Save Changes'),
+                        isLoading: _isSaving,
+                        child: const Text('Save Changes'),
                       ),
                     ),
                   ],

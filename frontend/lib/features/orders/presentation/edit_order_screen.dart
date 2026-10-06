@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../pos/application/pos_catalog_controller.dart';
 import '../../pos/application/pos_catalog_state.dart';
 import '../../pos/domain/pos_models.dart';
@@ -24,18 +25,17 @@ class EditOrderScreen extends ConsumerWidget {
     final orderState = ref.watch(orderDetailControllerProvider(orderId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Edit Order #$orderId'),
-      ),
+      appBar: AppBar(title: Text('Edit Order #$orderId')),
       body: switch (orderState) {
-        OrderDetailLoading() =>
-          const Center(child: CircularProgressIndicator()),
+        OrderDetailLoading() => const Center(
+          child: CircularProgressIndicator(),
+        ),
         OrderDetailError(:final message) => _ErrorView(
-            message: message,
-            onRetry: () => ref
-                .read(orderDetailControllerProvider(orderId).notifier)
-                .refresh(),
-          ),
+          message: message,
+          onRetry: () => ref
+              .read(orderDetailControllerProvider(orderId).notifier)
+              .refresh(),
+        ),
         OrderDetailLoaded(:final order) => _EditOrderBody(order: order),
       },
     );
@@ -52,14 +52,12 @@ class _EditOrderBody extends ConsumerWidget {
     final catalogState = ref.watch(posCatalogControllerProvider);
 
     return switch (catalogState) {
-      PosCatalogLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
+      PosCatalogLoading() => const Center(child: CircularProgressIndicator()),
       PosCatalogError(:final message) => _ErrorView(
-          message: message,
-          onRetry: () =>
-              ref.read(posCatalogControllerProvider.notifier).refresh(),
-        ),
+        message: message,
+        onRetry: () =>
+            ref.read(posCatalogControllerProvider.notifier).refresh(),
+      ),
       PosCatalogLoaded(
         :final categories,
         :final selectedCategoryId,
@@ -115,10 +113,7 @@ class _LoadedEditOrderBody extends ConsumerWidget {
               const Divider(height: 1),
               Expanded(
                 flex: 2,
-                child: _EditCartPanel(
-                  order: order,
-                  state: editState,
-                ),
+                child: _EditCartPanel(order: order, state: editState),
               ),
             ],
           );
@@ -140,10 +135,7 @@ class _LoadedEditOrderBody extends ConsumerWidget {
             const VerticalDivider(width: 1),
             SizedBox(
               width: 360,
-              child: _EditCartPanel(
-                order: order,
-                state: editState,
-              ),
+              child: _EditCartPanel(order: order, state: editState),
             ),
           ],
         );
@@ -173,7 +165,7 @@ class _CatalogSection extends ConsumerWidget {
 
     return Column(
       children: [
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         ProductSearchField(
           onChanged: (query) => ref
               .read(posCatalogControllerProvider.notifier)
@@ -203,10 +195,7 @@ class _CatalogSection extends ConsumerWidget {
 }
 
 class _EditCartPanel extends ConsumerWidget {
-  const _EditCartPanel({
-    required this.order,
-    required this.state,
-  });
+  const _EditCartPanel({required this.order, required this.state});
 
   final OrderDetail order;
   final EditOrderState state;
@@ -221,17 +210,14 @@ class _EditCartPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  'Edited Order',
-                  style: theme.textTheme.titleMedium,
-                ),
+                child: Text('Edited Order', style: theme.textTheme.titleMedium),
               ),
               if (!state.isEmpty)
-                TextButton.icon(
+                pos_ui.DangerButton.outlinedIcon(
                   onPressed: state.isSaving
                       ? null
                       : () => _confirmClear(context, controller),
@@ -294,20 +280,20 @@ class _EditCartPanel extends ConsumerWidget {
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: pos_ui.OutlinedButton(
                       onPressed: state.isSaving
                           ? null
                           : () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
-                    child: FilledButton(
+                    child: pos_ui.PrimaryButton(
                       onPressed: state.isSaving || state.isEmpty
                           ? null
                           : () => _save(context, ref, order),
@@ -315,9 +301,7 @@ class _EditCartPanel extends ConsumerWidget {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('Save Changes'),
                     ),
@@ -339,15 +323,13 @@ class _EditCartPanel extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear edited order?'),
-        content: const Text(
-          'This removes all items from the edited order.',
-        ),
+        content: const Text('This removes all items from the edited order.'),
         actions: [
-          TextButton(
+          pos_ui.SecondaryButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          pos_ui.PrimaryButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Clear'),
           ),
@@ -360,24 +342,21 @@ class _EditCartPanel extends ConsumerWidget {
     }
   }
 
-
   Future<void> _save(
-  BuildContext context,
-  WidgetRef ref,
-  OrderDetail order,
-) async {
-  final controller = ref.read(editOrderControllerProvider(order).notifier);
+    BuildContext context,
+    WidgetRef ref,
+    OrderDetail order,
+  ) async {
+    final controller = ref.read(editOrderControllerProvider(order).notifier);
 
-  final updated = await controller.save(
-    branchId: order.branch?.id,
-  );
+    final updated = await controller.save(branchId: order.branch?.id);
 
-  if (!context.mounted || updated == null) {
-    return;
+    if (!context.mounted || updated == null) {
+      return;
+    }
+
+    Navigator.of(context).pop(true);
   }
-
-  Navigator.of(context).pop(true);
-}
 }
 
 class _EditCartLine extends ConsumerWidget {
@@ -402,18 +381,14 @@ class _EditCartLine extends ConsumerWidget {
         : item.product.name;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
                 Text(
                   '${item.quantity} × ${currency.format(item.unitPrice)}',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -423,7 +398,7 @@ class _EditCartLine extends ConsumerWidget {
               ],
             ),
           ),
-          IconButton(
+          pos_ui.IconButton(
             icon: const Icon(Icons.remove_circle_outline),
             visualDensity: VisualDensity.compact,
             onPressed: enabled
@@ -431,7 +406,7 @@ class _EditCartLine extends ConsumerWidget {
                 : null,
           ),
           Text('${item.quantity}'),
-          IconButton(
+          pos_ui.IconButton(
             icon: const Icon(Icons.add_circle_outline),
             visualDensity: VisualDensity.compact,
             onPressed: enabled
@@ -488,19 +463,26 @@ class _DiscountEditorState extends State<_DiscountEditor> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Discount', style: theme.textTheme.bodyMedium),
-            TextButton(
-              onPressed:
-                  widget.enabled ? () => setState(() => _editing = true) : null,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Discount', style: theme.textTheme.bodyMedium),
+                  if (widget.value > 0)
+                    Text(
+                      '- ${NumberFormat.currency(symbol: '\$').format(widget.value)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
               ),
-              child: Text(
-                widget.value > 0
-                    ? '- ${NumberFormat.currency(symbol: '\$').format(widget.value)}'
-                    : 'Add',
-              ),
+            ),
+            const SizedBox(width: 8),
+            pos_ui.OutlinedButton.icon(
+              onPressed: widget.enabled
+                  ? () => setState(() => _editing = true)
+                  : null,
+              icon: const Icon(Icons.discount_outlined),
+              label: Text(widget.value > 0 ? 'Edit discount' : 'Add discount'),
             ),
           ],
         ),
@@ -512,7 +494,7 @@ class _DiscountEditorState extends State<_DiscountEditor> {
       child: Row(
         children: [
           Text('Discount', style: theme.textTheme.bodyMedium),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: TextField(
               controller: _controller,
@@ -529,7 +511,7 @@ class _DiscountEditorState extends State<_DiscountEditor> {
               onSubmitted: (_) => _apply(),
             ),
           ),
-          IconButton(
+          pos_ui.IconButton(
             icon: const Icon(Icons.check, size: 20),
             visualDensity: VisualDensity.compact,
             onPressed: widget.enabled ? _apply : null,
@@ -550,10 +532,7 @@ class _DiscountEditorState extends State<_DiscountEditor> {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryLine({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -564,20 +543,14 @@ class _SummaryLine extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value),
-        ],
+        children: [Text(label), Text(value)],
       ),
     );
   }
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -592,12 +565,8 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 40,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 12),
+            Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
             Text(
               'Could not load this order',
               style: theme.textTheme.titleMedium,
@@ -609,7 +578,7 @@ class _ErrorView extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

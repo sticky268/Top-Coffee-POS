@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/managed_product_models.dart';
 
 /// Shows a dialog to add ([initial] == null) or edit ([initial] != null)
@@ -56,7 +57,8 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final skuText = _skuController.text.trim();
-    final base = widget.initial ?? const ManagedProductVariant(name: '', priceDelta: 0);
+    final base =
+        widget.initial ?? const ManagedProductVariant(name: '', priceDelta: 0);
 
     final result = base.copyWith(
       name: _nameController.text.trim(),
@@ -73,48 +75,60 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.initial == null ? 'Add Variant' : 'Edit Variant'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Name'),
-              validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a name' : null,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _skuController,
-              decoration: const InputDecoration(labelText: 'SKU (optional)'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _priceDeltaController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-              decoration: const InputDecoration(
-                labelText: 'Price adjustment',
-                helperText: 'Added to the base price — e.g. 0.50 or -0.25',
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Name'),
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? 'Enter a name'
+                    : null,
+                textInputAction: TextInputAction.next,
               ),
-              validator: (value) =>
-                  double.tryParse((value ?? '').trim()) == null ? 'Enter a valid amount' : null,
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Active'),
-              value: _isActive,
-              onChanged: (value) => setState(() => _isActive = value),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _skuController,
+                decoration: const InputDecoration(labelText: 'SKU (optional)'),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _priceDeltaController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Price adjustment',
+                  helperText: 'Added to the base price — e.g. 0.50 or -0.25',
+                ),
+                validator: (value) =>
+                    double.tryParse((value ?? '').trim()) == null
+                    ? 'Enter a valid amount'
+                    : null,
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Active'),
+                value: _isActive,
+                onChanged: (value) => setState(() => _isActive = value),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _save, child: const Text('Save')),
+        pos_ui.SecondaryButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        pos_ui.PrimaryButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

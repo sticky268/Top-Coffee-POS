@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../auth/domain/auth_models.dart';
-import '../../../core/branch/current_branch_provider.dart';
 import '../application/supplier_list_controller.dart';
 import '../application/supplier_list_state.dart';
 import '../data/supplier_repository.dart';
@@ -32,14 +33,10 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
     return ref.read(supplierListControllerProvider.notifier).refresh();
   }
 
-  Future<void> _openSupplierForm({
-    PurchaseSupplier? supplier,
-  }) async {
+  Future<void> _openSupplierForm({PurchaseSupplier? supplier}) async {
     final changed = await showDialog<bool>(
       context: context,
-      builder: (_) => _SupplierFormDialog(
-        supplier: supplier,
-      ),
+      builder: (_) => _SupplierFormDialog(supplier: supplier),
     );
 
     if (changed == true && mounted) {
@@ -57,11 +54,11 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
             'This will delete "${supplier.name}". This action cannot be undone.',
           ),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.DangerButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Delete'),
             ),
@@ -80,22 +77,15 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Supplier deleted successfully.'),
-        ),
+        const SnackBar(content: Text('Supplier deleted successfully.')),
       );
 
       await _refresh();
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -104,7 +94,8 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
     final state = ref.watch(supplierListControllerProvider);
 
     final authState = ref.watch(authControllerProvider);
-    final canManage = authState is AuthAuthenticated &&
+    final canManage =
+        authState is AuthAuthenticated &&
         authState.user.hasPermission('inventory.manage');
 
     final filteredSuppliers = state is SupplierListLoaded
@@ -125,13 +116,13 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
       appBar: AppBar(
         title: const Text('Suppliers'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             onPressed: _refresh,
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
           if (canManage)
-            IconButton(
+            pos_ui.IconButton(
               onPressed: () => _openSupplierForm(),
               icon: const Icon(Icons.add),
               tooltip: 'Add supplier',
@@ -141,7 +132,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
@@ -154,7 +145,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
-                    : IconButton(
+                    : pos_ui.IconButton(
                         onPressed: () {
                           _searchController.clear();
                           setState(() {
@@ -163,17 +154,13 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                         },
                         icon: const Icon(Icons.clear),
                       ),
-                border: const OutlineInputBorder(),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                ),
               ),
             ),
           ),
-          Expanded(
-            child: _buildBody(
-              state,
-              filteredSuppliers,
-              canManage,
-            ),
-          ),
+          Expanded(child: _buildBody(state, filteredSuppliers, canManage)),
         ],
       ),
       floatingActionButton: canManage
@@ -192,9 +179,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
     bool canManage,
   ) {
     if (state is SupplierListLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state is SupplierListError) {
@@ -207,10 +192,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
             Padding(
               padding: const EdgeInsets.all(24),
               child: Center(
-                child: Text(
-                  state.message,
-                  textAlign: TextAlign.center,
-                ),
+                child: Text(state.message, textAlign: TextAlign.center),
               ),
             ),
           ],
@@ -225,10 +207,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             const SizedBox(height: 160),
-            const Icon(
-              Icons.local_shipping_outlined,
-              size: 64,
-            ),
+            const Icon(Icons.local_shipping_outlined, size: 64),
             const SizedBox(height: 16),
             Center(
               child: Text(
@@ -248,16 +227,14 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
         itemCount: suppliers.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final supplier = suppliers[index];
 
           return _SupplierCard(
             supplier: supplier,
             canManage: canManage,
-            onEdit: () => _openSupplierForm(
-              supplier: supplier,
-            ),
+            onEdit: () => _openSupplierForm(supplier: supplier),
             onDelete: () => _deleteSupplier(supplier),
           );
         },
@@ -311,32 +288,18 @@ class _SupplierCard extends StatelessWidget {
                   ),
                   if (contact != null && contact.isNotEmpty) ...[
                     const SizedBox(height: 5),
-                    Text(
-                      contact,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(contact, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                   if (phone != null && phone.isNotEmpty) ...[
                     const SizedBox(height: 3),
-                    Text(
-                      phone,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(phone, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                   if (email != null && email.isNotEmpty) ...[
                     const SizedBox(height: 3),
-                    Text(
-                      email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(email, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                   const SizedBox(height: 8),
-                  _BranchLabel(
-                    supplier: supplier,
-                  ),
+                  _BranchLabel(supplier: supplier),
                 ],
               ),
             ),
@@ -350,14 +313,8 @@ class _SupplierCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Edit'),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete'),
-                  ),
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
               ),
           ],
@@ -368,9 +325,7 @@ class _SupplierCard extends StatelessWidget {
 }
 
 class _BranchLabel extends ConsumerWidget {
-  const _BranchLabel({
-    required this.supplier,
-  });
+  const _BranchLabel({required this.supplier});
 
   final PurchaseSupplier supplier;
 
@@ -400,17 +355,13 @@ class _BranchLabel extends ConsumerWidget {
 
     return Chip(
       avatar: const Icon(Icons.store_outlined, size: 16),
-      label: Text(
-        currentBranch?.name ?? 'Branch ${supplier.branchId}',
-      ),
+      label: Text(currentBranch?.name ?? 'Branch ${supplier.branchId}'),
     );
   }
 }
 
 class _SupplierFormDialog extends ConsumerStatefulWidget {
-  const _SupplierFormDialog({
-    this.supplier,
-  });
+  const _SupplierFormDialog({this.supplier});
 
   final PurchaseSupplier? supplier;
 
@@ -419,8 +370,7 @@ class _SupplierFormDialog extends ConsumerStatefulWidget {
       _SupplierFormDialogState();
 }
 
-class _SupplierFormDialogState
-    extends ConsumerState<_SupplierFormDialog> {
+class _SupplierFormDialogState extends ConsumerState<_SupplierFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
@@ -439,21 +389,14 @@ class _SupplierFormDialogState
 
     final supplier = widget.supplier;
 
-    _nameController = TextEditingController(
-      text: supplier?.name ?? '',
-    );
+    _nameController = TextEditingController(text: supplier?.name ?? '');
     _contactController = TextEditingController(
       text: supplier?.contactName ?? '',
     );
-    _phoneController = TextEditingController(
-      text: supplier?.phone ?? '',
-    );
-    _emailController = TextEditingController(
-      text: supplier?.email ?? '',
-    );
+    _phoneController = TextEditingController(text: supplier?.phone ?? '');
+    _emailController = TextEditingController(text: supplier?.email ?? '');
 
-    _branchId = supplier?.branchId ??
-        ref.read(currentBranchProvider)?.id;
+    _branchId = supplier?.branchId ?? ref.read(currentBranchProvider)?.id;
   }
 
   @override
@@ -495,9 +438,7 @@ class _SupplierFormDialogState
     if (_branchId == null && !_canManageAllBranches) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Select a branch before saving the supplier.',
-          ),
+          content: Text('Select a branch before saving the supplier.'),
         ),
       );
       return;
@@ -508,9 +449,7 @@ class _SupplierFormDialogState
     });
 
     try {
-      final repository = ref.read(
-        purchaseSupplierRepositoryProvider,
-      );
+      final repository = ref.read(purchaseSupplierRepositoryProvider);
 
       if (_isEditing) {
         await repository.updateSupplier(
@@ -541,13 +480,8 @@ class _SupplierFormDialogState
         _saving = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -557,9 +491,7 @@ class _SupplierFormDialogState
     final canManageAllBranches = _canManageAllBranches;
 
     return AlertDialog(
-      title: Text(
-        _isEditing ? 'Edit Supplier' : 'Add Supplier',
-      ),
+      title: Text(_isEditing ? 'Edit Supplier' : 'Add Supplier'),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -661,9 +593,7 @@ class _SupplierFormDialogState
                     ),
                     child: Text(
                       branches
-                              .where(
-                                (branch) => branch.id == _branchId,
-                              )
+                              .where((branch) => branch.id == _branchId)
                               .map((branch) => branch.name)
                               .firstOrNull ??
                           'Current branch',
@@ -675,23 +605,14 @@ class _SupplierFormDialogState
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _saving
-              ? null
-              : () => Navigator.of(context).pop(false),
+        pos_ui.SecondaryButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
           child: const Text('Cancel'),
         ),
-        FilledButton(
+        pos_ui.PrimaryButton(
           onPressed: _saving ? null : _save,
-          child: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                )
-              : Text(_isEditing ? 'Save Changes' : 'Create'),
+          isLoading: _saving,
+          child: Text(_isEditing ? 'Save Changes' : 'Create'),
         ),
       ],
     );

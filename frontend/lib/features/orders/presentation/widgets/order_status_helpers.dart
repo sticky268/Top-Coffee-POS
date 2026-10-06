@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
+
 /// Maps the real backend order-status enum
 /// (held|new|preparing|ready|completed|cancelled — see the orders table
 /// migration) to display colors/labels.
@@ -13,11 +15,11 @@ import 'package:flutter/material.dart';
 /// depend on. This is a small, independent mapping for the real enum.
 Color orderStatusColor(String status, ColorScheme scheme) {
   return switch (status) {
-    'held' => Colors.grey,
-    'new' => Colors.orange,
-    'preparing' => Colors.blue,
-    'ready' => Colors.teal,
-    'completed' => Colors.green,
+    'held' => AppColors.forScheme(scheme, AppColors.muted),
+    'new' => AppColors.forScheme(scheme, AppColors.warning),
+    'preparing' => AppColors.forScheme(scheme, AppColors.info),
+    'ready' => AppColors.forScheme(scheme, AppColors.ready),
+    'completed' => AppColors.forScheme(scheme, AppColors.success),
     'cancelled' => scheme.error,
     _ => scheme.onSurfaceVariant,
   };

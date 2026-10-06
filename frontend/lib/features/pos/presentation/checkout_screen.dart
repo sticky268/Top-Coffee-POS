@@ -3,16 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/printer/printer_service.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../customers/data/customers_repository.dart';
+import '../../customers/domain/customer_models.dart';
+import '../../settings/data/receipt_settings.dart';
 import '../application/cart_controller.dart';
 import '../application/cart_state.dart';
 import '../application/checkout_controller.dart';
 import '../application/checkout_state.dart';
-import '../../../core/printer/printer_service.dart';
-import '../../../core/branch/current_branch_provider.dart';
 import '../data/pos_repository.dart';
-import '../../settings/data/receipt_settings.dart';
-import '../../customers/data/customers_repository.dart';
-import '../../customers/domain/customer_models.dart';
 import '../domain/pos_models.dart';
 
 /// Order review + payment screen, reached via the cart's "Review Order" /
@@ -20,10 +21,7 @@ import '../domain/pos_models.dart';
 /// clears the cart via the existing CartController (no new cart-clearing
 /// logic here) and shows a confirmation.
 class CheckoutScreen extends ConsumerStatefulWidget {
-  const CheckoutScreen({
-    super.key,
-    this.initialTable,
-  });
+  const CheckoutScreen({super.key, this.initialTable});
 
   final PosTable? initialTable;
 
@@ -36,8 +34,8 @@ class _SplitPaymentLine {
     this.method = 'cash',
     String amount = '',
     String tendered = '',
-  })  : amountController = TextEditingController(text: amount),
-        tenderedController = TextEditingController(text: tendered);
+  }) : amountController = TextEditingController(text: amount),
+       tenderedController = TextEditingController(text: tendered);
 
   String method;
   final TextEditingController amountController;
@@ -110,6 +108,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       _selectedCustomer = customer;
     });
   }
+
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartControllerProvider);
@@ -149,65 +148,72 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Checkout')),
         body: switch (checkoutState) {
-          CheckoutSuccess(:final confirmation) =>
-            _CheckoutSuccessView(confirmation: confirmation),
+          CheckoutSuccess(:final confirmation) => _CheckoutSuccessView(
+            confirmation: confirmation,
+          ),
           _ => _CheckoutForm(
-              cart: cart,
-              orderType: _orderType,
-              paymentMethod: _paymentMethod,
-              selectedTable: _selectedTable,
-              selectedCustomer: _selectedCustomer,
-              onCustomerChanged: (customer) => setState(() => _selectedCustomer = customer),
-              onCustomerTap: _openCustomerPicker,
-              splitPayments: _splitPayments,
-              onTableChanged: (table) => setState(() => _selectedTable = table),
-              onOrderTypeChanged: (type) {
-                setState(() {
-                  _orderType = type;
+            cart: cart,
+            orderType: _orderType,
+            paymentMethod: _paymentMethod,
+            selectedTable: _selectedTable,
+            selectedCustomer: _selectedCustomer,
+            onCustomerChanged: (customer) =>
+                setState(() => _selectedCustomer = customer),
+            onCustomerTap: _openCustomerPicker,
+            splitPayments: _splitPayments,
+            onTableChanged: (table) => setState(() => _selectedTable = table),
+            onOrderTypeChanged: (type) {
+              setState(() {
+                _orderType = type;
 
-                  if (type == 'takeaway') {
-                    _selectedTable = null;
-                  }
-                });
-              },
-              onPaymentMethodChanged: (method) =>
-                  setState(() => _paymentMethod = method),
-              tenderedController: _tenderedController,
-              tenderedAmount: _tenderedAmount,
-              canSaveOrder: cart.items.isNotEmpty &&
-                  _selectedTable != null &&
-                  checkoutState is! CheckoutSubmitting,
-              onTenderedChanged: () => setState(() {}),
-              isSubmitting: checkoutState is CheckoutSubmitting,
-              errorMessage:
-                  checkoutState is CheckoutError ? checkoutState.message : null,
-              onConfirm: () {
-                ref.read(checkoutControllerProvider.notifier).submit(
-                      items: cart.items,
-                      paymentMethod: _paymentMethod,
-                      orderType: _orderType,
-                      tableId: _selectedTable?.id,
-                      tendered:
-                          _paymentMethod == 'cash' ? _tenderedAmount : null,
-                      splitPayments: _paymentMethod == 'split'
-                          ? _splitPayments
+                if (type == 'takeaway') {
+                  _selectedTable = null;
+                }
+              });
+            },
+            onPaymentMethodChanged: (method) =>
+                setState(() => _paymentMethod = method),
+            tenderedController: _tenderedController,
+            tenderedAmount: _tenderedAmount,
+            canSaveOrder:
+                cart.items.isNotEmpty &&
+                _selectedTable != null &&
+                checkoutState is! CheckoutSubmitting,
+            onTenderedChanged: () => setState(() {}),
+            isSubmitting: checkoutState is CheckoutSubmitting,
+            errorMessage: checkoutState is CheckoutError
+                ? checkoutState.message
+                : null,
+            onConfirm: () {
+              ref
+                  .read(checkoutControllerProvider.notifier)
+                  .submit(
+                    items: cart.items,
+                    paymentMethod: _paymentMethod,
+                    orderType: _orderType,
+                    tableId: _selectedTable?.id,
+                    tendered: _paymentMethod == 'cash' ? _tenderedAmount : null,
+                    splitPayments: _paymentMethod == 'split'
+                        ? _splitPayments
                               .map((payment) => payment.toJson())
                               .toList()
-                          : null,
-                      discountTotal: cart.discountTotal,
-                      customerId: _selectedCustomer?.id,
-                    );
-              },
-              onHold: () {
-                ref.read(checkoutControllerProvider.notifier).hold(
-                      items: cart.items,
-                      orderType: 'dine_in',
-                      tableId: _selectedTable!.id,
-                      discountTotal: cart.discountTotal,
-                      customerId: _selectedCustomer?.id,
-                    );
-              },
-            ),
+                        : null,
+                    discountTotal: cart.discountTotal,
+                    customerId: _selectedCustomer?.id,
+                  );
+            },
+            onHold: () {
+              ref
+                  .read(checkoutControllerProvider.notifier)
+                  .hold(
+                    items: cart.items,
+                    orderType: 'dine_in',
+                    tableId: _selectedTable!.id,
+                    discountTotal: cart.discountTotal,
+                    customerId: _selectedCustomer?.id,
+                  );
+            },
+          ),
         },
       ),
     );
@@ -270,14 +276,14 @@ class _CheckoutForm extends StatelessWidget {
           sum + (double.tryParse(payment.amountController.text) ?? 0),
     );
 
-    final splitValid = splitPayments.length >= 2 &&
+    final splitValid =
+        splitPayments.length >= 2 &&
         splitPayments.every((payment) {
           final amount = double.tryParse(payment.amountController.text) ?? 0;
           if (amount <= 0) return false;
 
           if (payment.method == 'cash') {
-            final tendered =
-                double.tryParse(payment.tenderedController.text);
+            final tendered = double.tryParse(payment.tenderedController.text);
             return tendered != null && tendered >= amount;
           }
 
@@ -285,14 +291,15 @@ class _CheckoutForm extends StatelessWidget {
         }) &&
         (splitTotal - cart.total).abs() < 0.01;
 
-    final canConfirm = !isSubmitting &&
+    final canConfirm =
+        !isSubmitting &&
         cart.items.isNotEmpty &&
         (orderType == 'takeaway' || selectedTable != null) &&
         (paymentMethod == 'split'
             ? splitValid
             : paymentMethod != 'cash' ||
-                tenderedAmount == null ||
-                tenderedAmount! >= cart.total);
+                  tenderedAmount == null ||
+                  tenderedAmount! >= cart.total);
 
     return SafeArea(
       child: ListView(
@@ -309,7 +316,7 @@ class _CheckoutForm extends StatelessWidget {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           if (orderType == 'dine_in' && selectedTable != null)
             Text(
               ' · Dine-in',
@@ -331,14 +338,14 @@ class _CheckoutForm extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             'Order Type',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             child: SegmentedButton<String>(
@@ -357,11 +364,10 @@ class _CheckoutForm extends StatelessWidget {
               selected: {orderType},
               onSelectionChanged: isSubmitting
                   ? null
-                  : (selection) =>
-                      onOrderTypeChanged(selection.first),
+                  : (selection) => onOrderTypeChanged(selection.first),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           Text(
             'Customer',
@@ -369,24 +375,22 @@ class _CheckoutForm extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
-          InkWell(
+          const SizedBox(height: 8),
+          pos_ui.ActionSurface(
             onTap: isSubmitting ? null : onCustomerTap,
             borderRadius: BorderRadius.circular(12),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant,
-                ),
+                color: theme.colorScheme.surface,
+                border: Border.all(color: theme.colorScheme.outlineVariant),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor:
-                        theme.colorScheme.primaryContainer,
+                    backgroundColor: theme.colorScheme.primaryContainer,
                     child: Icon(
                       selectedCustomer == null
                           ? Icons.person_outline
@@ -394,7 +398,7 @@ class _CheckoutForm extends StatelessWidget {
                       color: theme.colorScheme.onPrimaryContainer,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -434,7 +438,7 @@ class _CheckoutForm extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             'ORDER',
             style: theme.textTheme.labelMedium?.copyWith(
@@ -443,20 +447,21 @@ class _CheckoutForm extends StatelessWidget {
               letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Card(
-            elevation: 0,
-            color: theme.colorScheme.surfaceContainerLow,
+            elevation: 1,
+            color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: Column(
                 children: [
                   for (final item in cart.items)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -506,11 +511,9 @@ class _CheckoutForm extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Text(
-                            currency.format(
-                              item.unitPrice * item.quantity,
-                            ),
+                            currency.format(item.unitPrice * item.quantity),
                             style: theme.textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -519,10 +522,8 @@ class _CheckoutForm extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  Divider(
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                  const SizedBox(height: 12),
+                  Divider(color: theme.colorScheme.outlineVariant),
+                  const SizedBox(height: 16),
                   _SummaryRow(
                     label: 'Subtotal',
                     value: currency.format(cart.subtotal),
@@ -567,16 +568,17 @@ class _CheckoutForm extends StatelessWidget {
                 letterSpacing: 1.2,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Card(
-              elevation: 0,
-              color: theme.colorScheme.surfaceContainerLow,
+              elevation: 1,
+              color: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
+                  horizontal: 16,
                   vertical: 16,
                 ),
                 child: Row(
@@ -620,7 +622,7 @@ class _CheckoutForm extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
           Text(
             'PAYMENT',
             style: theme.textTheme.labelMedium?.copyWith(
@@ -629,7 +631,7 @@ class _CheckoutForm extends StatelessWidget {
               letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'Choose how the customer is paying',
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -668,13 +670,14 @@ class _CheckoutForm extends StatelessWidget {
           const SizedBox(height: 16),
           if (paymentMethod == 'split') ...[
             Card(
-              elevation: 0,
-              color: theme.colorScheme.surfaceContainerLow,
+              elevation: 1,
+              color: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -694,7 +697,7 @@ class _CheckoutForm extends StatelessWidget {
                     const SizedBox(height: 16),
                     for (var index = 0; index < splitPayments.length; index++)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.only(bottom: 16),
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
@@ -712,10 +715,12 @@ class _CheckoutForm extends StatelessWidget {
                                         labelText: 'Method',
                                         filled: true,
                                         fillColor: theme
-                                            .colorScheme.surfaceContainerLowest,
+                                            .colorScheme
+                                            .surfaceContainerLowest,
                                         border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                       ),
@@ -745,7 +750,7 @@ class _CheckoutForm extends StatelessWidget {
                                   ),
                                   if (splitPayments.length > 2) ...[
                                     const SizedBox(width: 8),
-                                    IconButton(
+                                    pos_ui.IconButton(
                                       tooltip: 'Remove payment',
                                       onPressed: isSubmitting
                                           ? null
@@ -761,15 +766,15 @@ class _CheckoutForm extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                               TextField(
                                 controller:
                                     splitPayments[index].amountController,
                                 enabled: !isSubmitting,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                      decimal: true,
+                                    ),
                                 decoration: InputDecoration(
                                   labelText: 'Amount',
                                   prefixText: '\$ ',
@@ -784,21 +789,22 @@ class _CheckoutForm extends StatelessWidget {
                                 onChanged: (_) => onTenderedChanged(),
                               ),
                               if (splitPayments[index].method == 'cash') ...[
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 8),
                                 TextField(
                                   controller:
                                       splitPayments[index].tenderedController,
                                   enabled: !isSubmitting,
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                                        decimal: true,
+                                      ),
                                   decoration: InputDecoration(
                                     labelText: 'Cash received',
                                     prefixText: '\$ ',
                                     filled: true,
                                     fillColor: theme
-                                        .colorScheme.surfaceContainerLowest,
+                                        .colorScheme
+                                        .surfaceContainerLowest,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -811,7 +817,7 @@ class _CheckoutForm extends StatelessWidget {
                           ),
                         ),
                       ),
-                    OutlinedButton.icon(
+                    pos_ui.OutlinedButton.icon(
                       onPressed: isSubmitting
                           ? null
                           : () {
@@ -849,13 +855,14 @@ class _CheckoutForm extends StatelessWidget {
           ],
           if (paymentMethod == 'cash') ...[
             Card(
-              elevation: 0,
-              color: theme.colorScheme.surfaceContainerLow,
+              elevation: 1,
+              color: theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -896,24 +903,19 @@ class _CheckoutForm extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final amount in {
-                          cart.total,
-                          15.0,
-                          20.0,
-                          50.0,
-                        })
-                          OutlinedButton(
+                        for (final amount in {cart.total, 15.0, 20.0, 50.0})
+                          pos_ui.OutlinedButton(
                             onPressed: isSubmitting
                                 ? null
                                 : () {
-                                    tenderedController.text =
-                                        amount.toStringAsFixed(2);
+                                    tenderedController.text = amount
+                                        .toStringAsFixed(2);
                                     onTenderedChanged();
                                   },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
-                                vertical: 12,
+                                vertical: 16,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -941,8 +943,8 @@ class _CheckoutForm extends StatelessWidget {
                             change == null
                                 ? 'Change'
                                 : change >= 0
-                                    ? 'Change'
-                                    : 'Short by',
+                                ? 'Change'
+                                : 'Short by',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -966,9 +968,9 @@ class _CheckoutForm extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
           if (selectedTable != null)
-            OutlinedButton(
+            pos_ui.OutlinedButton(
               onPressed: canSaveOrder ? onHold : null,
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
@@ -981,8 +983,8 @@ class _CheckoutForm extends StatelessWidget {
               ),
               child: const Text('Save for Later'),
             ),
-          if (selectedTable != null) const SizedBox(height: 10),
-          FilledButton(
+          if (selectedTable != null) const SizedBox(height: 8),
+          pos_ui.PosActionButton(
             onPressed: canConfirm ? onConfirm : null,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(58),
@@ -991,32 +993,21 @@ class _CheckoutForm extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
               ),
             ),
-            child: isSubmitting
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Confirm & Pay',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        currency.format(cart.total),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
+            isLoading: isSubmitting,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Confirm & Pay',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  currency.format(cart.total),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1025,10 +1016,7 @@ class _CheckoutForm extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1060,21 +1048,25 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline,
-              color: theme.colorScheme.onErrorContainer, size: 20),
+          Icon(
+            Icons.error_outline,
+            color: theme.colorScheme.onErrorContainer,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onErrorContainer),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
             ),
           ),
         ],
@@ -1093,8 +1085,7 @@ class _CheckoutSuccessView extends ConsumerStatefulWidget {
       _CheckoutSuccessViewState();
 }
 
-class _CheckoutSuccessViewState
-    extends ConsumerState<_CheckoutSuccessView> {
+class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
   bool _isPrinting = false;
 
   String _paymentLabel(String method) {
@@ -1148,14 +1139,14 @@ class _CheckoutSuccessViewState
     final printerService = PrinterService();
 
     try {
-      final receipt = await ref.read(posRepositoryProvider).getOrderReceipt(
-        orderId: widget.confirmation.orderId,
-      );
+      final receipt = await ref
+          .read(posRepositoryProvider)
+          .getOrderReceipt(orderId: widget.confirmation.orderId);
 
       debugPrint(
-        '🧾 PRINT RECEIPT: order=${receipt.orderId}, ' +
-        'subtotal=${receipt.subtotal}, ' +
-        'discount=${receipt.discountTotal}, ' +
+        '🧾 PRINT RECEIPT: order=${receipt.orderId}, '
+        'subtotal=${receipt.subtotal}, '
+        'discount=${receipt.discountTotal}, '
         'total=${receipt.total}',
       );
       await printerService.connect(settings.printerIpAddress);
@@ -1167,9 +1158,7 @@ class _CheckoutSuccessViewState
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Receipt printed successfully.'),
-        ),
+        const SnackBar(content: Text('Receipt printed successfully.')),
       );
     } catch (e) {
       try {
@@ -1182,11 +1171,8 @@ class _CheckoutSuccessViewState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to print receipt: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to print receipt: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -1229,7 +1215,7 @@ class _CheckoutSuccessViewState
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
                 Text(
                   'Payment Successful',
@@ -1239,7 +1225,7 @@ class _CheckoutSuccessViewState
                   ),
                 ),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
 
                 Text(
                   'Order #${widget.confirmation.orderId}',
@@ -1249,16 +1235,16 @@ class _CheckoutSuccessViewState
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
 
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
-                    vertical: 28,
+                    vertical: 32,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
@@ -1286,9 +1272,9 @@ class _CheckoutSuccessViewState
 
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerLow,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -1382,7 +1368,9 @@ class _CheckoutSuccessViewState
                           children: [
                             Expanded(
                               child: Text(
-                                _paymentLabel(widget.confirmation.paymentMethod),
+                                _paymentLabel(
+                                  widget.confirmation.paymentMethod,
+                                ),
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1398,7 +1386,7 @@ class _CheckoutSuccessViewState
                         ),
 
                         if (widget.confirmation.tendered != null) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
@@ -1419,7 +1407,7 @@ class _CheckoutSuccessViewState
 
                         if (widget.confirmation.changeDue != null &&
                             widget.confirmation.changeDue! > 0) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
@@ -1446,20 +1434,11 @@ class _CheckoutSuccessViewState
 
                 const SizedBox(height: 24),
 
-                OutlinedButton.icon(
+                pos_ui.OutlinedButton.icon(
                   onPressed: _isPrinting ? null : _printReceipt,
-                  icon: _isPrinting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.print_outlined),
-                  label: Text(
-                    _isPrinting ? 'Printing...' : 'Print Receipt',
-                  ),
+                  isLoading: _isPrinting,
+                  icon: const Icon(Icons.print_outlined),
+                  label: Text(_isPrinting ? 'Printing...' : 'Print Receipt'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(
@@ -1468,9 +1447,9 @@ class _CheckoutSuccessViewState
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                FilledButton(
+                pos_ui.PosActionButton(
                   onPressed: () => context.go('/pos/select-table'),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(58),
@@ -1480,15 +1459,13 @@ class _CheckoutSuccessViewState
                   ),
                   child: const Text(
                     'New Order',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
-                TextButton(
+                pos_ui.SecondaryButton(
                   onPressed: () => context.go('/home'),
                   style: TextButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
@@ -1505,11 +1482,9 @@ class _CheckoutSuccessViewState
     );
   }
 }
+
 class _AddCustomerDialog extends StatefulWidget {
-  const _AddCustomerDialog({
-    required this.repository,
-    required this.branchId,
-  });
+  const _AddCustomerDialog({required this.repository, required this.branchId});
 
   final CustomersRepository repository;
   final int? branchId;
@@ -1559,9 +1534,7 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not create customer.'),
-        ),
+        const SnackBar(content: Text('Could not create customer.')),
       );
     }
   }
@@ -1583,7 +1556,7 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
               hintText: 'Customer name',
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             controller: _phoneController,
             enabled: !_isSaving,
@@ -1598,28 +1571,20 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: _isSaving
-              ? null
-              : () => Navigator.of(context).pop(),
+        pos_ui.SecondaryButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
+        pos_ui.PrimaryButton(
           onPressed: _isSaving ? null : _save,
-          child: _isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Save'),
+          isLoading: _isSaving,
+          child: const Text('Save'),
         ),
       ],
     );
   }
 }
+
 class _CustomerPickerSheet extends StatefulWidget {
   const _CustomerPickerSheet({
     required this.repository,
@@ -1697,6 +1662,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
 
     Navigator.of(context).pop(customer);
   }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1724,13 +1690,13 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                       ),
                     ),
                   ),
-                  IconButton(
+                  pos_ui.IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               TextField(
                 controller: _searchController,
@@ -1739,23 +1705,25 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                 decoration: InputDecoration(
                   hintText: 'Search name or phone',
                   prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(
+                  suffixIcon: pos_ui.IconButton(
                     onPressed: _loadCustomers,
                     icon: const Icon(Icons.arrow_forward),
                   ),
-                  border: const OutlineInputBorder(),
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
+                  ),
                 ),
               ),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: pos_ui.OutlinedButton.icon(
                   onPressed: _addCustomer,
                   icon: const Icon(Icons.person_add),
                   label: const Text('Add Customer'),
                 ),
               ),
               const SizedBox(height: 8),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               ListTile(
                 leading: CircleAvatar(
@@ -1768,10 +1736,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                 ),
                 subtitle: const Text('No customer selected'),
                 trailing: widget.selectedCustomer == null
-                    ? Icon(
-                        Icons.check_circle,
-                        color: theme.colorScheme.primary,
-                      )
+                    ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
                     : null,
                 onTap: () => Navigator.of(context).pop(),
               ),
@@ -1780,67 +1745,62 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
 
               if (_errorMessage != null)
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   child: Text(
                     _errorMessage!,
-                    style: TextStyle(
-                      color: theme.colorScheme.error,
-                    ),
+                    style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
 
               Expanded(
                 child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
+                    ? const Center(child: CircularProgressIndicator())
                     : _customers.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No customers found.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                    ? Center(
+                        child: Text(
+                          'No customers found.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _customers.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final customer = _customers[index];
+                          final isSelected =
+                              widget.selectedCustomer?.id == customer.id;
+
+                          return ListTile(
+                            leading: CircleAvatar(
+                              child: Text(
+                                customer.name.isNotEmpty
+                                    ? customer.name[0].toUpperCase()
+                                    : '?',
                               ),
                             ),
-                          )
-                        : ListView.separated(
-                            itemCount: _customers.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final customer = _customers[index];
-                              final isSelected =
-                                  widget.selectedCustomer?.id == customer.id;
-
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  child: Text(
-                                    customer.name.isNotEmpty
-                                        ? customer.name[0].toUpperCase()
-                                        : '?',
-                                  ),
-                                ),
-                                title: Text(
-                                  customer.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: customer.phone == null ||
-                                        customer.phone!.isEmpty
-                                    ? null
-                                    : Text(customer.phone!),
-                                trailing: isSelected
-                                    ? Icon(
-                                        Icons.check_circle,
-                                        color: theme.colorScheme.primary,
-                                      )
-                                    : null,
-                                onTap: () =>
-                                    Navigator.of(context).pop(customer),
-                              );
-                            },
-                          ),
+                            title: Text(
+                              customer.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle:
+                                customer.phone == null ||
+                                    customer.phone!.isEmpty
+                                ? null
+                                : Text(customer.phone!),
+                            trailing: isSelected
+                                ? Icon(
+                                    Icons.check_circle,
+                                    color: theme.colorScheme.primary,
+                                  )
+                                : null,
+                            onTap: () => Navigator.of(context).pop(customer),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
