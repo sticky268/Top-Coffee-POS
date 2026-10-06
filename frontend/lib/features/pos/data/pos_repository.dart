@@ -40,6 +40,7 @@ abstract class PosRepository {
 
   Future<OrderConfirmation> holdOrder({
     required List<CartItem> items,
+    String? requestUuid,
     required String orderType,
     required int tableId,
     double discountTotal = 0,
@@ -69,6 +70,7 @@ abstract class PosRepository {
 
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
+    String? requestUuid,
     required String paymentMethod,
     required String orderType,
     int? tableId,
@@ -219,6 +221,7 @@ class ApiPosRepository implements PosRepository {
   @override
   Future<OrderConfirmation> holdOrder({
     required List<CartItem> items,
+    String? requestUuid,
     required String orderType,
     required int tableId,
     double discountTotal = 0,
@@ -229,6 +232,7 @@ class ApiPosRepository implements PosRepository {
       (dio) => dio.post(
         '/orders/hold',
         data: {
+          if (requestUuid != null) 'uuid': requestUuid,
           if (branchId != null) 'branch_id': branchId,
           if (customerId != null) 'customer_id': customerId,
           'order_type': orderType,
@@ -324,6 +328,7 @@ class ApiPosRepository implements PosRepository {
   @override
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
+    String? requestUuid,
     required String paymentMethod,
     required String orderType,
     int? tableId,
@@ -337,6 +342,7 @@ class ApiPosRepository implements PosRepository {
       (dio) => dio.post(
         '/orders',
         data: {
+          if (requestUuid != null) 'uuid': requestUuid,
           if (branchId != null) 'branch_id': branchId,
           if (customerId != null) 'customer_id': customerId,
           'order_type': orderType,
