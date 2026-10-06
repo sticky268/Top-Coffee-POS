@@ -1245,11 +1245,8 @@ class _ExpenseCard extends StatelessWidget {
                         label: const Text('Edit'),
                       ),
                       const SizedBox(width: 4),
-                      pos_ui.DangerButton.icon(
+                      pos_ui.DangerButton.outlinedIcon(
                         onPressed: onDelete,
-                        style: TextButton.styleFrom(
-                          foregroundColor: theme.colorScheme.error,
-                        ),
                         icon: const Icon(Icons.delete_outline, size: 18),
                         label: const Text('Delete'),
                       ),

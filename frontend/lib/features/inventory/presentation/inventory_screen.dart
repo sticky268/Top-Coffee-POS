@@ -523,7 +523,7 @@ class _IngredientCard extends StatelessWidget {
                       label: const Text('History'),
                     ),
                     const SizedBox(width: 8),
-                    pos_ui.DangerButton.icon(
+                    pos_ui.DangerButton.outlinedIcon(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete_outline, size: 18),
                       label: const Text('Delete'),

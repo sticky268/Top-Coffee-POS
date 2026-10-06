@@ -932,7 +932,7 @@ class _OrderTotals extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: pos_ui.DangerButton(
+                child: pos_ui.DangerButton.outlined(
                   onPressed: onDiscard,
                   child: const Text('Discard Changes'),
                 ),

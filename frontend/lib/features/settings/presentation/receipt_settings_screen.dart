@@ -262,7 +262,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
             ),
             if (logoBytes != null) ...[
               const SizedBox(height: 8),
-              pos_ui.DangerButton.icon(
+              pos_ui.DangerButton.outlinedIcon(
                 onPressed: _removeLogo,
                 icon: const Icon(Icons.delete_outline),
                 label: const Text('Remove Logo'),
