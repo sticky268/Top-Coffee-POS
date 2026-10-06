@@ -75,50 +75,52 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.initial == null ? 'Add Variant' : 'Edit Variant'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Name'),
-              validator: (value) => (value == null || value.trim().isEmpty)
-                  ? 'Enter a name'
-                  : null,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _skuController,
-              decoration: const InputDecoration(labelText: 'SKU (optional)'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _priceDeltaController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Name'),
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? 'Enter a name'
+                    : null,
+                textInputAction: TextInputAction.next,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Price adjustment',
-                helperText: 'Added to the base price — e.g. 0.50 or -0.25',
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _skuController,
+                decoration: const InputDecoration(labelText: 'SKU (optional)'),
+                textInputAction: TextInputAction.next,
               ),
-              validator: (value) =>
-                  double.tryParse((value ?? '').trim()) == null
-                  ? 'Enter a valid amount'
-                  : null,
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Active'),
-              value: _isActive,
-              onChanged: (value) => setState(() => _isActive = value),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _priceDeltaController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Price adjustment',
+                  helperText: 'Added to the base price — e.g. 0.50 or -0.25',
+                ),
+                validator: (value) =>
+                    double.tryParse((value ?? '').trim()) == null
+                    ? 'Enter a valid amount'
+                    : null,
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Active'),
+                value: _isActive,
+                onChanged: (value) => setState(() => _isActive = value),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [

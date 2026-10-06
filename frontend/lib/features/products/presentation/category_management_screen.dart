@@ -205,7 +205,7 @@ class _CategoryManagementScreenState
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            pos_ui.PrimaryButton(
+            pos_ui.DangerButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Deactivate'),
             ),
