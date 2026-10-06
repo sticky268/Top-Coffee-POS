@@ -32,7 +32,13 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     required double discountTotal,
     int? customerId,
   }) async {
-    if (!mounted) return;
+    // Prevent concurrent requests and accidental resubmission after success.
+    if (!mounted ||
+        state is CheckoutSubmitting ||
+        state is CheckoutSuccess ||
+        state is CheckoutHeld) {
+      return;
+    }
     state = const CheckoutSubmitting();
 
     try {
@@ -63,7 +69,13 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     required double discountTotal,
     int? customerId,
   }) async {
-    if (!mounted) return;
+    // Prevent concurrent requests and accidental resubmission after success.
+    if (!mounted ||
+        state is CheckoutSubmitting ||
+        state is CheckoutSuccess ||
+        state is CheckoutHeld) {
+      return;
+    }
     state = const CheckoutSubmitting();
 
     try {
