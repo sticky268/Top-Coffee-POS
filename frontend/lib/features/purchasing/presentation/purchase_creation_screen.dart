@@ -381,15 +381,8 @@ class _PurchaseCreationScreenState
                     Expanded(
                       child: pos_ui.PrimaryButton(
                         onPressed: state.isSaving ? null : _save,
-                        child: state.isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Save Purchase'),
+                        isLoading: state.isSaving,
+                        child: const Text('Save Purchase'),
                       ),
                     ),
                   ],
