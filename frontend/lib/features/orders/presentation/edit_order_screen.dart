@@ -217,7 +217,7 @@ class _EditCartPanel extends ConsumerWidget {
                 child: Text('Edited Order', style: theme.textTheme.titleMedium),
               ),
               if (!state.isEmpty)
-                pos_ui.DangerButton.icon(
+                pos_ui.DangerButton.outlinedIcon(
                   onPressed: state.isSaving
                       ? null
                       : () => _confirmClear(context, controller),
@@ -463,20 +463,26 @@ class _DiscountEditorState extends State<_DiscountEditor> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Discount', style: theme.textTheme.bodyMedium),
-            pos_ui.SecondaryButton(
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Discount', style: theme.textTheme.bodyMedium),
+                  if (widget.value > 0)
+                    Text(
+                      '- ${NumberFormat.currency(symbol: '\$').format(widget.value)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            pos_ui.OutlinedButton.icon(
               onPressed: widget.enabled
                   ? () => setState(() => _editing = true)
                   : null,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-              ),
-              child: Text(
-                widget.value > 0
-                    ? '- ${NumberFormat.currency(symbol: '\$').format(widget.value)}'
-                    : 'Add',
-              ),
+              icon: const Icon(Icons.discount_outlined),
+              label: Text(widget.value > 0 ? 'Edit discount' : 'Add discount'),
             ),
           ],
         ),
