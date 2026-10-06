@@ -670,6 +670,14 @@ class OrderController extends Controller
             }
             return response()->json(['success' => false, 'message' => 'Could not resolve the order retry.'], 503);
         } catch (HttpException $e) {
+            // A concurrent hold may occupy the table before this request obtains
+            // its lock. If it was the same UUID, return the original order.
+            if ($clientUuid !== null) {
+                $replay = $this->replayCreatedOrder($clientUuid, (int) $branchId, (int) $user->id, $fingerprint, 'hold');
+                if ($replay !== null) {
+                    return $replay;
+                }
+            }
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
