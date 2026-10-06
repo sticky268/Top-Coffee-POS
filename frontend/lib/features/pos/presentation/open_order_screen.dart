@@ -121,11 +121,49 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   bool _isBusy = false;
   bool _isShowingPayment = false;
 
+  // A bill can contain multiple kitchen batches for the same product.
+  // Combine those rows for the cashier while retaining the submitted floor.
+  List<_EditableOrderLine> _editableLinesFromOrder(OrderDetail order) {
+    final merged = <String, _EditableOrderLine>{};
+    for (final item in order.items) {
+      final line = _EditableOrderLine.fromOrderItem(item);
+      final previous = merged[line.lineKey];
+      if (previous == null) {
+        merged[line.lineKey] = line;
+      } else {
+        final quantity = previous.quantity + line.quantity;
+        merged[line.lineKey] = _EditableOrderLine(
+          productId: line.productId,
+          productVariantId: line.productVariantId,
+          productName: line.productName,
+          variantName: line.variantName,
+          quantity: quantity,
+          unitPrice: (previous.lineTotal + line.lineTotal) / quantity,
+        );
+      }
+    }
+    return merged.values.toList();
+  }
+
+  int _submittedQuantity(String lineKey) {
+    return _editableLinesFromOrder(_order)
+        .where((line) => line.lineKey == lineKey)
+        .fold(0, (sum, line) => sum + line.quantity);
+  }
+
+  void _showSubmittedItemWarning() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Items sent to the kitchen cannot be reduced or removed.'),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _order = widget.order;
-    _lines = _order.items.map(_EditableOrderLine.fromOrderItem).toList();
+    _lines = _editableLinesFromOrder(_order);
   }
 
   double get _subtotal => _lines.fold(0.0, (sum, line) => sum + line.lineTotal);
@@ -176,6 +214,10 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
     final line = _lines[index];
     final newQuantity = line.quantity + delta;
+    if (newQuantity < _submittedQuantity(lineKey)) {
+      _showSubmittedItemWarning();
+      return;
+    }
 
     setState(() {
       if (newQuantity <= 0) {
@@ -192,6 +234,10 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   }
 
   void _removeLine(String lineKey) {
+    if (_submittedQuantity(lineKey) > 0) {
+      _showSubmittedItemWarning();
+      return;
+    }
     setState(() {
       _lines = [
         for (final item in _lines)
@@ -251,7 +297,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     if (mounted) {
       setState(() {
         _order = saved;
-        _lines = saved.items.map(_EditableOrderLine.fromOrderItem).toList();
+        _lines = _editableLinesFromOrder(saved);
       });
     }
     return saved;
