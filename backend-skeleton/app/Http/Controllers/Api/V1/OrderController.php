@@ -1017,7 +1017,7 @@ class OrderController extends Controller
                     $tendered = round($tendered, 2);
                     $changeDue = round($tendered - $total, 2);
 
-                    if ($heldPayment && $tendered < $total) {
+                    if ($tendered < $total) {
                         abort(422, 'Cash tendered is less than the order total.');
                     }
                 }
