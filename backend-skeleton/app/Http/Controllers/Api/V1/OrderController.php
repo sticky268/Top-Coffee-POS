@@ -14,6 +14,7 @@ use App\Models\ProductVariant;
 use App\Services\AuditLogService;
 use App\Services\SaleInventoryService;
 use Illuminate\Http\Request;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -22,6 +23,74 @@ use Throwable;
 
 class OrderController extends Controller
 {
+
+    private function createFingerprint(Request $request, int $branchId, int $userId, string $operation): string
+    {
+        $data = $request->except(['uuid', 'branch_id']);
+        $data['branch_id'] = $branchId;
+        $data['user_id'] = $userId;
+        $data['operation'] = $operation;
+        $data['customer_id'] = $data['customer_id'] ?? null;
+        $data['discount_total'] = round((float) ($data['discount_total'] ?? 0), 2);
+        if ($operation === 'checkout') {
+            $data['table_id'] = $data['table_id'] ?? null;
+        }
+        $sort = function ($value) use (&$sort) {
+            if (! is_array($value)) {
+                return $value;
+            }
+            if (! array_is_list($value)) {
+                ksort($value);
+            }
+            return array_map($sort, $value);
+        };
+        return hash('sha256', json_encode($sort($data), JSON_THROW_ON_ERROR));
+    }
+
+    private function replayCreatedOrder(string $uuid, int $branchId, int $userId, string $fingerprint, string $operation)
+    {
+        $order = Order::withoutGlobalScopes()->withTrashed()->where('uuid', $uuid)->first();
+        if ($order === null) {
+            return null;
+        }
+        if ((int) $order->branch_id !== $branchId || (int) $order->user_id !== $userId
+            || $order->request_fingerprint === null || ! hash_equals($order->request_fingerprint, $fingerprint)
+            || $order->trashed()) {
+            return response()->json(['success' => false, 'message' => 'Order UUID conflicts with an existing order.'], 409);
+        }
+        if ($operation === 'hold') {
+            return response()->json(['success' => true, 'data' => [
+                'id' => $order->id, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
+                'customer_id' => $order->customer_id, 'status' => $order->status,
+                'table_id' => $order->table_id, 'subtotal' => (float) $order->subtotal,
+                'discount_total' => (float) $order->discount_total, 'total' => (float) $order->total,
+                'held_at' => $order->held_at?->toIso8601String(),
+            ]], 201);
+        }
+
+        $payments = $order->payments()->get()->values();
+        $payment = $payments->first();
+        $isSplit = $payments->count() > 1;
+        return response()->json(['success' => true, 'data' => [
+            'id' => $order->id, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
+            'customer_id' => $order->customer_id, 'status' => $order->status,
+            'subtotal' => (float) $order->subtotal, 'discount_total' => (float) $order->discount_total,
+            'total' => (float) $order->total,
+            'payment' => [
+                'method' => $isSplit ? 'split' : $payment->method,
+                'amount' => (float) $order->total,
+                'tendered' => $isSplit || $payment->tendered === null ? null : (float) $payment->tendered,
+                'change_due' => $isSplit || $payment->change_due === null ? null : (float) $payment->change_due,
+            ],
+            'payments' => $payments->map(fn (Payment $p) => [
+                'id' => $p->id, 'method' => $p->method, 'amount' => (float) $p->amount,
+                'tendered' => $p->tendered === null ? null : (float) $p->tendered,
+                'change_due' => $p->change_due === null ? null : (float) $p->change_due,
+                'status' => $p->status,
+            ])->values()->all(),
+        ]], 201);
+    }
+
     /**
      * POST /api/v1/orders
      *
@@ -83,6 +152,7 @@ class OrderController extends Controller
         }
         
         $validator = Validator::make($request->all(), [
+            'uuid' => 'nullable|uuid',
             'branch_id' => 'nullable|integer|exists:branches,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in,takeaway',
@@ -108,6 +178,17 @@ class OrderController extends Controller
             ], 422);
         }
 
+        $clientUuid = $request->input('uuid');
+        $fingerprint = $clientUuid !== null
+            ? $this->createFingerprint($request, (int) $branchId, (int) $user->id, 'checkout')
+            : null;
+        if ($clientUuid !== null) {
+            $replay = $this->replayCreatedOrder($clientUuid, (int) $branchId, (int) $user->id, $fingerprint, 'checkout');
+            if ($replay !== null) {
+                return $replay;
+            }
+        }
+
         $customerId = $request->input('customer_id');
 
         if ($customerId !== null) {
@@ -130,7 +211,7 @@ class OrderController extends Controller
 
         try {
             $order = DB::transaction(function () use (
-                $request, $user, $branchId, $customerId, $discountTotal, $paymentMethod, $tendered
+                $request, $user, $branchId, $customerId, $discountTotal, $paymentMethod, $tendered, $clientUuid, $fingerprint
             ) {
                 $subtotal = 0;
                 $resolvedItems = [];
@@ -190,7 +271,8 @@ class OrderController extends Controller
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
                 $order = Order::create([
-                    'uuid' => (string) Str::uuid(),
+                    'uuid' => $clientUuid ?? (string) Str::uuid(),
+                    'request_fingerprint' => $fingerprint,
                     'branch_id' => $branchId,
                     'user_id' => $user->id,
                     'customer_id' => $customerId,
@@ -236,6 +318,14 @@ class OrderController extends Controller
 
                 return $order->load(['items', 'payments']);
             });
+        } catch (UniqueConstraintViolationException $e) {
+            if ($clientUuid !== null) {
+                $replay = $this->replayCreatedOrder($clientUuid, (int) $branchId, (int) $user->id, $fingerprint, 'checkout');
+                if ($replay !== null) {
+                    return $replay;
+                }
+            }
+            return response()->json(['success' => false, 'message' => 'Could not resolve the order retry.'], 503);
         } catch (HttpException $e) {
             return response()->json([
                 'success' => false,
@@ -408,6 +498,7 @@ class OrderController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'uuid' => 'nullable|uuid',
             'branch_id' => 'nullable|integer|exists:branches,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in',
@@ -427,8 +518,19 @@ class OrderController extends Controller
             ], 422);
         }
 
+        $clientUuid = $request->input('uuid');
+        $fingerprint = $clientUuid !== null
+            ? $this->createFingerprint($request, (int) $branchId, (int) $user->id, 'hold')
+            : null;
+        if ($clientUuid !== null) {
+            $replay = $this->replayCreatedOrder($clientUuid, (int) $branchId, (int) $user->id, $fingerprint, 'hold');
+            if ($replay !== null) {
+                return $replay;
+            }
+        }
+
         try {
-            $order = DB::transaction(function () use ($request, $user, $branchId) {
+            $order = DB::transaction(function () use ($request, $user, $branchId, $clientUuid, $fingerprint) {
                 $table = \App\Models\RestaurantTable::query()
                     ->where('branch_id', $branchId)
                     ->where('id', $request->input('table_id'))
@@ -512,7 +614,8 @@ class OrderController extends Controller
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
                 $order = Order::create([
-                    'uuid' => (string) Str::uuid(),
+                    'uuid' => $clientUuid ?? (string) Str::uuid(),
+                    'request_fingerprint' => $fingerprint,
                     'branch_id' => $branchId,
                     'user_id' => $user->id,
                     'customer_id' => $customerId,
@@ -558,6 +661,14 @@ class OrderController extends Controller
 
                 return $order->load(['items']);
             });
+        } catch (UniqueConstraintViolationException $e) {
+            if ($clientUuid !== null) {
+                $replay = $this->replayCreatedOrder($clientUuid, (int) $branchId, (int) $user->id, $fingerprint, 'hold');
+                if ($replay !== null) {
+                    return $replay;
+                }
+            }
+            return response()->json(['success' => false, 'message' => 'Could not resolve the order retry.'], 503);
         } catch (HttpException $e) {
             return response()->json([
                 'success' => false,
