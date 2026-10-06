@@ -18,7 +18,9 @@ class RecentOrdersSection extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Text(
           'No recent orders',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -52,20 +54,30 @@ class _RecentOrderTile extends StatelessWidget {
         backgroundColor: statusColor.withValues(alpha: 0.15),
         child: Icon(order.status.icon, color: statusColor, size: 20),
       ),
-      title: Text('${order.orderNumber} • ${order.itemCount} item${order.itemCount == 1 ? '' : 's'}'),
-      subtitle: Text([
-        timeLabel,
-        if (order.customerOrTable != null) order.customerOrTable!,
-      ].join(' · ')),
+      title: Text(
+        '${order.orderNumber} • ${order.itemCount} item${order.itemCount == 1 ? '' : 's'}',
+      ),
+      subtitle: Text(
+        [
+          timeLabel,
+          if (order.customerOrTable != null) order.customerOrTable!,
+        ].join(' · '),
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(currency.format(order.total), style: theme.textTheme.titleMedium),
+          Text(
+            currency.format(order.total),
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 2),
           Text(
             order.status.label,
-            style: theme.textTheme.labelLarge?.copyWith(color: statusColor, fontSize: 12),
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: statusColor,
+              fontSize: 12,
+            ),
           ),
         ],
       ),

@@ -3,15 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../application/cart_controller.dart';
 import '../../domain/pos_models.dart';
 import 'cart_line_tile.dart';
 
 class CartPanel extends ConsumerWidget {
-  const CartPanel({
-    super.key,
-    this.selectedTable,
-  });
+  const CartPanel({super.key, this.selectedTable});
 
   final PosTable? selectedTable;
 
@@ -26,7 +24,7 @@ class CartPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -52,7 +50,7 @@ class CartPanel extends ConsumerWidget {
                 ),
               ),
               if (!cart.isEmpty)
-                TextButton.icon(
+                pos_ui.DangerButton.icon(
                   onPressed: () => _confirmClearCart(context, cartNotifier),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('Clear Cart'),
@@ -67,7 +65,8 @@ class CartPanel extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: cart.items.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) => CartLineTile(item: cart.items[index]),
+                  itemBuilder: (context, index) =>
+                      CartLineTile(item: cart.items[index]),
                 ),
         ),
         const Divider(height: 1),
@@ -76,7 +75,10 @@ class CartPanel extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SummaryLine(label: 'Subtotal', value: currency.format(cart.subtotal)),
+              _SummaryLine(
+                label: 'Subtotal',
+                value: currency.format(cart.subtotal),
+              ),
               _DiscountRow(
                 discountTotal: cart.discountTotal,
                 onChanged: cartNotifier.setDiscount,
@@ -89,18 +91,17 @@ class CartPanel extends ConsumerWidget {
                   Text('Total', style: theme.textTheme.titleMedium),
                   Text(
                     currency.format(cart.total),
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              FilledButton(
+              const SizedBox(height: 16),
+              pos_ui.PosActionButton(
                 onPressed: cart.isEmpty
                     ? null
-                    : () => context.push(
-                          '/pos/checkout',
-                          extra: selectedTable,
-                        ),
+                    : () => context.push('/pos/checkout', extra: selectedTable),
                 child: const Text('Review Order'),
               ),
             ],
@@ -110,15 +111,24 @@ class CartPanel extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmClearCart(BuildContext context, CartController notifier) async {
+  Future<void> _confirmClearCart(
+    BuildContext context,
+    CartController notifier,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear cart?'),
         content: const Text('This removes every item currently in the cart.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Clear')),
+          pos_ui.SecondaryButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          pos_ui.DangerButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
         ],
       ),
     );
@@ -155,7 +165,11 @@ class _SummaryLine extends StatelessWidget {
 /// percentage tiers or coupon rules, per the task's explicit "prepare the
 /// UI/state for it, but don't add complicated discount rules yet".
 class _DiscountRow extends StatefulWidget {
-  const _DiscountRow({required this.discountTotal, required this.onChanged, required this.currency});
+  const _DiscountRow({
+    required this.discountTotal,
+    required this.onChanged,
+    required this.currency,
+  });
 
   final double discountTotal;
   final ValueChanged<double> onChanged;
@@ -167,8 +181,11 @@ class _DiscountRow extends StatefulWidget {
 
 class _DiscountRowState extends State<_DiscountRow> {
   bool _editing = false;
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.discountTotal > 0 ? widget.discountTotal.toStringAsFixed(2) : '');
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.discountTotal > 0
+        ? widget.discountTotal.toStringAsFixed(2)
+        : '',
+  );
 
   @override
   void dispose() {
@@ -187,11 +204,16 @@ class _DiscountRowState extends State<_DiscountRow> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Discount', style: theme.textTheme.bodyMedium),
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => setState(() => _editing = true),
-              style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+              ),
               child: Text(
-                widget.discountTotal > 0 ? '- ${widget.currency.format(widget.discountTotal)}' : 'Add',
+                widget.discountTotal > 0
+                    ? '- ${widget.currency.format(widget.discountTotal)}'
+                    : 'Add',
               ),
             ),
           ],
@@ -204,17 +226,23 @@ class _DiscountRowState extends State<_DiscountRow> {
       child: Row(
         children: [
           Text('Discount', style: theme.textTheme.bodyMedium),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: TextField(
               controller: _controller,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(prefixText: '\$ ', isDense: true, border: OutlineInputBorder()),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                prefixText: '\$ ',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
               onSubmitted: (_) => _apply(),
             ),
           ),
-          IconButton(
+          pos_ui.IconButton(
             icon: const Icon(Icons.check, size: 20),
             visualDensity: VisualDensity.compact,
             onPressed: _apply,
@@ -243,11 +271,17 @@ class _EmptyCart extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.shopping_cart_outlined, size: 36, color: theme.colorScheme.outline),
+            Icon(
+              Icons.shopping_cart_outlined,
+              size: 36,
+              color: theme.colorScheme.outline,
+            ),
             const SizedBox(height: 8),
             Text(
               'Your cart is empty',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -255,4 +289,3 @@ class _EmptyCart extends StatelessWidget {
     );
   }
 }
-

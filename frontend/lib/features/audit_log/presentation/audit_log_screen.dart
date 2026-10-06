@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/audit_log_list_controller.dart';
 import '../application/audit_log_list_state.dart';
 import '../domain/audit_log_models.dart';
@@ -65,7 +66,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
       appBar: AppBar(
         title: const Text('Audit Log'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: _refresh,
             icon: const Icon(Icons.refresh),
@@ -75,9 +76,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
       body: Column(
         children: [
           _buildSearchBar(),
-          Expanded(
-            child: _buildBody(state),
-          ),
+          Expanded(child: _buildBody(state)),
         ],
       ),
     );
@@ -85,7 +84,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: TextField(
         controller: _searchController,
         textInputAction: TextInputAction.search,
@@ -95,12 +94,14 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
               ? null
-              : IconButton(
+              : pos_ui.IconButton(
                   tooltip: 'Clear',
                   onPressed: _clearSearch,
                   icon: const Icon(Icons.clear),
                 ),
-          border: const OutlineInputBorder(),
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+          ),
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -109,9 +110,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 
   Widget _buildBody(AuditLogListState state) {
     if (state is AuditLogListLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state is AuditLogListError) {
@@ -141,9 +140,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
             if (index >= state.logs.length) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
@@ -163,21 +160,13 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-            ),
+            const Icon(Icons.error_outline, size: 48),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            pos_ui.PrimaryButton.icon(
               onPressed: () {
-                ref
-                    .read(auditLogListControllerProvider.notifier)
-                    .load();
+                ref.read(auditLogListControllerProvider.notifier).load();
               },
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -198,11 +187,8 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
           Center(
             child: Column(
               children: [
-                Icon(
-                  Icons.history_outlined,
-                  size: 56,
-                ),
-                SizedBox(height: 12),
+                Icon(Icons.history_outlined, size: 56),
+                SizedBox(height: 16),
                 Text('No audit logs found'),
               ],
             ),
@@ -214,9 +200,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 }
 
 class _AuditLogCard extends StatelessWidget {
-  const _AuditLogCard({
-    required this.log,
-  });
+  const _AuditLogCard({required this.log});
 
   final AuditLogEntry log;
 
@@ -233,10 +217,8 @@ class _AuditLogCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  child: Icon(_iconForAction(log.action)),
-                ),
-                const SizedBox(width: 12),
+                CircleAvatar(child: Icon(_iconForAction(log.action))),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,19 +239,17 @@ class _AuditLogCard extends StatelessWidget {
                 ),
                 if (log.createdAt != null)
                   Text(
-                    DateFormat('dd MMM, HH:mm').format(log.createdAt!.toLocal()),
+                    DateFormat('dd MMM, HH:mm')
+                        .format(log.createdAt!.toLocal()),
                     style: theme.textTheme.bodySmall,
                   ),
               ],
             ),
             if (log.auditableType != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(
-                    Icons.link_outlined,
-                    size: 18,
-                  ),
+                  const Icon(Icons.link_outlined, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -282,10 +262,7 @@ class _AuditLogCard extends StatelessWidget {
             ],
             if (log.newValues != null || log.oldValues != null) ...[
               const SizedBox(height: 8),
-              Text(
-                _changeSummary(log),
-                style: theme.textTheme.bodySmall,
-              ),
+              Text(_changeSummary(log), style: theme.textTheme.bodySmall),
             ],
           ],
         ),
@@ -315,9 +292,7 @@ class _AuditLogCard extends StatelessWidget {
         .replaceAll('_', ' ')
         .split(' ')
         .where((part) => part.isNotEmpty)
-        .map(
-          (part) => '${part[0].toUpperCase()}${part.substring(1)}',
-        )
+        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
         .join(' ');
   }
 
@@ -343,9 +318,9 @@ class _AuditLogCard extends StatelessWidget {
       return '';
     }
 
-    final entries = values.entries.take(3).map(
-          (entry) => '${entry.key}: ${entry.value}',
-        );
+    final entries = values.entries
+        .take(3)
+        .map((entry) => '${entry.key}: ${entry.value}');
 
     return entries.join(' • ');
   }

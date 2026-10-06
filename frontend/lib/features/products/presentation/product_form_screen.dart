@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../pos/application/pos_catalog_controller.dart';
 import '../../pos/domain/pos_models.dart';
 import '../application/product_form_controller.dart';
@@ -13,7 +15,6 @@ import '../application/products_controller.dart';
 import '../domain/managed_product_models.dart';
 import 'recipe_editor_screen.dart';
 import 'widgets/variant_editor_dialog.dart';
-import '../../../core/branch/current_branch_provider.dart';
 
 /// Bundled navigation arguments — passed via go_router's `extra`. The
 /// category list is already loaded by ProductsController by the time this
@@ -58,8 +59,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final initial = widget.args.initialProduct;
     _nameController = TextEditingController(text: initial?.name ?? '');
     _skuController = TextEditingController(text: initial?.sku ?? '');
-    _descriptionController =
-        TextEditingController(text: initial?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: initial?.description ?? '',
+    );
     _basePriceController = TextEditingController(
       text: initial != null ? initial.basePrice.toStringAsFixed(2) : '',
     );
@@ -78,27 +80,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 
   Future<void> _pickImage() async {
-  final picker = ImagePicker();
+    final picker = ImagePicker();
 
-  final image = await picker.pickImage(
-    source: ImageSource.gallery,
-  );
+    final image = await picker.pickImage(source: ImageSource.gallery);
 
-  if (image != null && mounted) {
-    setState(() {
-      _selectedImage = image;
-    });
+    if (image != null && mounted) {
+      setState(() {
+        _selectedImage = image;
+      });
+    }
   }
-}
 
   void _submit() {
     if (ref.read(productFormControllerProvider) is ProductFormSaving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a category')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Select a category')));
       return;
     }
 
@@ -120,24 +119,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       // a separate, unrelated behavior change.
       ref
           .read(productFormControllerProvider.notifier)
-          .update(
-            product.id!,
-            product,
-            imageFile: _selectedImage,
-          );
+          .update(product.id!, product, imageFile: _selectedImage);
     } else {
       // Create the product for the currently selected branch.
       final currentBranch = ref.read(currentBranchProvider);
-      final branchIds =
-          currentBranch != null ? [currentBranch.id] : const <int>[];
+      final branchIds = currentBranch != null
+          ? [currentBranch.id]
+          : const <int>[];
 
       ref
           .read(productFormControllerProvider.notifier)
-          .create(
-            product,
-            branchIds: branchIds,
-            imageFile: _selectedImage,
-          );
+          .create(product, branchIds: branchIds, imageFile: _selectedImage);
     }
   }
 
@@ -164,13 +156,16 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Widget build(BuildContext context) {
     final formState = ref.watch(productFormControllerProvider);
     final isSaving = formState is ProductFormSaving;
-    final errorMessage =
-        formState is ProductFormError ? formState.message : null;
+    final errorMessage = formState is ProductFormError
+        ? formState.message
+        : null;
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
 
-    ref.listen<ProductFormState>(productFormControllerProvider,
-        (previous, next) {
+    ref.listen<ProductFormState>(productFormControllerProvider, (
+      previous,
+      next,
+    ) {
       if (next is ProductFormSuccess && previous is! ProductFormSuccess) {
         // Refreshes the same, still-alive ProductsController instance
         // underneath this pushed route — not a new fetch mechanism.
@@ -180,8 +175,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(_isEditing ? 'Product updated' : 'Product created')),
+            content: Text(_isEditing ? 'Product updated' : 'Product created'),
+          ),
         );
         Navigator.of(context).pop();
       }
@@ -204,7 +199,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 controller: _nameController,
                 enabled: !isSaving,
                 decoration: const InputDecoration(
-                    labelText: 'Product name', border: OutlineInputBorder()),
+                  labelText: 'Product name',
+                  border: OutlineInputBorder(),
+                ),
                 validator: (value) => (value == null || value.trim().isEmpty)
                     ? 'Enter a product name'
                     : null,
@@ -215,7 +212,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 controller: _skuController,
                 enabled: !isSaving,
                 decoration: const InputDecoration(
-                    labelText: 'SKU (optional)', border: OutlineInputBorder()),
+                  labelText: 'SKU (optional)',
+                  border: OutlineInputBorder(),
+                ),
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
@@ -224,15 +223,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 enabled: !isSaving,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
-                    border: OutlineInputBorder()),
+                  labelText: 'Description (optional)',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _basePriceController,
                 enabled: !isSaving,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Base price',
                   prefixText: '\$ ',
@@ -250,10 +251,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Product Photo',
-                    style: theme.textTheme.titleMedium,
-                  ),
+                  Text('Product Photo', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   if (_selectedImage != null)
                     ClipRRect(
@@ -270,20 +268,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       height: 180,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: theme.colorScheme.outline,
-                        ),
+                        border: Border.all(color: theme.colorScheme.outline),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Center(
-                        child: Icon(
-                          Icons.add_a_photo_outlined,
-                          size: 40,
-                        ),
+                        child: Icon(Icons.add_a_photo_outlined, size: 40),
                       ),
                     ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(
+                  pos_ui.OutlinedButton.icon(
                     onPressed: isSaving ? null : _pickImage,
                     icon: const Icon(Icons.photo_library_outlined),
                     label: Text(
@@ -298,11 +291,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               DropdownButtonFormField<int>(
                 initialValue: _selectedCategoryId,
                 decoration: const InputDecoration(
-                    labelText: 'Category', border: OutlineInputBorder()),
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
                 items: [
                   for (final category in widget.args.categories)
                     DropdownMenuItem(
-                        value: category.id, child: Text(category.name)),
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
                 ],
                 onChanged: isSaving
                     ? null
@@ -325,7 +322,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Variants', style: theme.textTheme.titleMedium),
-                  TextButton.icon(
+                  pos_ui.SecondaryButton.icon(
                     onPressed: isSaving ? null : _addVariant,
                     icon: const Icon(Icons.add),
                     label: const Text('Add Variant'),
@@ -337,8 +334,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     'No variants — this product has a single price',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 )
               else
@@ -348,8 +346,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       for (final variant in _variants)
                         ListTile(
                           title: Text(variant.name),
-                          subtitle:
-                              variant.isActive ? null : const Text('Disabled'),
+                          subtitle: variant.isActive
+                              ? null
+                              : const Text('Disabled'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -357,7 +356,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                                 '${variant.priceDelta >= 0 ? '+' : ''}${currency.format(variant.priceDelta)}',
                                 style: theme.textTheme.bodyMedium,
                               ),
-                              IconButton(
+                              pos_ui.IconButton(
                                 icon: const Icon(Icons.edit_outlined),
                                 tooltip: 'Edit variant',
                                 onPressed: isSaving
@@ -371,8 +370,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ),
                 ),
               if (_isEditing) ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
+                const SizedBox(height: 16),
+                pos_ui.OutlinedButton.icon(
                   onPressed: isSaving
                       ? null
                       : () {
@@ -389,17 +388,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 ),
               ],
               const SizedBox(height: 24),
-              FilledButton(
+              pos_ui.PrimaryButton(
                 onPressed: isSaving ? null : _submit,
                 style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      )
-                    : Text(_isEditing ? 'Save Changes' : 'Create Product'),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                isLoading: isSaving,
+                child: Text(_isEditing ? 'Save Changes' : 'Create Product'),
               ),
             ],
           ),
@@ -418,21 +413,25 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline,
-              color: theme.colorScheme.onErrorContainer, size: 20),
+          Icon(
+            Icons.error_outline,
+            color: theme.colorScheme.onErrorContainer,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onErrorContainer),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
             ),
           ),
         ],

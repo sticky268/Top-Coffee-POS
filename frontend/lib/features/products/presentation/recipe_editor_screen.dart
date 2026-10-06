@@ -2,27 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../inventory/data/inventory_repository.dart';
+import '../../inventory/domain/inventory_models.dart';
 import '../data/products_repository.dart';
 import '../domain/managed_product_models.dart';
 import '../domain/recipe_models.dart';
-import '../../inventory/domain/inventory_models.dart';
 
 class RecipeEditorScreen extends ConsumerStatefulWidget {
-  const RecipeEditorScreen({
-    super.key,
-    required this.product,
-  });
+  const RecipeEditorScreen({super.key, required this.product});
 
   final ManagedProduct product;
 
   @override
-  ConsumerState<RecipeEditorScreen> createState() =>
-      _RecipeEditorScreenState();
+  ConsumerState<RecipeEditorScreen> createState() => _RecipeEditorScreenState();
 }
 
-class _RecipeEditorScreenState
-    extends ConsumerState<RecipeEditorScreen> {
+class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
   List<RecipeItem> _items = [];
   bool _isLoading = true;
   bool _isSaving = false;
@@ -47,10 +43,9 @@ class _RecipeEditorScreenState
         throw Exception('No branch is selected.');
       }
 
-      final items = await ref.read(productsRepositoryProvider).getRecipe(
-            productId: widget.product.id!,
-            branchId: branch.id,
-          );
+      final items = await ref
+          .read(productsRepositoryProvider)
+          .getRecipe(productId: widget.product.id!, branchId: branch.id);
 
       if (!mounted) return;
 
@@ -79,32 +74,31 @@ class _RecipeEditorScreenState
     }
 
     try {
-      final ingredients =
-          await ref.read(inventoryRepositoryProvider).getIngredients(
-                branchId: branch.id,
-              );
+      final ingredients = await ref
+          .read(inventoryRepositoryProvider)
+          .getIngredients(branchId: branch.id);
 
       if (!mounted) return;
 
       final availableIngredients = ingredients
           .where(
-            (ingredient) => !_items.any(
-              (item) => item.ingredientId == ingredient.id,
-            ),
+            (ingredient) =>
+                !_items.any((item) => item.ingredientId == ingredient.id),
           )
           .toList();
 
       if (availableIngredients.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('All available ingredients are already in this recipe.'),
+            content: Text(
+              'All available ingredients are already in this recipe.',
+            ),
           ),
         );
         return;
       }
 
-      final selectedIngredient =
-          await showDialog<InventoryIngredient>(
+      final selectedIngredient = await showDialog<InventoryIngredient>(
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
@@ -131,7 +125,7 @@ class _RecipeEditorScreenState
               ),
             ),
             actions: [
-              TextButton(
+              pos_ui.SecondaryButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
@@ -162,15 +156,13 @@ class _RecipeEditorScreenState
               ),
             ),
             actions: [
-              TextButton(
+              pos_ui.SecondaryButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
-              FilledButton(
+              pos_ui.PrimaryButton(
                 onPressed: () {
-                  final value = double.tryParse(
-                    quantityController.text.trim(),
-                  );
+                  final value = double.tryParse(quantityController.text.trim());
 
                   if (value == null || value <= 0) {
                     return;
@@ -213,6 +205,7 @@ class _RecipeEditorScreenState
       });
     }
   }
+
   Future<void> _saveRecipe() async {
     if (_isSaving) return;
 
@@ -228,7 +221,9 @@ class _RecipeEditorScreenState
         throw Exception('No branch is selected.');
       }
 
-      final items = await ref.read(productsRepositoryProvider).updateRecipe(
+      final items = await ref
+          .read(productsRepositoryProvider)
+          .updateRecipe(
             productId: widget.product.id!,
             items: _items,
             branchId: branch.id,
@@ -242,9 +237,7 @@ class _RecipeEditorScreenState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recipe saved successfully.'),
-        ),
+        const SnackBar(content: Text('Recipe saved successfully.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -265,21 +258,14 @@ class _RecipeEditorScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.product.name} Recipe'),
-      ),
+      appBar: AppBar(title: Text('${widget.product.name} Recipe')),
       body: _buildBody(),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.all(16),
-        child: FilledButton.icon(
+        child: pos_ui.PrimaryButton.icon(
           onPressed: _isLoading || _isSaving ? null : _saveRecipe,
-          icon: _isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save_outlined),
+          isLoading: _isSaving,
+          icon: const Icon(Icons.save_outlined),
           label: Text(_isSaving ? 'Saving...' : 'Save Recipe'),
         ),
       ),
@@ -288,9 +274,7 @@ class _RecipeEditorScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null && _items.isEmpty) {
@@ -300,17 +284,11 @@ class _RecipeEditorScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-              ),
+              const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 16),
-              OutlinedButton(
+              Text(_errorMessage!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              pos_ui.OutlinedButton(
                 onPressed: _loadRecipe,
                 child: const Text('Retry'),
               ),
@@ -332,7 +310,7 @@ class _RecipeEditorScreenState
           'Ingredients used for one sale',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         if (_items.isEmpty)
           const Card(
             child: Padding(
@@ -353,19 +331,17 @@ class _RecipeEditorScreenState
               onRemove: () => _removeItem(index),
             ),
           ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
+        const SizedBox(height: 16),
+        pos_ui.OutlinedButton.icon(
           onPressed: _addIngredient,
           icon: const Icon(Icons.add),
           label: const Text('Add Ingredient'),
         ),
         if (_errorMessage != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             _errorMessage!,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-            ),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
       ],
@@ -374,10 +350,7 @@ class _RecipeEditorScreenState
 }
 
 class _RecipeItemCard extends StatelessWidget {
-  const _RecipeItemCard({
-    required this.item,
-    required this.onRemove,
-  });
+  const _RecipeItemCard({required this.item, required this.onRemove});
 
   final RecipeItem item;
   final VoidCallback onRemove;
@@ -385,13 +358,13 @@ class _RecipeItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         title: Text(item.ingredient.name),
         subtitle: Text(
           '${item.quantityUsed} ${item.ingredient.unitAbbreviation}',
         ),
-        trailing: IconButton(
+        trailing: pos_ui.IconButton(
           tooltip: 'Remove ingredient',
           onPressed: onRemove,
           icon: const Icon(Icons.close),

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/app_colors.dart';
+
 class DashboardNavigation extends StatelessWidget {
-  const DashboardNavigation({
-    super.key,
-    required this.selectedRoute,
-  });
+  const DashboardNavigation({super.key, required this.selectedRoute});
 
   final String selectedRoute;
 
@@ -13,7 +12,6 @@ class DashboardNavigation extends StatelessWidget {
     if (selectedRoute == route) return;
     context.go(route);
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -24,16 +22,14 @@ class DashboardNavigation extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-          right: BorderSide(
-            color: theme.colorScheme.outlineVariant,
-          ),
+          right: BorderSide(color: theme.colorScheme.outlineVariant),
         ),
       ),
       child: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
+              padding: const EdgeInsets.fromLTRB(24, 24, 16, 24),
               child: Row(
                 children: [
                   Icon(
@@ -41,7 +37,7 @@ class DashboardNavigation extends StatelessWidget {
                     size: 32,
                     color: theme.colorScheme.primary,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Text(
                       'Top Coffee',
@@ -55,7 +51,7 @@ class DashboardNavigation extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   _NavigationSection(
                     title: 'MAIN',
@@ -111,8 +107,7 @@ class DashboardNavigation extends StatelessWidget {
                         label: 'Categories',
                         route: '/products/categories',
                         selectedRoute: selectedRoute,
-                        onTap: () =>
-                            _navigate(context, '/products/categories'),
+                        onTap: () => _navigate(context, '/products/categories'),
                       ),
                     ],
                   ),
@@ -251,10 +246,7 @@ class DashboardNavigation extends StatelessWidget {
 }
 
 class _NavigationSection extends StatelessWidget {
-  const _NavigationSection({
-    required this.title,
-    required this.children,
-  });
+  const _NavigationSection({required this.title, required this.children});
 
   final String title;
   final List<Widget> children;
@@ -269,7 +261,7 @@ class _NavigationSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Text(
               title,
               style: theme.textTheme.labelSmall?.copyWith(
@@ -313,44 +305,38 @@ class _NavigationItem extends StatelessWidget {
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-            ? theme.colorScheme.onSurface
-            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     final iconColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-            ? theme.colorScheme.onSurfaceVariant
-            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.transparent,
+        color: AppColors.transparent,
         child: ListTile(
-          dense: true,
-        minLeadingWidth: 24,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        selected: selected,
-        selectedTileColor: theme.colorScheme.primaryContainer,
-        leading: Icon(
-          selected ? selectedIcon : icon,
-          color: iconColor,
-        ),
-        title: Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-            color: foregroundColor,
+          dense: false,
+          minLeadingWidth: 24,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
-        ),
+          selected: selected,
+          selectedTileColor: theme.colorScheme.primaryContainer,
+          leading: Icon(selected ? selectedIcon : icon, color: iconColor),
+          title: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color: foregroundColor,
+            ),
+          ),
           onTap: enabled ? onTap : null,
         ),
       ),
     );
   }
 }
-
-
-

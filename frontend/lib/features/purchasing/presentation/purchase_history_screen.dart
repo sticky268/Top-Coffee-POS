@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/purchase_history_controller.dart';
 import '../domain/purchase_models.dart';
 
@@ -13,8 +14,7 @@ class PurchaseHistoryScreen extends ConsumerStatefulWidget {
       _PurchaseHistoryScreenState();
 }
 
-class _PurchaseHistoryScreenState
-    extends ConsumerState<PurchaseHistoryScreen> {
+class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
   final _scrollController = ScrollController();
 
   @override
@@ -39,9 +39,7 @@ class _PurchaseHistoryScreenState
     final position = _scrollController.position;
 
     if (position.pixels >= position.maxScrollExtent - 300) {
-      ref
-          .read(purchaseHistoryControllerProvider.notifier)
-          .loadNextPage();
+      ref.read(purchaseHistoryControllerProvider.notifier).loadNextPage();
     }
   }
 
@@ -53,44 +51,38 @@ class _PurchaseHistoryScreenState
       appBar: AppBar(
         title: const Text('Purchase History'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'New Purchase',
             onPressed: () async {
               final created = await context.push<bool>('/purchases/new');
 
               if (created == true && mounted) {
-                ref
-                    .read(purchaseHistoryControllerProvider.notifier)
-                    .refresh();
+                ref.read(purchaseHistoryControllerProvider.notifier).refresh();
               }
             },
             icon: const Icon(Icons.add_shopping_cart_outlined),
           ),
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: purchaseState.isLoading
                 ? null
                 : () => ref
-                    .read(purchaseHistoryControllerProvider.notifier)
-                    .refresh(),
+                      .read(purchaseHistoryControllerProvider.notifier)
+                      .refresh(),
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
       body: purchaseState.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _ErrorState(
           message: error.toString(),
-          onRetry: () => ref
-              .read(purchaseHistoryControllerProvider.notifier)
-              .refresh(),
+          onRetry: () =>
+              ref.read(purchaseHistoryControllerProvider.notifier).refresh(),
         ),
         data: (data) => RefreshIndicator(
-          onRefresh: () => ref
-              .read(purchaseHistoryControllerProvider.notifier)
-              .refresh(),
+          onRefresh: () =>
+              ref.read(purchaseHistoryControllerProvider.notifier).refresh(),
           child: _PurchaseHistoryList(
             data: data,
             scrollController: _scrollController,
@@ -119,7 +111,7 @@ class _PurchaseHistoryList extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: const [
           _PurchaseHeader(total: 0),
-          SizedBox(height: 20),
+          SizedBox(height: 24),
           _EmptyState(),
         ],
       );
@@ -131,19 +123,17 @@ class _PurchaseHistoryList extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _PurchaseHeader(total: data.total),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         ...data.purchases.map(
           (purchase) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 16),
             child: _PurchaseCard(purchase: purchase),
           ),
         ),
         if (data.hasNextPage)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            child: Center(child: CircularProgressIndicator()),
           ),
       ],
     );
@@ -151,9 +141,7 @@ class _PurchaseHistoryList extends StatelessWidget {
 }
 
 class _PurchaseHeader extends StatelessWidget {
-  const _PurchaseHeader({
-    required this.total,
-  });
+  const _PurchaseHeader({required this.total});
 
   final int total;
 
@@ -167,19 +155,14 @@ class _PurchaseHeader extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
         ),
-        Text(
-          '$total total',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        Text('$total total', style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }
 }
 
 class _PurchaseCard extends StatelessWidget {
-  const _PurchaseCard({
-    required this.purchase,
-  });
+  const _PurchaseCard({required this.purchase});
 
   final Purchase purchase;
 
@@ -196,7 +179,7 @@ class _PurchaseCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       child: ExpansionTile(
         leading: Container(
           width: 48,
@@ -236,10 +219,8 @@ class _PurchaseCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                ...purchase.items.map(
-                  (item) => _PurchaseItemRow(item: item),
-                ),
-                const SizedBox(height: 12),
+                ...purchase.items.map((item) => _PurchaseItemRow(item: item)),
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -267,9 +248,7 @@ class _PurchaseCard extends StatelessWidget {
 }
 
 class _PurchaseItemRow extends StatelessWidget {
-  const _PurchaseItemRow({
-    required this.item,
-  });
+  const _PurchaseItemRow({required this.item});
 
   final PurchaseItem item;
 
@@ -279,7 +258,7 @@ class _PurchaseItemRow extends StatelessWidget {
     final lineTotal = item.quantity * item.unitCost;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Expanded(
@@ -330,7 +309,7 @@ class _EmptyState extends StatelessWidget {
               size: 56,
               color: Theme.of(context).colorScheme.outline,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               'No purchases yet',
               style: Theme.of(context).textTheme.titleMedium,
@@ -348,10 +327,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -364,24 +340,16 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 16),
             const Text(
               'Could not load purchase history.',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-            ),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

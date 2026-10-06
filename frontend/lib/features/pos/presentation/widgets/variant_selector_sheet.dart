@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -12,7 +12,8 @@ Future<void> showVariantSelector(
   BuildContext context,
   WidgetRef ref,
   PosProduct product, {
-  void Function(PosProduct product, PosProductVariant variant)? onVariantSelected,
+  void Function(PosProduct product, PosProductVariant variant)?
+  onVariantSelected,
 }) {
   final currency = NumberFormat.currency(symbol: '\$');
 
@@ -28,7 +29,7 @@ Future<void> showVariantSelector(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
               child: Text(product.name, style: theme.textTheme.titleLarge),
             ),
             for (final variant in product.variants)
@@ -42,10 +43,9 @@ Future<void> showVariantSelector(
                   if (onVariantSelected != null) {
                     onVariantSelected(product, variant);
                   } else {
-                    ref.read(cartControllerProvider.notifier).addItem(
-                      product,
-                      variant: variant,
-                    );
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .addItem(product, variant: variant);
                   }
                   Navigator.of(sheetContext).pop();
                 },
@@ -57,4 +57,3 @@ Future<void> showVariantSelector(
     },
   );
 }
-

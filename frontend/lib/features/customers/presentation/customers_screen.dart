@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
-
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/customers_list_controller.dart';
 import '../application/customers_list_state.dart';
 import '../domain/customer_models.dart';
@@ -43,7 +43,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
       appBar: AppBar(
         title: const Text('Customers'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             onPressed: canModify
                 ? () async {
                     final created = await context.push<bool>('/customers/add');
@@ -63,7 +63,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
@@ -73,25 +73,23 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
-                    : IconButton(
+                    : pos_ui.IconButton(
                         onPressed: () {
                           _searchController.clear();
                           ref
-                              .read(
-                                customersListControllerProvider.notifier,
-                              )
+                              .read(customersListControllerProvider.notifier)
                               .clearSearch();
                           setState(() {});
                         },
                         icon: const Icon(Icons.clear),
                       ),
-                border: const OutlineInputBorder(),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                ),
               ),
             ),
           ),
-          Expanded(
-            child: _buildBody(state),
-          ),
+          Expanded(child: _buildBody(state)),
         ],
       ),
     );
@@ -99,9 +97,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
   Widget _buildBody(CustomersListState state) {
     if (state is CustomersListLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state is CustomersListError) {
@@ -114,10 +110,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  state.message,
-                  textAlign: TextAlign.center,
-                ),
+                child: Text(state.message, textAlign: TextAlign.center),
               ),
             ),
           ],
@@ -134,14 +127,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 180),
-            Icon(
-              Icons.people_outline,
-              size: 64,
-            ),
+            Icon(Icons.people_outline, size: 64),
             SizedBox(height: 16),
-            Center(
-              child: Text('No customers found'),
-            ),
+            Center(child: Text('No customers found')),
           ],
         ),
       );
@@ -163,14 +151,12 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           itemCount: loaded.customers.length + (loaded.isLoadingMore ? 1 : 0),
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             if (index >= loaded.customers.length) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
@@ -196,10 +182,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 }
 
 class _CustomerCard extends StatelessWidget {
-  const _CustomerCard({
-    required this.customer,
-    required this.onTap,
-  });
+  const _CustomerCard({required this.customer, required this.onTap});
 
   final Customer customer;
   final VoidCallback onTap;
@@ -234,9 +217,7 @@ class _CustomerCard extends StatelessWidget {
           children: [
             Text('${customer.completedOrdersCount} orders'),
             const SizedBox(height: 4),
-            Text(
-              '\$${customer.completedOrdersTotal.toStringAsFixed(2)}',
-            ),
+            Text('\$${customer.completedOrdersTotal.toStringAsFixed(2)}'),
           ],
         ),
       ),

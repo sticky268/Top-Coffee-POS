@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/staff_repository.dart';
 import '../domain/staff_models.dart';
 import 'edit_staff_screen.dart';
 
 class StaffDetailScreen extends ConsumerStatefulWidget {
-  const StaffDetailScreen({
-    super.key,
-    required this.staffId,
-  });
+  const StaffDetailScreen({super.key, required this.staffId});
 
   final int staffId;
 
@@ -28,8 +26,9 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
   }
 
   void _loadStaff() {
-    _staffFuture =
-        ref.read(staffRepositoryProvider).getStaffMember(widget.staffId);
+    _staffFuture = ref
+        .read(staffRepositoryProvider)
+        .getStaffMember(widget.staffId);
   }
 
   @override
@@ -39,7 +38,7 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
       appBar: AppBar(
         title: const Text('Staff Profile'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: canModify ? 'Edit staff' : 'Subscription is read-only',
             icon: const Icon(Icons.edit_outlined),
             onPressed: canModify
@@ -63,9 +62,7 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
         future: _staffFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -83,9 +80,7 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
           final staff = snapshot.data;
 
           if (staff == null) {
-            return const Center(
-              child: Text('Staff member not found'),
-            );
+            return const Center(child: Text('Staff member not found'));
           }
 
           return _StaffProfile(staff: staff);
@@ -96,9 +91,7 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
 }
 
 class _StaffProfile extends StatelessWidget {
-  const _StaffProfile({
-    required this.staff,
-  });
+  const _StaffProfile({required this.staff});
 
   final StaffMember staff;
 
@@ -107,7 +100,7 @@ class _StaffProfile extends StatelessWidget {
     final primaryBranch = staff.primaryBranch;
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       children: [
         Center(
           child: CircleAvatar(
@@ -116,10 +109,7 @@ class _StaffProfile extends StatelessWidget {
               staff.name.isEmpty
                   ? '?'
                   : staff.name.substring(0, 1).toUpperCase(),
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -127,9 +117,8 @@ class _StaffProfile extends StatelessWidget {
         Center(
           child: Text(
             staff.name,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(height: 8),
@@ -145,15 +134,9 @@ class _StaffProfile extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _InfoRow(
-                  label: 'Email',
-                  value: staff.email,
-                ),
+                _InfoRow(label: 'Email', value: staff.email),
                 if (staff.phone != null && staff.phone!.isNotEmpty)
-                  _InfoRow(
-                    label: 'Phone',
-                    value: staff.phone!,
-                  ),
+                  _InfoRow(label: 'Phone', value: staff.phone!),
                 _InfoRow(
                   label: 'Status',
                   value: staff.isActive ? 'Active' : 'Inactive',
@@ -168,12 +151,11 @@ class _StaffProfile extends StatelessWidget {
           ),
         ),
         if (staff.branches.isNotEmpty) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             'Branches',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Card(
@@ -184,9 +166,7 @@ class _StaffProfile extends StatelessWidget {
                     title: Text(branch.name),
                     subtitle: Text(branch.code),
                     trailing: branch.isPrimary
-                        ? const Chip(
-                            label: Text('Primary'),
-                          )
+                        ? const Chip(label: Text('Primary'))
                         : null,
                   ),
               ],
@@ -214,10 +194,7 @@ class _StaffProfile extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -225,7 +202,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -233,14 +210,10 @@ class _InfoRow extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );

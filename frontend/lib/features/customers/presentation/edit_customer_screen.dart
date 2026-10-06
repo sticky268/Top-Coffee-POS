@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
-
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/customer_detail_controller.dart';
 import '../application/customer_detail_state.dart';
 
@@ -56,9 +56,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Customer name is required.'),
-        ),
+        const SnackBar(content: Text('Customer name is required.')),
       );
       return;
     }
@@ -68,9 +66,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
     });
 
     final customer = await ref
-        .read(
-          customerDetailControllerProvider(widget.customerId).notifier,
-        )
+        .read(customerDetailControllerProvider(widget.customerId).notifier)
         .updateCustomer(
           name: name,
           phone: _phoneController.text.trim().isEmpty
@@ -96,9 +92,8 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
       );
 
       if (state is CustomerDetailError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(state.message)));
       }
 
       return;
@@ -110,9 +105,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Customer'),
-      ),
+      appBar: AppBar(title: const Text('Edit Customer')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -159,19 +152,12 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          pos_ui.PrimaryButton(
             onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
                 ? null
                 : _save,
-            child: _isSaving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Save Changes'),
+            isLoading: _isSaving,
+            child: const Text('Save Changes'),
           ),
         ],
       ),

@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/subscription/subscription_action_guard.dart';
-
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/inventory_list_controller.dart';
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
@@ -52,21 +53,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       appBar: AppBar(
         title: const Text('Inventory'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: inventoryState.isLoading
                 ? null
                 : () => ref
-                    .read(inventoryListControllerProvider.notifier)
-                    .refresh(),
+                      .read(inventoryListControllerProvider.notifier)
+                      .refresh(),
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
       body: inventoryState.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _ErrorState(
           message: error.toString(),
           onRetry: () =>
@@ -94,7 +93,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         }
                       : null,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 if (data.ingredients.isEmpty)
                   const _EmptyState()
                 else if (ingredients.isEmpty)
@@ -102,14 +101,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 else
                   ...ingredients.map(
                     (ingredient) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.only(bottom: 16),
                       child: _IngredientCard(
                         ingredient: ingredient,
                         onEdit: canModify
                             ? () => context.push(
-                                  '/inventory/edit',
-                                  extra: ingredient,
-                                )
+                                '/inventory/edit',
+                                extra: ingredient,
+                              )
                             : null,
                         onStockAction: canModify
                             ? () => _showStockActionDialog(ingredient)
@@ -132,9 +131,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  Future<void> _deleteIngredient(
-    InventoryIngredient ingredient,
-  ) async {
+  Future<void> _deleteIngredient(InventoryIngredient ingredient) async {
     if (!SubscriptionActionGuard.canModify(ref)) {
       return;
     }
@@ -150,11 +147,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             'its stock history will be preserved.',
           ),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.DangerButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Delete'),
             ),
@@ -170,18 +167,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     try {
       final repository = ref.read(inventoryRepositoryProvider);
 
-      await repository.deleteIngredient(
-        ingredientId: ingredient.id,
-      );
+      await repository.deleteIngredient(ingredientId: ingredient.id);
 
       if (!mounted) return;
 
       ref.invalidate(inventoryListControllerProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${ingredient.name} deleted successfully.'),
-        ),
+        SnackBar(content: Text('${ingredient.name} deleted successfully.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -198,9 +191,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     }
   }
 
-  Future<void> _showStockActionDialog(
-    InventoryIngredient ingredient,
-  ) async {
+  Future<void> _showStockActionDialog(InventoryIngredient ingredient) async {
     String type = 'purchase';
     final quantityController = TextEditingController();
     final reasonController = TextEditingController();
@@ -220,10 +211,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   quantityController.text.trim(),
                 );
 
-                if (quantity == null || quantity == 0 || (type != 'adjustment' && quantity < 0)) {
+                if (quantity == null ||
+                    quantity == 0 ||
+                    (type != 'adjustment' && quantity < 0)) {
                   setState(() {
-                    errorMessage =
-                        type == 'adjustment' ? 'Enter a non-zero quantity. Use a negative number to reduce stock.' : 'Please enter a valid quantity greater than 0.';
+                    errorMessage = type == 'adjustment'
+                        ? 'Enter a non-zero quantity. Use a negative number to reduce stock.'
+                        : 'Please enter a valid quantity greater than 0.';
                   });
                   return;
                 }
@@ -231,7 +225,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 if ((type == 'adjustment' || type == 'wastage') &&
                     reasonController.text.trim().isEmpty) {
                   setState(() {
-                    errorMessage = 'Please enter a reason for this stock action.';
+                    errorMessage =
+                        'Please enter a reason for this stock action.';
                   });
                   return;
                 }
@@ -275,9 +270,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     children: [
                       DropdownButtonFormField<String>(
                         initialValue: type,
-                        decoration: const InputDecoration(
-                          labelText: 'Action',
-                        ),
+                        decoration: const InputDecoration(labelText: 'Action'),
                         items: const [
                           DropdownMenuItem(
                             value: 'purchase',
@@ -325,7 +318,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         maxLines: 2,
                       ),
                       if (errorMessage != null) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
@@ -340,23 +333,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ),
                 ),
                 actions: [
-                  TextButton(
+                  pos_ui.SecondaryButton(
                     onPressed: isSaving
                         ? null
                         : () => Navigator.of(dialogContext).pop(),
                     child: const Text('Cancel'),
                   ),
-                  FilledButton(
+                  pos_ui.PrimaryButton(
                     onPressed: isSaving ? null : submit,
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Continue'),
+                    isLoading: isSaving,
+                    child: const Text('Continue'),
                   ),
                 ],
               );
@@ -395,7 +381,7 @@ class _InventoryHeader extends StatelessWidget {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onAddIngredient,
               icon: const Icon(Icons.add),
               label: const Text('Add Ingredient'),
@@ -411,7 +397,7 @@ class _InventoryHeader extends StatelessWidget {
             prefixIcon: const Icon(Icons.search),
             suffixIcon: searchController.text.isEmpty
                 ? null
-                : IconButton(
+                : pos_ui.IconButton(
                     tooltip: 'Clear',
                     onPressed: () {
                       searchController.clear();
@@ -419,7 +405,9 @@ class _InventoryHeader extends StatelessWidget {
                     },
                     icon: const Icon(Icons.clear),
                   ),
-            border: const OutlineInputBorder(),
+            border: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+            ),
           ),
         ),
       ],
@@ -449,17 +437,17 @@ class _IngredientCard extends StatelessWidget {
     final statusText = !ingredient.isActive
         ? 'Inactive'
         : ingredient.isLowStock
-            ? 'Low Stock'
-            : 'In Stock';
+        ? 'Low Stock'
+        : 'In Stock';
 
     final statusColor = !ingredient.isActive
         ? theme.colorScheme.outline
         : ingredient.isLowStock
-            ? theme.colorScheme.error
-            : Colors.green;
+        ? theme.colorScheme.error
+        : AppColors.semantic(context, AppColors.success);
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -517,39 +505,27 @@ class _IngredientCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    OutlinedButton.icon(
+                    pos_ui.OutlinedButton.icon(
                       onPressed: onEdit,
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
                       label: const Text('Edit'),
                     ),
                     const SizedBox(width: 8),
-                    OutlinedButton.icon(
+                    pos_ui.OutlinedButton.icon(
                       onPressed: onStockAction,
-                      icon: const Icon(
-                        Icons.inventory_2_outlined,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.inventory_2_outlined, size: 18),
                       label: const Text('Stock Action'),
                     ),
                     const SizedBox(width: 8),
-                    OutlinedButton.icon(
+                    pos_ui.OutlinedButton.icon(
                       onPressed: onHistory,
-                      icon: const Icon(
-                        Icons.history,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.history, size: 18),
                       label: const Text('History'),
                     ),
                     const SizedBox(width: 8),
-                    OutlinedButton.icon(
+                    pos_ui.DangerButton.icon(
                       onPressed: onDelete,
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.delete_outline, size: 18),
                       label: const Text('Delete'),
                     ),
                   ],
@@ -579,7 +555,7 @@ class _EmptyState extends StatelessWidget {
               size: 56,
               color: Theme.of(context).colorScheme.outline,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               'No ingredients yet',
               style: Theme.of(context).textTheme.titleMedium,
@@ -604,18 +580,13 @@ class _NoSearchResults extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(
       height: 300,
-      child: Center(
-        child: Text('No ingredients match your search.'),
-      ),
+      child: Center(child: Text('No ingredients match your search.')),
     );
   }
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -628,24 +599,16 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 16),
             const Text(
               'Could not load inventory.',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-            ),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

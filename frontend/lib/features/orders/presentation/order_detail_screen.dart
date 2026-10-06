@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../application/order_detail_controller.dart';
@@ -20,7 +21,8 @@ class OrderDetailScreen extends ConsumerWidget {
     final state = ref.watch(orderDetailControllerProvider(orderId));
     final authState = ref.watch(authControllerProvider);
 
-    final canEdit = state is OrderDetailLoaded &&
+    final canEdit =
+        state is OrderDetailLoaded &&
         state.order.status == 'completed' &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.edit');
@@ -30,7 +32,7 @@ class OrderDetailScreen extends ConsumerWidget {
         title: Text('Order #$orderId'),
         actions: [
           if (canEdit)
-            IconButton(
+            pos_ui.IconButton(
               tooltip: 'Edit order',
               icon: const Icon(Icons.edit),
               onPressed: () async {
@@ -48,26 +50,23 @@ class OrderDetailScreen extends ConsumerWidget {
         ],
       ),
       body: switch (state) {
-        OrderDetailLoading() =>
-          const Center(child: CircularProgressIndicator()),
+        OrderDetailLoading() => const Center(
+          child: CircularProgressIndicator(),
+        ),
         OrderDetailError(:final message) => _DetailErrorView(
-            message: message,
-            onRetry: () => ref
-                .read(orderDetailControllerProvider(orderId).notifier)
-                .refresh(),
-          ),
-        OrderDetailLoaded(:final order) => _OrderDetailBody(
-            order: order,
-          ),
+          message: message,
+          onRetry: () => ref
+              .read(orderDetailControllerProvider(orderId).notifier)
+              .refresh(),
+        ),
+        OrderDetailLoaded(:final order) => _OrderDetailBody(order: order),
       },
     );
   }
 }
 
 class _OrderDetailBody extends StatelessWidget {
-  const _OrderDetailBody({
-    required this.order,
-  });
+  const _OrderDetailBody({required this.order});
 
   final OrderDetail order;
 
@@ -92,12 +91,15 @@ class _OrderDetailBody extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   dateLabel,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _InfoRow(
-                    label: 'Status', value: orderStatusLabel(order.status)),
+                  label: 'Status',
+                  value: orderStatusLabel(order.status),
+                ),
                 _InfoRow(label: 'Type', value: orderTypeLabel(order.orderType)),
                 if (order.table != null)
                   _InfoRow(label: 'Table', value: order.table!.name),
@@ -105,9 +107,13 @@ class _OrderDetailBody extends StatelessWidget {
                 // order's branch/cashier could be missing; never crash,
                 // always show a sensible fallback.
                 _InfoRow(
-                    label: 'Branch', value: order.branch?.name ?? 'Unknown'),
+                  label: 'Branch',
+                  value: order.branch?.name ?? 'Unknown',
+                ),
                 _InfoRow(
-                    label: 'Cashier', value: order.cashier?.name ?? 'Unknown'),
+                  label: 'Cashier',
+                  value: order.cashier?.name ?? 'Unknown',
+                ),
               ],
             ),
           ),
@@ -121,8 +127,9 @@ class _OrderDetailBody extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   child: Text(
                     'No items recorded',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 )
               : Column(
@@ -135,9 +142,12 @@ class _OrderDetailBody extends StatelessWidget {
                               : item.productName,
                         ),
                         subtitle: Text(
-                            '${item.quantity} × ${currency.format(item.unitPrice)}'),
-                        trailing: Text(currency.format(item.lineTotal),
-                            style: theme.textTheme.titleMedium),
+                          '${item.quantity} × ${currency.format(item.unitPrice)}',
+                        ),
+                        trailing: Text(
+                          currency.format(item.lineTotal),
+                          style: theme.textTheme.titleMedium,
+                        ),
                       ),
                   ],
                 ),
@@ -150,16 +160,20 @@ class _OrderDetailBody extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _SummaryRow(
-                    label: 'Subtotal', value: currency.format(order.subtotal)),
+                  label: 'Subtotal',
+                  value: currency.format(order.subtotal),
+                ),
                 if (order.discountTotal > 0)
                   _SummaryRow(
-                      label: 'Discount',
-                      value: '- ${currency.format(order.discountTotal)}'),
+                    label: 'Discount',
+                    value: '- ${currency.format(order.discountTotal)}',
+                  ),
                 const Divider(height: 16),
                 _SummaryRow(
-                    label: 'Total',
-                    value: currency.format(order.total),
-                    emphasize: true),
+                  label: 'Total',
+                  value: currency.format(order.total),
+                  emphasize: true,
+                ),
               ],
             ),
           ),
@@ -174,17 +188,15 @@ class _OrderDetailBody extends StatelessWidget {
                 children: [
                   Text('Payment', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  for (final payment in (order.payments.isNotEmpty
-                      ? order.payments
-                      : [order.payment!])) ...[
+                  for (final payment
+                      in (order.payments.isNotEmpty
+                          ? order.payments
+                          : [order.payment!])) ...[
                     _InfoRow(
                       label: 'Method',
                       value: paymentMethodLabel(payment.method),
                     ),
-                    _InfoRow(
-                      label: 'Status',
-                      value: payment.status,
-                    ),
+                    _InfoRow(label: 'Status', value: payment.status),
                     _InfoRow(
                       label: 'Amount',
                       value: currency.format(payment.amount),
@@ -227,9 +239,12 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           Text(value, style: theme.textTheme.bodyMedium),
         ],
       ),
@@ -238,8 +253,11 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(
-      {required this.label, required this.value, this.emphasize = false});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
 
   final String label;
   final String value;
@@ -278,18 +296,21 @@ class _DetailErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
-            const SizedBox(height: 12),
-            Text('Could not load this order',
-                style: theme.textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Text(
+              'Could not load this order',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),

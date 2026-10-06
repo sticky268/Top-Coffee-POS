@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/utils/device_name.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/auth_controller.dart';
 import '../application/auth_state.dart';
 
@@ -37,7 +38,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    ref.read(authControllerProvider.notifier).login(
+    ref
+        .read(authControllerProvider.notifier)
+        .login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           deviceName: currentDeviceName(),
@@ -111,7 +114,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _emailController,
                       focusNode: _emailFocus,
                       enabled: !isLoading,
-                      autofillHints: const [AutofillHints.username, AutofillHints.email],
+                      autofillHints: const [
+                        AutofillHints.username,
+                        AutofillHints.email,
+                      ],
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
@@ -134,13 +140,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock_outline),
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                          tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(14)),
+                        ),
+                        suffixIcon: pos_ui.IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          tooltip: _obscurePassword
+                              ? 'Show password'
+                              : 'Hide password',
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       validator: _validatePassword,
@@ -148,18 +162,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    FilledButton(
+                    pos_ui.PrimaryButton(
                       onPressed: isLoading ? null : _submit,
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
-                            )
-                          : const Text('Sign in'),
+                      isLoading: isLoading,
+                      child: const Text('Sign in'),
                     ),
                   ],
                 ),
@@ -181,14 +190,18 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: theme.colorScheme.onErrorContainer, size: 20),
+          Icon(
+            Icons.error_outline,
+            color: theme.colorScheme.onErrorContainer,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

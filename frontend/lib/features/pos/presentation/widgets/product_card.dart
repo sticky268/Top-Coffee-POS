@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/pos_models.dart';
 
 class ProductCard extends StatelessWidget {
@@ -24,7 +25,7 @@ class ProductCard extends StatelessWidget {
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+      child: pos_ui.ActionSurface(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: LayoutBuilder(
@@ -40,8 +41,8 @@ class ProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: product.imageUrl != null &&
-                            product.imageUrl!.isNotEmpty
+                    child:
+                        product.imageUrl != null && product.imageUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(

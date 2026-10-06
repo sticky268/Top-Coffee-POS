@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/loyalty_repository.dart';
 import '../domain/loyalty_models.dart';
 
@@ -13,8 +14,7 @@ class LoyaltySettingsScreen extends ConsumerStatefulWidget {
       _LoyaltySettingsScreenState();
 }
 
-class _LoyaltySettingsScreenState
-    extends ConsumerState<LoyaltySettingsScreen> {
+class _LoyaltySettingsScreenState extends ConsumerState<LoyaltySettingsScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _pointsPerCurrencyController = TextEditingController();
@@ -76,12 +76,13 @@ class _LoyaltySettingsScreenState
         _isEnabled = settings.isEnabled;
         _redemptionEnabled = settings.redemptionEnabled;
 
-        _pointsPerCurrencyController.text =
-            settings.pointsPerCurrencyUnit.toString();
-        _pointsPerRewardCurrencyController.text =
-            settings.pointsPerRewardCurrencyUnit.toString();
-        _minimumRedeemPointsController.text =
-            settings.minimumRedeemPoints.toString();
+        _pointsPerCurrencyController.text = settings.pointsPerCurrencyUnit
+            .toString();
+        _pointsPerRewardCurrencyController.text = settings
+            .pointsPerRewardCurrencyUnit
+            .toString();
+        _minimumRedeemPointsController.text = settings.minimumRedeemPoints
+            .toString();
         _expirationMonthsController.text =
             settings.expirationMonths?.toString() ?? '';
         _isLoading = false;
@@ -109,16 +110,20 @@ class _LoyaltySettingsScreenState
       return;
     }
 
-    final pointsPerCurrency =
-        double.tryParse(_pointsPerCurrencyController.text.trim());
-    final pointsPerRewardCurrency =
-        double.tryParse(_pointsPerRewardCurrencyController.text.trim());
-    final minimumRedeemPoints =
-        int.tryParse(_minimumRedeemPointsController.text.trim());
+    final pointsPerCurrency = double.tryParse(
+      _pointsPerCurrencyController.text.trim(),
+    );
+    final pointsPerRewardCurrency = double.tryParse(
+      _pointsPerRewardCurrencyController.text.trim(),
+    );
+    final minimumRedeemPoints = int.tryParse(
+      _minimumRedeemPointsController.text.trim(),
+    );
 
     final expirationText = _expirationMonthsController.text.trim();
-    final expirationMonths =
-        expirationText.isEmpty ? null : int.tryParse(expirationText);
+    final expirationMonths = expirationText.isEmpty
+        ? null
+        : int.tryParse(expirationText);
 
     if (pointsPerCurrency == null ||
         pointsPerRewardCurrency == null ||
@@ -152,9 +157,7 @@ class _LoyaltySettingsScreenState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loyalty settings saved successfully.'),
-        ),
+        const SnackBar(content: Text('Loyalty settings saved successfully.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -164,13 +167,10 @@ class _LoyaltySettingsScreenState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to save loyalty settings: $e'),
-        ),
+        SnackBar(content: Text('Unable to save loyalty settings: $e')),
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -178,9 +178,7 @@ class _LoyaltySettingsScreenState
     final currentBranch = ref.watch(currentBranchProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Loyalty Settings'),
-      ),
+      appBar: AppBar(title: const Text('Loyalty Settings')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -193,9 +191,7 @@ class _LoyaltySettingsScreenState
                       child: ListTile(
                         leading: const Icon(Icons.store_outlined),
                         title: Text(currentBranch.name),
-                        subtitle: Text(
-                          'Branch ${currentBranch.code}',
-                        ),
+                        subtitle: Text('Branch ${currentBranch.code}'),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -206,9 +202,7 @@ class _LoyaltySettingsScreenState
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           _errorMessage!,
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                          ),
+                          style: TextStyle(color: theme.colorScheme.error),
                         ),
                       ),
                     ),
@@ -261,10 +255,7 @@ class _LoyaltySettingsScreenState
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Points',
-                            style: theme.textTheme.titleMedium,
-                          ),
+                          Text('Points', style: theme.textTheme.titleMedium),
                           const SizedBox(height: 8),
                           Card(
                             child: Padding(
@@ -272,21 +263,20 @@ class _LoyaltySettingsScreenState
                               child: Column(
                                 children: [
                                   TextFormField(
-                                    controller:
-                                        _pointsPerCurrencyController,
+                                    controller: _pointsPerCurrencyController,
                                     enabled: !_isSaving,
                                     keyboardType:
                                         const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
+                                          decimal: true,
+                                        ),
                                     decoration: const InputDecoration(
                                       labelText: 'Points per currency unit',
-                                      helperText:
-                                          'Example: 1 point for every currency unit spent.',
+                                      helperText: 'Example: 1 point for every currency unit spent.',
                                     ),
                                     validator: (value) {
-                                      final number =
-                                          double.tryParse(value?.trim() ?? '');
+                                      final number = double.tryParse(
+                                        value?.trim() ?? '',
+                                      );
                                       if (number == null || number < 0) {
                                         return 'Enter a valid number.';
                                       }
@@ -300,17 +290,16 @@ class _LoyaltySettingsScreenState
                                     enabled: !_isSaving,
                                     keyboardType:
                                         const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
+                                          decimal: true,
+                                        ),
                                     decoration: const InputDecoration(
-                                      labelText:
-                                          'Points required per reward currency unit',
-                                      helperText:
-                                          'Example: 100 points = 1 reward currency unit.',
+                                      labelText: 'Points required per reward currency unit',
+                                      helperText: 'Example: 100 points = 1 reward currency unit.',
                                     ),
                                     validator: (value) {
-                                      final number =
-                                          double.tryParse(value?.trim() ?? '');
+                                      final number = double.tryParse(
+                                        value?.trim() ?? '',
+                                      );
                                       if (number == null || number <= 0) {
                                         return 'Enter a number greater than 0.';
                                       }
@@ -319,16 +308,16 @@ class _LoyaltySettingsScreenState
                                   ),
                                   const SizedBox(height: 16),
                                   TextFormField(
-                                    controller:
-                                        _minimumRedeemPointsController,
+                                    controller: _minimumRedeemPointsController,
                                     enabled: !_isSaving,
                                     keyboardType: TextInputType.number,
                                     decoration: const InputDecoration(
                                       labelText: 'Minimum points to redeem',
                                     ),
                                     validator: (value) {
-                                      final number =
-                                          int.tryParse(value?.trim() ?? '');
+                                      final number = int.tryParse(
+                                        value?.trim() ?? '',
+                                      );
                                       if (number == null || number < 0) {
                                         return 'Enter a valid whole number.';
                                       }
@@ -337,8 +326,7 @@ class _LoyaltySettingsScreenState
                                   ),
                                   const SizedBox(height: 16),
                                   TextFormField(
-                                    controller:
-                                        _expirationMonthsController,
+                                    controller: _expirationMonthsController,
                                     enabled: !_isSaving,
                                     keyboardType: TextInputType.number,
                                     decoration: const InputDecoration(
@@ -364,17 +352,10 @@ class _LoyaltySettingsScreenState
                           const SizedBox(height: 24),
                           SizedBox(
                             width: double.infinity,
-                            child: FilledButton.icon(
+                            child: pos_ui.PrimaryButton.icon(
                               onPressed: _isSaving ? null : _saveSettings,
-                              icon: _isSaving
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.save_outlined),
+                              isLoading: _isSaving,
+                              icon: const Icon(Icons.save_outlined),
                               label: Text(
                                 _isSaving ? 'Saving...' : 'Save Changes',
                               ),

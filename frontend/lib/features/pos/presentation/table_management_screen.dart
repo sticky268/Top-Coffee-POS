@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
 
@@ -12,8 +14,7 @@ class TableManagementScreen extends ConsumerStatefulWidget {
       _TableManagementScreenState();
 }
 
-class _TableManagementScreenState
-    extends ConsumerState<TableManagementScreen> {
+class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
   List<PosTable> _tables = [];
   bool _isLoading = true;
   String? _error;
@@ -35,13 +36,14 @@ class _TableManagementScreenState
 
       if (!mounted) return;
 
-      final sortedTables = [...tables]..sort((a, b) {
-        final aNumber =
-            int.tryParse(a.name.replaceFirst(RegExp(r'^\D+'), '')) ?? 0;
-        final bNumber =
-            int.tryParse(b.name.replaceFirst(RegExp(r'^\D+'), '')) ?? 0;
-        return aNumber.compareTo(bNumber);
-      });
+      final sortedTables = [...tables]
+        ..sort((a, b) {
+          final aNumber =
+              int.tryParse(a.name.replaceFirst(RegExp(r'^\D+'), '')) ?? 0;
+          final bNumber =
+              int.tryParse(b.name.replaceFirst(RegExp(r'^\D+'), '')) ?? 0;
+          return aNumber.compareTo(bNumber);
+        });
 
       setState(() {
         _tables = sortedTables;
@@ -60,11 +62,11 @@ class _TableManagementScreenState
   Color _statusColor(String status) {
     switch (status) {
       case 'occupied':
-        return Colors.orange;
+        return AppColors.semantic(context, AppColors.warning);
       case 'reserved':
-        return Colors.blue;
+        return AppColors.semantic(context, AppColors.info);
       default:
-        return Colors.green;
+        return AppColors.semantic(context, AppColors.success);
     }
   }
 
@@ -82,7 +84,7 @@ class _TableManagementScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -91,35 +93,35 @@ class _TableManagementScreenState
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Table Management',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           'Manage restaurant tables and their current status.',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey,
+                            color: AppColors.semantic(context, AppColors.muted),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
+                  pos_ui.IconButton(
                     tooltip: 'Refresh',
                     onPressed: _isLoading ? null : _loadTables,
                     icon: const Icon(Icons.refresh),
                   ),
                   const SizedBox(width: 8),
-                  FilledButton.icon(
+                  pos_ui.PrimaryButton.icon(
                     onPressed: _showAddTableDialog,
                     icon: const Icon(Icons.add),
                     label: const Text('Add Table'),
@@ -127,9 +129,7 @@ class _TableManagementScreenState
                 ],
               ),
               const SizedBox(height: 24),
-              Expanded(
-                child: _buildContent(),
-              ),
+              Expanded(child: _buildContent()),
             ],
           ),
         ),
@@ -164,14 +164,16 @@ class _TableManagementScreenState
         return _AddTableDialog(
           initialName: _nextTableName(),
           onCreate: (name, capacity, section, shape, color, isActive) async {
-            await ref.read(posRepositoryProvider).createTable(
-              name: name,
-              capacity: capacity,
-              section: section,
-              shape: shape,
-              color: color,
-              isActive: isActive,
-            );
+            await ref
+                .read(posRepositoryProvider)
+                .createTable(
+                  name: name,
+                  capacity: capacity,
+                  section: section,
+                  shape: shape,
+                  color: color,
+                  isActive: isActive,
+                );
           },
         );
       },
@@ -183,6 +185,7 @@ class _TableManagementScreenState
 
     await _loadTables();
   }
+
   Future<void> _showDeleteTableDialog(PosTable table) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -193,11 +196,11 @@ class _TableManagementScreenState
             'Are you sure you want to delete ${table.name}? This action cannot be undone.',
           ),
           actions: [
-            TextButton(
+            pos_ui.SecondaryButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            pos_ui.DangerButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Delete'),
             ),
@@ -211,9 +214,7 @@ class _TableManagementScreenState
     }
 
     try {
-      await ref.read(posRepositoryProvider).deleteTable(
-        tableId: table.id,
-      );
+      await ref.read(posRepositoryProvider).deleteTable(tableId: table.id);
 
       if (!mounted) return;
 
@@ -221,39 +222,32 @@ class _TableManagementScreenState
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to delete table: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Unable to delete table: $e')));
     }
   }
+
   Future<void> _showEditTableDialog(PosTable table) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return _EditTableDialog(
           table: table,
-          onSave: (
-            name,
-            capacity,
-            status,
-            section,
-            shape,
-            color,
-            isActive,
-          ) async {
-            await ref.read(posRepositoryProvider).updateTable(
-              tableId: table.id,
-              name: name,
-              capacity: capacity,
-              status: status,
-              section: section,
-              shape: shape,
-              color: color,
-              isActive: isActive,
-            );
-          },
+          onSave:
+              (name, capacity, status, section, shape, color, isActive) async {
+                await ref
+                    .read(posRepositoryProvider)
+                    .updateTable(
+                      tableId: table.id,
+                      name: name,
+                      capacity: capacity,
+                      status: status,
+                      section: section,
+                      shape: shape,
+                      color: color,
+                      isActive: isActive,
+                    );
+              },
         );
       },
     );
@@ -267,9 +261,7 @@ class _TableManagementScreenState
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -277,15 +269,15 @@ class _TableManagementScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 48,
-              color: Colors.redAccent,
+              color: AppColors.semantic(context, AppColors.error),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(_error!),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
+            const SizedBox(height: 16),
+            pos_ui.OutlinedButton.icon(
               onPressed: _loadTables,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
@@ -296,9 +288,7 @@ class _TableManagementScreenState
     }
 
     if (_tables.isEmpty) {
-      return const Center(
-        child: Text('No tables found.'),
-      );
+      return const Center(child: Text('No tables found.'));
     }
 
     return LayoutBuilder(
@@ -308,10 +298,10 @@ class _TableManagementScreenState
         final crossAxisCount = width >= 1200
             ? 5
             : width >= 900
-                ? 4
-                : width >= 600
-                    ? 3
-                    : 2;
+            ? 4
+            : width >= 600
+            ? 3
+            : 2;
 
         return GridView.builder(
           padding: const EdgeInsets.only(bottom: 24),
@@ -343,10 +333,7 @@ class _TableManagementScreenState
 }
 
 class _AddTableDialog extends StatefulWidget {
-  const _AddTableDialog({
-    required this.onCreate,
-    required this.initialName,
-  });
+  const _AddTableDialog({required this.onCreate, required this.initialName});
 
   final String initialName;
 
@@ -357,7 +344,8 @@ class _AddTableDialog extends StatefulWidget {
     String shape,
     String? color,
     bool isActive,
-  ) onCreate;
+  )
+  onCreate;
 
   @override
   State<_AddTableDialog> createState() => _AddTableDialogState();
@@ -486,26 +474,12 @@ class _AddTableDialogState extends State<_AddTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _section,
-                decoration: const InputDecoration(
-                  labelText: 'Section',
-                ),
+                decoration: const InputDecoration(labelText: 'Section'),
                 items: const [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text('No section'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Indoor',
-                    child: Text('Indoor'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Outdoor',
-                    child: Text('Outdoor'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'VIP',
-                    child: Text('VIP'),
-                  ),
+                  DropdownMenuItem(value: null, child: Text('No section')),
+                  DropdownMenuItem(value: 'Indoor', child: Text('Indoor')),
+                  DropdownMenuItem(value: 'Outdoor', child: Text('Outdoor')),
+                  DropdownMenuItem(value: 'VIP', child: Text('VIP')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -519,22 +493,14 @@ class _AddTableDialogState extends State<_AddTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _shape,
-                decoration: const InputDecoration(
-                  labelText: 'Shape',
-                ),
+                decoration: const InputDecoration(labelText: 'Shape'),
                 items: const [
-                  DropdownMenuItem(
-                    value: 'square',
-                    child: Text('Square'),
-                  ),
+                  DropdownMenuItem(value: 'square', child: Text('Square')),
                   DropdownMenuItem(
                     value: 'rectangle',
                     child: Text('Rectangle'),
                   ),
-                  DropdownMenuItem(
-                    value: 'round',
-                    child: Text('Round'),
-                  ),
+                  DropdownMenuItem(value: 'round', child: Text('Round')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -550,30 +516,13 @@ class _AddTableDialogState extends State<_AddTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _color,
-                decoration: const InputDecoration(
-                  labelText: 'Color',
-                ),
+                decoration: const InputDecoration(labelText: 'Color'),
                 items: const [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text('Default'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'blue',
-                    child: Text('Blue'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'green',
-                    child: Text('Green'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'orange',
-                    child: Text('Orange'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'purple',
-                    child: Text('Purple'),
-                  ),
+                  DropdownMenuItem(value: null, child: Text('Default')),
+                  DropdownMenuItem(value: 'blue', child: Text('Blue')),
+                  DropdownMenuItem(value: 'green', child: Text('Green')),
+                  DropdownMenuItem(value: 'orange', child: Text('Orange')),
+                  DropdownMenuItem(value: 'purple', child: Text('Purple')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -599,7 +548,7 @@ class _AddTableDialogState extends State<_AddTableDialog> {
                       },
               ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -616,7 +565,7 @@ class _AddTableDialogState extends State<_AddTableDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        pos_ui.SecondaryButton(
           onPressed: _isSaving
               ? null
               : () {
@@ -625,25 +574,18 @@ class _AddTableDialogState extends State<_AddTableDialog> {
                 },
           child: const Text('Cancel'),
         ),
-        FilledButton(
+        pos_ui.PrimaryButton(
           onPressed: _isSaving ? null : _create,
-          child: _isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Create'),
+          isLoading: _isSaving,
+          child: const Text('Create'),
         ),
       ],
     );
   }
 }
+
 class _EditTableDialog extends StatefulWidget {
-  const _EditTableDialog({
-    required this.table,
-    required this.onSave,
-  });
+  const _EditTableDialog({required this.table, required this.onSave});
 
   final PosTable table;
   final Future<void> Function(
@@ -654,7 +596,8 @@ class _EditTableDialog extends StatefulWidget {
     String shape,
     String? color,
     bool isActive,
-  ) onSave;
+  )
+  onSave;
 
   @override
   State<_EditTableDialog> createState() => _EditTableDialogState();
@@ -678,8 +621,9 @@ class _EditTableDialogState extends State<_EditTableDialog> {
     super.initState();
 
     _nameController = TextEditingController(text: widget.table.name);
-    _capacityController =
-        TextEditingController(text: widget.table.capacity.toString());
+    _capacityController = TextEditingController(
+      text: widget.table.capacity.toString(),
+    );
     _status = widget.table.status;
     _section = widget.table.section;
     _shape = widget.table.shape;
@@ -787,26 +731,12 @@ class _EditTableDialogState extends State<_EditTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _section,
-                decoration: const InputDecoration(
-                  labelText: 'Section',
-                ),
+                decoration: const InputDecoration(labelText: 'Section'),
                 items: const [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text('No section'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Indoor',
-                    child: Text('Indoor'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Outdoor',
-                    child: Text('Outdoor'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'VIP',
-                    child: Text('VIP'),
-                  ),
+                  DropdownMenuItem(value: null, child: Text('No section')),
+                  DropdownMenuItem(value: 'Indoor', child: Text('Indoor')),
+                  DropdownMenuItem(value: 'Outdoor', child: Text('Outdoor')),
+                  DropdownMenuItem(value: 'VIP', child: Text('VIP')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -820,22 +750,14 @@ class _EditTableDialogState extends State<_EditTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _shape,
-                decoration: const InputDecoration(
-                  labelText: 'Shape',
-                ),
+                decoration: const InputDecoration(labelText: 'Shape'),
                 items: const [
-                  DropdownMenuItem(
-                    value: 'square',
-                    child: Text('Square'),
-                  ),
+                  DropdownMenuItem(value: 'square', child: Text('Square')),
                   DropdownMenuItem(
                     value: 'rectangle',
                     child: Text('Rectangle'),
                   ),
-                  DropdownMenuItem(
-                    value: 'round',
-                    child: Text('Round'),
-                  ),
+                  DropdownMenuItem(value: 'round', child: Text('Round')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -851,30 +773,13 @@ class _EditTableDialogState extends State<_EditTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _color,
-                decoration: const InputDecoration(
-                  labelText: 'Color',
-                ),
+                decoration: const InputDecoration(labelText: 'Color'),
                 items: const [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text('Default'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'blue',
-                    child: Text('Blue'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'green',
-                    child: Text('Green'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'orange',
-                    child: Text('Orange'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'purple',
-                    child: Text('Purple'),
-                  ),
+                  DropdownMenuItem(value: null, child: Text('Default')),
+                  DropdownMenuItem(value: 'blue', child: Text('Blue')),
+                  DropdownMenuItem(value: 'green', child: Text('Green')),
+                  DropdownMenuItem(value: 'orange', child: Text('Orange')),
+                  DropdownMenuItem(value: 'purple', child: Text('Purple')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -888,22 +793,14 @@ class _EditTableDialogState extends State<_EditTableDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _status,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                ),
+                decoration: const InputDecoration(labelText: 'Status'),
                 items: const [
                   DropdownMenuItem(
                     value: 'available',
                     child: Text('Available'),
                   ),
-                  DropdownMenuItem(
-                    value: 'occupied',
-                    child: Text('Occupied'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'reserved',
-                    child: Text('Reserved'),
-                  ),
+                  DropdownMenuItem(value: 'occupied', child: Text('Occupied')),
+                  DropdownMenuItem(value: 'reserved', child: Text('Reserved')),
                 ],
                 onChanged: _isSaving
                     ? null
@@ -931,7 +828,7 @@ class _EditTableDialogState extends State<_EditTableDialog> {
                       },
               ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -948,7 +845,7 @@ class _EditTableDialogState extends State<_EditTableDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        pos_ui.SecondaryButton(
           onPressed: _isSaving
               ? null
               : () {
@@ -957,20 +854,16 @@ class _EditTableDialogState extends State<_EditTableDialog> {
                 },
           child: const Text('Cancel'),
         ),
-        FilledButton(
+        pos_ui.PrimaryButton(
           onPressed: _isSaving ? null : _save,
-          child: _isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Save'),
+          isLoading: _isSaving,
+          child: const Text('Save'),
         ),
       ],
     );
   }
 }
+
 class _TableCard extends StatelessWidget {
   const _TableCard({
     required this.table,
@@ -989,13 +882,13 @@ class _TableCard extends StatelessWidget {
   Color _customColor(BuildContext context) {
     switch (table.color?.toLowerCase()) {
       case 'blue':
-        return Colors.blue;
+        return AppColors.semantic(context, AppColors.info);
       case 'green':
-        return Colors.green;
+        return AppColors.semantic(context, AppColors.success);
       case 'orange':
-        return Colors.orange;
+        return AppColors.semantic(context, AppColors.warning);
       case 'purple':
-        return Colors.purple;
+        return AppColors.semantic(context, AppColors.plum);
       default:
         return statusColor;
     }
@@ -1029,23 +922,21 @@ class _TableCard extends StatelessWidget {
     final hasSection = table.section != null && table.section!.isNotEmpty;
 
     final cardBackgroundColor = switch (table.status) {
-      'occupied' => Colors.orange.withValues(alpha: 0.10),
-      'reserved' => Colors.blue.withValues(alpha: 0.08),
-      _ => Colors.white,
+      'occupied' => AppColors.tint(context, AppColors.warning),
+      'reserved' => AppColors.tint(context, AppColors.info),
+      _ => Theme.of(context).colorScheme.surface,
     };
 
     return Card(
-      elevation: 0,
+      elevation: 1,
       color: cardBackgroundColor,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Colors.grey.shade200,
-        ),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1062,8 +953,8 @@ class _TableCard extends StatelessWidget {
                     table.shape == 'round'
                         ? Icons.circle_outlined
                         : table.shape == 'rectangle'
-                            ? Icons.crop_16_9
-                            : Icons.square_outlined,
+                        ? Icons.crop_16_9
+                        : Icons.square_outlined,
                     color: accentColor,
                   ),
                 ),
@@ -1077,14 +968,8 @@ class _TableCard extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit'),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],
                 ),
               ],
@@ -1092,16 +977,13 @@ class _TableCard extends StatelessWidget {
             const Spacer(),
             Text(
               table.name,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               '${table.capacity} seats',
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 14,
               ),
             ),
@@ -1116,12 +998,9 @@ class _TableCard extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(20),
@@ -1141,9 +1020,3 @@ class _TableCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-

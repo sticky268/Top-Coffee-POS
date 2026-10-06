@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
 
 class InventoryMovementHistoryScreen extends ConsumerStatefulWidget {
-  const InventoryMovementHistoryScreen({
-    super.key,
-    required this.ingredient,
-  });
+  const InventoryMovementHistoryScreen({super.key, required this.ingredient});
 
   final InventoryIngredient ingredient;
 
@@ -41,13 +40,14 @@ class _InventoryMovementHistoryScreenState
     });
 
     try {
-      final movements =
-          await ref.read(inventoryRepositoryProvider).getStockMovements(
-                ingredientId: widget.ingredient.id,
-                type: _selectedType,
-                page: 1,
-                perPage: _pageSize,
-              );
+      final movements = await ref
+          .read(inventoryRepositoryProvider)
+          .getStockMovements(
+            ingredientId: widget.ingredient.id,
+            type: _selectedType,
+            page: 1,
+            perPage: _pageSize,
+          );
 
       if (!mounted) return;
 
@@ -78,13 +78,14 @@ class _InventoryMovementHistoryScreenState
     });
 
     try {
-      final movements =
-          await ref.read(inventoryRepositoryProvider).getStockMovements(
-                ingredientId: widget.ingredient.id,
-                type: selectedType,
-                page: nextPage,
-                perPage: _pageSize,
-              );
+      final movements = await ref
+          .read(inventoryRepositoryProvider)
+          .getStockMovements(
+            ingredientId: widget.ingredient.id,
+            type: selectedType,
+            page: nextPage,
+            perPage: _pageSize,
+          );
 
       if (!mounted) return;
 
@@ -125,7 +126,7 @@ class _InventoryMovementHistoryScreenState
 
   Color _quantityColor(BuildContext context, double quantity) {
     if (quantity > 0) {
-      return Colors.green;
+      return AppColors.semantic(context, AppColors.success);
     }
 
     if (quantity < 0) {
@@ -159,7 +160,7 @@ class _InventoryMovementHistoryScreenState
       appBar: AppBar(
         title: Text('${widget.ingredient.name} History'),
         actions: [
-          IconButton(
+          pos_ui.IconButton(
             tooltip: 'Refresh',
             onPressed: _isLoading || _isLoadingMore ? null : _loadMovements,
             icon: const Icon(Icons.refresh),
@@ -209,28 +210,22 @@ class _InventoryMovementHistoryScreenState
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Card(
-              elevation: 0,
+              elevation: 1,
               child: ListTile(
                 leading: const Icon(Icons.inventory_2_outlined),
                 title: const Text('Current Stock'),
                 trailing: Text(
                   '${widget.ingredient.currentStock.toStringAsFixed(3)} '
                   '${widget.ingredient.unit.abbreviation}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
           ),
-          Expanded(
-            child: _buildBody(),
-          ),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
@@ -238,9 +233,7 @@ class _InventoryMovementHistoryScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null) {
@@ -250,24 +243,16 @@ class _InventoryMovementHistoryScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
-              const SizedBox(height: 12),
+              const Icon(Icons.error_outline, size: 48),
+              const SizedBox(height: 16),
               const Text(
                 'Could not load movement history.',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-              ),
+              Text(_errorMessage!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton.icon(
+              pos_ui.PrimaryButton.icon(
                 onPressed: _loadMovements,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
@@ -279,9 +264,7 @@ class _InventoryMovementHistoryScreenState
     }
 
     if (_movements.isEmpty) {
-      return const Center(
-        child: Text('No stock movements found.'),
-      );
+      return const Center(child: Text('No stock movements found.'));
     }
 
     return RefreshIndicator(
@@ -296,11 +279,11 @@ class _InventoryMovementHistoryScreenState
         itemBuilder: (context, index) {
           if (index == _movements.length) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: _isLoadingMore
                     ? const CircularProgressIndicator()
-                    : OutlinedButton.icon(
+                    : pos_ui.OutlinedButton.icon(
                         onPressed: _loadMoreMovements,
                         icon: const Icon(Icons.expand_more),
                         label: const Text('Load more'),
@@ -310,13 +293,10 @@ class _InventoryMovementHistoryScreenState
           }
 
           final movement = _movements[index];
-          final quantityColor = _quantityColor(
-            context,
-            movement.quantity,
-          );
+          final quantityColor = _quantityColor(context, movement.quantity);
 
           return Card(
-            elevation: 0,
+            elevation: 1,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -330,17 +310,15 @@ class _InventoryMovementHistoryScreenState
                       color: quantityColor,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _typeLabel(movement.type),
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -349,13 +327,13 @@ class _InventoryMovementHistoryScreenState
                         ),
                         if (movement.reason != null &&
                             movement.reason!.trim().isNotEmpty) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Text(
                             movement.reason!,
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           'Balance after: '
                           '${movement.balanceAfter.toStringAsFixed(3)} '
@@ -365,13 +343,13 @@ class _InventoryMovementHistoryScreenState
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Text(
                     _formatQuantity(movement.quantity),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: quantityColor,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: quantityColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),

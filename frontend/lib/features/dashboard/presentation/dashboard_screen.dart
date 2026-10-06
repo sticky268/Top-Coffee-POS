@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../application/dashboard_controller.dart';
@@ -35,7 +36,8 @@ class DashboardScreen extends ConsumerWidget {
             final actionColumns = isCompact ? 3 : 5;
 
             return RefreshIndicator(
-              onRefresh: () => ref.read(dashboardControllerProvider.notifier).refresh(),
+              onRefresh: () =>
+                  ref.read(dashboardControllerProvider.notifier).refresh(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
@@ -45,7 +47,8 @@ class DashboardScreen extends ConsumerWidget {
                     if (user != null)
                       DashboardHeader(
                         user: user,
-                        onLogout: () => ref.read(authControllerProvider.notifier).logout(),
+                        onLogout: () =>
+                            ref.read(authControllerProvider.notifier).logout(),
                       ),
                     const SizedBox(height: 24),
                     _DashboardBody(
@@ -80,10 +83,15 @@ class _DashboardBody extends ConsumerWidget {
     return switch (state) {
       DashboardLoading() => const _DashboardLoading(),
       DashboardError(:final message) => _DashboardErrorView(
-          message: message,
-          onRetry: () => ref.read(dashboardControllerProvider.notifier).refresh(),
-        ),
-      DashboardLoaded(:final stats, :final recentOrders, :final salesOverview) => _DashboardContent(
+        message: message,
+        onRetry: () => ref.read(dashboardControllerProvider.notifier).refresh(),
+      ),
+      DashboardLoaded(
+        :final stats,
+        :final recentOrders,
+        :final salesOverview,
+      ) =>
+        _DashboardContent(
           stats: stats,
           recentOrders: recentOrders,
           salesOverview: salesOverview,
@@ -122,7 +130,7 @@ class _DashboardErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               'Could not load the dashboard',
               style: theme.textTheme.titleMedium,
@@ -133,11 +141,13 @@ class _DashboardErrorView extends StatelessWidget {
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            pos_ui.PrimaryButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -212,11 +222,14 @@ class _DashboardContent extends StatelessWidget {
         StatCardsGrid(stats: stats, crossAxisCount: statColumns),
         const SizedBox(height: 24),
         Text('Quick Actions', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         QuickActionsGrid(actions: actions, crossAxisCount: actionColumns),
         const SizedBox(height: 24),
-        Text('Sales Overview — Last 7 Days', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 12),
+        Text(
+          'Sales Overview — Last 7 Days',
+          style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 16),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -225,7 +238,7 @@ class _DashboardContent extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         Text('Recent Orders', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         RecentOrdersSection(orders: recentOrders),
       ],
     );
