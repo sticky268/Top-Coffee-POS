@@ -700,7 +700,7 @@ class OrderController extends Controller
                     ];
                 }
 
-                $customerId = $request->input('customer_id');
+                $customerId = $request->input('customer_id', $order->customer_id);
 
         if ($customerId !== null) {
             $customer = Customer::query()
@@ -814,6 +814,7 @@ class OrderController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'expected_total' => 'nullable|numeric|min:0',
             'payment.method' => 'required|in:cash,card,qr,split',
             'payment.tendered' => 'nullable|numeric|min:0',
             'payment.payments' => 'required_if:payment.method,split|array|min:2',
@@ -866,6 +867,12 @@ class OrderController extends Controller
 
                 if (! $table) {
                     abort(422, 'The order table could not be found.');
+                }
+
+                if ($request->filled('expected_total')
+                    && (int) round((float) $request->input('expected_total') * 100)
+                        !== (int) round((float) $order->total * 100)) {
+                    abort(409, 'The order total has changed. Review the saved bill before paying.');
                 }
 
                 $splitPayments = $request->input('payment.payments');
