@@ -36,7 +36,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     if (!mounted ||
         state is CheckoutSubmitting ||
         state is CheckoutSuccess ||
-        state is CheckoutHeld) return;
+        state is CheckoutHeld) {
+      return;
+    }
     state = const CheckoutSubmitting();
 
     try {
@@ -71,7 +73,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     if (!mounted ||
         state is CheckoutSubmitting ||
         state is CheckoutSuccess ||
-        state is CheckoutHeld) return;
+        state is CheckoutHeld) {
+      return;
+    }
     state = const CheckoutSubmitting();
 
     try {
