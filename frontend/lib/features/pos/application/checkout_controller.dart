@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/branch/current_branch_provider.dart';
@@ -22,6 +25,11 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   final PosRepository _repository;
   final Ref _ref;
 
+  // Survives checkout screen disposal after a network timeout. Cleared only
+  // after the server confirms creation. Different payloads use different IDs.
+  static final Map<String, String> _pendingRequests = {};
+  static const Uuid _uuid = Uuid();
+
   Future<void> submit({
     required List<CartItem> items,
     required String paymentMethod,
@@ -39,10 +47,19 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         state is CheckoutHeld) {
       return;
     }
+    final branchId = _ref.read(currentBranchProvider)?.id;
+    final requestKey = jsonEncode([
+      'checkout', branchId, customerId, orderType, tableId, discountTotal,
+      paymentMethod, tendered, splitPayments,
+      for (final item in items)
+        [item.product.id, item.variant?.id, item.quantity],
+    ]);
+    final requestUuid = _pendingRequests.putIfAbsent(requestKey, _uuid.v4);
     state = const CheckoutSubmitting();
 
     try {
       final confirmation = await _repository.createOrder(
+        requestUuid: requestUuid,
         items: items,
         paymentMethod: paymentMethod,
         orderType: orderType,
@@ -51,8 +68,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         splitPayments: splitPayments,
         discountTotal: discountTotal,
         customerId: customerId,
-        branchId: _ref.read(currentBranchProvider)?.id,
+        branchId: branchId,
       );
+      _pendingRequests.remove(requestKey);
       if (!mounted) return;
       state = CheckoutSuccess(confirmation);
     } catch (e) {
@@ -76,18 +94,27 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         state is CheckoutHeld) {
       return;
     }
+    final branchId = _ref.read(currentBranchProvider)?.id;
+    final requestKey = jsonEncode([
+      'hold', branchId, customerId, orderType, tableId, discountTotal,
+      for (final item in items)
+        [item.product.id, item.variant?.id, item.quantity],
+    ]);
+    final requestUuid = _pendingRequests.putIfAbsent(requestKey, _uuid.v4);
     state = const CheckoutSubmitting();
 
     try {
       final confirmation = await _repository.holdOrder(
+        requestUuid: requestUuid,
         items: items,
         orderType: orderType,
         tableId: tableId,
         discountTotal: discountTotal,
         customerId: customerId,
-        branchId: _ref.read(currentBranchProvider)?.id,
+        branchId: branchId,
       );
 
+      _pendingRequests.remove(requestKey);
       if (!mounted) return;
       state = CheckoutHeld(confirmation);
     } catch (e) {
