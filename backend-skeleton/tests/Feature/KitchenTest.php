@@ -413,6 +413,49 @@ class KitchenTest extends TestCase
         $this->assertSame(2, KitchenTicket::where('order_id', $orderId)->count());
     }
 
+    public function test_kitchen_api_preserves_original_product_when_new_product_is_added(): void
+    {
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $cashier = $this->makeCashier($branch);
+        $latte = $this->createProduct($branch);
+        $americano = Product::create([
+            'category_id' => $latte->category_id,
+            'name' => 'Americano',
+            'base_price' => 2.50,
+        ]);
+        $americano->branches()->attach($branch->id, ['is_available' => true]);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id, 'name' => 'T1',
+            'capacity' => 4, 'status' => 'available', 'is_active' => true,
+        ]);
+
+        $held = $this->actingAs($cashier)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+            'items' => [['product_id' => $latte->id, 'quantity' => 2]],
+        ])->assertCreated();
+        $orderId = $held->json('data.id');
+        $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [
+                ['product_id' => $latte->id, 'quantity' => 2],
+                ['product_id' => $americano->id, 'quantity' => 1],
+            ],
+        ])->assertOk();
+
+        $tickets = KitchenTicket::where('order_id', $orderId)->orderBy('id')->get();
+        $this->assertCount(2, $tickets);
+        $kitchenUser = $this->makeKitchenUser($branch);
+        $response = $this->actingAs($kitchenUser)->getJson(
+            '/api/v1/kitchen/tickets?branch_id=' . $branch->id
+        )->assertOk();
+        $byId = collect($response->json('data'))->keyBy('id');
+        $this->assertCount(1, $byId[$tickets[0]->id]['order']['items']);
+        $this->assertCount(1, $byId[$tickets[1]->id]['order']['items']);
+        $this->assertSame($latte->id, $byId[$tickets[0]->id]['order']['items'][0]['product_id']);
+        $this->assertSame(2, $byId[$tickets[0]->id]['order']['items'][0]['quantity']);
+        $this->assertSame($americano->id, $byId[$tickets[1]->id]['order']['items'][0]['product_id']);
+        $this->assertSame(1, $byId[$tickets[1]->id]['order']['items'][0]['quantity']);
+    }
+
     public function test_held_order_rejects_reducing_already_submitted_quantities(): void
     {
         $branch = $this->createBranch('Riverside', 'PP-01');
