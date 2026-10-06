@@ -289,14 +289,15 @@ class OrderController extends Controller
                     'completed_at' => now(),
                 ]);
 
-                KitchenTicket::create([
+                $ticket = KitchenTicket::create([
                     'order_id' => $order->id,
                     'status' => 'new',
                     'sent_at' => now(),
                 ]);
 
                 foreach ($resolvedItems as $item) {
-                    OrderItem::create(array_merge($item, ['order_id' => $order->id]));
+                    $orderItem = OrderItem::create(array_merge($item, ['order_id' => $order->id]));
+                    $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
                 }
 
                 app(SaleInventoryService::class)->deductForOrder(
@@ -629,14 +630,15 @@ class OrderController extends Controller
                     'held_at' => now(),
                 ]);
 
-                KitchenTicket::create([
+                $ticket = KitchenTicket::create([
                     'order_id' => $order->id,
                     'status' => 'new',
                     'sent_at' => now(),
                 ]);
 
                 foreach ($resolvedItems as $item) {
-                    OrderItem::create(array_merge($item, ['order_id' => $order->id]));
+                    $orderItem = OrderItem::create(array_merge($item, ['order_id' => $order->id]));
+                    $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
                 }
 
                 $table->update([
@@ -835,6 +837,50 @@ class OrderController extends Controller
         $discountTotal = round((float) $request->input('discount_total', 0), 2);
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
+                // The client sends the complete bill. Only newly added
+                // quantities may be submitted to the kitchen.
+                $existingItems = $order->items()->lockForUpdate()->get();
+                $keyFor = static fn ($productId, $variantId) => $productId . ':' . ($variantId ?? 'none');
+                $existingQuantities = [];
+                foreach ($existingItems as $existing) {
+                    $key = $keyFor($existing->product_id, $existing->product_variant_id);
+                    $existingQuantities[$key] = ($existingQuantities[$key] ?? 0) + (int) $existing->quantity;
+                }
+
+                $submitted = [];
+                foreach ($resolvedItems as $item) {
+                    $key = $keyFor($item['product_id'], $item['product_variant_id']);
+                    if (! isset($submitted[$key])) {
+                        $submitted[$key] = $item;
+                        $submitted[$key]['quantity'] = 0;
+                    }
+                    $submitted[$key]['quantity'] += $item['quantity'];
+                }
+
+                foreach ($existingQuantities as $key => $quantity) {
+                    if (($submitted[$key]['quantity'] ?? 0) < $quantity) {
+                        abort(422, 'Products already sent to the kitchen cannot be removed or reduced.');
+                    }
+                }
+
+                $additions = [];
+                foreach ($submitted as $key => $item) {
+                    $delta = $item['quantity'] - ($existingQuantities[$key] ?? 0);
+                    if ($delta > 0) {
+                        $item['quantity'] = $delta;
+                        $additions[] = $item;
+                    }
+                }
+
+                // Preserve historical unit prices for previously sent items.
+                $subtotal = (float) $existingItems->sum(
+                    fn ($item) => (float) $item->unit_price * (int) $item->quantity
+                );
+                foreach ($additions as $item) {
+                    $subtotal += $item['unit_price'] * $item['quantity'];
+                }
+                $total = max(0, round($subtotal - $discountTotal, 2));
+
                 $oldValues = [
                     'subtotal' => (float) $order->subtotal,
                     'discount_total' => (float) $order->discount_total,
@@ -853,12 +899,18 @@ class OrderController extends Controller
                     'customer_id' => $customerId,
                 ]);
 
-                $order->items()->delete();
-
-                foreach ($resolvedItems as $item) {
-                    OrderItem::create(array_merge($item, [
+                if ($additions !== []) {
+                    $ticket = KitchenTicket::create([
                         'order_id' => $order->id,
-                    ]));
+                        'status' => 'new',
+                        'sent_at' => now(),
+                    ]);
+                    foreach ($additions as $item) {
+                        $orderItem = OrderItem::create(array_merge($item, [
+                            'order_id' => $order->id,
+                        ]));
+                        $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                    }
                 }
 
                 if ($table->status !== 'occupied') {
