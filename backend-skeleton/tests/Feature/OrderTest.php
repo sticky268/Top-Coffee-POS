@@ -2511,4 +2511,77 @@ class OrderTest extends TestCase
         $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
+
+    public function test_retrying_held_order_with_same_uuid_does_not_create_duplicate_order(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $user = $this->makeCashier($branch);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+        ]);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.50,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $payload = [
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ];
+
+        $first = $this->actingAs($user)->postJson('/api/v1/orders/hold', $payload);
+        $first->assertCreated();
+        $retry = $this->postJson('/api/v1/orders/hold', $payload);
+        $retry->assertSuccessful();
+
+        $this->assertSame($payload['uuid'], $first->json('data.uuid'));
+        $this->assertSame($first->json('data.id'), $retry->json('data.id'));
+        $this->assertSame('occupied', $table->fresh()->status);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('order_items', 1);
+        $this->assertDatabaseCount('kitchen_tickets', 1);
+    }
+
+    public function test_checkout_uuid_cannot_be_reused_for_different_items(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.50,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+
+        $payload = [
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 10],
+        ];
+
+        $this->actingAs($user)->postJson('/api/v1/orders', $payload)->assertCreated();
+        $payload['items'][0]['quantity'] = 2;
+        $this->postJson('/api/v1/orders', $payload)->assertStatus(409);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
 }
