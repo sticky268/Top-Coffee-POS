@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/branch/current_branch_provider.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 
 import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
@@ -48,7 +50,10 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       return;
     }
     final branchId = _ref.read(currentBranchProvider)?.id;
+    final authState = _ref.read(authControllerProvider);
+    final userId = authState is AuthAuthenticated ? authState.user.id : null;
     final requestKey = jsonEncode([
+      userId,
       'checkout', branchId, customerId, orderType, tableId, discountTotal,
       paymentMethod, tendered, splitPayments,
       for (final item in items)
@@ -95,7 +100,10 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       return;
     }
     final branchId = _ref.read(currentBranchProvider)?.id;
+    final authState = _ref.read(authControllerProvider);
+    final userId = authState is AuthAuthenticated ? authState.user.id : null;
     final requestKey = jsonEncode([
+      userId,
       'hold', branchId, customerId, orderType, tableId, discountTotal,
       for (final item in items)
         [item.product.id, item.variant?.id, item.quantity],
