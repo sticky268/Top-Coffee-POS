@@ -73,7 +73,11 @@ class KitchenController extends Controller
                 $item->unsetRelation('pivot');
                 return $item;
             });
-            $ticket->order->setRelation('items', $items);
+            // Eloquent can reuse the same Order instance for multiple tickets.
+            // Clone it so each ticket retains its own item batch in JSON.
+            $order = clone $ticket->order;
+            $order->setRelation('items', $items);
+            $ticket->setRelation('order', $order);
             $ticket->unsetRelation('items');
         }
 
