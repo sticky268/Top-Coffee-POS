@@ -45,10 +45,10 @@ class KitchenController extends Controller
             ->with([
                 'order:id,branch_id,user_id,customer_id,table_id,order_type,status,total,created_at',
                 'order.table:id,name',
-                'order.items:id,order_id,product_id,product_variant_id,quantity,unit_price,notes',
-                'order.items.product:id,name',
-                'order.items.variant:id,product_id,name',
-                'order.items.modifiers',
+                'items:id,order_id,product_id,product_variant_id,quantity,unit_price,notes',
+                'items.product:id,name',
+                'items.variant:id,product_id,name',
+                'items.modifiers',
             ])
             ->whereHas('order', function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
@@ -64,6 +64,18 @@ class KitchenController extends Controller
             ")
             ->orderBy('created_at')
             ->get();
+
+        // Keep the existing Flutter response shape (ticket.order.items),
+        // but populate it with only the items submitted in this ticket.
+        foreach ($tickets as $ticket) {
+            $items = $ticket->items->map(function ($item) {
+                $item->quantity = (int) $item->pivot->quantity;
+                $item->unsetRelation('pivot');
+                return $item;
+            });
+            $ticket->order->setRelation('items', $items);
+            $ticket->unsetRelation('items');
+        }
 
         return response()->json([
             'success' => true,
