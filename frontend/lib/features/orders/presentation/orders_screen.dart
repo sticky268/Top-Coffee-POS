@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -8,9 +9,6 @@ import '../application/orders_list_state.dart';
 import '../domain/orders_list_filters.dart';
 import 'widgets/order_list_tile.dart';
 import 'widgets/order_status_helpers.dart';
-
-﻿import 'package:flutter/material.dart';
-
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -33,26 +31,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _OrdersFilterSheet(
-        initialFilters: currentFilters,
-      ),
+      builder: (context) => _OrdersFilterSheet(initialFilters: currentFilters),
     );
 
     if (!mounted || result == null) return;
 
     _searchController.text = result.orderNumber ?? '';
 
-    await ref
-        .read(ordersListControllerProvider.notifier)
-        .applyFilters(result);
+    await ref.read(ordersListControllerProvider.notifier).applyFilters(result);
   }
 
   Future<void> _clearFilters() async {
     _searchController.clear();
 
-    await ref
-        .read(ordersListControllerProvider.notifier)
-        .clearFilters();
+    await ref.read(ordersListControllerProvider.notifier).clearFilters();
   }
 
   void _search() {
@@ -90,21 +82,19 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         ],
       ),
       body: switch (state) {
-        OrdersListLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+        OrdersListLoading() => const Center(child: CircularProgressIndicator()),
         OrdersListError(:final message) => _OrdersErrorView(
-            message: message,
-            onRetry: () =>
-                ref.read(ordersListControllerProvider.notifier).refresh(),
-          ),
+          message: message,
+          onRetry: () =>
+              ref.read(ordersListControllerProvider.notifier).refresh(),
+        ),
         OrdersListLoaded loaded => _OrdersContent(
-            state: loaded,
-            searchController: _searchController,
-            onSearch: _search,
-            onOpenFilters: () => _openFilters(loaded.filters),
-            onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
-          ),
+          state: loaded,
+          searchController: _searchController,
+          onSearch: _search,
+          onOpenFilters: () => _openFilters(loaded.filters),
+          onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
+        ),
       },
     );
   }
@@ -183,7 +173,9 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                             icon: const Icon(Icons.clear),
                           )
                         : null,
-                    border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(14))),
+                    border: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(14)),
+                    ),
                     isDense: true,
                   ),
                 ),
@@ -212,13 +204,10 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                             label: 'Order #${filters.orderNumber!.trim()}',
                           ),
                         if (filters.status != null)
-                          _FilterChip(
-                            label: orderStatusLabel(filters.status!),
-                          ),
+                          _FilterChip(label: orderStatusLabel(filters.status!)),
                         if (filters.paymentMethod != null)
                           _FilterChip(
-                            label:
-                                paymentMethodLabel(filters.paymentMethod!),
+                            label: paymentMethodLabel(filters.paymentMethod!),
                           ),
                         if (filters.dateFrom != null)
                           _FilterChip(
@@ -248,13 +237,13 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                   onClear: widget.onClearFilters,
                 )
               : RefreshIndicator(
-                  onRefresh: () => ref
-                      .read(ordersListControllerProvider.notifier)
-                      .refresh(),
+                  onRefresh: () =>
+                      ref.read(ordersListControllerProvider.notifier).refresh(),
                   child: ListView.separated(
                     controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: widget.state.orders.length +
+                    itemCount:
+                        widget.state.orders.length +
                         (widget.state.hasMore ? 1 : 0),
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, index) {
@@ -293,18 +282,13 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: Chip(
-        label: Text(label),
-        visualDensity: VisualDensity.compact,
-      ),
+      child: Chip(label: Text(label), visualDensity: VisualDensity.compact),
     );
   }
 }
 
 class _OrdersFilterSheet extends StatefulWidget {
-  const _OrdersFilterSheet({
-    required this.initialFilters,
-  });
+  const _OrdersFilterSheet({required this.initialFilters});
 
   final OrdersListFilters initialFilters;
 
@@ -517,10 +501,7 @@ class _OrdersFilterSheetState extends State<_OrdersFilterSheet> {
 }
 
 class _FilteredEmptyOrders extends StatelessWidget {
-  const _FilteredEmptyOrders({
-    required this.hasFilters,
-    required this.onClear,
-  });
+  const _FilteredEmptyOrders({required this.hasFilters, required this.onClear});
 
   final bool hasFilters;
   final VoidCallback? onClear;
@@ -572,10 +553,7 @@ class _FilteredEmptyOrders extends StatelessWidget {
 }
 
 class _OrdersErrorView extends StatelessWidget {
-  const _OrdersErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _OrdersErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -590,16 +568,9 @@ class _OrdersErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 40,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
             const SizedBox(height: 16),
-            Text(
-              'Could not load orders',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Could not load orders', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
               message,

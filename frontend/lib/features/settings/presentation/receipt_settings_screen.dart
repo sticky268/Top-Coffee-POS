@@ -531,9 +531,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Printer test failed: ' + e.toString()),
-                      ),
+                      SnackBar(content: Text('Printer test failed: $e')),
                     );
                   } finally {
                     try {
@@ -584,11 +582,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Khmer printer test failed: ' + e.toString(),
-                        ),
-                      ),
+                      SnackBar(content: Text('Khmer printer test failed: $e')),
                     );
                   } finally {
                     try {
@@ -642,11 +636,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Bitmap receipt test failed: ' + e.toString(),
-                        ),
-                      ),
+                      SnackBar(content: Text('Bitmap receipt test failed: $e')),
                     );
                   } finally {
                     try {
@@ -693,11 +683,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Bitmap stress test failed: ' + e.toString(),
-                        ),
-                      ),
+                      SnackBar(content: Text('Bitmap stress test failed: $e')),
                     );
                   } finally {
                     try {

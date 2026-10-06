@@ -55,7 +55,7 @@ abstract final class AppTheme {
     const controlShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(14)),
     );
-    final buttonStyle = ButtonStyle(
+    const buttonStyle = ButtonStyle(
       minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: 24, vertical: 12),

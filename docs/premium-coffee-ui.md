@@ -118,3 +118,7 @@ cd frontend
 ```
 
 Review light/dark mode on a phone and a POS tablet, especially cart quantity controls, inventory action rows, table cards, payment dialogs and customer forms. The branch should remain a draft until runtime checks pass.
+
+## First Windows validation follow-up
+
+The first Windows run reported 199 passing tests and two test files blocked at compilation by a UTF-8 marker moved into the middle of orders_screen.dart. That marker and all 21 reported analyzer lint findings have been corrected. The existing encoding markers at the beginning of unrelated files are valid and remain unchanged. Analysis and the full test suite must be rerun after pulling the follow-up commit.

@@ -1139,10 +1139,10 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
           .getOrderReceipt(orderId: widget.confirmation.orderId);
 
       debugPrint(
-        '🧾 PRINT RECEIPT: order=${receipt.orderId}, ' +
-            'subtotal=${receipt.subtotal}, ' +
-            'discount=${receipt.discountTotal}, ' +
-            'total=${receipt.total}',
+        '🧾 PRINT RECEIPT: order=${receipt.orderId}, '
+        'subtotal=${receipt.subtotal}, '
+        'discount=${receipt.discountTotal}, '
+        'total=${receipt.total}',
       );
       await printerService.connect(settings.printerIpAddress);
       await printerService.printReceipt(receipt);

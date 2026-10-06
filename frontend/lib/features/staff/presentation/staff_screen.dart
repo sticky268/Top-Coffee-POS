@@ -81,15 +81,15 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final authState = ref.watch(authControllerProvider);
 
     if (authState is! AuthAuthenticated) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final user = authState.user;
 
     if (!user.hasPermission('users.manage')) {
       return Scaffold(
-        appBar: AppBar(title: Text('Staff & Permissions')),
-        body: Center(
+        appBar: AppBar(title: const Text('Staff & Permissions')),
+        body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(

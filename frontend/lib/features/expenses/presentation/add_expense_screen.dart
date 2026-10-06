@@ -55,15 +55,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (categoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select an expense category.')),
+        const SnackBar(content: Text('Please select an expense category.')),
       );
       return;
     }
 
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Please enter a valid amount.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid amount.')),
+      );
       return;
     }
 
@@ -116,8 +116,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } catch (_) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not save expense.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not save expense.')));
     } finally {
       if (mounted) {
         setState(() {
