@@ -204,6 +204,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       orderType: 'dine_in',
                       tableId: _selectedTable!.id,
                       discountTotal: cart.discountTotal,
+                      customerId: _selectedCustomer?.id,
                     );
               },
             ),

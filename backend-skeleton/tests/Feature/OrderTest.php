@@ -394,7 +394,7 @@ class OrderTest extends TestCase
         $validProduct = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
         $validProduct->branches()->attach($branch->id, ['is_available' => true]);
 
-        // Only available at the OTHER branch ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â not sellable at $branch.
+        // Only available at the OTHER branch +���+����+����+�-�+���+�-�+�-�+����-�+�-�+����+�-�+���+�-�+�-�+���+�+�-�+����+�-� not sellable at $branch.
         $invalidProduct = Product::create(['category_id' => $category->id, 'name' => 'Cold Brew', 'base_price' => 4.00]);
         $invalidProduct->branches()->attach($otherBranch->id, ['is_available' => true]);
 
@@ -409,7 +409,7 @@ class OrderTest extends TestCase
 
         $response->assertStatus(422)->assertJsonPath('success', false);
 
-        // Critical: the transaction must have rolled back completely ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+        // Critical: the transaction must have rolled back completely +���+����+����+�-�+���+�-�+�-�+����-�+�-�+����+�-�+���+�-�+�-�+���+�+�-�+����+�-�
         // not even the valid line should exist.
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('order_items', 0);
@@ -1488,6 +1488,259 @@ class OrderTest extends TestCase
             'quantity' => -20,
             'reason' => "Sale deduction for Order #{$orderId}",
         ]);
+    }
+    public function test_editing_order_after_recipe_change_reverses_original_inventory_usage(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        Permission::firstOrCreate([
+            'name' => 'inventory.manage',
+            'guard_name' => 'web',
+        ]);
+
+        $manager->givePermissionTo('inventory.manage');
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $milk = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Milk',
+            100,
+        );
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $recipeItem = RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 10,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $orderId = $createResponse->json('data.id');
+
+        $this->assertSame(90.0, (float) $coffee->fresh()->current_stock);
+        $this->assertSame(100.0, (float) $milk->fresh()->current_stock);
+
+        $recipeItem->update([
+            'ingredient_id' => $milk->id,
+            'quantity_used' => 20,
+        ]);
+
+        $response = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertStatus(200);
+
+        $this->assertSame(
+            100.0,
+            (float) $coffee->fresh()->current_stock,
+        );
+
+        $this->assertSame(
+            80.0,
+            (float) $milk->fresh()->current_stock,
+        );
+
+        $recipeItem->update([
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 5,
+        ]);
+
+        $secondResponse = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $secondResponse->assertStatus(200);
+
+        $this->assertSame(
+            95.0,
+            (float) $coffee->fresh()->current_stock,
+        );
+
+        $this->assertSame(
+            100.0,
+            (float) $milk->fresh()->current_stock,
+        );
+    }
+
+    public function test_editing_order_after_consumed_ingredient_is_soft_deleted_reverses_historical_usage(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        Permission::firstOrCreate([
+            'name' => 'inventory.manage',
+            'guard_name' => 'web',
+        ]);
+
+        $manager->givePermissionTo('inventory.manage');
+
+        $unitId = $this->createUnit();
+
+        $coffee = $this->createIngredient(
+            $branch,
+            $unitId,
+            'Coffee',
+            100,
+        );
+
+        $category = Category::create([
+            'branch_id' => null,
+            'name' => 'Coffee',
+        ]);
+
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+
+        $product->branches()->attach($branch->id, [
+            'is_available' => true,
+        ]);
+
+        $recipeItem = RecipeItem::create([
+            'branch_id' => $branch->id,
+            'product_id' => $product->id,
+            'ingredient_id' => $coffee->id,
+            'quantity_used' => 10,
+        ]);
+
+        $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment' => [
+                'method' => 'cash',
+                'tendered' => 3,
+            ],
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $orderId = $createResponse->json('data.id');
+
+        $this->assertSame(
+            90.0,
+            (float) $coffee->fresh()->current_stock,
+        );
+
+        $recipeItem->delete();
+
+        $deleteResponse = $this->actingAs($manager)->deleteJson(
+            "/api/v1/ingredients/{$coffee->id}"
+        );
+
+        $deleteResponse
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $this->assertSoftDeleted('ingredients', [
+            'id' => $coffee->id,
+        ]);
+
+        $response = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertStatus(200);
+
+        $this->assertSame(
+            100.0,
+            (float) Ingredient::withTrashed()
+                ->findOrFail($coffee->id)
+                ->current_stock,
+        );
     }
     public function test_editing_order_to_higher_total_preserves_existing_payment_without_additional_payment(): void
     {

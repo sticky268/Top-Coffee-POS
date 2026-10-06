@@ -413,6 +413,39 @@ class ExpenseTest extends TestCase
         $this->assertSame(65.0, (float) $trend->last()['amount']);
     }
 
+    public function test_expense_summary_combines_multiple_expenses_on_the_same_day(): void
+    {
+        $this->seedExpensePermissions();
+
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $user = $this->makeUserForBranch($branch);
+        $category = ExpenseCategory::create([
+            'name' => 'Supplies',
+        ]);
+
+        $this->travelTo(\Carbon\Carbon::create(2026, 9, 23, 12, 0, 0));
+
+        $this->makeExpense($branch, $user, $category, [
+            'amount' => 40.00,
+            'spent_at' => '2026-09-23 09:00:00',
+        ]);
+
+        $this->makeExpense($branch, $user, $category, [
+            'amount' => 25.00,
+            'spent_at' => '2026-09-23 15:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/v1/expenses/summary');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.today', 65);
+
+        $trend = collect($response->json('data.trend'));
+
+        $this->assertSame(65.0, (float) $trend->last()['amount']);
+    }
     public function test_expense_summary_is_scoped_to_the_selected_branch(): void
     {
         $this->seedExpensePermissions();

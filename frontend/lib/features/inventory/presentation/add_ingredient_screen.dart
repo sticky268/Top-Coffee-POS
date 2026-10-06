@@ -145,9 +145,9 @@ class _AddIngredientScreenState extends ConsumerState<AddIngredientScreen> {
               size: 48,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'No units are available.',
-              style: TextStyle(
+            Text(
+              _errorMessage ?? 'No units are available.',
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
               ),
             ),

@@ -53,7 +53,17 @@ class StockMovementService
             $reason,
             $reference,
         ) {
-            $lockedIngredient = Ingredient::query()
+            $query = Ingredient::query();
+
+            if (
+                $type === 'sale_deduction'
+                && $reference instanceof \App\Models\Order
+                && $quantity > 0
+            ) {
+                $query->withTrashed();
+            }
+
+            $lockedIngredient = $query
                 ->whereKey($ingredient->id)
                 ->lockForUpdate()
                 ->first();

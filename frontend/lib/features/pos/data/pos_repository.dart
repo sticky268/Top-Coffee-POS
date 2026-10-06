@@ -43,6 +43,7 @@ abstract class PosRepository {
     required String orderType,
     required int tableId,
     double discountTotal = 0,
+    int? customerId,
     int? branchId,
   });
 
@@ -220,6 +221,7 @@ class ApiPosRepository implements PosRepository {
     required String orderType,
     required int tableId,
     double discountTotal = 0,
+    int? customerId,
     int? branchId,
   }) async {
     final response = await _apiClient.request(
@@ -227,6 +229,7 @@ class ApiPosRepository implements PosRepository {
         '/orders/hold',
         data: {
           if (branchId != null) 'branch_id': branchId,
+          if (customerId != null) 'customer_id': customerId,
           'order_type': orderType,
           'table_id': tableId,
           'items': items
@@ -253,6 +256,7 @@ class ApiPosRepository implements PosRepository {
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
+    int? customerId,
     int? branchId,
   }) async {
     final response = await _apiClient.request(

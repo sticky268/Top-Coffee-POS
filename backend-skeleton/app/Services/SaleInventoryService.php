@@ -20,40 +20,39 @@ class SaleInventoryService
      */
     public function reverseForOrder(Order $order, int $createdBy): void
     {
-        $order->loadMissing('items');
+        $movementRows = \App\Models\StockMovement::query()
+            ->selectRaw('ingredient_id, SUM(quantity) as net_quantity')
+            ->where('reference_type', $order->getMorphClass())
+            ->where('reference_id', $order->id)
+            ->where('type', 'sale_deduction')
+            ->groupBy('ingredient_id')
+            ->get();
 
-        foreach ($order->items as $orderItem) {
-            $recipeItems = RecipeItem::query()
-                ->where('branch_id', $order->branch_id)
-                ->where('product_id', $orderItem->product_id)
-                ->whereNull('modifier_id')
-                ->get();
+        foreach ($movementRows as $movementRow) {
+            $netQuantity = (float) $movementRow->net_quantity;
 
-            foreach ($recipeItems as $recipeItem) {
-                $quantity = (float) $recipeItem->quantity_used
-                    * (int) $orderItem->quantity;
+            if ($netQuantity == 0.0) {
+                continue;
+            }
 
-                if ($quantity <= 0) {
-                    continue;
-                }
+            $ingredient = \App\Models\Ingredient::withTrashed()
+                ->whereKey($movementRow->ingredient_id)
+                ->first();
 
-                $ingredient = $recipeItem->ingredient()->first();
-
-                if (! $ingredient) {
-                    throw new \RuntimeException(
-                        "Ingredient {$recipeItem->ingredient_id} not found."
-                    );
-                }
-
-                $this->stockMovementService->record(
-                    $ingredient,
-                    'sale_deduction',
-                    $quantity,
-                    $createdBy,
-                    "Sale reversal for Order #{$order->id}",
-                    $order,
+            if (! $ingredient) {
+                throw new \RuntimeException(
+                    "Ingredient {$movementRow->ingredient_id} not found."
                 );
             }
+
+            $this->stockMovementService->record(
+                $ingredient,
+                'sale_deduction',
+                -$netQuantity,
+                $createdBy,
+                "Sale reversal for Order #{$order->id}",
+                $order,
+            );
         }
     }
 

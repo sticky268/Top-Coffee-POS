@@ -61,6 +61,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     required String orderType,
     required int tableId,
     required double discountTotal,
+    int? customerId,
   }) async {
     if (!mounted) return;
     state = const CheckoutSubmitting();
@@ -71,6 +72,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         orderType: orderType,
         tableId: tableId,
         discountTotal: discountTotal,
+        customerId: customerId,
         branchId: _ref.read(currentBranchProvider)?.id,
       );
 

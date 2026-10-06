@@ -215,10 +215,10 @@ class ExpenseController extends Controller
         $trendStart = $today->copy()->subDays(6);
 
         $trendRows = (clone $baseQuery)
-            ->selectRaw('spent_at, SUM(amount) as total')
+            ->selectRaw('DATE(spent_at) as spent_at, SUM(amount) as total')
             ->where('spent_at', '>=', $trendStart->toDateString())
             ->where('spent_at', '<', $tomorrow->toDateString())
-            ->groupBy('spent_at')
+            ->groupByRaw('DATE(spent_at)')
             ->orderBy('spent_at')
             ->get();
 

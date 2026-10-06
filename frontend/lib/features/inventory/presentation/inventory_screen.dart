@@ -220,10 +220,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   quantityController.text.trim(),
                 );
 
-                if (quantity == null || quantity <= 0) {
+                if (quantity == null || quantity == 0 || (type != 'adjustment' && quantity < 0)) {
                   setState(() {
                     errorMessage =
-                        'Please enter a valid quantity greater than 0.';
+                        type == 'adjustment' ? 'Enter a non-zero quantity. Use a negative number to reduce stock.' : 'Please enter a valid quantity greater than 0.';
+                  });
+                  return;
+                }
+
+                if ((type == 'adjustment' || type == 'wastage') &&
+                    reasonController.text.trim().isEmpty) {
+                  setState(() {
+                    errorMessage = 'Please enter a reason for this stock action.';
                   });
                   return;
                 }

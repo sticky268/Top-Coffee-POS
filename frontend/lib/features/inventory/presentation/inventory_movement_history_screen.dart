@@ -23,6 +23,10 @@ class _InventoryMovementHistoryScreenState
   bool _isLoading = true;
   String? _errorMessage;
   List<InventoryStockMovement> _movements = [];
+  int _currentPage = 1;
+  static const int _pageSize = 20;
+  bool _hasMore = false;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -41,12 +45,16 @@ class _InventoryMovementHistoryScreenState
           await ref.read(inventoryRepositoryProvider).getStockMovements(
                 ingredientId: widget.ingredient.id,
                 type: _selectedType,
+                page: 1,
+                perPage: _pageSize,
               );
 
       if (!mounted) return;
 
       setState(() {
         _movements = movements;
+        _currentPage = 1;
+        _hasMore = movements.length == _pageSize;
         _isLoading = false;
       });
     } catch (error) {
@@ -56,6 +64,47 @@ class _InventoryMovementHistoryScreenState
         _isLoading = false;
         _errorMessage = error.toString();
       });
+    }
+  }
+
+  Future<void> _loadMoreMovements() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    final nextPage = _currentPage + 1;
+    final selectedType = _selectedType;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final movements =
+          await ref.read(inventoryRepositoryProvider).getStockMovements(
+                ingredientId: widget.ingredient.id,
+                type: selectedType,
+                page: nextPage,
+                perPage: _pageSize,
+              );
+
+      if (!mounted) return;
+
+      setState(() {
+        _movements.addAll(movements);
+        _currentPage = nextPage;
+        _hasMore = movements.length == _pageSize;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load more movements: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -112,7 +161,7 @@ class _InventoryMovementHistoryScreenState
         actions: [
           IconButton(
             tooltip: 'Refresh',
-            onPressed: _isLoading ? null : _loadMovements,
+            onPressed: _isLoading || _isLoadingMore ? null : _loadMovements,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -149,12 +198,14 @@ class _InventoryMovementHistoryScreenState
                   child: Text('Sale Deduction'),
                 ),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedType = value;
-                });
-                _loadMovements();
-              },
+              onChanged: _isLoading || _isLoadingMore
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _selectedType = value;
+                      });
+                      _loadMovements();
+                    },
             ),
           ),
           Padding(
@@ -234,12 +285,30 @@ class _InventoryMovementHistoryScreenState
     }
 
     return RefreshIndicator(
-      onRefresh: _loadMovements,
+      onRefresh: () async {
+        if (_isLoading || _isLoadingMore) return;
+        await _loadMovements();
+      },
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        itemCount: _movements.length,
+        itemCount: _movements.length + (_hasMore ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
+          if (index == _movements.length) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: _isLoadingMore
+                    ? const CircularProgressIndicator()
+                    : OutlinedButton.icon(
+                        onPressed: _loadMoreMovements,
+                        icon: const Icon(Icons.expand_more),
+                        label: const Text('Load more'),
+                      ),
+              ),
+            );
+          }
+
           final movement = _movements[index];
           final quantityColor = _quantityColor(
             context,

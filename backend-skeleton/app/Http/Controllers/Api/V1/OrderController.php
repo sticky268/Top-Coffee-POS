@@ -504,10 +504,7 @@ class OrderController extends Controller
                 ->first();
 
             if (! $customer) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Customer is not available at this branch.',
-                ], 422);
+                abort(422, 'Customer is not available at this branch.');
             }
         }
 
@@ -708,14 +705,11 @@ class OrderController extends Controller
         if ($customerId !== null) {
             $customer = Customer::query()
                 ->where('id', $customerId)
-                ->where('branch_id', $branchId)
+                ->where('branch_id', $order->branch_id)
                 ->first();
 
             if (! $customer) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Customer is not available at this branch.',
-                ], 422);
+                abort(422, 'Customer is not available at this branch.');
             }
         }
 
@@ -737,6 +731,7 @@ class OrderController extends Controller
                     'tax_total' => 0,
                     'total' => $total,
                     'held_at' => $order->held_at ?? now(),
+                    'customer_id' => $customerId,
                 ]);
 
                 $order->items()->delete();

@@ -71,6 +71,38 @@ void main() {
     expect((state as CheckoutSuccess).confirmation.orderId, 42);
   });
 
+  test('hold() forwards the selected customer ID', () async {
+    when(() => repository.holdOrder(
+          items: any(named: 'items'),
+          orderType: any(named: 'orderType'),
+          tableId: any(named: 'tableId'),
+          discountTotal: any(named: 'discountTotal'),
+          customerId: any(named: 'customerId'),
+        )).thenAnswer((_) async => _confirmation);
+
+    final built = build();
+
+    await built.controller.hold(
+      items: const [CartItem(product: _americano, quantity: 1)],
+      orderType: 'dine_in',
+      tableId: 1,
+      discountTotal: 0,
+      customerId: 7,
+    );
+
+    expect(
+      built.container.read(checkoutControllerProvider),
+      isA<CheckoutHeld>(),
+    );
+
+    verify(() => repository.holdOrder(
+          items: any(named: 'items'),
+          orderType: 'dine_in',
+          tableId: 1,
+          discountTotal: 0,
+          customerId: 7,
+        )).called(1);
+  });
   test('submit() transitions to CheckoutError with the backend message on failure', () async {
     when(() => repository.createOrder(
           items: any(named: 'items'),
