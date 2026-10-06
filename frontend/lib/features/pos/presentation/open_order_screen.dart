@@ -128,6 +128,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   late List<_EditableOrderLine> _lines;
   late OrderDetail _order;
   bool _isBusy = false;
+  bool _isShowingPayment = false;
 
   @override
   void initState() {
@@ -296,11 +297,14 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       final saved = await _saveCurrentOrder();
       if (!mounted) return;
 
+      setState(() => _isShowingPayment = true);
       final result = await showDialog<_PaymentResult>(
         context: context,
         builder: (_) => _PaymentDialog(total: saved.total),
       );
-      if (result == null || !mounted) return;
+      if (!mounted) return;
+      setState(() => _isShowingPayment = false);
+      if (result == null) return;
 
       isPaying = true;
       await ref
@@ -330,7 +334,12 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _isBusy = false);
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+          _isShowingPayment = false;
+        });
+      }
     }
   }
 
@@ -390,7 +399,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
               },
             ),
           ),
-          if (_isBusy)
+          if (_isBusy && !_isShowingPayment)
             const Positioned.fill(
               child: ColoredBox(
                 color: Color(0x33000000),
