@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../orders/application/order_detail_controller.dart';
 import '../../orders/application/orders_list_controller.dart';
@@ -332,6 +334,47 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     }
   }
 
+  Future<void> _cancelOrder() async {
+    if (_isBusy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel Order?'),
+        content: const Text(
+          'This will cancel the entire held order and release its table. '
+          'The order remains in history and cannot be reopened.',
+        ),
+        actions: [
+          pos_ui.SecondaryButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep Order'),
+          ),
+          pos_ui.DangerButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancel Order'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _isBusy = true);
+    try {
+      await ref.read(posRepositoryProvider).cancelHeldOrder(orderId: _order.id);
+      if (!mounted) return;
+      await ref.read(ordersListControllerProvider.notifier).refresh();
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+      context.go('/pos/select-table');
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not cancel order: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
   Future<void> _payOrder() async {
     if (_isBusy || _lines.isEmpty) return;
     setState(() => _isBusy = true);
@@ -396,6 +439,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: '\$');
     final catalogState = ref.watch(posCatalogControllerProvider);
+    final authState = ref.watch(authControllerProvider);
+    final canCancel = authState is AuthAuthenticated &&
+        authState.user.hasPermission('orders.cancel');
 
     return PopScope(
       canPop: !_isBusy,
@@ -417,6 +463,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                   onSave: _saveOrder,
                   onPay: _payOrder,
                   onDiscard: _discardChanges,
+                  onCancel: canCancel ? _cancelOrder : null,
                   onIncrement: (lineKey) => _changeQuantity(lineKey, 1),
                   onDecrement: (lineKey) => _changeQuantity(lineKey, -1),
                   onRemove: _removeLine,
@@ -657,6 +704,7 @@ class _OrderPanel extends StatelessWidget {
     required this.onSave,
     required this.onPay,
     required this.onDiscard,
+    required this.onCancel,
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
@@ -671,6 +719,7 @@ class _OrderPanel extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onPay;
   final VoidCallback onDiscard;
+  final VoidCallback? onCancel;
   final ValueChanged<String> onIncrement;
   final ValueChanged<String> onDecrement;
   final ValueChanged<String> onRemove;
@@ -795,6 +844,7 @@ class _OrderPanel extends StatelessWidget {
           currency: currency,
           onSave: onSave,
           onDiscard: onDiscard,
+          onCancel: onCancel,
           onPay: onPay,
         ),
       ],
@@ -951,6 +1001,7 @@ class _OrderTotals extends StatelessWidget {
     required this.currency,
     required this.onSave,
     required this.onDiscard,
+    required this.onCancel,
     required this.onPay,
   });
 
@@ -960,6 +1011,7 @@ class _OrderTotals extends StatelessWidget {
   final NumberFormat currency;
   final VoidCallback onSave;
   final VoidCallback onDiscard;
+  final VoidCallback? onCancel;
   final VoidCallback onPay;
 
   @override
@@ -986,6 +1038,16 @@ class _OrderTotals extends StatelessWidget {
             value: currency.format(total),
             emphasized: true,
           ),
+          if (onCancel != null) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: pos_ui.DangerButton.outlined(
+                onPressed: onCancel,
+                child: const Text('Cancel Order'),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
