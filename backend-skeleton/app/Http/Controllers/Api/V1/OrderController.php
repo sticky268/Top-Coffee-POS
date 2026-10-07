@@ -111,7 +111,7 @@ class OrderController extends Controller
      * pre-existing seeder gap, not introduced or fixed here.
      *
      * Deliberately NOT implemented here (out of scope for this task):
-     * inventory deduction, recipes, kitchen tickets, tax calculation,
+     * inventory deduction, recipes, tax calculation,
      * table/dine-in selection beyond the raw order_type field.
      */
     public function store(Request $request)
@@ -295,7 +295,6 @@ class OrderController extends Controller
                     'customer_id' => $customerId,
                     'order_type' => $request->input('order_type'),
                     'table_id' => $request->input('table_id'),
-                    // No kitchen/hold workflow yet (Phase 10/11 territory)
                     // ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â payment confirmation marks the order completed
                     // immediately.
                     'status' => 'completed',
