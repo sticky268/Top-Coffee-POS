@@ -62,11 +62,6 @@ class Order extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function kitchenTicket()
-    {
-        return $this->hasOne(KitchenTicket::class);
-    }
-
     public function loyaltyTransactions()
     {
         return $this->hasMany(LoyaltyTransaction::class);
