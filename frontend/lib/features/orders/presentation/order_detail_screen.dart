@@ -23,9 +23,12 @@ class OrderDetailScreen extends ConsumerWidget {
 
     final canEdit =
         state is OrderDetailLoaded &&
-        state.order.status == 'completed' &&
         authState is AuthAuthenticated &&
-        authState.user.hasPermission('orders.edit');
+        ((state.order.status == 'held' &&
+                state.order.orderType == 'dine_in' &&
+                authState.user.hasPermission('orders.create')) ||
+            (state.order.status == 'completed' &&
+                authState.user.hasPermission('orders.edit')));
 
     return Scaffold(
       appBar: AppBar(
@@ -36,11 +39,15 @@ class OrderDetailScreen extends ConsumerWidget {
               tooltip: 'Edit order',
               icon: const Icon(Icons.edit),
               onPressed: () async {
+                final isHeld = state is OrderDetailLoaded &&
+                    state.order.status == 'held';
                 final changed = await context.push<bool>(
-                  '/orders/$orderId/edit',
+                  isHeld
+                      ? '/pos/open-order/$orderId'
+                      : '/orders/$orderId/edit',
                 );
 
-                if (changed == true && context.mounted) {
+                if (context.mounted && (isHeld || changed == true)) {
                   await ref
                       .read(orderDetailControllerProvider(orderId).notifier)
                       .refresh();
