@@ -368,8 +368,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     try {
       await ref.read(posRepositoryProvider).cancelHeldOrder(orderId: _order.id);
       if (!mounted) return;
-      await ref.read(ordersListControllerProvider.notifier).refresh();
-      if (!mounted) return;
+      ref.read(ordersListControllerProvider.notifier).refresh();
       setState(() => _isBusy = false);
       context.go('/pos/select-table');
     } catch (error) {
@@ -429,8 +428,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       );
       if (!mounted) return;
 
-      await ref.read(ordersListControllerProvider.notifier).refresh();
-      if (!mounted) return;
+      ref.read(ordersListControllerProvider.notifier).refresh();
       context.go('/pos/select-table');
     } catch (error) {
       if (!mounted) return;
