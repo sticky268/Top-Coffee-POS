@@ -280,6 +280,29 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     context.pushReplacement('/pos/select-table');
   }
 
+  bool get _hasUnsavedChanges {
+    if ((_discount - _order.discountTotal).abs() >= 0.005) {
+      return true;
+    }
+
+    final savedLines = _editableLinesFromOrder(_order);
+    if (savedLines.length != _lines.length) {
+      return true;
+    }
+
+    final savedByKey = {
+      for (final line in savedLines) line.lineKey: line.quantity,
+    };
+
+    for (final line in _lines) {
+      if (savedByKey[line.lineKey] != line.quantity) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   Future<OrderDetail> _saveCurrentOrder() async {
     final items = _lines
         .map(
@@ -388,8 +411,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     var isPaying = false;
 
     try {
-      // Save the edited bill before asking the cashier to collect payment.
-      final saved = await _saveCurrentOrder();
+      // Only save/re-fetch when the cashier actually changed the held order.
+      // Unchanged orders can open the payment review immediately.
+      final saved = _hasUnsavedChanges ? await _saveCurrentOrder() : _order;
       if (!mounted) return;
 
       final customerBill = CustomerBill.fromOrderDetail(saved);
@@ -417,17 +441,19 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
           );
       if (!mounted) return;
 
-      // Reload order history after the payment changes Held to Completed.
-      await ref.read(ordersListControllerProvider.notifier).refresh();
+      // Payment is authoritative at this point. Show success immediately;
+      // refreshing list/cache data should not delay cashier feedback.
       ref.invalidate(lastCompletedOrderProvider);
-      if (!mounted) return;
-
       setState(() => _isBusy = false);
+
       await showPaymentReceiptDialog(
         context: context,
         orderId: saved.id,
         orderReference: saved.displayOrderReference,
       );
+      if (!mounted) return;
+
+      await ref.read(ordersListControllerProvider.notifier).refresh();
       if (!mounted) return;
       context.go('/pos/select-table');
     } catch (error) {
