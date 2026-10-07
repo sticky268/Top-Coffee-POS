@@ -32,9 +32,19 @@ class PrinterService {
     await _channel.invokeMethod<bool>('printBitmapStressTest');
   }
 
-  Future<Uint8List?> _loadLogoBytes() async {
+  String _logoFileName(String? branchKey) {
+    final scope = branchKey?.trim().toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9_-]+'),
+          '_',
+        );
+    return scope == null || scope.isEmpty
+        ? 'receipt_logo.png'
+        : 'receipt_logo_$scope.png';
+  }
+
+  Future<Uint8List?> _loadLogoBytes(String? branchKey) async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/receipt_logo.png');
+    final file = File('${directory.path}/${_logoFileName(branchKey)}');
 
     if (!await file.exists()) {
       return null;
@@ -44,8 +54,11 @@ class PrinterService {
   }
 
   Future<void> printReceipt(OrderReceipt receipt) async {
-    final settings = await ReceiptSettings.load();
-    final logoBytes = await _loadLogoBytes();
+    final settings = await ReceiptSettings.load(
+      branchKey: receipt.branchCode,
+      branchNameFallback: receipt.branchName,
+    );
+    final logoBytes = await _loadLogoBytes(receipt.branchCode);
 
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
@@ -134,8 +147,11 @@ class PrinterService {
     );
   }
   Future<void> printBill(CustomerBill bill) async {
-    final settings = await ReceiptSettings.load();
-    final logoBytes = await _loadLogoBytes();
+    final settings = await ReceiptSettings.load(
+      branchKey: bill.branchCode,
+      branchNameFallback: bill.branchName,
+    );
+    final logoBytes = await _loadLogoBytes(bill.branchCode);
 
     final items = bill.items.map((item) {
       return <String, dynamic>{
@@ -184,7 +200,10 @@ class PrinterService {
   }
 
   Future<void> printReceiptBitmapTest(OrderReceipt receipt) async {
-    final settings = await ReceiptSettings.load();
+    final settings = await ReceiptSettings.load(
+      branchKey: receipt.branchCode,
+      branchNameFallback: receipt.branchName,
+    );
 
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
