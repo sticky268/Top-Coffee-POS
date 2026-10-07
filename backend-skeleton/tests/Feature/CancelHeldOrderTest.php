@@ -120,6 +120,34 @@ class CancelHeldOrderTest extends TestCase
         $this->getJson('/api/v1/kitchen/tickets')->assertOk()->assertJsonCount(0, 'data');
     }
 
+    public function test_cancelled_order_cannot_resume_kitchen_preparation(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo('orders.cancel');
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.update-status', 'guard_name' => 'web'])
+        );
+
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'new']);
+        $this->actingAs($user)->postJson("/api/v1/orders/{$order->id}/cancel")->assertOk();
+        $this->patchJson("/api/v1/kitchen/tickets/{$ticket->id}/status", [
+            'status' => 'preparing',
+        ])->assertStatus(409);
+        $this->assertSame('cancelled', $ticket->fresh()->status);
+    }
+
+    public function test_kitchen_acknowledgement_requires_permission(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $order->update(['status' => 'cancelled']);
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'cancelled']);
+
+        $this->actingAs($user)
+            ->postJson("/api/v1/kitchen/tickets/{$ticket->id}/acknowledge-cancellation")
+            ->assertForbidden();
+        $this->assertNull($ticket->fresh()->cancellation_acknowledged_at);
+    }
+
     public function test_non_cancelled_ticket_cannot_be_acknowledged(): void
     {
         [$user, $order] = $this->setupOrder();
