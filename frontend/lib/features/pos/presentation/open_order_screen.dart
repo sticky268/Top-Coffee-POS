@@ -129,8 +129,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   bool _isBusy = false;
   bool _isShowingPayment = false;
 
-  // A bill can contain multiple kitchen batches for the same product.
-  // Combine those rows for the cashier while retaining the submitted floor.
+  // Merge duplicate product/variant rows into one editable bill line.
   List<_EditableOrderLine> _editableLinesFromOrder(OrderDetail order) {
     final merged = <String, _EditableOrderLine>{};
     for (final item in order.items) {
