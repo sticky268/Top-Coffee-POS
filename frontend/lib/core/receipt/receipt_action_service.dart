@@ -136,10 +136,10 @@ class ReceiptActionService {
                   ),
                 ),
                 if (branchName.isNotEmpty) ...<pw.Widget>[
-                  const pw.SizedBox(height: 4),
-                  pw.Text(branchName, style: const pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 4),
+                  pw.Text(branchName, style: pw.TextStyle(fontSize: 10)),
                 ],
-                const pw.SizedBox(height: 14),
+                pw.SizedBox(height: 14),
                 pw.Text(
                   'E-RECEIPT',
                   style: pw.TextStyle(
@@ -151,7 +151,7 @@ class ReceiptActionService {
               ],
             ),
           ),
-          const pw.SizedBox(height: 18),
+          pw.SizedBox(height: 18),
           pw.Container(
             padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(
@@ -183,14 +183,14 @@ class ReceiptActionService {
               letterSpacing: 1.1,
             ),
           ),
-          const pw.SizedBox(height: 8),
+          pw.SizedBox(height: 8),
           ...receipt.items.map((item) {
             final name = item.variantName?.trim().isNotEmpty == true
                 ? '${item.productName} · ${item.variantName}'
                 : item.productName;
             return pw.Container(
               padding: const pw.EdgeInsets.symmetric(vertical: 7),
-              decoration: const pw.BoxDecoration(
+              decoration: pw.BoxDecoration(
                 border: pw.Border(
                   bottom: pw.BorderSide(color: PdfColors.grey300),
                 ),
@@ -212,7 +212,7 @@ class ReceiptActionService {
                         pw.SizedBox(height: 2),
                         pw.Text(
                           '${item.quantity} × ${money.format(item.unitPrice)}',
-                          style: const pw.TextStyle(
+                          style: pw.TextStyle(
                             fontSize: 9,
                             color: PdfColors.grey700,
                           ),
@@ -220,7 +220,7 @@ class ReceiptActionService {
                       ],
                     ),
                   ),
-                  const pw.SizedBox(width: 12),
+                  pw.SizedBox(width: 12),
                   pw.Text(
                     money.format(item.lineTotal),
                     style: pw.TextStyle(
@@ -232,14 +232,14 @@ class ReceiptActionService {
               ),
             );
           }),
-          const pw.SizedBox(height: 16),
+          pw.SizedBox(height: 16),
           _pdfAmountRow('Subtotal', money.format(receipt.subtotal)),
           if (receipt.discountTotal > 0)
             _pdfAmountRow(
               'Discount',
               '- ${money.format(receipt.discountTotal)}',
             ),
-          const pw.SizedBox(height: 6),
+          pw.SizedBox(height: 6),
           pw.Divider(color: PdfColors.grey400),
           pw.SizedBox(height: 4),
           _pdfAmountRow(
@@ -286,14 +286,14 @@ class ReceiptActionService {
             }),
           ],
           if (settings.footer.trim().isNotEmpty) ...<pw.Widget>[
-            const pw.SizedBox(height: 24),
+            pw.SizedBox(height: 24),
             pw.Divider(color: PdfColors.grey300),
-            const pw.SizedBox(height: 10),
+            pw.SizedBox(height: 10),
             pw.Center(
               child: pw.Text(
                 settings.footer.trim(),
                 textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(
+                style: pw.TextStyle(
                   fontSize: 9,
                   color: PdfColors.grey700,
                 ),
@@ -317,7 +317,7 @@ class ReceiptActionService {
             width: 86,
             child: pw.Text(
               label,
-              style: const pw.TextStyle(
+              style: pw.TextStyle(
                 fontSize: 9,
                 color: PdfColors.grey700,
               ),
@@ -327,7 +327,7 @@ class ReceiptActionService {
             child: pw.Text(
               value,
               textAlign: pw.TextAlign.right,
-              style: const pw.TextStyle(fontSize: 9),
+              style: pw.TextStyle(fontSize: 9),
             ),
           ),
         ],
