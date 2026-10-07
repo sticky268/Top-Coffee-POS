@@ -318,6 +318,8 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order saved successfully.')),
       );
+      // PopScope blocks navigation while _isBusy is true.
+      setState(() => _isBusy = false);
       context.pop(true);
     } catch (error) {
       if (!mounted) return;
