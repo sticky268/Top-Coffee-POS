@@ -1322,7 +1322,7 @@ class OrderController extends Controller
         $user = $request->user();
 
         try {
-            $order = DB::transaction(function () use ($request, $user, $id) {
+            $result = DB::transaction(function () use ($request, $user, $id) {
                 $order = Order::query()
                     ->withoutGlobalScope('branch')
                     ->where('id', $id)
