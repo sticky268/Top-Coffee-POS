@@ -470,6 +470,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth >= 900;
+                final productColumns = constraints.maxWidth >= 1024
+                    ? 4
+                    : (constraints.maxWidth >= 600 ? 3 : 2);
 
                 final orderPanel = _OrderPanel(
                   order: _order,
@@ -489,6 +492,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
                 final productPanel = _ProductCatalogPanel(
                   state: catalogState,
+                  crossAxisCount: productColumns,
                   onProductSelected: _addProduct,
                   onVariantSelected: _addProductVariant,
                 );
@@ -880,11 +884,13 @@ class _OrderPanel extends StatelessWidget {
 class _ProductCatalogPanel extends StatelessWidget {
   const _ProductCatalogPanel({
     required this.state,
+    required this.crossAxisCount,
     required this.onProductSelected,
     required this.onVariantSelected,
   });
 
   final PosCatalogState state;
+  final int crossAxisCount;
   final void Function(PosProduct product) onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)
   onVariantSelected;
@@ -911,15 +917,7 @@ class _ProductCatalogPanel extends StatelessWidget {
         :final visibleProducts,
         :final selectedCategoryId,
       ) =>
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth >= 1200
-                ? 4
-                : constraints.maxWidth >= 800
-                ? 3
-                : 2;
-
-            return Column(
+        Column(
               children: [
                 const SizedBox(height: 16),
                 ProductSearchField(
@@ -947,9 +945,7 @@ class _ProductCatalogPanel extends StatelessWidget {
                         ),
                 ),
               ],
-            );
-          },
-        ),
+            ),
     };
   }
 }
