@@ -1,7 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
-
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -139,10 +136,10 @@ class ReceiptActionService {
                   ),
                 ),
                 if (branchName.isNotEmpty) ...<pw.Widget>[
-                  pw.SizedBox(height: 4),
+                  const pw.SizedBox(height: 4),
                   pw.Text(branchName, style: const pw.TextStyle(fontSize: 10)),
                 ],
-                pw.SizedBox(height: 14),
+                const pw.SizedBox(height: 14),
                 pw.Text(
                   'E-RECEIPT',
                   style: pw.TextStyle(
@@ -154,7 +151,7 @@ class ReceiptActionService {
               ],
             ),
           ),
-          pw.SizedBox(height: 18),
+          const pw.SizedBox(height: 18),
           pw.Container(
             padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(
@@ -186,7 +183,7 @@ class ReceiptActionService {
               letterSpacing: 1.1,
             ),
           ),
-          pw.SizedBox(height: 8),
+          const pw.SizedBox(height: 8),
           ...receipt.items.map((item) {
             final name = item.variantName?.trim().isNotEmpty == true
                 ? '${item.productName} · ${item.variantName}'
@@ -223,7 +220,7 @@ class ReceiptActionService {
                       ],
                     ),
                   ),
-                  pw.SizedBox(width: 12),
+                  const pw.SizedBox(width: 12),
                   pw.Text(
                     money.format(item.lineTotal),
                     style: pw.TextStyle(
@@ -235,14 +232,14 @@ class ReceiptActionService {
               ),
             );
           }),
-          pw.SizedBox(height: 16),
+          const pw.SizedBox(height: 16),
           _pdfAmountRow('Subtotal', money.format(receipt.subtotal)),
           if (receipt.discountTotal > 0)
             _pdfAmountRow(
               'Discount',
               '- ${money.format(receipt.discountTotal)}',
             ),
-          pw.SizedBox(height: 6),
+          const pw.SizedBox(height: 6),
           pw.Divider(color: PdfColors.grey400),
           pw.SizedBox(height: 4),
           _pdfAmountRow(
@@ -289,9 +286,9 @@ class ReceiptActionService {
             }),
           ],
           if (settings.footer.trim().isNotEmpty) ...<pw.Widget>[
-            pw.SizedBox(height: 24),
+            const pw.SizedBox(height: 24),
             pw.Divider(color: PdfColors.grey300),
-            pw.SizedBox(height: 10),
+            const pw.SizedBox(height: 10),
             pw.Center(
               child: pw.Text(
                 settings.footer.trim(),
