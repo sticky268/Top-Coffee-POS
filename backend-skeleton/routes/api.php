@@ -96,6 +96,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/kitchen/tickets', [KitchenController::class, 'index']);
         Route::patch('/kitchen/tickets/{id}/status', [KitchenController::class, 'updateStatus'])->whereNumber('id');
+        Route::post('/kitchen/tickets/{id}/acknowledge-cancellation', [KitchenController::class, 'acknowledgeCancellation'])->whereNumber('id');
 
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
