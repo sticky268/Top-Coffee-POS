@@ -9,13 +9,6 @@ class OrderItem extends Model
     protected $fillable = ['order_id', 'product_id', 'product_variant_id', 'quantity', 'unit_price', 'notes'];
     protected $casts = ['unit_price' => 'decimal:2'];
 
-    public function kitchenTickets()
-    {
-        return $this->belongsToMany(KitchenTicket::class, 'kitchen_ticket_items')
-            ->withPivot('quantity')
-            ->withTimestamps();
-    }
-
     public function order()
     {
         return $this->belongsTo(Order::class);
