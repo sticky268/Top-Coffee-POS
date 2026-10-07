@@ -363,6 +363,10 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
           );
       if (!mounted) return;
 
+      // Reload order history after the payment changes Held to Completed.
+      await ref.read(ordersListControllerProvider.notifier).refresh();
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Payment completed successfully.')),
       );
