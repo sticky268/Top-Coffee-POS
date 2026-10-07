@@ -971,6 +971,97 @@ class OrderController extends Controller
         ]);
     }
     /**
+     * POST /api/v1/orders/{id}/cancel
+     * Cancel an unpaid held dine-in order without deleting its history.
+     */
+    public function cancelHeld(Request $request, int $id)
+    {
+        if (! $request->user()->can('orders.cancel')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to cancel orders',
+            ], 403);
+        }
+
+        $user = $request->user();
+
+        try {
+            $order = DB::transaction(function () use ($user, $id) {
+                $order = Order::query()
+                    ->whereKey($id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $order) {
+                    abort(404, 'Order not found.');
+                }
+
+                if (! $user->can('branches.view-all')
+                    && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
+                    abort(403, 'You do not have access to this branch.');
+                }
+
+                if ($order->status !== 'held' || $order->order_type !== 'dine_in') {
+                    abort(409, 'Only held dine-in orders can be cancelled.');
+                }
+
+                if ($order->payments()->exists()) {
+                    abort(409, 'An order with payments cannot be cancelled.');
+                }
+
+                $table = \App\Models\RestaurantTable::query()
+                    ->where('branch_id', $order->branch_id)
+                    ->whereKey($order->table_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                $order->update(['status' => 'cancelled']);
+
+                if ($table) {
+                    $otherHeldOrders = Order::query()
+                        ->where('branch_id', $order->branch_id)
+                        ->where('table_id', $table->id)
+                        ->where('status', 'held')
+                        ->exists();
+
+                    if (! $otherHeldOrders) {
+                        $table->update(['status' => 'available']);
+                    }
+                }
+
+                return $order->fresh();
+            });
+        } catch (HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not cancel the order. Please try again.',
+            ], 500);
+        }
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.cancelled',
+            $order,
+            ['status' => 'held', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
+            ['status' => 'cancelled', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $order->id,
+                'status' => $order->status,
+                'table_id' => $order->table_id,
+            ],
+        ]);
+    }
+
+    /**
      * POST /api/v1/orders/{id}/pay
      *
      * Completes an existing held dine-in order and releases its table.
