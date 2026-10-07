@@ -4,8 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/receipt/customer_bill.dart';
+import '../../../core/receipt/last_receipt_provider.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../customers/data/customers_repository.dart';
 import '../../customers/domain/customer_models.dart';
 import '../../orders/application/orders_list_controller.dart';
@@ -112,6 +116,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartControllerProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
+    final currentBranch = ref.watch(currentBranchProvider);
+    final authState = ref.watch(authControllerProvider);
+    final cashierName = authState is AuthAuthenticated
+        ? authState.user.name
+        : null;
     final isCompleted =
         checkoutState is CheckoutSuccess || checkoutState is CheckoutHeld;
 
@@ -122,6 +131,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ref.read(cartControllerProvider.notifier).clear();
         // Include newly completed orders in order history immediately.
         ref.read(ordersListControllerProvider.notifier).refresh();
+        ref.invalidate(lastCompletedOrderProvider);
         return;
       }
 
@@ -157,6 +167,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           _ => _CheckoutForm(
             cart: cart,
             orderType: _orderType,
+            branchName: currentBranch?.name,
+            cashierName: cashierName,
             paymentMethod: _paymentMethod,
             selectedTable: _selectedTable,
             selectedCustomer: _selectedCustomer,
@@ -227,6 +239,8 @@ class _CheckoutForm extends StatelessWidget {
   const _CheckoutForm({
     required this.cart,
     required this.orderType,
+    required this.branchName,
+    required this.cashierName,
     required this.paymentMethod,
     required this.selectedTable,
     required this.selectedCustomer,
@@ -248,6 +262,8 @@ class _CheckoutForm extends StatelessWidget {
 
   final CartState cart;
   final String orderType;
+  final String? branchName;
+  final String? cashierName;
   final String paymentMethod;
   final PosTable? selectedTable;
   final Customer? selectedCustomer;
@@ -303,6 +319,28 @@ class _CheckoutForm extends StatelessWidget {
             : paymentMethod != 'cash' ||
                   tenderedAmount == null ||
                   tenderedAmount! >= cart.total);
+
+    final customerBill = CustomerBill(
+      orderType: orderType,
+      branchName: branchName,
+      cashierName: cashierName,
+      tableName: selectedTable?.name,
+      subtotal: cart.subtotal,
+      discountTotal: cart.discountTotal,
+      total: cart.total,
+      items: cart.items
+          .map(
+            (item) => CustomerBillLine(
+              productName: item.product.name,
+              variantName: item.variant?.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            ),
+          )
+          .toList(),
+      createdAt: DateTime.now(),
+    );
 
     return SafeArea(
       child: ListView(
@@ -557,6 +595,22 @@ class _CheckoutForm extends StatelessWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Card(
+            elevation: 1,
+            color: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: BillActionButtons(
+                bill: customerBill,
+                showHeading: true,
               ),
             ),
           ),
