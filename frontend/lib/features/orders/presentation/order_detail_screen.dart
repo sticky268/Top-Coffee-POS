@@ -39,8 +39,7 @@ class OrderDetailScreen extends ConsumerWidget {
               tooltip: 'Edit order',
               icon: const Icon(Icons.edit),
               onPressed: () async {
-                final isHeld = state is OrderDetailLoaded &&
-                    state.order.status == 'held';
+                final isHeld = state.order.status == 'held';
                 final changed = await context.push<bool>(
                   isHeld
                       ? '/pos/open-order/$orderId'
