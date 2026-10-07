@@ -79,7 +79,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
-                'branches' => $user->branches()->select('branches.id', 'branches.name', 'branches.code', 'branches.use_kitchen_display')->get(),
+                'branches' => $user->branches()->select('branches.id', 'branches.name', 'branches.code')->get(),
             ],
         ]);
     }
