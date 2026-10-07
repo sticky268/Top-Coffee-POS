@@ -42,6 +42,7 @@ import '../../features/purchasing/presentation/suppliers_screen.dart';
 import '../../features/purchasing/presentation/purchase_creation_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/settings/presentation/receipt_settings_screen.dart';
+import '../../features/settings/presentation/kitchen_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/about_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
@@ -294,6 +295,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings/receipt',
             builder: (context, state) => const ReceiptSettingsScreen(),
+          ),
+          GoRoute(
+            path: '/settings/kitchen',
+            builder: (context, state) => const KitchenSettingsScreen(),
           ),
           GoRoute(
             path: '/settings/about',
