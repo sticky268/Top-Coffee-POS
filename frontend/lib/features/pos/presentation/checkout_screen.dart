@@ -13,7 +13,6 @@ import '../application/cart_controller.dart';
 import '../application/cart_state.dart';
 import '../application/checkout_controller.dart';
 import '../application/checkout_state.dart';
-import '../data/pos_repository.dart';
 import '../domain/pos_models.dart';
 
 /// Order review + payment screen, reached via the cart's "Review Order" /
