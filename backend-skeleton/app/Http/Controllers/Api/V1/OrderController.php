@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Customer;
 use App\Models\OrderItem;
 use App\Models\KitchenTicket;
+use App\Models\KitchenItemVoid;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -934,6 +935,29 @@ class OrderController extends Controller
                             }
 
                             $reduced = min($remaining, (int) $existing->quantity);
+                            $sourceTicket = null;
+                            if ($useKitchenDisplay) {
+                                $sourceTicket = KitchenTicket::query()
+                                    ->where('order_id', $order->id)
+                                    ->where('status', '!=', 'cancelled')
+                                    ->whereHas('items', function ($query) use ($existing) {
+                                        $query->where('order_items.id', $existing->id);
+                                    })
+                                    ->orderByDesc('id')
+                                    ->first();
+
+                                KitchenItemVoid::create([
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'order_item_id' => $existing->id,
+                                    'kitchen_ticket_id' => $sourceTicket?->id,
+                                    'quantity' => $reduced,
+                                    'reason' => $voidReason,
+                                    'kitchen_status' => $sourceTicket?->status ?? 'unknown',
+                                    'voided_by' => $user->id,
+                                ]);
+                            }
+
                             $existing->update(['quantity' => (int) $existing->quantity - $reduced]);
                             $cancelledItems[] = ['item' => $existing, 'quantity' => $reduced];
                             $remaining -= $reduced;
