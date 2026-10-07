@@ -8,6 +8,7 @@ import '../../../core/printer/printer_service.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../customers/data/customers_repository.dart';
 import '../../customers/domain/customer_models.dart';
+import '../../orders/application/orders_list_controller.dart';
 import '../../settings/data/receipt_settings.dart';
 import '../application/cart_controller.dart';
 import '../application/cart_state.dart';
@@ -121,11 +122,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     ref.listen<CheckoutState>(checkoutControllerProvider, (previous, next) {
       if (next is CheckoutSuccess && previous is! CheckoutSuccess) {
         ref.read(cartControllerProvider.notifier).clear();
+        // Include newly completed orders in order history immediately.
+        ref.read(ordersListControllerProvider.notifier).refresh();
         return;
       }
 
       if (next is CheckoutHeld && previous is! CheckoutHeld) {
         ref.read(cartControllerProvider.notifier).clear();
+        // Refresh order history as soon as the new held order is saved.
+        ref.read(ordersListControllerProvider.notifier).refresh();
 
         if (context.mounted) {
           context.go('/pos/select-table');
