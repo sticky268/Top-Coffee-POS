@@ -5,9 +5,11 @@ import 'kds_state.dart';
 
 class KdsController extends Notifier<KdsState> {
   int _requestVersion = 0;
+  int? _loadedBranchId;
+  bool _hasLoadedBranch = false;
+
   @override
   KdsState build() {
-    Future.microtask(loadTickets);
     return const KdsState();
   }
 
@@ -16,7 +18,11 @@ class KdsController extends Notifier<KdsState> {
   Future<void> loadTickets({int? branchId}) async {
     if (state.updatingTicketId != null) return;
     final requestVersion = ++_requestVersion;
+    final branchChanged = !_hasLoadedBranch || branchId != _loadedBranchId;
+    _loadedBranchId = branchId;
+    _hasLoadedBranch = true;
     state = state.copyWith(
+      tickets: branchChanged ? const [] : null,
       isLoading: true,
       clearError: true,
     );
