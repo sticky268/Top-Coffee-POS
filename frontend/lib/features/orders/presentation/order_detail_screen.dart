@@ -40,7 +40,7 @@ class OrderDetailScreen extends ConsumerWidget {
         authState.user.hasPermission('orders.cancel');
 
     final appBarTitle = state is OrderDetailLoaded
-        ? 'Order \${state.order.displayOrderReference}'
+        ? 'Order ${state.order.displayOrderReference}'
         : 'Order';
 
     return Scaffold(
