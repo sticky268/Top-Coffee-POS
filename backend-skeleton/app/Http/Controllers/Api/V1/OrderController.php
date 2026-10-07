@@ -535,7 +535,6 @@ class OrderController extends Controller
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
-            'void_reason' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -769,6 +768,7 @@ class OrderController extends Controller
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
+            'void_reason' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
