@@ -130,19 +130,19 @@ class ReceiptActionService {
               children: <pw.Widget>[
                 pw.Text(
                   settings.businessName,
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontSize: 22,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
                 if (branchName.isNotEmpty) ...<pw.Widget>[
                   pw.SizedBox(height: 4),
-                  pw.Text(branchName, style: pw.TextStyle(fontSize: 10)),
+                  pw.Text(branchName, style: const pw.TextStyle(fontSize: 10)),
                 ],
                 pw.SizedBox(height: 14),
                 pw.Text(
                   'E-RECEIPT',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
                     letterSpacing: 1.5,
@@ -177,7 +177,7 @@ class ReceiptActionService {
           pw.SizedBox(height: 18),
           pw.Text(
             'ITEMS',
-            style: pw.TextStyle(
+            style: const pw.TextStyle(
               fontSize: 10,
               fontWeight: pw.FontWeight.bold,
               letterSpacing: 1.1,
@@ -190,7 +190,7 @@ class ReceiptActionService {
                 : item.productName;
             return pw.Container(
               padding: const pw.EdgeInsets.symmetric(vertical: 7),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 border: pw.Border(
                   bottom: pw.BorderSide(color: PdfColors.grey300),
                 ),
@@ -204,7 +204,7 @@ class ReceiptActionService {
                       children: <pw.Widget>[
                         pw.Text(
                           name,
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                             fontSize: 10,
                             fontWeight: pw.FontWeight.bold,
                           ),
@@ -212,7 +212,7 @@ class ReceiptActionService {
                         pw.SizedBox(height: 2),
                         pw.Text(
                           '${item.quantity} × ${money.format(item.unitPrice)}',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                             fontSize: 9,
                             color: PdfColors.grey700,
                           ),
@@ -223,7 +223,7 @@ class ReceiptActionService {
                   pw.SizedBox(width: 12),
                   pw.Text(
                     money.format(item.lineTotal),
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
                     ),
@@ -251,7 +251,7 @@ class ReceiptActionService {
             pw.SizedBox(height: 18),
             pw.Text(
               'PAYMENT',
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                 fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
                 letterSpacing: 1.1,
@@ -293,7 +293,7 @@ class ReceiptActionService {
               child: pw.Text(
                 settings.footer.trim(),
                 textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   fontSize: 9,
                   color: PdfColors.grey700,
                 ),
@@ -317,7 +317,7 @@ class ReceiptActionService {
             width: 86,
             child: pw.Text(
               label,
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                 fontSize: 9,
                 color: PdfColors.grey700,
               ),
@@ -327,7 +327,7 @@ class ReceiptActionService {
             child: pw.Text(
               value,
               textAlign: pw.TextAlign.right,
-              style: pw.TextStyle(fontSize: 9),
+              style: const pw.TextStyle(fontSize: 9),
             ),
           ),
         ],
