@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/domain/pos_models.dart';
 import '../../features/settings/data/receipt_settings.dart';
 import '../printer/printer_service.dart';
+import 'customer_bill.dart';
 
 class ReceiptActionService {
   ReceiptActionService(
@@ -26,6 +28,66 @@ class ReceiptActionService {
   }
 
   Future<OrderReceipt> printReceipt(int orderId) async {
+    final receipt = await loadReceipt(orderId);
+    if (receipt.status != 'completed') {
+      throw StateError('Only completed orders can print a receipt.');
+    }
+
+    await _withPrinter((_) => _printerService.printReceipt(receipt));
+    return receipt;
+  }
+
+  Future<void> printBill(CustomerBill bill) async {
+    await _withPrinter((_) => _printerService.printBill(bill));
+  }
+
+  Future<OrderReceipt> shareElectronicReceipt(
+    int orderId, {
+    Rect? sharePositionOrigin,
+  }) async {
+    final receipt = await loadReceipt(orderId);
+    if (receipt.status != 'completed') {
+      throw StateError('Only completed orders can issue an E-Receipt.');
+    }
+
+    final settings = await ReceiptSettings.load();
+    final bytes = await _buildReceiptPdf(receipt, settings);
+    final reference = receipt.displayOrderReference;
+
+    await _sharePdf(
+      bytes: bytes,
+      filePrefix: 'top-coffee-receipt',
+      reference: reference,
+      title: 'Top Coffee E-Receipt',
+      subject: 'Receipt $reference',
+      text: 'Top Coffee receipt $reference',
+      sharePositionOrigin: sharePositionOrigin,
+    );
+
+    return receipt;
+  }
+
+  Future<void> shareElectronicBill(
+    CustomerBill bill, {
+    Rect? sharePositionOrigin,
+  }) async {
+    final settings = await ReceiptSettings.load();
+    final bytes = await _buildBillPdf(bill, settings);
+
+    await _sharePdf(
+      bytes: bytes,
+      filePrefix: 'top-coffee-bill',
+      reference: bill.displayReference,
+      title: 'Top Coffee E-Bill',
+      subject: 'Bill ${bill.displayReference}',
+      text: 'Top Coffee unpaid bill ${bill.displayReference}',
+      sharePositionOrigin: sharePositionOrigin,
+    );
+  }
+
+  Future<void> _withPrinter(
+    Future<void> Function(ReceiptSettings settings) action,
+  ) async {
     final settings = await ReceiptSettings.load();
 
     if (!settings.printerEnabled) {
@@ -37,14 +99,11 @@ class ReceiptActionService {
       throw StateError('Printer IP address is not configured.');
     }
 
-    final receipt = await loadReceipt(orderId);
     var connected = false;
-
     try {
       await _printerService.connect(printerIp);
       connected = true;
-      await _printerService.printReceipt(receipt);
-      return receipt;
+      await action(settings);
     } finally {
       if (connected) {
         try {
@@ -56,21 +115,22 @@ class ReceiptActionService {
     }
   }
 
-  Future<OrderReceipt> shareElectronicReceipt(
-    int orderId, {
+  Future<void> _sharePdf({
+    required List<int> bytes,
+    required String filePrefix,
+    required String reference,
+    required String title,
+    required String subject,
+    required String text,
     Rect? sharePositionOrigin,
   }) async {
-    final receipt = await loadReceipt(orderId);
-    final settings = await ReceiptSettings.load();
-    final bytes = await _buildPdf(receipt, settings);
-
     final directory = await getTemporaryDirectory();
-    final safeReference = receipt.displayOrderReference.replaceAll(
+    final safeReference = reference.replaceAll(
       RegExp(r'[^A-Za-z0-9_-]'),
       '-',
     );
     final file = File(
-      '${directory.path}/top-coffee-receipt-$safeReference.pdf',
+      '${directory.path}/$filePrefix-$safeReference.pdf',
     );
     await file.writeAsBytes(bytes, flush: true);
 
@@ -79,51 +139,114 @@ class ReceiptActionService {
         files: <XFile>[
           XFile(file.path, mimeType: 'application/pdf'),
         ],
-        title: 'Top Coffee E-Receipt',
-        subject: 'Receipt ${receipt.displayOrderReference}',
-        text: 'Top Coffee receipt ${receipt.displayOrderReference}',
+        title: title,
+        subject: subject,
+        text: text,
         sharePositionOrigin: sharePositionOrigin,
       ),
     );
-
-    return receipt;
   }
 
-  Future<List<int>> _buildPdf(
+  Future<List<int>> _buildReceiptPdf(
     OrderReceipt receipt,
     ReceiptSettings settings,
   ) async {
-    final fontData = await rootBundle.load('assets/fonts/Inter.ttf');
-    final font = pw.Font.ttf(fontData);
-    final document = pw.Document();
-
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
         : receipt.payment != null
             ? <PaymentConfirmation>[receipt.payment!]
             : <PaymentConfirmation>[];
 
-    final branchName = (receipt.branchName?.trim().isNotEmpty ?? false)
-        ? receipt.branchName!.trim()
+    return _buildPdf(
+      settings: settings,
+      documentTitle: 'E-RECEIPT · PAID',
+      orderReference: receipt.displayOrderReference,
+      orderType: receipt.orderType,
+      branchName: receipt.branchName,
+      cashierName: receipt.cashierName,
+      tableName: receipt.tableName,
+      subtotal: receipt.subtotal,
+      discountTotal: receipt.discountTotal,
+      total: receipt.total,
+      createdAt: receipt.createdAt,
+      items: receipt.items
+          .map(
+            (item) => _PdfLine(
+              name: item.variantName?.trim().isNotEmpty == true
+                  ? '${item.productName} · ${item.variantName}'
+                  : item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            ),
+          )
+          .toList(),
+      payments: payments,
+    );
+  }
+
+  Future<List<int>> _buildBillPdf(
+    CustomerBill bill,
+    ReceiptSettings settings,
+  ) {
+    return _buildPdf(
+      settings: settings,
+      documentTitle: 'E-BILL · UNPAID',
+      orderReference: bill.displayReference,
+      orderType: bill.orderType,
+      branchName: bill.branchName,
+      cashierName: bill.cashierName,
+      tableName: bill.tableName,
+      subtotal: bill.subtotal,
+      discountTotal: bill.discountTotal,
+      total: bill.total,
+      createdAt: bill.createdAt ?? DateTime.now(),
+      items: bill.items
+          .map(
+            (item) => _PdfLine(
+              name: item.displayName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            ),
+          )
+          .toList(),
+      payments: const <PaymentConfirmation>[],
+    );
+  }
+
+  Future<List<int>> _buildPdf({
+    required ReceiptSettings settings,
+    required String documentTitle,
+    required String orderReference,
+    required String orderType,
+    required String? branchName,
+    required String? cashierName,
+    required String? tableName,
+    required double subtotal,
+    required double discountTotal,
+    required double total,
+    required DateTime? createdAt,
+    required List<_PdfLine> items,
+    required List<PaymentConfirmation> payments,
+  }) async {
+    final fontData = await rootBundle.load('assets/fonts/Inter.ttf');
+    final font = pw.Font.ttf(fontData);
+    final document = pw.Document();
+    final resolvedBranchName = (branchName?.trim().isNotEmpty ?? false)
+        ? branchName!.trim()
         : settings.branchName.trim();
-    final createdAt = receipt.createdAt != null
-        ? DateFormat('MMM d, yyyy · h:mm a').format(receipt.createdAt!.toLocal())
+    final createdAtText = createdAt != null
+        ? DateFormat('MMM d, yyyy · h:mm a').format(createdAt.toLocal())
         : '';
-    final orderType = receipt.orderType == 'dine_in'
-        ? 'Dine-in'
-        : receipt.orderType == 'takeaway'
-            ? 'Takeaway'
-            : receipt.orderType;
+    final orderTypeText = _orderTypeLabel(orderType);
     final money = NumberFormat.currency(symbol: r'$');
 
     document.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a5,
         margin: const pw.EdgeInsets.all(28),
-        theme: pw.ThemeData.withFont(
-          base: font,
-          bold: font,
-        ),
+        theme: pw.ThemeData.withFont(base: font, bold: font),
         build: (context) => <pw.Widget>[
           pw.Center(
             child: pw.Column(
@@ -135,13 +258,16 @@ class ReceiptActionService {
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-                if (branchName.isNotEmpty) ...<pw.Widget>[
+                if (resolvedBranchName.isNotEmpty) ...<pw.Widget>[
                   pw.SizedBox(height: 4),
-                  pw.Text(branchName, style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    resolvedBranchName,
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
                 ],
                 pw.SizedBox(height: 14),
                 pw.Text(
-                  'E-RECEIPT',
+                  documentTitle,
                   style: const pw.TextStyle(
                     fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
@@ -160,17 +286,17 @@ class ReceiptActionService {
             ),
             child: pw.Column(
               children: <pw.Widget>[
-                _pdfInfoRow('Order', receipt.displayOrderReference),
-                if (settings.showDateTime && createdAt.isNotEmpty)
-                  _pdfInfoRow('Date', createdAt),
+                _pdfInfoRow('Order', orderReference),
+                if (settings.showDateTime && createdAtText.isNotEmpty)
+                  _pdfInfoRow('Date', createdAtText),
                 if (settings.showOrderType)
-                  _pdfInfoRow('Type', orderType),
+                  _pdfInfoRow('Type', orderTypeText),
                 if (settings.showTable &&
-                    (receipt.tableName?.trim().isNotEmpty ?? false))
-                  _pdfInfoRow('Table', receipt.tableName!.trim()),
+                    (tableName?.trim().isNotEmpty ?? false))
+                  _pdfInfoRow('Table', tableName!.trim()),
                 if (settings.showCashier &&
-                    (receipt.cashierName?.trim().isNotEmpty ?? false))
-                  _pdfInfoRow('Cashier', receipt.cashierName!.trim()),
+                    (cashierName?.trim().isNotEmpty ?? false))
+                  _pdfInfoRow('Cashier', cashierName!.trim()),
               ],
             ),
           ),
@@ -184,11 +310,8 @@ class ReceiptActionService {
             ),
           ),
           pw.SizedBox(height: 8),
-          ...receipt.items.map((item) {
-            final name = item.variantName?.trim().isNotEmpty == true
-                ? '${item.productName} · ${item.variantName}'
-                : item.productName;
-            return pw.Container(
+          ...items.map(
+            (item) => pw.Container(
               padding: const pw.EdgeInsets.symmetric(vertical: 7),
               decoration: const pw.BoxDecoration(
                 border: pw.Border(
@@ -203,7 +326,7 @@ class ReceiptActionService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: <pw.Widget>[
                         pw.Text(
-                          name,
+                          item.name,
                           style: const pw.TextStyle(
                             fontSize: 10,
                             fontWeight: pw.FontWeight.bold,
@@ -230,21 +353,21 @@ class ReceiptActionService {
                   ),
                 ],
               ),
-            );
-          }),
+            ),
+          ),
           pw.SizedBox(height: 16),
-          _pdfAmountRow('Subtotal', money.format(receipt.subtotal)),
-          if (receipt.discountTotal > 0)
+          _pdfAmountRow('Subtotal', money.format(subtotal)),
+          if (discountTotal > 0)
             _pdfAmountRow(
               'Discount',
-              '- ${money.format(receipt.discountTotal)}',
+              '- ${money.format(discountTotal)}',
             ),
           pw.SizedBox(height: 6),
           pw.Divider(color: PdfColors.grey400),
           pw.SizedBox(height: 4),
           _pdfAmountRow(
             'TOTAL',
-            money.format(receipt.total),
+            money.format(total),
             emphasized: true,
           ),
           if (payments.isNotEmpty) ...<pw.Widget>[
@@ -258,14 +381,13 @@ class ReceiptActionService {
               ),
             ),
             pw.SizedBox(height: 8),
-            ...payments.map((payment) {
-              final method = _paymentLabel(payment.method);
-              return pw.Padding(
+            ...payments.map(
+              (payment) => pw.Padding(
                 padding: const pw.EdgeInsets.only(bottom: 5),
                 child: pw.Column(
                   children: <pw.Widget>[
                     _pdfInfoRow(
-                      method,
+                      _paymentLabel(payment.method),
                       money.format(payment.amount),
                     ),
                     if (settings.showTendered && payment.tendered != null)
@@ -282,8 +404,8 @@ class ReceiptActionService {
                       ),
                   ],
                 ),
-              );
-            }),
+              ),
+            ),
           ],
           if (settings.footer.trim().isNotEmpty) ...<pw.Widget>[
             pw.SizedBox(height: 24),
@@ -370,6 +492,31 @@ class ReceiptActionService {
         return method;
     }
   }
+
+  static String _orderTypeLabel(String orderType) {
+    switch (orderType) {
+      case 'dine_in':
+        return 'Dine-in';
+      case 'takeaway':
+        return 'Takeaway';
+      default:
+        return orderType;
+    }
+  }
+}
+
+class _PdfLine {
+  const _PdfLine({
+    required this.name,
+    required this.quantity,
+    required this.unitPrice,
+    required this.lineTotal,
+  });
+
+  final String name;
+  final int quantity;
+  final double unitPrice;
+  final double lineTotal;
 }
 
 final receiptActionServiceProvider = Provider<ReceiptActionService>((ref) {
