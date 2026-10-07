@@ -18,12 +18,10 @@ class Branch extends Model
         'phone',
         'timezone',
         'is_active',
-        'use_kitchen_display',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'use_kitchen_display' => 'boolean',
     ];
 
     public function business()
