@@ -43,6 +43,7 @@ class KitchenTest extends TestCase
             'kitchen.update-status',
             'branches.view-all',
             'orders.create',
+            'orders.cancel',
         ] as $permission) {
             Permission::firstOrCreate([
                 'name' => $permission,
@@ -70,6 +71,7 @@ class KitchenTest extends TestCase
             'kitchen.update-status',
             'branches.view-all',
             'orders.create',
+            'orders.cancel',
         ]);
 
         $cashier = Role::firstOrCreate([
@@ -504,10 +506,102 @@ class KitchenTest extends TestCase
 
         $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
             'items' => [['product_id' => $product->id, 'quantity' => 1]],
-        ])->assertStatus(422);
+        ])->assertStatus(403);
 
         $this->assertSame(1, KitchenTicket::where('order_id', $orderId)->count());
         $this->assertSame(2, (int) \App\Models\OrderItem::where('order_id', $orderId)->sum('quantity'));
+    }
+
+    public function test_kitchen_display_can_be_disabled_per_branch(): void
+    {
+        $branch = $this->createBranch('No KDS', 'NK-01');
+        $branch->update(['use_kitchen_display' => false]);
+        $cashier = $this->makeCashier($branch);
+        $product = $this->createProduct($branch);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $held = $this->actingAs($cashier)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertCreated();
+
+        $orderId = $held->json('data.id');
+        $this->assertSame(0, KitchenTicket::where('order_id', $orderId)->count());
+
+        $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertOk()->assertJsonPath('data.total', 3.5);
+
+        $this->assertSame(1, (int) \App\Models\OrderItem::where('order_id', $orderId)->sum('quantity'));
+        $this->assertSame(0, KitchenTicket::where('order_id', $orderId)->count());
+
+        $kitchenUser = $this->makeKitchenUser($branch);
+        $this->actingAs($kitchenUser)
+            ->getJson('/api/v1/kitchen/tickets?branch_id=' . $branch->id)
+            ->assertOk()
+            ->assertJsonPath('kitchen_enabled', false)
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_authorized_void_creates_kitchen_cancellation_ticket_and_preserves_original_batch(): void
+    {
+        $branch = $this->createBranch('Void KDS', 'VK-01');
+        $cashier = $this->makeCashier($branch);
+        $cashier->givePermissionTo('orders.cancel');
+        $product = $this->createProduct($branch);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $held = $this->actingAs($cashier)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertCreated();
+
+        $orderId = $held->json('data.id');
+        $original = KitchenTicket::where('order_id', $orderId)->firstOrFail();
+
+        $this->actingAs($cashier)->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'void_reason' => 'Customer changed mind',
+        ])->assertOk()->assertJsonPath('data.total', 3.5);
+
+        $tickets = KitchenTicket::where('order_id', $orderId)->orderBy('id')->get();
+        $this->assertCount(2, $tickets);
+        $this->assertSame('new', $tickets[0]->status);
+        $this->assertSame('cancelled', $tickets[1]->status);
+        $this->assertSame('Customer changed mind', $tickets[1]->cancellation_reason);
+        $this->assertSame($cashier->id, $tickets[1]->cancelled_by);
+        $this->assertSame(2, (int) $original->items()->sum('kitchen_ticket_items.quantity'));
+        $this->assertSame(1, (int) $tickets[1]->items()->sum('kitchen_ticket_items.quantity'));
+        $this->assertSame(1, (int) \App\Models\OrderItem::where('order_id', $orderId)->sum('quantity'));
+
+        $kitchenUser = $this->makeKitchenUser($branch);
+        $response = $this->actingAs($kitchenUser)->getJson(
+            '/api/v1/kitchen/tickets?branch_id=' . $branch->id
+        )->assertOk();
+
+        $voidTicket = collect($response->json('data'))->firstWhere('id', $tickets[1]->id);
+        $this->assertSame('cancelled', $voidTicket['status']);
+        $this->assertSame('Customer changed mind', $voidTicket['cancellation_reason']);
+        $this->assertSame(1, $voidTicket['order']['items'][0]['quantity']);
+
+        $this->actingAs($kitchenUser)
+            ->postJson('/api/v1/kitchen/tickets/' . $tickets[1]->id . '/acknowledge-cancellation')
+            ->assertOk()
+            ->assertJsonPath('data.acknowledged', true);
     }
 
     private function createOrder(Branch $branch, User $user): int
