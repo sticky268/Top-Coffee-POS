@@ -121,7 +121,7 @@ void main() {
     await pumpBill(tester);
     await tester.tap(find.byTooltip('Increase quantity'));
     await tester.pump();
-    await tester.tap(find.text('Pay'));
+    await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
 
     expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -144,6 +144,8 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Print Bill'), findsOneWidget);
+    expect(find.text('E-Bill'), findsOneWidget);
     verifyNever(
       () => pos.payHeldOrder(
         orderId: any(named: 'orderId'),
@@ -184,7 +186,7 @@ void main() {
       ),
     ).thenThrow(Exception('Unavailable product'));
     await pumpBill(tester);
-    await tester.tap(find.text('Pay'));
+    await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.textContaining('Payment was not started'), findsOneWidget);
@@ -202,7 +204,7 @@ void main() {
     tester,
   ) async {
     await pumpBill(tester);
-    await tester.tap(find.text('Pay'));
+    await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -217,7 +219,7 @@ void main() {
     );
   });
 
-  testWidgets('repeated Pay taps cannot start another save', (tester) async {
+  testWidgets('repeated Review & Pay taps cannot start another save', (tester) async {
     final pending = Completer<OrderConfirmation>();
     when(
       () => pos.updateHeldOrder(
@@ -229,7 +231,7 @@ void main() {
     ).thenAnswer((_) => pending.future);
     await pumpBill(tester);
     final pay = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Pay'),
+      find.widgetWithText(FilledButton, 'Review & Pay'),
     );
     pay.onPressed!();
     pay.onPressed!();
