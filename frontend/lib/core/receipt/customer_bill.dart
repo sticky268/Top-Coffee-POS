@@ -1,3 +1,4 @@
+import '../../features/orders/domain/order_models.dart';
 import '../../features/pos/domain/pos_models.dart';
 
 class CustomerBillLine {
@@ -52,6 +53,31 @@ class CustomerBill {
 
   String get displayReference =>
       isDraft ? 'Draft' : orderReference!.trim();
+
+  factory CustomerBill.fromOrderDetail(OrderDetail order) {
+    return CustomerBill(
+      orderReference: order.displayOrderReference,
+      orderType: order.orderType,
+      branchName: order.branch?.name,
+      cashierName: order.cashier?.name,
+      tableName: order.table?.name,
+      subtotal: order.subtotal,
+      discountTotal: order.discountTotal,
+      total: order.total,
+      items: order.items
+          .map(
+            (item) => CustomerBillLine(
+              productName: item.productName,
+              variantName: item.variantName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            ),
+          )
+          .toList(),
+      createdAt: order.createdAt,
+    );
+  }
 
   factory CustomerBill.fromReceipt(OrderReceipt receipt) {
     return CustomerBill(
