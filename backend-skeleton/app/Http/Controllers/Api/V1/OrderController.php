@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\AuditLogService;
+use App\Services\OrderNumberService;
 use App\Services\SaleInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -60,7 +61,7 @@ class OrderController extends Controller
         }
         if ($operation === 'hold') {
             return response()->json(['success' => true, 'data' => [
-                'id' => $order->id, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
+                'id' => $order->id, 'order_number' => $order->order_number, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id, 'status' => $order->status,
                 'table_id' => $order->table_id, 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total, 'total' => (float) $order->total,
@@ -72,7 +73,7 @@ class OrderController extends Controller
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
         return response()->json(['success' => true, 'data' => [
-            'id' => $order->id, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
+            'id' => $order->id, 'order_number' => $order->order_number, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
             'customer_id' => $order->customer_id, 'status' => $order->status,
             'subtotal' => (float) $order->subtotal, 'discount_total' => (float) $order->discount_total,
             'total' => (float) $order->total,
@@ -290,6 +291,7 @@ class OrderController extends Controller
                     'uuid' => $clientUuid ?? (string) Str::uuid(),
                     'request_fingerprint' => $fingerprint,
                     'branch_id' => $branchId,
+                    'order_number' => app(OrderNumberService::class)->nextForBranch((int) $branchId),
                     'user_id' => $user->id,
                     'customer_id' => $customerId,
                     'order_type' => $request->input('order_type'),
@@ -412,6 +414,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -638,6 +641,7 @@ class OrderController extends Controller
                     'uuid' => $clientUuid ?? (string) Str::uuid(),
                     'request_fingerprint' => $fingerprint,
                     'branch_id' => $branchId,
+                    'order_number' => app(OrderNumberService::class)->nextForBranch((int) $branchId),
                     'user_id' => $user->id,
                     'customer_id' => $customerId,
                     'order_type' => 'dine_in',
@@ -715,6 +719,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -978,6 +983,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -1248,6 +1254,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -1622,6 +1629,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -1711,7 +1719,7 @@ class OrderController extends Controller
             ->when($request->filled('order_number'), function ($query) use ($request) {
                 $value = $request->query('order_number');
                 if (is_numeric($value)) {
-                    $query->where('id', (int) $value);
+                    $query->where('order_number', (int) $value);
                 } else {
                     $query->where('uuid', 'like', "%{$value}%");
                 }
@@ -1797,6 +1805,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
