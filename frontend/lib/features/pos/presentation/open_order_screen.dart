@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/widgets/receipt_action_buttons.dart';
 import '../../orders/application/order_detail_controller.dart';
 import '../../orders/application/orders_list_controller.dart';
 import '../../orders/application/order_detail_state.dart';
@@ -414,9 +415,13 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       await ref.read(ordersListControllerProvider.notifier).refresh();
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment completed successfully.')),
+      setState(() => _isBusy = false);
+      await showPaymentReceiptDialog(
+        context: context,
+        orderId: saved.id,
+        orderReference: saved.displayOrderReference,
       );
+      if (!mounted) return;
       context.go('/pos/select-table');
     } catch (error) {
       if (!mounted) return;
