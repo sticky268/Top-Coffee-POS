@@ -164,7 +164,7 @@ class PrinterService {
         'boldBusinessName': settings.boldBusinessName,
         'boldTotal': settings.boldTotal,
         'boldFooter': settings.boldFooter,
-        'documentTitle': 'BILL · UNPAID',
+        'documentTitle': '',
         'orderNumber': settings.showOrderNumber ? bill.displayReference : '',
         'businessName': settings.businessName,
         'branchName': bill.branchName?.trim().isNotEmpty == true
