@@ -50,6 +50,7 @@ class KitchenController extends Controller
                 'items.variant:id,product_id,name',
                 'items.modifiers',
             ])
+            ->whereNull('cancellation_acknowledged_at')
             ->whereHas('order', function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             })
@@ -181,4 +182,45 @@ class KitchenController extends Controller
             'data' => $ticket,
         ]);
     }
+    /**
+     * Acknowledge a cancellation without deleting the ticket or order history.
+     */
+    public function acknowledgeCancellation(Request $request, int $id)
+    {
+        if (! $request->user()->can('kitchen.update-status')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        $ticket = KitchenTicket::query()
+            ->with(['order' => fn ($query) => $query->withoutGlobalScope('branch')])
+            ->find($id);
+
+        if (! $ticket || ! $ticket->order) {
+            return response()->json(['success' => false, 'message' => 'Kitchen ticket not found.'], 404);
+        }
+
+        $user = $request->user();
+        $branchId = $ticket->order->branch_id;
+        if (! $user->can('branches.view-all')
+            && ! $user->branches()->where('branches.id', $branchId)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        if ($ticket->status !== 'cancelled' || $ticket->order->status !== 'cancelled') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only cancelled kitchen tickets can be acknowledged.',
+            ], 409);
+        }
+
+        if ($ticket->cancellation_acknowledged_at === null) {
+            $ticket->update(['cancellation_acknowledged_at' => now()]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['id' => $ticket->id, 'acknowledged' => true],
+        ]);
+    }
+
 }
