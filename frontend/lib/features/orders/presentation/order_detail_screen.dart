@@ -25,14 +25,18 @@ class OrderDetailScreen extends ConsumerWidget {
     final state = ref.watch(orderDetailControllerProvider(orderId));
     final authState = ref.watch(authControllerProvider);
 
-    final canEdit =
+    final canEditHeld =
         state is OrderDetailLoaded &&
+        state.order.status == 'held' &&
+        state.order.orderType == 'dine_in' &&
         authState is AuthAuthenticated &&
-        ((state.order.status == 'held' &&
-                state.order.orderType == 'dine_in' &&
-                authState.user.hasPermission('orders.create')) ||
-            (state.order.status == 'completed' &&
-                authState.user.hasPermission('orders.edit')));
+        authState.user.hasPermission('orders.create');
+
+    final canAdjustCompleted =
+        state is OrderDetailLoaded &&
+        state.order.status == 'completed' &&
+        authState is AuthAuthenticated &&
+        authState.user.hasPermission('orders.edit');
 
     final canCancel = state is OrderDetailLoaded &&
         state.order.status == 'held' &&
@@ -87,19 +91,13 @@ class OrderDetailScreen extends ConsumerWidget {
                 }
               },
             ),
-          if (canEdit)
+          if (canEditHeld)
             pos_ui.IconButton(
-              tooltip: 'Edit order',
+              tooltip: 'Edit open order',
               icon: const Icon(Icons.edit),
               onPressed: () async {
-                final isHeld = state.order.status == 'held';
-                final changed = await context.push<bool>(
-                  isHeld
-                      ? '/pos/open-order/$orderId'
-                      : '/orders/$orderId/edit',
-                );
-
-                if (context.mounted && (isHeld || changed == true)) {
+                await context.push<bool>('/pos/open-order/$orderId');
+                if (context.mounted) {
                   await ref
                       .read(orderDetailControllerProvider(orderId).notifier)
                       .refresh();
@@ -118,16 +116,59 @@ class OrderDetailScreen extends ConsumerWidget {
               .read(orderDetailControllerProvider(orderId).notifier)
               .refresh(),
         ),
-        OrderDetailLoaded(:final order) => _OrderDetailBody(order: order),
+        OrderDetailLoaded(:final order) => _OrderDetailBody(
+          order: order,
+          onAdjustCompleted: canAdjustCompleted
+              ? () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Adjust completed order?'),
+                      content: const Text(
+                        'This changes a completed historical sale and updates inventory. '
+                        'The final total must stay equal to the amount already paid. '
+                        'Use the refund or additional payment workflow for payment changes.',
+                      ),
+                      actions: [
+                        pos_ui.SecondaryButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        pos_ui.PrimaryButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
+                          child: const Text('Adjust Order'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed != true || !context.mounted) return;
+                  final changed = await context.push<bool>(
+                    '/orders/$orderId/edit',
+                  );
+                  if (context.mounted && changed == true) {
+                    await ref
+                        .read(orderDetailControllerProvider(orderId).notifier)
+                        .refresh();
+                  }
+                }
+              : null,
+        ),
       },
     );
   }
 }
 
 class _OrderDetailBody extends StatelessWidget {
-  const _OrderDetailBody({required this.order});
+  const _OrderDetailBody({
+    required this.order,
+    this.onAdjustCompleted,
+  });
 
   final OrderDetail order;
+  final VoidCallback? onAdjustCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -274,6 +315,44 @@ class _OrderDetailBody extends StatelessWidget {
                         payment != order.payments.last)
                       const Divider(height: 24),
                   ],
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (onAdjustCompleted != null) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Completed sale',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Adjustments are restricted and recorded in the audit log.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  pos_ui.OutlinedButton.icon(
+                    onPressed: onAdjustCompleted,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Adjust Order'),
+                  ),
                 ],
               ),
             ),
