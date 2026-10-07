@@ -91,8 +91,12 @@ class OpenOrderScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(orderDetailControllerProvider(orderId));
 
+    final appBarTitle = state is OrderDetailLoaded
+        ? 'Open Order ${state.order.displayOrderReference}'
+        : 'Open Order';
+
     return Scaffold(
-      appBar: AppBar(title: Text('Open Order #$orderId')),
+      appBar: AppBar(title: Text(appBarTitle)),
       body: switch (state) {
         OrderDetailLoading() => const Center(
           child: CircularProgressIndicator(),
@@ -961,7 +965,7 @@ class _OrderHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dine-in Order #${order.id}',
+                  'Dine-in Order ${order.displayOrderReference}',
                   style: Theme.of(context).textTheme.titleLarge
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
