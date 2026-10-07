@@ -29,6 +29,7 @@ class CustomerBill {
     this.orderReference,
     required this.orderType,
     this.branchName,
+    this.branchCode,
     this.cashierName,
     this.tableName,
     required this.subtotal,
@@ -41,6 +42,7 @@ class CustomerBill {
   final String? orderReference;
   final String orderType;
   final String? branchName;
+  final String? branchCode;
   final String? cashierName;
   final String? tableName;
   final double subtotal;
@@ -59,6 +61,7 @@ class CustomerBill {
       orderReference: order.displayOrderReference,
       orderType: order.orderType,
       branchName: order.branch?.name,
+      branchCode: order.branch?.code,
       cashierName: order.cashier?.name,
       tableName: order.table?.name,
       subtotal: order.subtotal,
@@ -84,6 +87,7 @@ class CustomerBill {
       orderReference: receipt.displayOrderReference,
       orderType: receipt.orderType,
       branchName: receipt.branchName,
+      branchCode: receipt.branchCode,
       cashierName: receipt.cashierName,
       tableName: receipt.tableName,
       subtotal: receipt.subtotal,
