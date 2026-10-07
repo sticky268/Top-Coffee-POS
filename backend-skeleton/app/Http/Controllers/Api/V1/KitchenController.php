@@ -206,7 +206,7 @@ class KitchenController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
-        if ($ticket->status !== 'cancelled' || $ticket->order->status !== 'cancelled') {
+        if ($ticket->order->status !== 'cancelled') {
             return response()->json([
                 'success' => false,
                 'message' => 'Only cancelled kitchen tickets can be acknowledged.',
@@ -214,7 +214,10 @@ class KitchenController extends Controller
         }
 
         if ($ticket->cancellation_acknowledged_at === null) {
-            $ticket->update(['cancellation_acknowledged_at' => now()]);
+            $ticket->update([
+                'status' => 'cancelled',
+                'cancellation_acknowledged_at' => now(),
+            ]);
         }
 
         return response()->json([
