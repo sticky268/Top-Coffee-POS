@@ -514,6 +514,118 @@ class OrderTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonValidationErrors(['table_id']);
     }
+    public function test_immediate_dine_in_rejects_table_from_another_branch(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $otherBranch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Downtown',
+            'code' => 'PP-02',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $foreignTable = RestaurantTable::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'dine_in',
+            'table_id' => $foreignTable->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'The selected table is not available at this branch.');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('payments', 0);
+    }
+
+    public function test_held_dine_in_rejects_table_from_another_branch(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $otherBranch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Downtown',
+            'code' => 'PP-02',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $foreignTable = RestaurantTable::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $foreignTable->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'The selected table is not available at this branch.');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertSame('available', $foreignTable->fresh()->status);
+    }
+
+    public function test_dine_in_rejects_inactive_table(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'The selected table is inactive.');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
     public function test_held_dine_in_order_does_not_deduct_inventory(): void
     {
         $branch = Branch::create(['business_id' => $this->business->id,
