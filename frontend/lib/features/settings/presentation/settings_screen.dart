@@ -24,10 +24,6 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Card(
-            child:
-          ),
-          const SizedBox(height: 8),
-          Card(
             child: ListTile(
               leading: const Icon(Icons.workspace_premium_outlined),
               title: const Text('Subscription'),
