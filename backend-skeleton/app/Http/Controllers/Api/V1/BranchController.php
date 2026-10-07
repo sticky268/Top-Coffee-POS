@@ -21,7 +21,6 @@ class BranchController extends Controller
         $validator = Validator::make($request->query(), [
             'search' => 'nullable|string|max:255',
             'is_active' => 'nullable|boolean',
-            'use_kitchen_display' => 'nullable|boolean',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
         ]);
@@ -178,7 +177,6 @@ class BranchController extends Controller
             'phone' => 'nullable|string|max:50',
             'timezone' => 'sometimes|required|string|max:100',
             'is_active' => 'sometimes|boolean',
-            'use_kitchen_display' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -197,51 +195,6 @@ class BranchController extends Controller
             'success' => true,
             'message' => 'Branch updated successfully',
             'data' => $this->branchData($branch),
-        ]);
-    }
-
-    public function kitchenSettings(Request $request, Branch $branch)
-    {
-        if ($branch->business_id !== $request->user()->business_id) {
-            return response()->json(['success' => false, 'message' => 'You do not have access to this branch'], 403);
-        }
-
-        $hasAccess = $request->user()->can('branches.view-all')
-            || $request->user()->branches()->where('branches.id', $branch->id)->exists();
-
-        if (! $hasAccess) {
-            return response()->json(['success' => false, 'message' => 'You do not have access to this branch'], 403);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => ['use_kitchen_display' => (bool) $branch->use_kitchen_display],
-        ]);
-    }
-
-    public function updateKitchenSettings(Request $request, Branch $branch)
-    {
-        if (! $request->user()->can('settings.manage')) {
-            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-        }
-
-        if ($branch->business_id !== $request->user()->business_id) {
-            return response()->json(['success' => false, 'message' => 'You do not have access to this branch'], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'use_kitchen_display' => 'required|boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
-        }
-
-        $branch->update(['use_kitchen_display' => $request->boolean('use_kitchen_display')]);
-
-        return response()->json([
-            'success' => true,
-            'data' => ['use_kitchen_display' => (bool) $branch->use_kitchen_display],
         ]);
     }
 
@@ -286,7 +239,6 @@ class BranchController extends Controller
             'phone' => $branch->phone,
             'timezone' => $branch->timezone,
             'is_active' => (bool) $branch->is_active,
-            'use_kitchen_display' => (bool) $branch->use_kitchen_display,
             'users_count' => (int) ($branch->users_count ?? 0),
             'created_at' => $branch->created_at?->toISOString(),
             'updated_at' => $branch->updated_at?->toISOString(),
