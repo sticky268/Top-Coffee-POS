@@ -298,6 +298,11 @@ class KitchenTest extends TestCase
 
         $this->actingAs($user)->patchJson(
             '/api/v1/kitchen/tickets/' . $ticket->id . '/status',
+            ['status' => 'preparing']
+        )->assertOk();
+
+        $this->actingAs($user)->patchJson(
+            '/api/v1/kitchen/tickets/' . $ticket->id . '/status',
             ['status' => 'ready']
         )->assertStatus(200);
 
@@ -317,6 +322,32 @@ class KitchenTest extends TestCase
         $this->assertNotNull($ticket->sent_at);
         $this->assertNotNull($ticket->ready_at);
         $this->assertNotNull($ticket->completed_at);
+    }
+
+    public function test_kitchen_status_transitions_must_be_sequential_and_cannot_repeat(): void
+    {
+        $branch = $this->createBranch('Transitions', 'KT-01');
+        $user = $this->makeKitchenUser($branch);
+        $ticket = KitchenTicket::create([
+            'order_id' => $this->createOrder($branch, $user),
+            'status' => 'new',
+        ]);
+        $url = '/api/v1/kitchen/tickets/' . $ticket->id . '/status';
+
+        $this->actingAs($user)->patchJson($url, ['status' => 'ready'])->assertStatus(409);
+        $this->assertSame('new', $ticket->fresh()->status);
+
+        $this->patchJson($url, ['status' => 'preparing'])->assertOk();
+        $this->patchJson($url, ['status' => 'preparing'])->assertStatus(409);
+        $this->patchJson($url, ['status' => 'new'])->assertStatus(409);
+        $this->patchJson($url, ['status' => 'completed'])->assertStatus(409);
+        $this->assertSame('preparing', $ticket->fresh()->status);
+
+        $this->patchJson($url, ['status' => 'ready'])->assertOk();
+        $this->patchJson($url, ['status' => 'completed'])->assertOk();
+        $this->patchJson($url, ['status' => 'preparing'])->assertStatus(409);
+        $this->assertSame('completed', $ticket->fresh()->status);
+        $this->assertNotNull($ticket->fresh()->completed_at);
     }
 
     public function test_invalid_kitchen_status_is_rejected(): void
