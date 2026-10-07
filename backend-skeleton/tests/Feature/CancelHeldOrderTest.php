@@ -77,6 +77,40 @@ class CancelHeldOrderTest extends TestCase
         $this->assertDatabaseHas('kitchen_tickets', ['id' => $ticket->id, 'status' => 'cancelled']);
     }
 
+    public function test_kitchen_acknowledgement_hides_ticket_but_keeps_history(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo('orders.cancel');
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.update-status', 'guard_name' => 'web'])
+        );
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.view', 'guard_name' => 'web'])
+        );
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'new']);
+        $this->actingAs($user)->postJson("/api/v1/orders/{$order->id}/cancel")->assertOk();
+        $this->postJson("/api/v1/kitchen/tickets/{$ticket->id}/acknowledge-cancellation")
+            ->assertOk()
+            ->assertJsonPath('data.acknowledged', true);
+        $this->assertDatabaseHas('kitchen_tickets', ['id' => $ticket->id, 'status' => 'cancelled']);
+        $this->assertNotNull($ticket->fresh()->cancellation_acknowledged_at);
+        $this->getJson('/api/v1/kitchen/tickets')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_non_cancelled_ticket_cannot_be_acknowledged(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.update-status', 'guard_name' => 'web'])
+        );
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'new']);
+        $this->actingAs($user)
+            ->postJson("/api/v1/kitchen/tickets/{$ticket->id}/acknowledge-cancellation")
+            ->assertStatus(409);
+    }
+
     public function test_unauthorized_user_cannot_cancel(): void
     {
         [$user, $order, $table] = $this->setupOrder();
