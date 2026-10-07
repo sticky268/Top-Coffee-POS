@@ -38,9 +38,13 @@ class OrderDetailScreen extends ConsumerWidget {
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.cancel');
 
+    final appBarTitle = state is OrderDetailLoaded
+        ? 'Order \${state.order.displayOrderReference}'
+        : 'Order';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Order #$orderId'),
+        title: Text(appBarTitle),
         actions: [
           if (canCancel)
             pos_ui.IconButton(
