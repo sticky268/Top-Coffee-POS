@@ -91,7 +91,7 @@ class ReceiptActionService {
     final settings = await ReceiptSettings.load();
 
     if (!settings.printerEnabled) {
-      throw StateError('Receipt printing is disabled in Settings.');
+      throw StateError('Printing is disabled in Settings.');
     }
 
     final printerIp = settings.printerIpAddress.trim();
