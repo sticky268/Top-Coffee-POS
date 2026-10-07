@@ -168,6 +168,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             cart: cart,
             orderType: _orderType,
             branchName: currentBranch?.name,
+            branchCode: currentBranch?.code,
             cashierName: cashierName,
             paymentMethod: _paymentMethod,
             selectedTable: _selectedTable,
@@ -240,6 +241,7 @@ class _CheckoutForm extends StatelessWidget {
     required this.cart,
     required this.orderType,
     required this.branchName,
+    required this.branchCode,
     required this.cashierName,
     required this.paymentMethod,
     required this.selectedTable,
@@ -263,6 +265,7 @@ class _CheckoutForm extends StatelessWidget {
   final CartState cart;
   final String orderType;
   final String? branchName;
+  final String? branchCode;
   final String? cashierName;
   final String paymentMethod;
   final PosTable? selectedTable;
@@ -323,6 +326,7 @@ class _CheckoutForm extends StatelessWidget {
     final customerBill = CustomerBill(
       orderType: orderType,
       branchName: branchName,
+      branchCode: branchCode,
       cashierName: cashierName,
       tableName: selectedTable?.name,
       subtotal: cart.subtotal,
