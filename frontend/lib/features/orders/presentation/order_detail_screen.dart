@@ -144,7 +144,7 @@ class _OrderDetailBody extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Order #${order.id}', style: theme.textTheme.titleLarge),
+                Text('Order ${order.displayOrderReference}', style: theme.textTheme.titleLarge),
                 const SizedBox(height: 4),
                 Text(
                   dateLabel,
