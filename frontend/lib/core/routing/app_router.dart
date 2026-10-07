@@ -21,7 +21,6 @@ import '../../features/inventory/presentation/add_ingredient_screen.dart';
 import '../../features/inventory/presentation/edit_ingredient_screen.dart';
 import '../../features/inventory/presentation/inventory_movement_history_screen.dart';
 import '../../features/inventory/domain/inventory_models.dart';
-import '../../features/kds/presentation/kds_screen.dart';
 import '../../features/orders/presentation/edit_order_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
@@ -42,7 +41,6 @@ import '../../features/purchasing/presentation/suppliers_screen.dart';
 import '../../features/purchasing/presentation/purchase_creation_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/settings/presentation/receipt_settings_screen.dart';
-import '../../features/settings/presentation/kitchen_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/about_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
@@ -115,9 +113,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/audit-log',
             builder: (context, state) => const AuditLogScreen(),
-          ),
-          GoRoute(path: '/kds', builder: (context, state) => const KdsScreen()),
-          GoRoute(
+          ),          GoRoute(
             path: '/pos',
             builder: (context, state) => PosScreen(
               initialTable: state.extra is PosTable
@@ -295,12 +291,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings/receipt',
             builder: (context, state) => const ReceiptSettingsScreen(),
-          ),
-          GoRoute(
-            path: '/settings/kitchen',
-            builder: (context, state) => const KitchenSettingsScreen(),
-          ),
-          GoRoute(
+          ),          GoRoute(
             path: '/settings/about',
             builder: (context, state) => const AboutScreen(),
           ),
