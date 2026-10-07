@@ -38,7 +38,7 @@ class RolePermissionSeeder extends Seeder
         $manager->syncPermissions([
             'users.manage', 'products.manage', 'orders.view', 'orders.edit', 'orders.refund', 'orders.cancel',
             'inventory.view', 'inventory.adjust', 'inventory.manage', 'reports.view', 'audit.view',
-            'expenses.manage', 'kitchen.view', 'kitchen.update-status', 'tables.manage', 'customers.manage', 'loyalty.manage',
+            'expenses.manage', 'kitchen.view', 'kitchen.update-status', 'tables.manage', 'customers.manage', 'loyalty.manage', 'settings.manage',
         ]);
 
         $cashier = Role::firstOrCreate(['name' => 'cashier', 'guard_name' => 'web']);
