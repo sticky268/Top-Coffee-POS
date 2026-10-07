@@ -73,7 +73,7 @@ class KdsController extends Notifier<KdsState> {
     );
 
     try {
-      final updatedTicket = await _repository.updateTicketStatus(
+      await _repository.updateTicketStatus(
         ticketId: ticketId,
         status: status,
       );
@@ -81,7 +81,7 @@ class KdsController extends Notifier<KdsState> {
       final updatedTickets = state.tickets
           .map(
             (ticket) =>
-                ticket.id == updatedTicket.id ? updatedTicket : ticket,
+                ticket.id == ticketId ? ticket.copyWith(status: status) : ticket,
           )
           .toList();
 
