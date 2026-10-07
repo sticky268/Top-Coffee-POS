@@ -100,7 +100,7 @@ class PrinterService {
         'boldBusinessName': settings.boldBusinessName,
         'boldTotal': settings.boldTotal,
         'boldFooter': settings.boldFooter,
-        'documentTitle': 'RECEIPT · PAID',
+        'documentTitle': '',
         'orderNumber': settings.showOrderNumber
             ? receipt.displayOrderReference
             : '',
