@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../orders/application/order_detail_controller.dart';
+import '../../orders/application/orders_list_controller.dart';
 import '../../orders/application/order_detail_state.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order_models.dart';
@@ -310,10 +311,14 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     try {
       await _saveCurrentOrder();
       if (!mounted) return;
+      // Update both screens before returning to Order Details.
+      await ref.read(orderDetailControllerProvider(_order.id).notifier).refresh();
+      await ref.read(ordersListControllerProvider.notifier).refresh();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order saved successfully.')),
       );
-      context.go('/pos/select-table');
+      context.pop(true);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
