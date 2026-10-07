@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/receipt/customer_bill.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
 import '../../auth/application/auth_controller.dart';
@@ -274,6 +275,18 @@ class _OrderDetailBody extends StatelessWidget {
                       const Divider(height: 24),
                   ],
                 ],
+              ),
+            ),
+          ),
+        ],
+        if (order.status == 'held') ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: BillActionButtons(
+                bill: CustomerBill.fromOrderDetail(order),
+                showHeading: true,
               ),
             ),
           ),
