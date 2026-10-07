@@ -55,6 +55,8 @@ abstract class PosRepository {
     int? branchId,
   });
 
+  Future<void> cancelHeldOrder({required int orderId});
+
   Future<OrderConfirmation> payHeldOrder({
     required int orderId,
     required String paymentMethod,
@@ -278,6 +280,11 @@ class ApiPosRepository implements PosRepository {
     return OrderConfirmation.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
+  }
+
+  @override
+  Future<void> cancelHeldOrder({required int orderId}) async {
+    await _apiClient.request((dio) => dio.post('/orders/$orderId/cancel'));
   }
 
   @override
