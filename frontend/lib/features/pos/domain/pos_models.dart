@@ -10,6 +10,7 @@ class PosTable {
     required this.capacity,
     required this.status,
     required this.activeOrderId,
+    this.branchId,
     this.section,
     this.shape = 'square',
     this.color,
@@ -21,6 +22,7 @@ class PosTable {
   final int capacity;
   final String status;
   final int? activeOrderId;
+  final int? branchId;
   final String? section;
   final String shape;
   final String? color;
@@ -33,6 +35,7 @@ class PosTable {
       capacity: json['capacity'] as int,
       status: json['status'] as String,
       activeOrderId: json['active_order_id'] as int?,
+      branchId: json['branch_id'] as int?,
       section: json['section'] as String?,
       shape: json['shape'] as String? ?? 'square',
       color: json['color'] as String?,
