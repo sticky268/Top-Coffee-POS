@@ -214,6 +214,7 @@ class PaymentConfirmation {
 class OrderConfirmation {
   const OrderConfirmation({
     required this.orderId,
+    this.orderNumber,
     required this.total,
     required this.paymentMethod,
     this.tendered,
@@ -222,11 +223,17 @@ class OrderConfirmation {
   });
 
   final int orderId;
+  final int? orderNumber;
   final double total;
   final String paymentMethod;
   final double? tendered;
   final double? changeDue;
   final List<PaymentConfirmation> payments;
+
+  int get effectiveOrderNumber => orderNumber ?? orderId;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
 
   factory OrderConfirmation.fromJson(Map<String, dynamic> json) {
     final payment = json['payment'] is Map<String, dynamic>
@@ -239,6 +246,7 @@ class OrderConfirmation {
 
     return OrderConfirmation(
       orderId: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       total: (json['total'] as num).toDouble(),
       paymentMethod: payment?['method'] as String? ?? 'unpaid',
       tendered: payment?['tendered'] != null
@@ -257,6 +265,7 @@ class OrderConfirmation {
 class OrderReceipt {
   const OrderReceipt({
     required this.orderId,
+    this.orderNumber,
     required this.uuid,
     required this.orderType,
     required this.status,
@@ -274,6 +283,7 @@ class OrderReceipt {
   });
 
   final int orderId;
+  final int? orderNumber;
   final String uuid;
   final String orderType;
   final String status;
@@ -288,6 +298,18 @@ class OrderReceipt {
   final PaymentConfirmation? payment;
   final List<PaymentConfirmation> payments;
   final DateTime? createdAt;
+
+  int get effectiveOrderNumber => orderNumber ?? orderId;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
+
+  String get displayOrderReference {
+    final code = branchCode?.trim();
+    return code != null && code.isNotEmpty
+        ? '$code-$displayOrderNumber'
+        : displayOrderNumber;
+  }
 
   factory OrderReceipt.fromJson(Map<String, dynamic> json) {
     final branch = json['branch'] is Map<String, dynamic>
@@ -316,6 +338,7 @@ class OrderReceipt {
 
     return OrderReceipt(
       orderId: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,
       orderType: json['order_type'] as String,
       status: json['status'] as String,
