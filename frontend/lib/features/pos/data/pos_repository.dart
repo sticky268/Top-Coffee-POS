@@ -53,6 +53,7 @@ abstract class PosRepository {
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
     int? branchId,
+    String? voidReason,
   });
 
   Future<void> cancelHeldOrder({required int orderId});
@@ -249,6 +250,8 @@ class ApiPosRepository implements PosRepository {
               )
               .toList(),
           'discount_total': discountTotal,
+          if (voidReason != null && voidReason.trim().isNotEmpty)
+            'void_reason': voidReason.trim(),
         },
       ),
     );
@@ -265,6 +268,7 @@ class ApiPosRepository implements PosRepository {
     double discountTotal = 0,
     int? customerId,
     int? branchId,
+    String? voidReason,
   }) async {
     final response = await _apiClient.request(
       (dio) => dio.patch(
