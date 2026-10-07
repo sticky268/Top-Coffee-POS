@@ -16,7 +16,8 @@ class KdsScreen extends ConsumerStatefulWidget {
   ConsumerState<KdsScreen> createState() => _KdsScreenState();
 }
 
-class _KdsScreenState extends ConsumerState<KdsScreen> {
+class _KdsScreenState extends ConsumerState<KdsScreen>
+    with WidgetsBindingObserver {
   Timer? _refreshTimer;
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
@@ -29,21 +30,35 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
   @override
   void initState() {
     super.initState();
-
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _loadForCurrentBranch();
       _startAutoRefresh();
     });
   }
 
   void _loadForCurrentBranch() {
+    if (!mounted) return;
     final branchId = ref.read(currentBranchProvider)?.id;
 
     ref.read(kdsControllerProvider.notifier).loadTickets(branchId: branchId);
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadForCurrentBranch();
+      _startAutoRefresh();
+    } else {
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _refreshTimer = null;
     super.dispose();
@@ -71,13 +86,9 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          _loadForCurrentBranch();
-
-          while (ref.read(kdsControllerProvider).isLoading) {
-            await Future<void>.delayed(const Duration(milliseconds: 100));
-          }
-        },
+        onRefresh: () => ref.read(kdsControllerProvider.notifier).refresh(
+          branchId: ref.read(currentBranchProvider)?.id,
+        ),
         child: _buildBody(context, state, branch?.name),
       ),
     );
@@ -122,6 +133,35 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
       children: [
         if (branchName != null) ...[
           Text(branchName, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 16),
+        ],
+        if (state.errorMessage != null) ...[
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.wifi_off,
+                      color: Theme.of(context).colorScheme.onErrorContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Kitchen updates are unavailable. These tickets may be out of date. Check the connection and refresh.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                  pos_ui.IconButton(
+                    tooltip: 'Retry kitchen refresh',
+                    onPressed: state.isLoading ? null : _loadForCurrentBranch,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
         ],
         if (cancelledTickets.isNotEmpty) ...[
