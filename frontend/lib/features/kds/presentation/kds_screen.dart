@@ -375,13 +375,19 @@ class KdsTicketCard extends ConsumerWidget {
                 child: pos_ui.PrimaryButton(
                   onPressed: isUpdating
                       ? null
-                      : () {
-                          ref
+                      : () async {
+                          await ref
                               .read(kdsControllerProvider.notifier)
                               .updateStatus(
                                 ticketId: ticket.id,
                                 status: nextStatus,
                               );
+                          final error = ref.read(kdsControllerProvider).errorMessage;
+                          if (error != null && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error)),
+                            );
+                          }
                         },
                   isLoading: isUpdating,
                   child: Text(buttonText),
