@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../pos/data/pos_repository.dart';
+import '../application/orders_list_controller.dart';
 import '../application/order_detail_controller.dart';
 import '../application/order_detail_state.dart';
 import '../domain/order_models.dart';
@@ -30,10 +32,55 @@ class OrderDetailScreen extends ConsumerWidget {
             (state.order.status == 'completed' &&
                 authState.user.hasPermission('orders.edit')));
 
+    final canCancel = state is OrderDetailLoaded &&
+        state.order.status == 'held' &&
+        state.order.orderType == 'dine_in' &&
+        authState is AuthAuthenticated &&
+        authState.user.hasPermission('orders.cancel');
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Order #$orderId'),
         actions: [
+          if (canCancel)
+            pos_ui.IconButton(
+              tooltip: 'Cancel order',
+              icon: const Icon(Icons.cancel_outlined),
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Cancel Order?'),
+                    content: const Text(
+                      'This will cancel the held order and release its table. '
+                      'The order will remain in history. This cannot be undone.',
+                    ),
+                    actions: [
+                      pos_ui.SecondaryButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Keep Order'),
+                      ),
+                      pos_ui.DangerButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('Cancel Order'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !context.mounted) return;
+                try {
+                  await ref.read(posRepositoryProvider).cancelHeldOrder(orderId: orderId);
+                  await ref.read(ordersListControllerProvider.notifier).refresh();
+                  if (!context.mounted) return;
+                  await ref.read(orderDetailControllerProvider(orderId).notifier).refresh();
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not cancel order: $error')),
+                  );
+                }
+              },
+            ),
           if (canEdit)
             pos_ui.IconButton(
               tooltip: 'Edit order',
