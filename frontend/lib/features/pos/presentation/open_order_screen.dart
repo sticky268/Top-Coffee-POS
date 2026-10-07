@@ -495,19 +495,20 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
                 if (isWide) {
                   return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(width: 420, child: orderPanel),
+                      Expanded(flex: 3, child: productPanel),
                       const VerticalDivider(width: 1),
-                      Expanded(child: productPanel),
+                      SizedBox(width: 340, child: orderPanel),
                     ],
                   );
                 }
 
                 return Column(
                   children: [
-                    Expanded(flex: 3, child: orderPanel),
+                    Expanded(flex: 3, child: productPanel),
                     const Divider(height: 1),
-                    Expanded(flex: 2, child: productPanel),
+                    Expanded(flex: 2, child: orderPanel),
                   ],
                 );
               },
@@ -760,16 +761,15 @@ class _OrderPanel extends StatelessWidget {
           child: lines.isEmpty
               ? const Center(child: Text('No items in this order.'))
               : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: lines.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final line = lines[index];
 
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
                           children: [
                             Expanded(
                               child: Column(
@@ -858,7 +858,6 @@ class _OrderPanel extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
                     );
                   },
                 ),
@@ -922,14 +921,13 @@ class _ProductCatalogPanel extends StatelessWidget {
 
             return Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: ProductSearchField(
+                const SizedBox(height: 16),
+                ProductSearchField(
                     onChanged: (query) => context
                         .findAncestorStateOfType<_OpenOrderContentState>()
                         ?._updateCatalogSearch(query),
                   ),
-                ),
+                const SizedBox(height: 8),
                 CategorySelector(
                   categories: categories,
                   selectedCategoryId: selectedCategoryId,
@@ -963,54 +961,35 @@ class _OrderHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.table_restaurant,
-              color: colorScheme.onPrimaryContainer,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Order Summary',
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (order.table != null)
+                Chip(
+                  avatar: const Icon(Icons.table_restaurant, size: 16),
+                  label: Text(order.table!.name),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Dine-in Order ${order.displayOrderReference}',
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                if (order.table != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    '${order.table!.name} - ${order.table!.capacity} '
-                    '${order.table!.capacity == 1 ? 'seat' : 'seats'}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                Text(
-                  order.status.toUpperCase(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            order.displayOrderReference,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -1074,30 +1053,31 @@ class _OrderTotals extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: pos_ui.DangerButton.outlined(
                   onPressed: onDiscard,
-                  child: const Text('Discard Changes'),
+                  child: const Text('Discard'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: pos_ui.OutlinedButton(
                   onPressed: onSave,
-                  child: const Text('Save Order'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: pos_ui.PosActionButton(
-                  onPressed: onPay,
-                  child: const Text('Review & Pay'),
+                  child: const Text('Save'),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: pos_ui.PosActionButton(
+              onPressed: onPay,
+              child: const Text('Review & Pay'),
+            ),
           ),
         ],
       ),
