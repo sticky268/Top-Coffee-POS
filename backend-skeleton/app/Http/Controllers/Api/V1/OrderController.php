@@ -213,6 +213,22 @@ class OrderController extends Controller
             $order = DB::transaction(function () use (
                 $request, $user, $branchId, $customerId, $discountTotal, $paymentMethod, $tendered, $clientUuid, $fingerprint
             ) {
+                if ($request->input('order_type') === 'dine_in') {
+                    $table = \App\Models\RestaurantTable::query()
+                        ->where('branch_id', $branchId)
+                        ->whereKey($request->input('table_id'))
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $table) {
+                        abort(422, 'The selected table is not available at this branch.');
+                    }
+
+                    if (! $table->is_active) {
+                        abort(422, 'The selected table is inactive.');
+                    }
+                }
+
                 $subtotal = 0;
                 $resolvedItems = [];
 
@@ -540,6 +556,10 @@ class OrderController extends Controller
 
                 if (! $table) {
                     abort(422, 'The selected table is not available at this branch.');
+                }
+
+                if (! $table->is_active) {
+                    abort(422, 'The selected table is inactive.');
                 }
 
                 if ($table->status !== 'available') {
