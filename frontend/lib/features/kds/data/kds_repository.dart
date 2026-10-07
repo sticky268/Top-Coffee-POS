@@ -11,7 +11,7 @@ abstract class KdsRepository {
 
   Future<void> acknowledgeCancellation({required int ticketId});
 
-  Future<KitchenTicket> updateTicketStatus({
+  Future<void> updateTicketStatus({
     required int ticketId,
     required String status,
   });
@@ -54,11 +54,11 @@ class ApiKdsRepository implements KdsRepository {
   }
 
   @override
-  Future<KitchenTicket> updateTicketStatus({
+  Future<void> updateTicketStatus({
     required int ticketId,
     required String status,
   }) async {
-    final response = await _apiClient.request(
+    await _apiClient.request(
       (dio) => dio.patch(
         '/kitchen/tickets/$ticketId/status',
         data: {
@@ -67,9 +67,6 @@ class ApiKdsRepository implements KdsRepository {
       ),
     );
 
-    return KitchenTicket.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
   }
 }
 
