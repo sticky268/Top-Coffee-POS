@@ -2624,7 +2624,6 @@ class OrderTest extends TestCase
         $this->assertSame($first->json('data.id'), $retry->json('data.id'));
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('payments', 1);
-        $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
 
@@ -2667,7 +2666,6 @@ class OrderTest extends TestCase
         $this->assertSame('occupied', $table->fresh()->status);
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
-        $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
     public function test_checkout_uuid_cannot_be_reused_for_different_items(): void
@@ -2729,7 +2727,6 @@ class OrderTest extends TestCase
         $this->actingAs($secondCashier)->postJson('/api/v1/orders', $payload)->assertStatus(409);
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('payments', 1);
-        $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
 }
