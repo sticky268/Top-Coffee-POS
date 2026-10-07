@@ -587,6 +587,16 @@ class KitchenTest extends TestCase
         $this->assertSame(2, (int) $original->items()->sum('kitchen_ticket_items.quantity'));
         $this->assertSame(1, (int) $tickets[1]->items()->sum('kitchen_ticket_items.quantity'));
         $this->assertSame(1, (int) \App\Models\OrderItem::where('order_id', $orderId)->sum('quantity'));
+        $this->assertDatabaseHas('kitchen_item_voids', [
+            'order_id' => $orderId,
+            'order_number' => $held->json('data.order_number'),
+            'order_item_id' => $original->items()->firstOrFail()->id,
+            'kitchen_ticket_id' => $original->id,
+            'quantity' => 1,
+            'reason' => 'Customer changed mind',
+            'kitchen_status' => 'new',
+            'voided_by' => $cashier->id,
+        ]);
 
         $kitchenUser = $this->makeKitchenUser($branch);
         $response = $this->actingAs($kitchenUser)->getJson(
