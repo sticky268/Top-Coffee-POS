@@ -370,15 +370,23 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         )
         .toList();
 
-    await ref
-        .read(posRepositoryProvider)
-        .updateHeldOrder(
-          orderId: _order.id,
-          items: items,
-          discountTotal: _discount,
-          branchId: _order.branch?.id,
-          voidReason: _voidReason,
-        );
+    final repository = ref.read(posRepositoryProvider);
+    if (_voidReason == null) {
+      await repository.updateHeldOrder(
+        orderId: _order.id,
+        items: items,
+        discountTotal: _discount,
+        branchId: _order.branch?.id,
+      );
+    } else {
+      await repository.updateHeldOrder(
+        orderId: _order.id,
+        items: items,
+        discountTotal: _discount,
+        branchId: _order.branch?.id,
+        voidReason: _voidReason,
+      );
+    }
 
     final saved = await ref.read(ordersRepositoryProvider).getOrder(_order.id);
     if (saved.status != 'held') {
