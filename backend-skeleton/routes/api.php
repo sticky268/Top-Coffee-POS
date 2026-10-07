@@ -51,6 +51,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/branches', [BranchController::class, 'index']);
         Route::post('/branches', [BranchController::class, 'store']);
         Route::get('/branches/{branch}', [BranchController::class, 'show']);
+        Route::get('/branches/{branch}/kitchen-settings', [BranchController::class, 'kitchenSettings']);
+        Route::patch('/branches/{branch}/kitchen-settings', [BranchController::class, 'updateKitchenSettings']);
         Route::patch('/branches/{branch}', [BranchController::class, 'update']);
         Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
 
