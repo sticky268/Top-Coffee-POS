@@ -159,7 +159,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         context.go('/home');
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Checkout')),
+        appBar: AppBar(title: const Text('Review Order')),
         body: switch (checkoutState) {
           CheckoutSuccess(:final confirmation) => _CheckoutSuccessView(
             confirmation: confirmation,
