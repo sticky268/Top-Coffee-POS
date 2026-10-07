@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/receipt/customer_bill.dart';
+import '../../../core/receipt/last_receipt_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -390,10 +392,14 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       final saved = await _saveCurrentOrder();
       if (!mounted) return;
 
+      final customerBill = CustomerBill.fromOrderDetail(saved);
       setState(() => _isShowingPayment = true);
       final result = await showDialog<_PaymentResult>(
         context: context,
-        builder: (_) => _PaymentDialog(total: saved.total),
+        builder: (_) => _PaymentDialog(
+          total: saved.total,
+          bill: customerBill,
+        ),
       );
       if (!mounted) return;
       setState(() => _isShowingPayment = false);
@@ -413,6 +419,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
       // Reload order history after the payment changes Held to Completed.
       await ref.read(ordersListControllerProvider.notifier).refresh();
+      ref.invalidate(lastCompletedOrderProvider);
       if (!mounted) return;
 
       setState(() => _isBusy = false);
@@ -525,9 +532,10 @@ class _PaymentResult {
 }
 
 class _PaymentDialog extends StatefulWidget {
-  const _PaymentDialog({required this.total});
+  const _PaymentDialog({required this.total, required this.bill});
 
   final double total;
+  final CustomerBill bill;
 
   @override
   State<_PaymentDialog> createState() => _PaymentDialogState();
@@ -588,17 +596,23 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     final isCash = _method == 'cash';
 
     return AlertDialog(
-      title: const Text('Payment'),
+      title: const Text('Review Bill & Pay'),
       content: SizedBox(
-        width: 420,
-        child: Column(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Order changes are saved. Cancelling here leaves the bill open.',
+              'Review or give the customer the unpaid bill before collecting payment.',
             ),
             const SizedBox(height: 16),
+            BillActionButtons(
+              bill: widget.bill,
+              showHeading: true,
+            ),
+            const SizedBox(height: 24),
             Text('Total', style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 4),
             Text(
@@ -686,6 +700,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               ),
             ],
           ],
+          ),
         ),
       ),
       actions: [
@@ -1077,7 +1092,7 @@ class _OrderTotals extends StatelessWidget {
               Expanded(
                 child: pos_ui.PosActionButton(
                   onPressed: onPay,
-                  child: const Text('Pay'),
+                  child: const Text('Review & Pay'),
                 ),
               ),
             ],
