@@ -311,8 +311,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     try {
       await _saveCurrentOrder();
       if (!mounted) return;
-      // Update both screens before returning to Order Details.
-      await ref.read(orderDetailControllerProvider(_order.id).notifier).refresh();
+      // Do not refresh the watched detail provider here: its loading state
+      // disposes this editor before navigation can complete. The detail
+      // screen refreshes itself when this route returns.
       await ref.read(ordersListControllerProvider.notifier).refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
