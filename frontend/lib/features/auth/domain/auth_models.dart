@@ -33,6 +33,14 @@ class BranchSummary {
       useKitchenDisplay: json['use_kitchen_display'] as bool? ?? true,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BranchSummary && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 /// The authenticated user plus their roles/permissions/branches, as
