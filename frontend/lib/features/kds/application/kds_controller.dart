@@ -4,6 +4,7 @@ import '../data/kds_repository.dart';
 import 'kds_state.dart';
 
 class KdsController extends Notifier<KdsState> {
+  int _requestVersion = 0;
   @override
   KdsState build() {
     Future.microtask(loadTickets);
@@ -13,6 +14,8 @@ class KdsController extends Notifier<KdsState> {
   KdsRepository get _repository => ref.read(kdsRepositoryProvider);
 
   Future<void> loadTickets({int? branchId}) async {
+    if (state.updatingTicketId != null) return;
+    final requestVersion = ++_requestVersion;
     state = state.copyWith(
       isLoading: true,
       clearError: true,
@@ -23,12 +26,14 @@ class KdsController extends Notifier<KdsState> {
         branchId: branchId,
       );
 
+      if (requestVersion != _requestVersion) return;
       state = state.copyWith(
         tickets: tickets,
         isLoading: false,
         clearError: true,
       );
     } catch (e) {
+      if (requestVersion != _requestVersion) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString(),
@@ -42,10 +47,12 @@ class KdsController extends Notifier<KdsState> {
 
   Future<void> acknowledgeCancellation({required int ticketId}) async {
     if (state.updatingTicketId != null) return;
+    ++_requestVersion;
     state = state.copyWith(updatingTicketId: ticketId, clearError: true);
     try {
       await _repository.acknowledgeCancellation(ticketId: ticketId);
       state = state.copyWith(
+        isLoading: false,
         tickets: state.tickets.where((ticket) => ticket.id != ticketId).toList(),
         clearUpdatingTicket: true,
         clearError: true,
@@ -66,6 +73,7 @@ class KdsController extends Notifier<KdsState> {
     if (state.updatingTicketId != null) {
       return;
     }
+    ++_requestVersion;
 
     state = state.copyWith(
       updatingTicketId: ticketId,
@@ -86,6 +94,7 @@ class KdsController extends Notifier<KdsState> {
           .toList();
 
       state = state.copyWith(
+        isLoading: false,
         tickets: updatedTickets,
         clearError: true,
         clearUpdatingTicket: true,
