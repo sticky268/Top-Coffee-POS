@@ -105,6 +105,26 @@ void main() {
     expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
   });
 
+  test('branch switch while updating cannot restore previous branch ticket', () async {
+    await controller.loadTickets(branchId: 74);
+    final pendingUpdate = Completer<void>();
+    when(() => repository.updateTicketStatus(ticketId: 12, status: 'preparing'))
+        .thenAnswer((_) => pendingUpdate.future);
+    when(() => repository.getTickets(branchId: 75))
+        .thenAnswer((_) async => [makeTicket(status: 'ready')]);
+
+    final updating = controller.updateStatus(ticketId: 12, status: 'preparing');
+    expect(container.read(kdsControllerProvider).updatingTicketId, 12);
+
+    await controller.loadTickets(branchId: 75);
+    expect(container.read(kdsControllerProvider).updatingTicketId, isNull);
+    expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
+
+    pendingUpdate.complete();
+    await updating;
+    expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
+  });
+
   test('stale refresh cannot undo successful status change', () async {
     await controller.loadTickets();
     final oldRefresh = Completer<List<KitchenTicket>>();
