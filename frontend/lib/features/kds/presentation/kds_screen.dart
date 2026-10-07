@@ -336,6 +336,33 @@ class KdsTicketCard extends ConsumerWidget {
                 ),
               ),
             ),
+            if (isCancelled) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: pos_ui.PrimaryButton(
+                  onPressed: isUpdating
+                      ? null
+                      : () async {
+                          try {
+                            await ref
+                                .read(kdsControllerProvider.notifier)
+                                .acknowledgeCancellation(ticketId: ticket.id);
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Could not acknowledge cancellation. Please retry.'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  isLoading: isUpdating,
+                  child: const Text('ACKNOWLEDGE CANCELLATION'),
+                ),
+              ),
+            ],
             if (!isCancelled && nextStatus != null && buttonText != null) ...[
               const SizedBox(height: 16),
               SizedBox(
