@@ -109,6 +109,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
     final preparingTickets = _ticketsForStatus(state.tickets, 'preparing');
     final readyTickets = _ticketsForStatus(state.tickets, 'ready');
     final completedTickets = _ticketsForStatus(state.tickets, 'completed');
+    final cancelledTickets = _ticketsForStatus(state.tickets, 'cancelled');
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -117,6 +118,38 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
         if (branchName != null) ...[
           Text(branchName, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 16),
+        ],
+        if (cancelledTickets.isNotEmpty) ...[
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Theme.of(context).colorScheme.onErrorContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${cancelledTickets.length} CANCELLED kitchen ticket(s) — stop preparation',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSection(
+            context,
+            title: 'CANCELLED — DO NOT PREPARE',
+            tickets: cancelledTickets,
+            emptyText: 'No cancelled tickets',
+          ),
+          const SizedBox(height: 24),
         ],
         _buildSection(
           context,
@@ -207,6 +240,8 @@ class KdsTicketCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(kdsControllerProvider);
     final isUpdating = state.updatingTicketId == ticket.id;
+    final isCancelled = ticket.status == 'cancelled' ||
+        ticket.order.status == 'cancelled';
 
     final nextStatus = switch (ticket.status) {
       'new' => 'preparing',
@@ -240,6 +275,24 @@ class KdsTicketCard extends ConsumerWidget {
                   Chip(label: Text(ticket.order.table!.name)),
               ],
             ),
+            if (isCancelled) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'CANCELLED — STOP PREPARATION',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Text(
               _formatOrderType(ticket.order.orderType),
@@ -283,7 +336,7 @@ class KdsTicketCard extends ConsumerWidget {
                 ),
               ),
             ),
-            if (nextStatus != null && buttonText != null) ...[
+            if (!isCancelled && nextStatus != null && buttonText != null) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
