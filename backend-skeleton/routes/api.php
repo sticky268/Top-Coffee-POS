@@ -7,7 +7,6 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\ExpenseCategoryController;
 use App\Http\Controllers\Api\V1\IngredientController;
-use App\Http\Controllers\Api\V1\KitchenController;
 use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RestaurantTableController;
@@ -50,10 +49,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/branches', [BranchController::class, 'index']);
         Route::post('/branches', [BranchController::class, 'store']);
-        Route::get('/branches/{branch}', [BranchController::class, 'show']);
-        Route::get('/branches/{branch}/kitchen-settings', [BranchController::class, 'kitchenSettings']);
-        Route::patch('/branches/{branch}/kitchen-settings', [BranchController::class, 'updateKitchenSettings']);
-        Route::patch('/branches/{branch}', [BranchController::class, 'update']);
+        Route::get('/branches/{branch}', [BranchController::class, 'show']);        Route::patch('/branches/{branch}', [BranchController::class, 'update']);
         Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
 
         Route::get('/users', [UserController::class, 'index']);
@@ -95,11 +91,6 @@ Route::prefix('v1')->group(function () {
         Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
-
-        Route::get('/kitchen/tickets', [KitchenController::class, 'index']);
-        Route::patch('/kitchen/tickets/{id}/status', [KitchenController::class, 'updateStatus'])->whereNumber('id');
-        Route::post('/kitchen/tickets/{id}/acknowledge-cancellation', [KitchenController::class, 'acknowledgeCancellation'])->whereNumber('id');
-
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
         Route::patch('/ingredients/{id}', [IngredientController::class, 'update'])->whereNumber('id');
