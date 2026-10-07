@@ -76,6 +76,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   void initState() {
     super.initState();
     _selectedTable = widget.initialTable;
+    if (_selectedTable != null) {
+      _orderType = 'dine_in';
+    }
   }
 
   @override
