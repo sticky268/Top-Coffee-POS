@@ -159,7 +159,7 @@ class ReceiptActionService {
 
     return _buildPdf(
       settings: settings,
-      documentTitle: 'E-RECEIPT · PAID',
+      documentTitle: '',
       orderReference: receipt.displayOrderReference,
       orderType: receipt.orderType,
       branchName: receipt.branchName,
