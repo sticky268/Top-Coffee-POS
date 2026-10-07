@@ -33,12 +33,20 @@ class ReceiptActionService {
       throw StateError('Only completed orders can print a receipt.');
     }
 
-    await _withPrinter((_) => _printerService.printReceipt(receipt));
+    await _withPrinter(
+      branchKey: receipt.branchCode,
+      branchNameFallback: receipt.branchName,
+      action: (_) => _printerService.printReceipt(receipt),
+    );
     return receipt;
   }
 
   Future<void> printBill(CustomerBill bill) async {
-    await _withPrinter((_) => _printerService.printBill(bill));
+    await _withPrinter(
+      branchKey: bill.branchCode,
+      branchNameFallback: bill.branchName,
+      action: (_) => _printerService.printBill(bill),
+    );
   }
 
   Future<OrderReceipt> shareElectronicReceipt(
@@ -50,7 +58,10 @@ class ReceiptActionService {
       throw StateError('Only completed orders can issue an E-Receipt.');
     }
 
-    final settings = await ReceiptSettings.load();
+    final settings = await ReceiptSettings.load(
+      branchKey: receipt.branchCode,
+      branchNameFallback: receipt.branchName,
+    );
     final bytes = await _buildReceiptPdf(receipt, settings);
     final reference = receipt.displayOrderReference;
 
@@ -71,7 +82,10 @@ class ReceiptActionService {
     CustomerBill bill, {
     Rect? sharePositionOrigin,
   }) async {
-    final settings = await ReceiptSettings.load();
+    final settings = await ReceiptSettings.load(
+      branchKey: bill.branchCode,
+      branchNameFallback: bill.branchName,
+    );
     final bytes = await _buildBillPdf(bill, settings);
 
     await _sharePdf(
@@ -85,10 +99,15 @@ class ReceiptActionService {
     );
   }
 
-  Future<void> _withPrinter(
-    Future<void> Function(ReceiptSettings settings) action,
-  ) async {
-    final settings = await ReceiptSettings.load();
+  Future<void> _withPrinter({
+    required String? branchKey,
+    required String? branchNameFallback,
+    required Future<void> Function(ReceiptSettings settings) action,
+  }) async {
+    final settings = await ReceiptSettings.load(
+      branchKey: branchKey,
+      branchNameFallback: branchNameFallback,
+    );
 
     if (!settings.printerEnabled) {
       throw StateError('Printing is disabled in Settings.');
@@ -233,9 +252,7 @@ class ReceiptActionService {
     final fontData = await rootBundle.load('assets/fonts/Inter.ttf');
     final font = pw.Font.ttf(fontData);
     final document = pw.Document();
-    final resolvedBranchName = (branchName?.trim().isNotEmpty ?? false)
-        ? branchName!.trim()
-        : settings.branchName.trim();
+    final resolvedBranchName = settings.branchName.trim();
     final createdAtText = createdAt != null
         ? DateFormat('MMM d, yyyy · h:mm a').format(createdAt.toLocal())
         : '';
