@@ -40,9 +40,12 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
   void _loadForCurrentBranch() {
     if (!mounted) return;
-    final branchId = ref.read(currentBranchProvider)?.id;
+    final branch = ref.read(currentBranchProvider);
+    if (branch != null && !branch.useKitchenDisplay) {
+      return;
+    }
 
-    ref.read(kdsControllerProvider.notifier).loadTickets(branchId: branchId);
+    ref.read(kdsControllerProvider.notifier).loadTickets(branchId: branch?.id);
   }
 
   @override
@@ -73,6 +76,38 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
         _loadForCurrentBranch();
       }
     });
+
+    if (branch != null && !branch.useKitchenDisplay) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Kitchen Display')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.soup_kitchen_outlined,
+                  size: 56,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Kitchen Display is off',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'KDS is disabled for ${branch.name}. Orders can be edited normally until payment and no new kitchen tickets are created.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -334,12 +369,28 @@ class KdsTicketCard extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  'CANCELLED — STOP PREPARATION',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ticket.order.status == 'cancelled'
+                          ? 'CANCELLED ORDER — STOP PREPARATION'
+                          : 'VOID ITEM — STOP PREPARATION',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                    if (ticket.cancellationReason?.trim().isNotEmpty ?? false) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Reason: ${ticket.cancellationReason}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -409,7 +460,7 @@ class KdsTicketCard extends ConsumerWidget {
                           }
                         },
                   isLoading: isUpdating,
-                  child: const Text('ACKNOWLEDGE CANCELLATION'),
+                  child: Text(ticket.order.status == 'cancelled' ? 'ACKNOWLEDGE CANCELLATION' : 'ACKNOWLEDGE VOID'),
                 ),
               ),
             ],
