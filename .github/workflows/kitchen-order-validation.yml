@@ -33,7 +33,7 @@ jobs:
         run: |
           grep -q 'name="DB_CONNECTION" value="sqlite"' phpunit.xml
           grep -q 'name="DB_DATABASE" value=":memory:"' phpunit.xml
-      - run: php artisan test --filter='KitchenTest|CancelHeldOrderTest|OrderTest|OrderListingTest'
+      - run: php artisan test --filter='KitchenTest|CancelHeldOrderTest|TableBranchIsolationTest|OrderTest|OrderListingTest'
 
   flutter:
     name: Flutter analyze and tests
