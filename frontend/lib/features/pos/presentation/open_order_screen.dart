@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/receipt/customer_bill.dart';
 import '../../../core/receipt/last_receipt_provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -130,6 +131,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   late OrderDetail _order;
   bool _isBusy = false;
   bool _isShowingPayment = false;
+  String? _voidReason;
 
   // A bill can contain multiple kitchen batches for the same product.
   // Combine those rows for the cashier while retaining the submitted floor.
@@ -161,12 +163,79 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         .fold(0, (sum, line) => sum + line.quantity);
   }
 
+  bool get _useKitchenDisplay =>
+      ref.read(currentBranchProvider)?.useKitchenDisplay ?? true;
+
+  bool get _canVoidSentItems {
+    final authState = ref.read(authControllerProvider);
+    return authState is AuthAuthenticated &&
+        authState.user.hasPermission('orders.cancel');
+  }
+
   void _showSubmittedItemWarning() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Items sent to the kitchen cannot be reduced or removed.'),
+        content: Text(
+          'This item was already sent to the kitchen. A manager or authorized user must void it.',
+        ),
       ),
     );
+  }
+
+  Future<bool> _ensureVoidReason() async {
+    if (_voidReason != null && _voidReason!.trim().isNotEmpty) {
+      return true;
+    }
+
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Void Sent Item'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'The kitchen already received this item. Enter a reason so the cancellation is sent to KDS and recorded in the audit trail.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Void reason',
+                hintText: 'Customer changed mind',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          pos_ui.SecondaryButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Keep Item'),
+          ),
+          pos_ui.DangerButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.of(dialogContext).pop(value);
+              }
+            },
+            child: const Text('Void Item'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (!mounted || reason == null || reason.trim().isEmpty) {
+      return false;
+    }
+
+    _voidReason = reason.trim();
+    return true;
   }
 
   @override
@@ -218,15 +287,20 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     _addProduct(product, variant: variant);
   }
 
-  void _changeQuantity(String lineKey, int delta) {
+  Future<void> _changeQuantity(String lineKey, int delta) async {
     final index = _lines.indexWhere((line) => line.lineKey == lineKey);
     if (index == -1) return;
 
     final line = _lines[index];
     final newQuantity = line.quantity + delta;
-    if (newQuantity < _submittedQuantity(lineKey)) {
-      _showSubmittedItemWarning();
-      return;
+    if (_useKitchenDisplay && newQuantity < _submittedQuantity(lineKey)) {
+      if (!_canVoidSentItems) {
+        _showSubmittedItemWarning();
+        return;
+      }
+      if (!await _ensureVoidReason() || !mounted) {
+        return;
+      }
     }
 
     setState(() {
@@ -243,10 +317,15 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     });
   }
 
-  void _removeLine(String lineKey) {
-    if (_submittedQuantity(lineKey) > 0) {
-      _showSubmittedItemWarning();
-      return;
+  Future<void> _removeLine(String lineKey) async {
+    if (_useKitchenDisplay && _submittedQuantity(lineKey) > 0) {
+      if (!_canVoidSentItems) {
+        _showSubmittedItemWarning();
+        return;
+      }
+      if (!await _ensureVoidReason() || !mounted) {
+        return;
+      }
     }
     setState(() {
       _lines = [
@@ -298,6 +377,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
           items: items,
           discountTotal: _discount,
           branchId: _order.branch?.id,
+          voidReason: _voidReason,
         );
 
     final saved = await ref.read(ordersRepositoryProvider).getOrder(_order.id);
@@ -308,6 +388,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       setState(() {
         _order = saved;
         _lines = _editableLinesFromOrder(saved);
+        _voidReason = null;
       });
     }
     return saved;
