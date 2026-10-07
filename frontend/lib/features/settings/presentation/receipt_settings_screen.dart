@@ -2,23 +2,26 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/printer/printer_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../features/pos/domain/pos_models.dart';
 import '../data/receipt_settings.dart';
 
-class ReceiptSettingsScreen extends StatefulWidget {
+class ReceiptSettingsScreen extends ConsumerStatefulWidget {
   const ReceiptSettingsScreen({super.key});
 
   @override
-  State<ReceiptSettingsScreen> createState() => _ReceiptSettingsScreenState();
+  ConsumerState<ReceiptSettingsScreen> createState() =>
+      _ReceiptSettingsScreenState();
 }
 
-class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
+class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
   @override
   void initState() {
     super.initState();
@@ -118,8 +121,8 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
       subtotal: 12.50,
       discountTotal: 0.50,
       total: 12.00,
-      branchName: 'Phnom Penh Branch',
-      branchCode: 'PP01',
+      branchName: ref.read(currentBranchProvider)?.name,
+      branchCode: ref.read(currentBranchProvider)?.code,
       cashierName: 'Test Cashier',
       tableName: 'T3',
       items: items,
@@ -140,8 +143,22 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentBranch = ref.watch(currentBranchProvider);
+
+    ref.listen(currentBranchProvider, (previous, next) {
+      if (previous?.id == next?.id) return;
+      _loadSettings();
+      _loadLogo();
+    });
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Receipt Settings')),
+      appBar: AppBar(
+        title: Text(
+          currentBranch == null
+              ? 'Receipt Settings'
+              : 'Receipt Settings · ${currentBranch.name}',
+        ),
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;
@@ -770,7 +787,11 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final settings = await ReceiptSettings.load();
+    final branch = ref.read(currentBranchProvider);
+    final settings = await ReceiptSettings.load(
+      branchKey: branch?.code,
+      branchNameFallback: branch?.name,
+    );
 
     if (!mounted) {
       return;
@@ -838,21 +859,38 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
       printerIpAddress: printerIpController.text.trim(),
     );
 
-    await settings.save();
+    final branch = ref.read(currentBranchProvider);
+    await settings.save(branchKey: branch?.code);
+  }
+
+  String _logoFileName() {
+    final branchKey = ref.read(currentBranchProvider)?.code;
+    final scope = branchKey?.trim().toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9_-]+'),
+          '_',
+        );
+    return scope == null || scope.isEmpty
+        ? 'receipt_logo.png'
+        : 'receipt_logo_$scope.png';
   }
 
   Future<void> _saveLogo(Uint8List bytes) async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/receipt_logo.png');
+    final file = File('${directory.path}/${_logoFileName()}');
 
     await file.writeAsBytes(bytes);
   }
 
   Future<void> _loadLogo() async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/receipt_logo.png');
+    final file = File('${directory.path}/${_logoFileName()}');
 
     if (!await file.exists()) {
+      if (mounted) {
+        setState(() {
+          logoBytes = null;
+        });
+      }
       return;
     }
 
@@ -869,7 +907,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
 
   Future<void> _removeLogo() async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/receipt_logo.png');
+    final file = File('${directory.path}/${_logoFileName()}');
 
     if (await file.exists()) {
       await file.delete();
