@@ -9,6 +9,8 @@ abstract class KdsRepository {
     int? branchId,
   });
 
+  Future<void> acknowledgeCancellation({required int ticketId});
+
   Future<KitchenTicket> updateTicketStatus({
     required int ticketId,
     required String status,
@@ -42,6 +44,13 @@ class ApiKdsRepository implements KdsRepository {
           ),
         )
         .toList();
+  }
+
+  @override
+  Future<void> acknowledgeCancellation({required int ticketId}) async {
+    await _apiClient.request(
+      (dio) => dio.post('/kitchen/tickets/$ticketId/acknowledge-cancellation'),
+    );
   }
 
   @override
