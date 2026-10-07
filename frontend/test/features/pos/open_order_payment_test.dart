@@ -164,6 +164,13 @@ void main() {
         branchId: 11,
       ),
     ).called(1);
+    expect(find.text('Payment completed'), findsOneWidget);
+    expect(find.text('Print Receipt'), findsOneWidget);
+    expect(find.text('E-Receipt'), findsOneWidget);
+
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Tables'), findsOneWidget);
   });
 
