@@ -1904,7 +1904,7 @@ class OrderTest extends TestCase
                 ->current_stock,
         );
     }
-    public function test_editing_order_to_higher_total_preserves_existing_payment_without_additional_payment(): void
+    public function test_editing_order_to_higher_total_requires_payment_reconciliation(): void
     {
         $this->seedPermissions();
 
@@ -1936,65 +1936,43 @@ class OrderTest extends TestCase
             'base_price' => 5.00,
         ]);
 
-        $oldProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
-
-        $newProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
+        $oldProduct->branches()->attach($branch->id, ['is_available' => true]);
+        $newProduct->branches()->attach($branch->id, ['is_available' => true]);
 
         $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
             'order_type' => 'takeaway',
-            'items' => [
-                [
-                    'product_id' => $oldProduct->id,
-                    'quantity' => 1,
-                ],
-            ],
-            'payment' => [
-                'method' => 'cash',
-                'tendered' => 3,
-            ],
+            'items' => [['product_id' => $oldProduct->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 3],
         ]);
 
-        $createResponse
-            ->assertStatus(201)
-            ->assertJsonPath('data.total', 3);
-
+        $createResponse->assertCreated()->assertJsonPath('data.total', 3);
         $orderId = $createResponse->json('data.id');
 
-        $response = $this->actingAs($manager)->patchJson(
+        $this->actingAs($manager)->patchJson(
             "/api/v1/orders/{$orderId}",
-            [
-                'items' => [
-                    [
-                        'product_id' => $newProduct->id,
-                        'quantity' => 1,
-                    ],
-                ],
-            ]
-        );
+            ['items' => [['product_id' => $newProduct->id, 'quantity' => 1]]]
+        )
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'A completed order adjustment cannot change the amount already paid. Use the refund or additional payment workflow for payment changes.'
+            );
 
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('data.id', $orderId)
-            ->assertJsonPath('data.total', 5);
-
-        $this->assertDatabaseCount('payments', 1);
-
-        $this->assertDatabaseHas('payments', [
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'total' => 3]);
+        $this->assertDatabaseHas('order_items', [
             'order_id' => $orderId,
-            'method' => 'cash',
-            'amount' => 3,
-            'tendered' => 3,
-            'status' => 'completed',
-            'processed_by' => $cashier->id,
+            'product_id' => $oldProduct->id,
+            'quantity' => 1,
         ]);
-
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $newProduct->id,
+        ]);
+        $this->assertDatabaseCount('payments', 1);
         $this->assertDatabaseCount('payment_refunds', 0);
     }
-    public function test_editing_order_to_lower_total_preserves_existing_payment_without_refund(): void
+
+    public function test_editing_order_to_lower_total_requires_payment_reconciliation(): void
     {
         $this->seedPermissions();
 
@@ -2026,64 +2004,42 @@ class OrderTest extends TestCase
             'base_price' => 3.00,
         ]);
 
-        $oldProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
-
-        $newProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
+        $oldProduct->branches()->attach($branch->id, ['is_available' => true]);
+        $newProduct->branches()->attach($branch->id, ['is_available' => true]);
 
         $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
             'order_type' => 'takeaway',
-            'items' => [
-                [
-                    'product_id' => $oldProduct->id,
-                    'quantity' => 1,
-                ],
-            ],
-            'payment' => [
-                'method' => 'cash',
-                'tendered' => 5,
-            ],
+            'items' => [['product_id' => $oldProduct->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
         ]);
 
-        $createResponse
-            ->assertStatus(201)
-            ->assertJsonPath('data.total', 5);
-
+        $createResponse->assertCreated()->assertJsonPath('data.total', 5);
         $orderId = $createResponse->json('data.id');
 
-        $response = $this->actingAs($manager)->patchJson(
+        $this->actingAs($manager)->patchJson(
             "/api/v1/orders/{$orderId}",
-            [
-                'items' => [
-                    [
-                        'product_id' => $newProduct->id,
-                        'quantity' => 1,
-                    ],
-                ],
-            ]
-        );
+            ['items' => [['product_id' => $newProduct->id, 'quantity' => 1]]]
+        )
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'A completed order adjustment cannot change the amount already paid. Use the refund or additional payment workflow for payment changes.'
+            );
 
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('data.id', $orderId)
-            ->assertJsonPath('data.total', 3);
-
-        $this->assertDatabaseCount('payments', 1);
-
-        $this->assertDatabaseHas('payments', [
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'total' => 5]);
+        $this->assertDatabaseHas('order_items', [
             'order_id' => $orderId,
-            'method' => 'cash',
-            'amount' => 5,
-            'tendered' => 5,
-            'status' => 'completed',
-            'processed_by' => $cashier->id,
+            'product_id' => $oldProduct->id,
+            'quantity' => 1,
         ]);
-
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $newProduct->id,
+        ]);
+        $this->assertDatabaseCount('payments', 1);
         $this->assertDatabaseCount('payment_refunds', 0);
     }
+
     public function test_admin_with_orders_edit_permission_can_edit_order(): void
     {
         $this->seedPermissions();
