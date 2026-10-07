@@ -1233,7 +1233,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                 const SizedBox(height: 8),
 
                 Text(
-                  'Order #${widget.confirmation.orderId}',
+                  'Order #${widget.confirmation.displayOrderNumber}',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
