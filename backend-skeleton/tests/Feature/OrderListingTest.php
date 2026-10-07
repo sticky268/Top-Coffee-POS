@@ -72,6 +72,7 @@ class OrderListingTest extends TestCase
         $order = Order::create(array_merge([
             'uuid' => (string) Str::uuid(),
             'branch_id' => $branch->id,
+            'order_number' => app(\App\Services\OrderNumberService::class)->nextForBranch($branch->id),
             'user_id' => $cashier->id,
             'order_type' => 'takeaway',
             'status' => 'completed',
@@ -208,9 +209,11 @@ class OrderListingTest extends TestCase
         $target = $this->createOrder($branch, $cashier);
         $this->createOrder($branch, $cashier, ['status' => 'cancelled']);
 
-        $byId = $this->actingAs($cashier)->getJson("/api/v1/orders?order_number={$target->id}");
-        $this->assertCount(1, $byId->json('data'));
-        $this->assertEquals($target->id, $byId->json('data.0.id'));
+        $byOrderNumber = $this->actingAs($cashier)->getJson(
+            "/api/v1/orders?order_number={$target->order_number}"
+        );
+        $this->assertCount(1, $byOrderNumber->json('data'));
+        $this->assertEquals($target->id, $byOrderNumber->json('data.0.id'));
 
         $byUuid = $this->actingAs($cashier)->getJson('/api/v1/orders?order_number='.substr($target->uuid, 0, 8));
         $this->assertCount(1, $byUuid->json('data'));
