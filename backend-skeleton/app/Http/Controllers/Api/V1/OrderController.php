@@ -1017,6 +1017,13 @@ class OrderController extends Controller
 
                 $order->update(['status' => 'cancelled']);
 
+                // Cancel every kitchen batch atomically with the order, so the
+                // kitchen never keeps preparing a cancelled bill.
+                KitchenTicket::query()
+                    ->where('order_id', $order->id)
+                    ->where('status', '!=', 'cancelled')
+                    ->update(['status' => 'cancelled']);
+
                 if ($table) {
                     $otherHeldOrders = Order::query()
                         ->where('branch_id', $order->branch_id)
