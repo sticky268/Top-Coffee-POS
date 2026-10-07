@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Business;
 use App\Models\Order;
+use App\Models\KitchenTicket;
 use App\Models\Payment;
 use App\Models\RestaurantTable;
 use App\Models\User;
@@ -65,6 +66,15 @@ class CancelHeldOrderTest extends TestCase
         $this->assertDatabaseHas('restaurant_tables', ['id' => $table->id, 'status' => 'available']);
         $this->assertDatabaseCount('payments', 0);
         $this->postJson("/api/v1/orders/{$order->id}/cancel")->assertStatus(409);
+    }
+
+    public function test_cancel_updates_kitchen_tickets(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo('orders.cancel');
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'preparing']);
+        $this->actingAs($user)->postJson("/api/v1/orders/{$order->id}/cancel")->assertOk();
+        $this->assertDatabaseHas('kitchen_tickets', ['id' => $ticket->id, 'status' => 'cancelled']);
     }
 
     public function test_unauthorized_user_cannot_cancel(): void
