@@ -53,6 +53,11 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(kdsControllerProvider);
     final branch = ref.watch(currentBranchProvider);
+    ref.listen(currentBranchProvider, (previous, next) {
+      if (previous?.id != next?.id) {
+        _loadForCurrentBranch();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
