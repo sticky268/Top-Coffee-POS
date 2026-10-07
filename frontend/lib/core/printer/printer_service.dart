@@ -100,7 +100,7 @@ class PrinterService {
         'boldTotal': settings.boldTotal,
         'boldFooter': settings.boldFooter,
         'orderNumber': settings.showOrderNumber
-            ? receipt.orderId.toString()
+            ? receipt.displayOrderReference
             : '',
         'businessName': settings.businessName,
         'branchName': settings.branchName,
@@ -187,7 +187,7 @@ class PrinterService {
         'boldTotal': settings.boldTotal,
         'boldFooter': settings.boldFooter,
         'orderNumber': settings.showOrderNumber
-            ? receipt.orderId.toString()
+            ? receipt.displayOrderReference
             : '',
         'businessName': settings.businessName,
         'branchName': settings.branchName,
