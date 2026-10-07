@@ -103,7 +103,9 @@ class PrinterService {
             ? receipt.displayOrderReference
             : '',
         'businessName': settings.businessName,
-        'branchName': settings.branchName,
+        'branchName': receipt.branchName?.trim().isNotEmpty == true
+            ? receipt.branchName!.trim()
+            : settings.branchName,
         'cashierName':
             settings.showCashier ? receipt.cashierName ?? '' : '',
         'tableName':
@@ -190,7 +192,9 @@ class PrinterService {
             ? receipt.displayOrderReference
             : '',
         'businessName': settings.businessName,
-        'branchName': settings.branchName,
+        'branchName': receipt.branchName?.trim().isNotEmpty == true
+            ? receipt.branchName!.trim()
+            : settings.branchName,
         'cashierName':
             settings.showCashier ? receipt.cashierName ?? '' : '',
         'tableName':
