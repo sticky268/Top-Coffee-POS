@@ -125,6 +125,35 @@ void main() {
     expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
   });
 
+  test('refresh failure preserves visible tickets and reports error', () async {
+    await controller.loadTickets(branchId: 74);
+    when(() => repository.getTickets(branchId: 74))
+        .thenThrow(Exception('network disconnected'));
+
+    await controller.refresh(branchId: 74);
+
+    final state = container.read(kdsControllerProvider);
+    expect(state.tickets.single.order.id, 105);
+    expect(state.isLoading, isFalse);
+    expect(state.errorMessage, contains('network disconnected'));
+  });
+
+  test('successful refresh clears previous connection error', () async {
+    await controller.loadTickets(branchId: 74);
+    when(() => repository.getTickets(branchId: 74))
+        .thenThrow(Exception('network disconnected'));
+    await controller.refresh(branchId: 74);
+    expect(container.read(kdsControllerProvider).errorMessage, isNotNull);
+
+    when(() => repository.getTickets(branchId: 74))
+        .thenAnswer((_) async => [makeTicket(status: 'ready')]);
+    await controller.refresh(branchId: 74);
+
+    final state = container.read(kdsControllerProvider);
+    expect(state.errorMessage, isNull);
+    expect(state.tickets.single.status, 'ready');
+  });
+
   test('stale refresh cannot undo successful status change', () async {
     await controller.loadTickets();
     final oldRefresh = Completer<List<KitchenTicket>>();
