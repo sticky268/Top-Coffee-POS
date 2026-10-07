@@ -167,6 +167,43 @@ class CancelHeldOrderTest extends TestCase
         $this->assertNull($ticket->fresh()->cancellation_acknowledged_at);
     }
 
+    public function test_acknowledgement_cannot_cross_branch_boundaries(): void
+    {
+        [$owner, $order] = $this->setupOrder();
+        $order->update(['status' => 'cancelled']);
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'cancelled']);
+
+        $otherBranchUser = User::factory()->create();
+        $otherBranchUser->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.update-status', 'guard_name' => 'web'])
+        );
+
+        $this->actingAs($otherBranchUser)
+            ->postJson("/api/v1/kitchen/tickets/{$ticket->id}/acknowledge-cancellation")
+            ->assertForbidden();
+
+        $this->assertNull($ticket->fresh()->cancellation_acknowledged_at);
+    }
+
+    public function test_repeated_acknowledgement_preserves_original_timestamp(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.update-status', 'guard_name' => 'web'])
+        );
+        $order->update(['status' => 'cancelled']);
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'cancelled']);
+        $url = "/api/v1/kitchen/tickets/{$ticket->id}/acknowledge-cancellation";
+
+        $this->actingAs($user)->postJson($url)->assertOk();
+        $original = $ticket->fresh()->cancellation_acknowledged_at;
+        $this->travel(3)->minutes();
+        $this->postJson($url)->assertOk();
+
+        $this->assertTrue($ticket->fresh()->cancellation_acknowledged_at->equalTo($original));
+        $this->assertSame('cancelled', $ticket->fresh()->status);
+    }
+
     public function test_non_cancelled_ticket_cannot_be_acknowledged(): void
     {
         [$user, $order] = $this->setupOrder();
