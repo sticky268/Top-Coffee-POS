@@ -24,15 +24,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Card(
-            child: ListTile(
-              leading: const Icon(Icons.soup_kitchen_outlined),
-              title: const Text('Order & Kitchen'),
-              subtitle: const Text(
-                'Turn Kitchen Display on or off for the selected branch',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/kitchen'),
-            ),
+            child:
           ),
           const SizedBox(height: 8),
           Card(
