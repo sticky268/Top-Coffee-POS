@@ -8,17 +8,29 @@ class BranchSummary {
     required this.id,
     required this.name,
     required this.code,
+    this.useKitchenDisplay = true,
   });
 
   final int id;
   final String name;
   final String code;
+  final bool useKitchenDisplay;
+
+  BranchSummary copyWith({bool? useKitchenDisplay}) {
+    return BranchSummary(
+      id: id,
+      name: name,
+      code: code,
+      useKitchenDisplay: useKitchenDisplay ?? this.useKitchenDisplay,
+    );
+  }
 
   factory BranchSummary.fromJson(Map<String, dynamic> json) {
     return BranchSummary(
       id: json['id'] as int,
       name: json['name'] as String,
       code: json['code'] as String,
+      useKitchenDisplay: json['use_kitchen_display'] as bool? ?? true,
     );
   }
 }
