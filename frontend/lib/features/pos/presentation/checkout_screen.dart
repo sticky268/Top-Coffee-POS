@@ -1090,6 +1090,21 @@ class _CheckoutSuccessView extends ConsumerStatefulWidget {
 }
 
 class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
+  String _paymentLabel(String method) {
+    switch (method) {
+      case 'cash':
+        return 'Cash';
+      case 'card':
+        return 'Card';
+      case 'qr':
+        return 'QR';
+      case 'split':
+        return 'Split payment';
+      default:
+        return method;
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
