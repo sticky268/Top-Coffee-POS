@@ -98,11 +98,7 @@ class ReceiptActionService {
   ) async {
     final fontData = await rootBundle.load('assets/fonts/Inter.ttf');
     final font = pw.Font.ttf(fontData);
-    final document = pw.Document(
-      title: 'Receipt ${receipt.displayOrderReference}',
-      author: settings.businessName,
-      creator: 'Top Coffee POS',
-    );
+    final document = pw.Document();
 
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
