@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/widgets/receipt_action_buttons.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../pos/data/pos_repository.dart';
@@ -273,6 +274,18 @@ class _OrderDetailBody extends StatelessWidget {
                       const Divider(height: 24),
                   ],
                 ],
+              ),
+            ),
+          ),
+        ],
+        if (canIssueReceiptForOrderStatus(order.status)) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ReceiptActionButtons(
+                orderId: order.id,
+                showHeading: true,
               ),
             ),
           ),
