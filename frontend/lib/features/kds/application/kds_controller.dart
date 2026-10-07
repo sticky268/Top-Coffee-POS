@@ -16,14 +16,15 @@ class KdsController extends Notifier<KdsState> {
   KdsRepository get _repository => ref.read(kdsRepositoryProvider);
 
   Future<void> loadTickets({int? branchId}) async {
-    if (state.updatingTicketId != null) return;
-    final requestVersion = ++_requestVersion;
     final branchChanged = !_hasLoadedBranch || branchId != _loadedBranchId;
+    if (state.updatingTicketId != null && !branchChanged) return;
+    final requestVersion = ++_requestVersion;
     _loadedBranchId = branchId;
     _hasLoadedBranch = true;
     state = state.copyWith(
       tickets: branchChanged ? const [] : null,
       isLoading: true,
+      clearUpdatingTicket: branchChanged,
       clearError: true,
     );
 
@@ -53,10 +54,11 @@ class KdsController extends Notifier<KdsState> {
 
   Future<void> acknowledgeCancellation({required int ticketId}) async {
     if (state.updatingTicketId != null) return;
-    ++_requestVersion;
+    final operationVersion = ++_requestVersion;
     state = state.copyWith(updatingTicketId: ticketId, clearError: true);
     try {
       await _repository.acknowledgeCancellation(ticketId: ticketId);
+      if (operationVersion != _requestVersion) return;
       state = state.copyWith(
         isLoading: false,
         tickets: state.tickets.where((ticket) => ticket.id != ticketId).toList(),
@@ -64,6 +66,7 @@ class KdsController extends Notifier<KdsState> {
         clearError: true,
       );
     } catch (e) {
+      if (operationVersion != _requestVersion) return;
       state = state.copyWith(
         errorMessage: e.toString(),
         clearUpdatingTicket: true,
@@ -79,7 +82,7 @@ class KdsController extends Notifier<KdsState> {
     if (state.updatingTicketId != null) {
       return;
     }
-    ++_requestVersion;
+    final operationVersion = ++_requestVersion;
 
     state = state.copyWith(
       updatingTicketId: ticketId,
@@ -91,6 +94,7 @@ class KdsController extends Notifier<KdsState> {
         ticketId: ticketId,
         status: status,
       );
+      if (operationVersion != _requestVersion) return;
 
       final updatedTickets = state.tickets
           .map(
@@ -106,6 +110,7 @@ class KdsController extends Notifier<KdsState> {
         clearUpdatingTicket: true,
       );
     } catch (e) {
+      if (operationVersion != _requestVersion) return;
       state = state.copyWith(
         errorMessage: e.toString(),
         clearUpdatingTicket: true,
