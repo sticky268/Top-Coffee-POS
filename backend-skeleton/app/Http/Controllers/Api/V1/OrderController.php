@@ -347,52 +347,24 @@ class OrderController extends Controller
             ], 500);
         }
 
+        $order = $result['order'];
+        $oldValues = $result['old_values'];
         $payments = $order->payments->values();
 
         app(AuditLogService::class)->record(
             $request,
-            'order.created',
+            'order.updated',
             $order,
-            null,
+            $oldValues,
             [
-                'branch_id' => $order->branch_id,
-                'customer_id' => $order->customer_id,
-                'order_type' => $order->order_type,
-                'status' => $order->status,
                 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total,
                 'total' => (float) $order->total,
-            ],
-        );
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.paid',
-            $order,
-            [
-                'status' => 'held',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-            ],
-            [
-                'status' => 'completed',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-                'payments' => $payments->map(fn (Payment $payment) => [
-                    'id' => $payment->id,
-                    'method' => $payment->method,
-                    'amount' => (float) $payment->amount,
-                    'tendered' => $payment->tendered !== null
-                        ? (float) $payment->tendered
-                        : null,
-                    'change_due' => $payment->change_due !== null
-                        ? (float) $payment->change_due
-                        : null,
-                    'status' => $payment->status,
+                'items' => $order->items->map(fn (OrderItem $item) => [
+                    'product_id' => $item->product_id,
+                    'product_variant_id' => $item->product_variant_id,
+                    'quantity' => (int) $item->quantity,
+                    'unit_price' => (float) $item->unit_price,
                 ])->values()->all(),
             ],
         );
@@ -1381,6 +1353,18 @@ class OrderController extends Controller
                     2
                 );
 
+                $oldValues = [
+                    'subtotal' => (float) $order->subtotal,
+                    'discount_total' => (float) $order->discount_total,
+                    'total' => (float) $order->total,
+                    'items' => $order->items->map(fn (OrderItem $item) => [
+                        'product_id' => $item->product_id,
+                        'product_variant_id' => $item->product_variant_id,
+                        'quantity' => (int) $item->quantity,
+                        'unit_price' => (float) $item->unit_price,
+                    ])->values()->all(),
+                ];
+
                 $subtotal = 0;
                 $resolvedItems = [];
 
@@ -1453,6 +1437,12 @@ class OrderController extends Controller
                     round($subtotal - $discountTotal, 2)
                 );
 
+                if (abs($total - $paidTotal) > 0.009) {
+                    abort(
+                        422,
+                        'A completed order adjustment cannot change the amount already paid. Use the refund or additional payment workflow for payment changes.'
+                    );
+                }
 
                 app(SaleInventoryService::class)->reverseForOrder(
                     $order,
@@ -1479,10 +1469,13 @@ class OrderController extends Controller
                     $user->id,
                 );
 
-                return $order->fresh()->load([
-                    'items',
-                    'payments',
-                ]);
+                return [
+                    'order' => $order->fresh()->load([
+                        'items',
+                        'payments',
+                    ]),
+                    'old_values' => $oldValues,
+                ];
             });
         } catch (HttpException $e) {
             return response()->json([
