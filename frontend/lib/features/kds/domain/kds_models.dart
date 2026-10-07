@@ -9,6 +9,7 @@ class KitchenTicket {
     this.sentAt,
     this.readyAt,
     this.completedAt,
+    this.cancellationReason,
   });
 
   final int id;
@@ -17,6 +18,7 @@ class KitchenTicket {
   final DateTime? sentAt;
   final DateTime? readyAt;
   final DateTime? completedAt;
+  final String? cancellationReason;
 
   factory KitchenTicket.fromJson(Map<String, dynamic> json) {
     return KitchenTicket(
@@ -28,6 +30,7 @@ class KitchenTicket {
       sentAt: _parseDate(json['sent_at']),
       readyAt: _parseDate(json['ready_at']),
       completedAt: _parseDate(json['completed_at']),
+      cancellationReason: json['cancellation_reason'] as String?,
     );
   }
 
@@ -36,6 +39,7 @@ class KitchenTicket {
     DateTime? sentAt,
     DateTime? readyAt,
     DateTime? completedAt,
+    String? cancellationReason,
   }) {
     return KitchenTicket(
       id: id,
@@ -44,6 +48,7 @@ class KitchenTicket {
       sentAt: sentAt ?? this.sentAt,
       readyAt: readyAt ?? this.readyAt,
       completedAt: completedAt ?? this.completedAt,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
     );
   }
 
