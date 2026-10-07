@@ -105,9 +105,7 @@ class PrinterService {
             ? receipt.displayOrderReference
             : '',
         'businessName': settings.businessName,
-        'branchName': receipt.branchName?.trim().isNotEmpty == true
-            ? receipt.branchName!.trim()
-            : settings.branchName,
+        'branchName': settings.branchName,
         'cashierName':
             settings.showCashier ? receipt.cashierName ?? '' : '',
         'tableName':
@@ -167,9 +165,7 @@ class PrinterService {
         'documentTitle': '',
         'orderNumber': settings.showOrderNumber ? bill.displayReference : '',
         'businessName': settings.businessName,
-        'branchName': bill.branchName?.trim().isNotEmpty == true
-            ? bill.branchName!.trim()
-            : settings.branchName,
+        'branchName': settings.branchName,
         'cashierName': settings.showCashier ? bill.cashierName ?? '' : '',
         'tableName': settings.showTable ? bill.tableName ?? '' : '',
         'orderType': settings.showOrderType ? bill.orderType : '',
@@ -246,9 +242,7 @@ class PrinterService {
             ? receipt.displayOrderReference
             : '',
         'businessName': settings.businessName,
-        'branchName': receipt.branchName?.trim().isNotEmpty == true
-            ? receipt.branchName!.trim()
-            : settings.branchName,
+        'branchName': settings.branchName,
         'cashierName':
             settings.showCashier ? receipt.cashierName ?? '' : '',
         'tableName':
