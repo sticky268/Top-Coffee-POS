@@ -250,8 +250,6 @@ class ApiPosRepository implements PosRepository {
               )
               .toList(),
           'discount_total': discountTotal,
-          if (voidReason != null && voidReason.trim().isNotEmpty)
-            'void_reason': voidReason.trim(),
         },
       ),
     );
@@ -277,6 +275,8 @@ class ApiPosRepository implements PosRepository {
           if (branchId != null) 'branch_id': branchId,
           'items': items,
           'discount_total': discountTotal,
+          if (voidReason != null && voidReason.trim().isNotEmpty)
+            'void_reason': voidReason.trim(),
         },
       ),
     );
