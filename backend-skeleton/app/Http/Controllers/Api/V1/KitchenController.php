@@ -117,64 +117,60 @@ class KitchenController extends Controller
             ], 422);
         }
 
-        $ticket = KitchenTicket::query()
-            ->with(['order' => fn ($query) => $query->withoutGlobalScope('branch')])
-            ->whereKey($id)
-            ->first();
-
-        if (! $ticket) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Kitchen ticket not found.',
-            ], 404);
-        }
-
         $user = $request->user();
-        $order = $ticket->order;
-
-        $canAccessBranch = $user->can('branches.view-all')
-            || $user->branches()->where('branches.id', $order->branch_id)->exists();
-
-        if (! $canAccessBranch) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You do not have access to this branch.',
-            ], 403);
-        }
-
-        // A cancelled ticket is immutable. Also reject status updates if the
-        // parent order was cancelled after the kitchen screen loaded.
-        if ($ticket->status === 'cancelled' || $order?->status === 'cancelled') {
-            return response()->json([
-                'success' => false,
-                'message' => 'This order was cancelled. Kitchen preparation cannot continue.',
-            ], 409);
-        }
-
         $status = $request->input('status');
 
-        $ticket->status = $status;
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $user, $status) {
+            $ticket = KitchenTicket::query()
+                ->with(['order' => fn ($query) => $query->withoutGlobalScope('branch')])
+                ->lockForUpdate()
+                ->find($id);
 
-        if ($status === 'new') {
-            $ticket->sent_at = null;
-            $ticket->ready_at = null;
-            $ticket->completed_at = null;
-        } elseif ($status === 'preparing') {
-            $ticket->sent_at ??= now();
-            $ticket->ready_at = null;
-            $ticket->completed_at = null;
-        } elseif ($status === 'ready') {
-            $ticket->sent_at ??= now();
-            $ticket->ready_at = now();
-            $ticket->completed_at = null;
-        } elseif ($status === 'completed') {
-            $ticket->sent_at ??= now();
-            $ticket->ready_at ??= now();
-            $ticket->completed_at = now();
+            if (! $ticket || ! $ticket->order) {
+                return ['error' => 'Kitchen ticket not found.', 'code' => 404];
+            }
+
+            $order = $ticket->order;
+            if (! $user->can('branches.view-all')
+                && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
+                return ['error' => 'You do not have access to this branch.', 'code' => 403];
+            }
+
+            if ($ticket->status === 'cancelled' || $order->status === 'cancelled') {
+                return ['error' => 'This order was cancelled. Kitchen preparation cannot continue.', 'code' => 409];
+            }
+
+            $next = [
+                'new' => 'preparing',
+                'preparing' => 'ready',
+                'ready' => 'completed',
+            ];
+
+            if (($next[$ticket->status] ?? null) !== $status) {
+                return ['error' => 'Invalid kitchen status transition. Refresh the kitchen display.', 'code' => 409];
+            }
+
+            $ticket->status = $status;
+            if ($status === 'preparing') {
+                $ticket->sent_at ??= now();
+            } elseif ($status === 'ready') {
+                $ticket->ready_at = now();
+            } elseif ($status === 'completed') {
+                $ticket->completed_at = now();
+            }
+            $ticket->save();
+
+            return ['ticket' => $ticket->fresh()];
+        });
+
+        if (isset($result['error'])) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['error'],
+            ], $result['code']);
         }
 
-        $ticket->save();
-        $ticket->refresh();
+        $ticket = $result['ticket'];
 
         return response()->json([
             'success' => true,
