@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/pos_catalog_controller.dart';
 import '../application/pos_catalog_state.dart';
@@ -25,11 +26,17 @@ class PosScreen extends ConsumerStatefulWidget {
 
 class _PosScreenState extends ConsumerState<PosScreen> {
   PosTable? _selectedTable;
+  int? _selectedBranchId;
 
   @override
   void initState() {
     super.initState();
+    _selectedBranchId = ref.read(currentBranchProvider)?.id;
     _selectedTable = widget.initialTable;
+    if (_selectedTable?.branchId != null &&
+        _selectedTable!.branchId != _selectedBranchId) {
+      _selectedTable = null;
+    }
   }
 
   Future<void> _openTableSelector() async {
@@ -45,6 +52,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final catalogState = ref.watch(posCatalogControllerProvider);
+    ref.listen(currentBranchProvider, (previous, next) {
+      if (previous?.id == next?.id) return;
+      _selectedBranchId = next?.id;
+      if (_selectedTable != null && mounted) {
+        setState(() {
+          _selectedTable = null;
+        });
+      }
+    });
 
     return PopScope(
       canPop: false,
