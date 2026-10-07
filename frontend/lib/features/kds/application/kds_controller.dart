@@ -40,6 +40,25 @@ class KdsController extends Notifier<KdsState> {
     return loadTickets(branchId: branchId);
   }
 
+  Future<void> acknowledgeCancellation({required int ticketId}) async {
+    if (state.updatingTicketId != null) return;
+    state = state.copyWith(updatingTicketId: ticketId, clearError: true);
+    try {
+      await _repository.acknowledgeCancellation(ticketId: ticketId);
+      state = state.copyWith(
+        tickets: state.tickets.where((ticket) => ticket.id != ticketId).toList(),
+        clearUpdatingTicket: true,
+        clearError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        errorMessage: e.toString(),
+        clearUpdatingTicket: true,
+      );
+      rethrow;
+    }
+  }
+
   Future<void> updateStatus({
     required int ticketId,
     required String status,
