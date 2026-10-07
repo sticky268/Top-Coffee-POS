@@ -186,7 +186,12 @@ class _KdsScreenState extends ConsumerState<KdsScreen> {
     List<KitchenTicket> tickets,
     String status,
   ) {
-    return tickets.where((ticket) => ticket.status == status).toList();
+    return tickets.where((ticket) {
+      final effectiveStatus = ticket.order.status == 'cancelled'
+          ? 'cancelled'
+          : ticket.status;
+      return effectiveStatus == status;
+    }).toList();
   }
 
   Widget _buildSection(
