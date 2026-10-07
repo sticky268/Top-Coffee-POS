@@ -121,16 +121,32 @@ class KitchenController extends Controller
         $status = $request->input('status');
 
         $result = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $user, $status) {
-            $ticket = KitchenTicket::query()
-                ->with(['order' => fn ($query) => $query->withoutGlobalScope('branch')])
-                ->lockForUpdate()
-                ->find($id);
-
-            if (! $ticket || ! $ticket->order) {
+            // Lock the order before its ticket, matching the cancellation
+            // transaction's lock order. This serializes cancellation and
+            // kitchen progress without risking an opposite-order deadlock.
+            $orderId = KitchenTicket::query()->whereKey($id)->value('order_id');
+            if ($orderId === null) {
                 return ['error' => 'Kitchen ticket not found.', 'code' => 404];
             }
 
-            $order = $ticket->order;
+            $order = \App\Models\Order::query()
+                ->withoutGlobalScope('branch')
+                ->whereKey($orderId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $order) {
+                return ['error' => 'Kitchen ticket not found.', 'code' => 404];
+            }
+
+            $ticket = KitchenTicket::query()
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $ticket || (int) $ticket->order_id !== (int) $order->id) {
+                return ['error' => 'Kitchen ticket not found.', 'code' => 404];
+            }
             if (! $user->can('branches.view-all')
                 && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
                 return ['error' => 'You do not have access to this branch.', 'code' => 403];
