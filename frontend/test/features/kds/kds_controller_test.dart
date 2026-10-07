@@ -73,6 +73,38 @@ void main() {
     expect(container.read(kdsControllerProvider).updatingTicketId, isNull);
   });
 
+  test('switching branches clears old tickets while new data loads', () async {
+    await controller.loadTickets(branchId: 74);
+    expect(container.read(kdsControllerProvider).tickets, hasLength(1));
+
+    final secondBranch = Completer<List<KitchenTicket>>();
+    when(() => repository.getTickets(branchId: 75))
+        .thenAnswer((_) => secondBranch.future);
+
+    final switching = controller.loadTickets(branchId: 75);
+    expect(container.read(kdsControllerProvider).tickets, isEmpty);
+    expect(container.read(kdsControllerProvider).isLoading, isTrue);
+
+    secondBranch.complete([makeTicket(status: 'ready')]);
+    await switching;
+    expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
+  });
+
+  test('slower response from previous branch cannot replace current branch', () async {
+    final previousBranch = Completer<List<KitchenTicket>>();
+    when(() => repository.getTickets(branchId: 74))
+        .thenAnswer((_) => previousBranch.future);
+    when(() => repository.getTickets(branchId: 75))
+        .thenAnswer((_) async => [makeTicket(status: 'ready')]);
+
+    final staleLoad = controller.loadTickets(branchId: 74);
+    await controller.loadTickets(branchId: 75);
+    previousBranch.complete([makeTicket(status: 'new')]);
+    await staleLoad;
+
+    expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
+  });
+
   test('stale refresh cannot undo successful status change', () async {
     await controller.loadTickets();
     final oldRefresh = Completer<List<KitchenTicket>>();
