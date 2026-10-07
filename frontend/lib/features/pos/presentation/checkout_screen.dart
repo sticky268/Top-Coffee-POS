@@ -4,12 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
-import '../../../core/printer/printer_service.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/widgets/receipt_action_buttons.dart';
 import '../../customers/data/customers_repository.dart';
 import '../../customers/domain/customer_models.dart';
 import '../../orders/application/orders_list_controller.dart';
-import '../../settings/data/receipt_settings.dart';
 import '../application/cart_controller.dart';
 import '../application/cart_state.dart';
 import '../application/checkout_controller.dart';
@@ -1091,101 +1090,6 @@ class _CheckoutSuccessView extends ConsumerStatefulWidget {
 }
 
 class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
-  bool _isPrinting = false;
-
-  String _paymentLabel(String method) {
-    switch (method) {
-      case 'cash':
-        return 'Cash';
-      case 'card':
-        return 'Card';
-      case 'qr':
-        return 'QR';
-      case 'split':
-        return 'Split payment';
-      default:
-        return method;
-    }
-  }
-
-  Future<void> _printReceipt() async {
-    if (_isPrinting) {
-      return;
-    }
-
-    final settings = await ReceiptSettings.load();
-
-    if (!settings.printerEnabled) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Receipt printing is disabled in Settings.'),
-          ),
-        );
-      }
-      return;
-    }
-
-    if (settings.printerIpAddress.trim().isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Printer IP address is not configured.'),
-          ),
-        );
-      }
-      return;
-    }
-
-    setState(() {
-      _isPrinting = true;
-    });
-
-    final printerService = PrinterService();
-
-    try {
-      final receipt = await ref
-          .read(posRepositoryProvider)
-          .getOrderReceipt(orderId: widget.confirmation.orderId);
-
-      debugPrint(
-        '🧾 PRINT RECEIPT: order=${receipt.orderId}, '
-        'subtotal=${receipt.subtotal}, '
-        'discount=${receipt.discountTotal}, '
-        'total=${receipt.total}',
-      );
-      await printerService.connect(settings.printerIpAddress);
-      await printerService.printReceipt(receipt);
-      await printerService.disconnect();
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt printed successfully.')),
-      );
-    } catch (e) {
-      try {
-        await printerService.disconnect();
-      } catch (_) {
-        // Ignore disconnect errors after a failed print.
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to print receipt: $e')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPrinting = false;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1439,17 +1343,8 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
 
                 const SizedBox(height: 24),
 
-                pos_ui.OutlinedButton.icon(
-                  onPressed: _isPrinting ? null : _printReceipt,
-                  isLoading: _isPrinting,
-                  icon: const Icon(Icons.print_outlined),
-                  label: Text(_isPrinting ? 'Printing...' : 'Print Receipt'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                ReceiptActionButtons(
+                  orderId: widget.confirmation.orderId,
                 ),
 
                 const SizedBox(height: 16),
