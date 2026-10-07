@@ -77,6 +77,25 @@ class CancelHeldOrderTest extends TestCase
         $this->assertDatabaseHas('kitchen_tickets', ['id' => $ticket->id, 'status' => 'cancelled']);
     }
 
+    public function test_cancelling_order_stops_all_kitchen_batches(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo('orders.cancel');
+        $first = KitchenTicket::create(['order_id' => $order->id, 'status' => 'preparing']);
+        $second = KitchenTicket::create(['order_id' => $order->id, 'status' => 'ready']);
+        $third = KitchenTicket::create(['order_id' => $order->id, 'status' => 'completed']);
+
+        $this->actingAs($user)
+            ->postJson("/api/v1/orders/{$order->id}/cancel")
+            ->assertOk();
+
+        foreach ([$first, $second, $third] as $ticket) {
+            $this->assertSame('cancelled', $ticket->fresh()->status);
+            $this->assertNull($ticket->fresh()->cancellation_acknowledged_at);
+        }
+        $this->assertSame('cancelled', $order->fresh()->status);
+    }
+
     public function test_kitchen_acknowledgement_hides_ticket_but_keeps_history(): void
     {
         [$user, $order] = $this->setupOrder();
