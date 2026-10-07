@@ -99,6 +99,27 @@ class CancelHeldOrderTest extends TestCase
             ->assertJsonCount(0, 'data');
     }
 
+    public function test_legacy_new_ticket_for_cancelled_order_can_be_acknowledged(): void
+    {
+        [$user, $order] = $this->setupOrder();
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.update-status', 'guard_name' => 'web'])
+        );
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'kitchen.view', 'guard_name' => 'web'])
+        );
+        $order->update(['status' => 'cancelled']);
+        $ticket = KitchenTicket::create(['order_id' => $order->id, 'status' => 'new']);
+
+        $this->actingAs($user)
+            ->postJson("/api/v1/kitchen/tickets/{$ticket->id}/acknowledge-cancellation")
+            ->assertOk();
+
+        $this->assertDatabaseHas('kitchen_tickets', ['id' => $ticket->id, 'status' => 'cancelled']);
+        $this->assertNotNull($ticket->fresh()->cancellation_acknowledged_at);
+        $this->getJson('/api/v1/kitchen/tickets')->assertOk()->assertJsonCount(0, 'data');
+    }
+
     public function test_non_cancelled_ticket_cannot_be_acknowledged(): void
     {
         [$user, $order] = $this->setupOrder();
