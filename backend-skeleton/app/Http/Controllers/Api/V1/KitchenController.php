@@ -41,6 +41,18 @@ class KitchenController extends Controller
             ], 422);
         }
 
+        $kitchenEnabled = (bool) \App\Models\Branch::query()
+            ->whereKey($branchId)
+            ->value('use_kitchen_display');
+
+        if (! $kitchenEnabled) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'kitchen_enabled' => false,
+            ]);
+        }
+
         $tickets = KitchenTicket::query()
             ->with([
                 'order:id,branch_id,user_id,customer_id,table_id,order_type,status,total,created_at',
@@ -218,7 +230,7 @@ class KitchenController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
-        if ($ticket->order->status !== 'cancelled') {
+        if ($ticket->status !== 'cancelled' && $ticket->order->status !== 'cancelled') {
             return response()->json([
                 'success' => false,
                 'message' => 'Only cancelled kitchen tickets can be acknowledged.',
