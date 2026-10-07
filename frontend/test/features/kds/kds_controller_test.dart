@@ -125,6 +125,27 @@ void main() {
     expect(container.read(kdsControllerProvider).tickets.single.status, 'ready');
   });
 
+  test('branch switch during acknowledgement keeps new branch tickets', () async {
+    when(() => repository.getTickets(branchId: 74))
+        .thenAnswer((_) async => [makeTicket(status: 'cancelled')]);
+    await controller.loadTickets(branchId: 74);
+
+    final pendingAcknowledgement = Completer<void>();
+    when(() => repository.acknowledgeCancellation(ticketId: 12))
+        .thenAnswer((_) => pendingAcknowledgement.future);
+    when(() => repository.getTickets(branchId: 75))
+        .thenAnswer((_) async => [makeTicket(status: 'ready')]);
+
+    final pending = controller.acknowledgeCancellation(ticketId: 12);
+    await controller.loadTickets(branchId: 75);
+    pendingAcknowledgement.complete();
+    await pending;
+
+    final state = container.read(kdsControllerProvider);
+    expect(state.tickets.single.status, 'ready');
+    expect(state.updatingTicketId, isNull);
+  });
+
   test('refresh failure preserves visible tickets and reports error', () async {
     await controller.loadTickets(branchId: 74);
     when(() => repository.getTickets(branchId: 74))
