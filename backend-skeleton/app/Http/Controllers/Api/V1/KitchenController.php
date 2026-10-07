@@ -59,7 +59,8 @@ class KitchenController extends Controller
                     WHEN 'preparing' THEN 2
                     WHEN 'ready' THEN 3
                     WHEN 'completed' THEN 4
-                    ELSE 5
+                    WHEN 'cancelled' THEN 5
+                    ELSE 6
                 END
             ")
             ->orderBy('created_at')
@@ -138,6 +139,15 @@ class KitchenController extends Controller
                 'success' => false,
                 'message' => 'You do not have access to this branch.',
             ], 403);
+        }
+
+        // A cancelled ticket is immutable. Also reject status updates if the
+        // parent order was cancelled after the kitchen screen loaded.
+        if ($ticket->status === 'cancelled' || $order?->status === 'cancelled') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This order was cancelled. Kitchen preparation cannot continue.',
+            ], 409);
         }
 
         $status = $request->input('status');
