@@ -307,15 +307,22 @@ class OrderController extends Controller
                     'completed_at' => now(),
                 ]);
 
-                $ticket = KitchenTicket::create([
-                    'order_id' => $order->id,
-                    'status' => 'new',
-                    'sent_at' => now(),
-                ]);
+                $useKitchenDisplay = (bool) \App\Models\Branch::query()
+                    ->whereKey($branchId)
+                    ->value('use_kitchen_display');
+                $ticket = $useKitchenDisplay
+                    ? KitchenTicket::create([
+                        'order_id' => $order->id,
+                        'status' => 'new',
+                        'sent_at' => now(),
+                    ])
+                    : null;
 
                 foreach ($resolvedItems as $item) {
                     $orderItem = OrderItem::create(array_merge($item, ['order_id' => $order->id]));
-                    $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                    if ($ticket) {
+                        $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                    }
                 }
 
                 app(SaleInventoryService::class)->deductForOrder(
@@ -528,6 +535,7 @@ class OrderController extends Controller
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
+            'void_reason' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -654,15 +662,22 @@ class OrderController extends Controller
                     'held_at' => now(),
                 ]);
 
-                $ticket = KitchenTicket::create([
-                    'order_id' => $order->id,
-                    'status' => 'new',
-                    'sent_at' => now(),
-                ]);
+                $useKitchenDisplay = (bool) \App\Models\Branch::query()
+                    ->whereKey($order->branch_id)
+                    ->value('use_kitchen_display');
+                $ticket = $useKitchenDisplay
+                    ? KitchenTicket::create([
+                        'order_id' => $order->id,
+                        'status' => 'new',
+                        'sent_at' => now(),
+                    ])
+                    : null;
 
                 foreach ($resolvedItems as $item) {
                     $orderItem = OrderItem::create(array_merge($item, ['order_id' => $order->id]));
-                    $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                    if ($ticket) {
+                        $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                    }
                 }
 
                 $table->update([
@@ -862,8 +877,13 @@ class OrderController extends Controller
         $discountTotal = round((float) $request->input('discount_total', 0), 2);
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
-                // The client sends the complete bill. Only newly added
-                // quantities may be submitted to the kitchen.
+                $useKitchenDisplay = (bool) \App\Models\Branch::query()
+                    ->whereKey($order->branch_id)
+                    ->value('use_kitchen_display');
+
+                // The client sends the complete active bill. Kitchen history
+                // remains immutable in ticket pivots even when an active line
+                // is later reduced or voided.
                 $existingItems = $order->items()->lockForUpdate()->get();
                 $keyFor = static fn ($productId, $variantId) => $productId . ':' . ($variantId ?? 'none');
                 $existingQuantities = [];
@@ -882,9 +902,58 @@ class OrderController extends Controller
                     $submitted[$key]['quantity'] += $item['quantity'];
                 }
 
+                $reductions = [];
                 foreach ($existingQuantities as $key => $quantity) {
-                    if (($submitted[$key]['quantity'] ?? 0) < $quantity) {
-                        abort(422, 'Products already sent to the kitchen cannot be removed or reduced.');
+                    $requestedQuantity = $submitted[$key]['quantity'] ?? 0;
+                    if ($requestedQuantity < $quantity) {
+                        $reductions[$key] = $quantity - $requestedQuantity;
+                    }
+                }
+
+                $voidReason = trim((string) $request->input('void_reason', ''));
+                if ($useKitchenDisplay && $reductions !== []) {
+                    if (! $user->can('orders.cancel')) {
+                        abort(403, 'Voiding items already sent to the kitchen requires order cancellation permission.');
+                    }
+                    if ($voidReason === '') {
+                        abort(422, 'A void reason is required when reducing items already sent to the kitchen.');
+                    }
+                }
+
+                $cancelledItems = [];
+                if ($reductions !== []) {
+                    foreach ($reductions as $key => $quantityToReduce) {
+                        $remaining = $quantityToReduce;
+                        foreach ($existingItems->sortByDesc('id') as $existing) {
+                            if ($remaining <= 0) {
+                                break;
+                            }
+                            if ($keyFor($existing->product_id, $existing->product_variant_id) !== $key
+                                || (int) $existing->quantity <= 0) {
+                                continue;
+                            }
+
+                            $reduced = min($remaining, (int) $existing->quantity);
+                            $existing->update(['quantity' => (int) $existing->quantity - $reduced]);
+                            $cancelledItems[] = ['item' => $existing, 'quantity' => $reduced];
+                            $remaining -= $reduced;
+                        }
+                    }
+                }
+
+                if ($useKitchenDisplay && $cancelledItems !== []) {
+                    $cancelTicket = KitchenTicket::create([
+                        'order_id' => $order->id,
+                        'status' => 'cancelled',
+                        'sent_at' => now(),
+                        'cancellation_reason' => $voidReason,
+                        'cancelled_by' => $user->id,
+                    ]);
+                    foreach ($cancelledItems as $cancelled) {
+                        $cancelTicket->items()->attach(
+                            $cancelled['item']->id,
+                            ['quantity' => $cancelled['quantity']]
+                        );
                     }
                 }
 
@@ -897,7 +966,8 @@ class OrderController extends Controller
                     }
                 }
 
-                // Preserve historical unit prices for previously sent items.
+                // Preserve historical prices for retained quantities; only new
+                // quantities use today's resolved price.
                 $subtotal = (float) $existingItems->sum(
                     fn ($item) => (float) $item->unit_price * (int) $item->quantity
                 );
@@ -925,16 +995,20 @@ class OrderController extends Controller
                 ]);
 
                 if ($additions !== []) {
-                    $ticket = KitchenTicket::create([
-                        'order_id' => $order->id,
-                        'status' => 'new',
-                        'sent_at' => now(),
-                    ]);
+                    $ticket = $useKitchenDisplay
+                        ? KitchenTicket::create([
+                            'order_id' => $order->id,
+                            'status' => 'new',
+                            'sent_at' => now(),
+                        ])
+                        : null;
                     foreach ($additions as $item) {
                         $orderItem = OrderItem::create(array_merge($item, [
                             'order_id' => $order->id,
                         ]));
-                        $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                        if ($ticket) {
+                            $ticket->items()->attach($orderItem->id, ['quantity' => $orderItem->quantity]);
+                        }
                     }
                 }
 
@@ -1831,7 +1905,7 @@ class OrderController extends Controller
                 // Defensive against a soft-deleted/missing product or
                 // variant on a historical order ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â never lets a null
                 // relationship crash this response.
-                'items' => $order->items->map(fn (OrderItem $item) => [
+                'items' => $order->items->where('quantity', '>', 0)->map(fn (OrderItem $item) => [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
                     'product_variant_id' => $item->product_variant_id,
