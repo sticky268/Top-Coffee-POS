@@ -1,5 +1,11 @@
 # Production release and recovery
 
+## Current laptop acceptance
+
+Code candidate `f049472` passed 302 backend tests, 235 Flutter tests, analysis, Android debug build and both GitHub CI jobs. Network printing to the physical XP-N160II was verified through the Android emulator and confirmed on paper. Native offline save/force-stop/session recovery, cashier/branch isolation and one replay passed using a simulated API with no real sales. The local MySQL backup/restore rehearsal compared all 49 tables and 986 rows, passed staging migrations, and confirmed the source was unchanged. The isolated staging database and private backup were retained.
+
+Production hosting is deferred; these local results do not certify a future hosting environment, signing identity or physical cashier device. Do not include real database backups, credentials or signing material in Git. Use `--no-uninstall` for native integration runs intended to preserve application data.
+
 ## Before building
 
 Choose the backend host, public HTTPS API URL, permanent Android application ID and release signing key. Keep `android/key.properties`, keystores and all server credentials outside Git. Do not publish a debug-signed app. Changing the application ID after cashier devices contain pending orders creates a different application with different local storage; reconcile those requests first.
