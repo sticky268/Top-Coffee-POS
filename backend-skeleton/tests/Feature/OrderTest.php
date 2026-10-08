@@ -17,8 +17,10 @@ use App\Models\ProductVariant;
 use App\Models\RecipeItem;
 use App\Models\RestaurantTable;
 use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -2534,6 +2536,8 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
+        Permission::firstOrCreate(['name' => 'orders.view', 'guard_name' => 'web']);
+        $user->givePermissionTo('orders.view');
         $category = Category::create(['name' => 'Coffee', 'branch_id' => null]);
         $product = Product::create([
             'category_id' => $category->id,
@@ -2577,6 +2581,14 @@ class OrderTest extends TestCase
             'items' => [['product_id' => $product->id, 'quantity' => 2]],
         ])->assertOk()->assertJsonPath('data.total', 7);
 
+        // Reopening must load the saved quantities and authoritative total.
+        $this->getJson("/api/v1/orders/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'held')
+            ->assertJsonPath('data.items.0.quantity', 2)
+            ->assertJsonPath('data.items.0.line_total', 7)
+            ->assertJsonPath('data.total', 7);
+
         $this->assertDatabaseHas('orders', [
             'id' => $orderId,
             'customer_id' => $customer->id,
@@ -2584,7 +2596,20 @@ class OrderTest extends TestCase
         $this->postJson("/api/v1/orders/{$orderId}/pay", [
             'expected_total' => 7,
             'payment' => ['method' => 'cash', 'tendered' => 10],
-        ])->assertOk()->assertJsonPath('data.payment.amount', 7);
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.payment.amount', 7)
+            ->assertJsonPath('data.payment.tendered', 10)
+            ->assertJsonPath('data.payment.change_due', 3);
+
+        // Receipt data comes from the completed order, including saved edits.
+        $this->getJson("/api/v1/orders/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.items.0.quantity', 2)
+            ->assertJsonPath('data.total', 7)
+            ->assertJsonPath('data.payment.amount', 7)
+            ->assertJsonPath('data.payment.change_due', 3);
 
         $this->assertSame(80.0, (float) $ingredient->fresh()->current_stock);
         $this->assertSame('available', $table->fresh()->status);
@@ -2611,6 +2636,78 @@ class OrderTest extends TestCase
         ]);
         $this->assertSame(100.0, (float) $ingredient->fresh()->current_stock);
         $this->assertSame('occupied', $table->fresh()->status);
+    }
+
+    public function test_kitchen_cleanup_preserves_existing_orders_items_payments_and_stock(): void
+    {
+        [$orderId] = $this->makeHeldBillForPaymentReview();
+        $this->postJson("/api/v1/orders/{$orderId}/pay", [
+            'expected_total' => 3.50,
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertOk();
+
+        // Recreate populated legacy tables with their foreign-key dependencies.
+        Schema::table('branches', function (Blueprint $table) {
+            $table->boolean('use_kitchen_display')->default(true);
+        });
+        Schema::create('kitchen_tickets', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+        });
+        Schema::create('kitchen_ticket_items', function (Blueprint $table) {
+            $table->foreignId('kitchen_ticket_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_item_id')->constrained()->cascadeOnDelete();
+        });
+        Schema::create('kitchen_item_voids', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('kitchen_ticket_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_item_id')->constrained()->cascadeOnDelete();
+        });
+        $order = Order::findOrFail($orderId);
+        $ticketId = DB::table('kitchen_tickets')->insertGetId([
+            'order_id' => $orderId,
+            'branch_id' => $order->branch_id,
+        ]);
+        $association = [
+            'kitchen_ticket_id' => $ticketId,
+            'order_item_id' => $order->items()->firstOrFail()->id,
+        ];
+        DB::table('kitchen_ticket_items')->insert($association);
+        DB::table('kitchen_item_voids')->insert($association);
+
+        $before = [];
+        foreach (['orders', 'order_items', 'payments', 'stock_movements', 'ingredients', 'restaurant_tables'] as $name) {
+            $before[$name] = DB::table($name)->orderBy('id')->get()->toJson();
+        }
+        $migration = require database_path('migrations/2026_10_07_000003_remove_kitchen_display_feature.php');
+        $migration->up();
+        $migration->up(); // Cleanup is safe to rerun after the old schema is gone.
+
+        foreach (['kitchen_item_voids', 'kitchen_ticket_items', 'kitchen_tickets'] as $name) {
+            $this->assertFalse(Schema::hasTable($name));
+        }
+        $this->assertFalse(Schema::hasColumn('branches', 'use_kitchen_display'));
+        foreach ($before as $name => $rows) {
+            $this->assertSame($rows, DB::table($name)->orderBy('id')->get()->toJson(), $name);
+        }
+        $this->getJson("/api/v1/orders/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.total', 3.5)
+            ->assertJsonPath('data.payment.change_due', 1.5);
+    }
+
+    public function test_kitchen_cleanup_is_safe_on_fresh_database(): void
+    {
+        $migration = require database_path('migrations/2026_10_07_000003_remove_kitchen_display_feature.php');
+        $migration->up();
+        foreach (['kitchen_item_voids', 'kitchen_ticket_items', 'kitchen_tickets'] as $name) {
+            $this->assertFalse(Schema::hasTable($name));
+        }
+        $this->assertFalse(Schema::hasColumn('branches', 'use_kitchen_display'));
+        $this->assertTrue(Schema::hasTable('orders'));
+        $this->assertTrue(Schema::hasTable('payments'));
     }
 
     public function test_held_payment_rejects_invalid_expected_total(): void
