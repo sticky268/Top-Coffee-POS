@@ -135,7 +135,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $latte = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $latte->branches()->attach($branch->id, ['is_available' => true, 'price_override' => 3.00]);
@@ -197,7 +197,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -237,10 +237,10 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Test Customer',
             'phone' => '012345678',
@@ -265,10 +265,10 @@ class OrderTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'Downtown', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Customer',
             'phone' => '012345679',
@@ -290,7 +290,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
 
@@ -311,7 +311,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
 
@@ -330,7 +330,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create([
             'category_id' => $category->id,
@@ -395,7 +395,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create([
             'category_id' => $category->id,
@@ -438,7 +438,7 @@ class OrderTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $validProduct = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
         $validProduct->branches()->attach($branch->id, ['is_available' => true]);
@@ -499,7 +499,7 @@ class OrderTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
 
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -530,7 +530,7 @@ class OrderTest extends TestCase
             'code' => 'PP-02',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -570,7 +570,7 @@ class OrderTest extends TestCase
             'code' => 'PP-02',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -604,7 +604,7 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -638,7 +638,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -753,7 +753,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -854,7 +854,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -998,7 +998,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1115,7 +1115,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1242,7 +1242,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1337,7 +1337,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1452,7 +1452,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1533,7 +1533,7 @@ class OrderTest extends TestCase
             100,
         );
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1693,7 +1693,7 @@ class OrderTest extends TestCase
             100,
         );
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1827,7 +1827,7 @@ class OrderTest extends TestCase
             100,
         );
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1922,7 +1922,7 @@ class OrderTest extends TestCase
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $khmerProduct = Product::create([
             'category_id' => $category->id,
             'name' => 'Khmer Coffee',
@@ -1999,7 +1999,7 @@ class OrderTest extends TestCase
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2067,7 +2067,7 @@ class OrderTest extends TestCase
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2135,7 +2135,7 @@ class OrderTest extends TestCase
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2226,7 +2226,7 @@ class OrderTest extends TestCase
         $manager->assignRole('manager');
         $manager->branches()->attach($managerBranch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2300,7 +2300,7 @@ class OrderTest extends TestCase
 
         $user->givePermissionTo('orders.view');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2375,7 +2375,7 @@ class OrderTest extends TestCase
 
         $user->givePermissionTo('loyalty.manage');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2390,7 +2390,7 @@ class OrderTest extends TestCase
             'is_available' => true,
         ]);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Loyalty Customer',
             'phone' => '012345678',
@@ -2447,7 +2447,7 @@ class OrderTest extends TestCase
 
         $user->givePermissionTo('loyalty.manage');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2470,7 +2470,7 @@ class OrderTest extends TestCase
             'is_active' => true,
         ]);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Held Loyalty Customer',
             'phone' => '012345679',
@@ -2539,7 +2539,7 @@ class OrderTest extends TestCase
         $user = $this->makeCashier($branch);
         Permission::firstOrCreate(['name' => 'orders.view', 'guard_name' => 'web']);
         $user->givePermissionTo('orders.view');
-        $category = Category::create(['name' => 'Coffee', 'branch_id' => null]);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'name' => 'Coffee', 'branch_id' => null]);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2553,7 +2553,7 @@ class OrderTest extends TestCase
             'status' => 'available',
             'is_active' => true,
         ]);
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Regular Customer',
         ]);
@@ -2785,7 +2785,7 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2827,7 +2827,7 @@ class OrderTest extends TestCase
             'capacity' => 4,
             'status' => 'available',
         ]);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2862,7 +2862,7 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2894,7 +2894,7 @@ class OrderTest extends TestCase
         ]);
         $firstCashier = $this->makeCashier($branch);
         $secondCashier = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',

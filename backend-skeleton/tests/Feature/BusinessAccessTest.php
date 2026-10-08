@@ -48,7 +48,7 @@ class BusinessAccessTest extends TestCase
         $otherOrder = Order::create(['uuid' => (string)Str::uuid(), 'branch_id' => $foreign->id,
             'user_id' => $otherUser->id, 'order_type' => 'takeaway', 'status' => 'completed',
             'subtotal' => 10, 'total' => 10]);
-        $category = \App\Models\Category::create(['name'=>'Foreign fixture','branch_id'=>null]);
+        $category = \App\Models\Category::forceCreate(['business_id'=>$foreign->business_id,'name'=>'Foreign fixture','branch_id'=>null]);
         $product = \App\Models\Product::create(['category_id'=>$category->id,'name'=>'Foreign fixture','base_price'=>10]);
         $product->branches()->attach($foreign->id,['is_available'=>true]);
         \App\Models\OrderItem::create(['order_id'=>$otherOrder->id,'product_id'=>$product->id,
@@ -59,14 +59,14 @@ class BusinessAccessTest extends TestCase
         $this->getJson('/api/v1/orders/'.$otherOrder->id)->assertNotFound();
         $this->patchJson('/api/v1/orders/'.$otherOrder->id, [
             'items' => [['product_id' => $product->id, 'quantity' => 1]],
-        ])->assertNotFound();
+        ])->assertForbidden();
         $this->assertDatabaseHas('orders', ['id'=>$otherOrder->id,'total'=>10]);
     }
 
     public function test_admin_cannot_assign_product_availability_to_a_foreign_business(): void
     {
         [$admin, $own, $foreign] = $this->fixtures();
-        $category = \App\Models\Category::create(['name' => 'Shared category', 'branch_id' => null]);
+        $category = \App\Models\Category::forceCreate(['business_id' => $admin->business_id, 'name' => 'Shared category', 'branch_id' => null]);
         $payload = ['name' => 'New product', 'category_id' => $category->id, 'base_price' => 10,
             'branches' => [['branch_id' => $foreign->id, 'is_available' => true]]];
         $this->actingAs($admin)->postJson('/api/v1/products', $payload)->assertForbidden();

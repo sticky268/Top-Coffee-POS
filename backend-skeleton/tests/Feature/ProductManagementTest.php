@@ -75,7 +75,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $response = $this->actingAs($manager)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -94,7 +94,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $this->actingAs($manager)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -109,7 +109,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $create = $this->actingAs($manager)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -129,7 +129,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $cashier = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $response = $this->actingAs($cashier)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -161,7 +161,7 @@ class ProductManagementTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $response = $this->actingAs($manager)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -184,7 +184,7 @@ class ProductManagementTest extends TestCase
         $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $response = $this->actingAs($admin)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -202,7 +202,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $response = $this->actingAs($manager)->postJson('/api/v1/products', [
             'name' => 'Iced Latte',
@@ -231,7 +231,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
 
         $response = $this->actingAs($manager)->patchJson("/api/v1/products/{$product->id}", [
@@ -248,7 +248,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $cashier = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
 
         $response = $this->actingAs($cashier)->patchJson("/api/v1/products/{$product->id}", [
@@ -263,7 +263,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
 
@@ -286,7 +286,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $existingVariant = ProductVariant::create([
             'product_id' => $product->id, 'name' => 'Small', 'price_delta' => -0.25,
@@ -310,7 +310,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $variant = ProductVariant::create(['product_id' => $product->id, 'name' => 'Large', 'price_delta' => 0.75]);
 
@@ -334,7 +334,7 @@ class ProductManagementTest extends TestCase
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
         $product->branches()->attach($otherBranch->id, ['is_available' => true]);
@@ -359,7 +359,7 @@ class ProductManagementTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
 
         $response = $this->actingAs($manager)->patchJson("/api/v1/products/{$product->id}", [
@@ -385,7 +385,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id, 'name' => 'Latte', 'sku' => 'COF-LATTE', 'base_price' => 3.50,
         ]);
@@ -406,7 +406,7 @@ class ProductManagementTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $manager = $this->makeManager($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true, 'price_override' => 3.00]);
 

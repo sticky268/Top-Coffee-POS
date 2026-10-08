@@ -195,7 +195,7 @@ class ReportsTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -362,8 +362,8 @@ class ReportsTest extends TestCase
             'status' => 'completed', 'processed_by' => $admin->id]);
         Payment::create(['order_id' => $foreignOrder->id, 'method' => 'card', 'amount' => 90,
             'status' => 'completed', 'processed_by' => $otherUser->id]);
-        $category = Category::create(['name' => 'Audit fixture', 'branch_id' => null]);
         foreach ([[$ownOrder, 'Own product', 10], [$foreignOrder, 'Foreign product', 90]] as [$order, $name, $price]) {
+            $category = Category::forceCreate(['business_id' => $order->branch->business_id, 'name' => 'Audit fixture', 'branch_id' => null]);
             $product = $this->makeProduct($category, $name, $price);
             OrderItem::create(['order_id' => $order->id, 'product_id' => $product->id,
                 'product_name' => $name, 'quantity' => 1, 'unit_price' => $price, 'line_total' => $price]);

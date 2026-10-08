@@ -160,7 +160,8 @@ class SubscriptionEnforcementTest extends TestCase
             'is_primary' => true,
         ]);
 
-        $category = Category::create([
+        $category = Category::forceCreate([
+            'business_id' => $business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);

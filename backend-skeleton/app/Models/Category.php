@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Category extends Model
 {
+    use \App\Traits\BusinessOwned;
+
     use SoftDeletes;
 
     protected $fillable = ['branch_id', 'name', 'sort_order', 'is_active'];

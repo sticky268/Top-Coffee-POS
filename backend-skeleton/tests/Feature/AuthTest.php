@@ -17,7 +17,7 @@ class AuthTest extends TestCase
         Role::firstOrCreate(['name' => 'cashier', 'guard_name' => 'web']);
 
         $branch = Branch::factory()->create();
-        $user = User::factory()->create(['password' => bcrypt('password'), 'is_active' => true]);
+        $user = User::factory()->create(['business_id' => $branch->business_id, 'password' => bcrypt('password'), 'is_active' => true]);
         $user->assignRole('cashier');
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 

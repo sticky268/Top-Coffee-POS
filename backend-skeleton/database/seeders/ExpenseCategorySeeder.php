@@ -19,10 +19,12 @@ class ExpenseCategorySeeder extends Seeder
             'Other',
         ];
 
+        $business = \App\Models\Business::where('slug', 'top-coffee-demo')->firstOrFail();
         foreach ($categories as $name) {
-            ExpenseCategory::firstOrCreate([
+            ExpenseCategory::unguarded(fn () => ExpenseCategory::firstOrCreate([
+                'business_id' => $business->id,
                 'name' => $name,
-            ]);
+            ]));
         }
     }
 }

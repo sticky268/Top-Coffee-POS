@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model
 {
+    use \App\Traits\BusinessOwned;
+
     use SoftDeletes;
 
     protected $fillable = ['branch_id', 'name', 'phone', 'email', 'notes'];

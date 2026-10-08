@@ -66,7 +66,7 @@ class OrderListingTest extends TestCase
 
     private function createOrder(Branch $branch, User $cashier, array $overrides = []): Order
     {
-        $category = Category::firstOrCreate(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::unguarded(fn () => Category::firstOrCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']));
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
 
         $order = Order::create(array_merge([

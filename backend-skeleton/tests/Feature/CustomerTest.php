@@ -91,17 +91,17 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Customer',
         ]);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Own Branch Customer',
         ]);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Customer',
         ]);
@@ -127,7 +127,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Branch Customer',
         ]);
@@ -186,7 +186,7 @@ class CustomerTest extends TestCase
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Customer',
         ]);
@@ -248,14 +248,14 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Dara Coffee',
             'phone' => '012345678',
             'email' => 'dara@example.com',
         ]);
 
-        Customer::create([
+        Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Sokha Tea',
             'phone' => '098765432',
@@ -334,7 +334,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Old Name',
             'phone' => '012345678',
@@ -367,7 +367,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Protected Customer',
         ]);
@@ -393,7 +393,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Customer',
         ]);
@@ -420,7 +420,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Dara Coffee',
             'phone' => '012345678',
@@ -444,7 +444,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Customer',
         ]);
@@ -463,7 +463,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Customer To Delete',
         ]);
@@ -488,7 +488,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Protected Customer',
         ]);
@@ -513,7 +513,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Customer',
         ]);
@@ -538,7 +538,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Dara Coffee',
         ]);
@@ -569,7 +569,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Dara Coffee',
         ]);
@@ -614,12 +614,12 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Dara Coffee',
         ]);
 
-        $otherCustomer = Customer::create([
+        $otherCustomer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Sokha Tea',
         ]);
@@ -657,7 +657,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Customer',
         ]);
@@ -676,7 +676,7 @@ class CustomerTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Dara Coffee',
         ]);
@@ -715,7 +715,7 @@ class CustomerTest extends TestCase
 
         $user->givePermissionTo('loyalty.manage');
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Loyalty Customer',
             'phone' => '012345678',
@@ -767,7 +767,7 @@ class CustomerTest extends TestCase
 
         $user->givePermissionTo('loyalty.manage');
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Loyalty Customer',
             'phone' => '012345679',
