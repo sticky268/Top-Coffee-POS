@@ -351,6 +351,18 @@ class OrderController extends Controller
 
         app(AuditLogService::class)->record(
             $request,
+            'order.created',
+            $order,
+            null,
+            [
+                'status' => $order->status,
+                'branch_id' => $order->branch_id,
+                'total' => (float) $order->total,
+            ],
+        );
+
+        app(AuditLogService::class)->record(
+            $request,
             'order.paid',
             $order,
             [
