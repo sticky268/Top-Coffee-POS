@@ -30,7 +30,7 @@ class TableBranchIsolationTest extends TestCase
             'code' => 'TBB',
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $business->id]);
         $user->givePermissionTo('tables.manage');
         $user->branches()->attach($branchA->id, ['is_primary' => true]);
         $user->branches()->attach($branchB->id, ['is_primary' => false]);

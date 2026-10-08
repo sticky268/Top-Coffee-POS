@@ -43,7 +43,7 @@ class ExpenseTest extends TestCase
             'guard_name' => 'web',
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 

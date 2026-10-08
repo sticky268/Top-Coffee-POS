@@ -70,7 +70,7 @@ class CustomerTest extends TestCase
             'guard_name' => 'web',
         ])->syncPermissions(['customers.manage']);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -182,7 +182,7 @@ class CustomerTest extends TestCase
             'branches.view-all',
         ]);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -217,7 +217,7 @@ class CustomerTest extends TestCase
             'guard_name' => 'web',
         ])->syncPermissions(['customers.manage']);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $this->business->id]);
         $user->assignRole('cashier');
 
         $response = $this->actingAs($user)

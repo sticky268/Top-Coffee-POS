@@ -30,7 +30,7 @@ class ProductTest extends TestCase
     {
         Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -183,7 +183,7 @@ class ProductTest extends TestCase
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(['branches.view-all']);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 

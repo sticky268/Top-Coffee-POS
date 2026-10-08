@@ -47,7 +47,7 @@ class ProductManagementTest extends TestCase
     private function makeManager(Branch $branch): User
     {
         $this->seedPermissions();
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('manager');
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -57,7 +57,7 @@ class ProductManagementTest extends TestCase
     private function makeCashier(Branch $branch): User
     {
         $this->seedPermissions();
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -181,7 +181,7 @@ class ProductManagementTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $this->seedPermissions();
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
         $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
@@ -330,7 +330,7 @@ class ProductManagementTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $this->seedPermissions();
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 

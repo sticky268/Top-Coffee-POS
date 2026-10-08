@@ -65,7 +65,7 @@ class IngredientManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('manager');
 
         $user->branches()->attach($branch->id, [
@@ -79,7 +79,7 @@ class IngredientManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
 
         $user->branches()->attach($branch->id, [

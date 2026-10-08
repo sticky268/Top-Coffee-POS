@@ -31,4 +31,10 @@ The laptop acceptance batch uses code candidate `f04947266a72b374a7d9fd6338045ce
 
 The initial integration harness omitted Flutter's `--no-uninstall` flag and reset emulator-local app data between runs. It was corrected, and the subsequent save/recovery run passed both phases and normal-app restoration. Backend sales were not altered by the fixture tests. Future native acceptance runs must preserve app data or use a separately identified test installation.
 
+## Business review follow-up
+
+The follow-up backend suite passed 311 tests / 1,355 assertions. Regression coverage now checks completed-payment report breakdowns, dashboard branch order numbers/split payments, archived-branch sales history, business isolation for administrators and branch-scoped models, nested product availability selectors, corrupt staff assignments, and inactive-account token reuse. Existing test fixtures explicitly associate staff with their branch's business.
+
+A read-only audit of the retained laptop MySQL staging copy completed. Report/dashboard totals matched independent queries; stock ledgers and staff/order branch consistency checks passed. Four historical orders require payment reconciliation, and two legacy kitchen-only staff accounts require an owner policy decision. The audit did not rewrite sales, payments, stock, roles or working data. Detailed business records are retained locally rather than committed to the repository. These findings remain launch acceptance items.
+
 Store test output and migration/printer rehearsal records with the release. Update this table with actual results rather than marking all phases complete from implementation alone. Production credentials, signing keys, permission to merge/deploy, and physical-device results are separate release requirements.

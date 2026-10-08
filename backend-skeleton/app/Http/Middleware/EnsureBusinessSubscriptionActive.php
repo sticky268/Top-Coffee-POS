@@ -13,6 +13,27 @@ class EnsureBusinessSubscriptionActive
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $user = $request->user();
+        if ($user && ! $user->is_active) {
+            return response()->json(['success' => false, 'message' => 'This account is inactive.'], 401);
+        }
+        if ($user) {
+            // Fail closed on corrupted cross-business staff assignments.
+            if ($user->branches()->where('business_id', '!=', $user->business_id)->exists()) {
+                return response()->json(['success' => false, 'message' => 'Your branch assignments require administrator review.'], 403);
+            }
+            $selectedBranches = [];
+            foreach (\Illuminate\Support\Arr::dot($request->all()) as $key => $selected) {
+                if (preg_match('/(^|\.)branch_id$|(^|\.)branch_ids\.\d+$/', $key)
+                    && is_scalar($selected) && filter_var($selected, FILTER_VALIDATE_INT) > 0) {
+                    $selectedBranches[] = (int)$selected;
+                }
+            }
+            if ($selectedBranches && \App\Models\Branch::withTrashed()->whereIn('id', $selectedBranches)
+                ->where('business_id', '!=', $user->business_id)->exists()) {
+                return response()->json(['success' => false, 'message' => 'You do not have access to that branch.'], 403);
+            }
+        }
         if (! $request->isMethodSafe()) {
             $business = $request->user()?->business;
 

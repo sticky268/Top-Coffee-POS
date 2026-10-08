@@ -58,7 +58,7 @@ class OrderTest extends TestCase
     private function makeCashier(Branch $branch): User
     {
         $this->seedPermissions();
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -118,7 +118,7 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager'); // no orders.create permission
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1513,7 +1513,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1666,7 +1666,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1807,7 +1807,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1918,7 +1918,7 @@ class OrderTest extends TestCase
         ]);
 
         $cashier = $this->makeCashier($branch);
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1995,7 +1995,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -2063,7 +2063,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -2131,7 +2131,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -2222,7 +2222,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($orderBranch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($managerBranch->id, ['is_primary' => true]);
 

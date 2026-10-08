@@ -25,7 +25,7 @@ class CancelHeldOrderTest extends TestCase
             'name' => 'Cancellation Branch',
             'code' => 'CAN-01',
         ]);
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $business->id]);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
         $table = RestaurantTable::create([
             'branch_id' => $branch->id,

@@ -68,7 +68,7 @@ class PurchaseTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
 
         $user->branches()->attach($branch->id, [
