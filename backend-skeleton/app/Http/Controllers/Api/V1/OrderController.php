@@ -351,13 +351,25 @@ class OrderController extends Controller
 
         app(AuditLogService::class)->record(
             $request,
-            'order.created',
+            'order.paid',
             $order,
-            null,
             [
-                'status' => $order->status,
+                'status' => 'held',
                 'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
                 'total' => (float) $order->total,
+            ],
+            [
+                'status' => 'completed',
+                'branch_id' => $order->branch_id,
+                'table_id' => $order->table_id,
+                'customer_id' => $order->customer_id,
+                'total' => (float) $order->total,
+                'payments' => $payments->map(fn (Payment $payment) => [
+                    'method' => $payment->method,
+                    'amount' => (float) $payment->amount,
+                ])->values()->all(),
             ],
         );
 
