@@ -21,6 +21,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -2708,6 +2709,61 @@ class OrderTest extends TestCase
         $this->assertFalse(Schema::hasColumn('branches', 'use_kitchen_display'));
         $this->assertTrue(Schema::hasTable('orders'));
         $this->assertTrue(Schema::hasTable('payments'));
+    }
+
+    public function test_pending_checkout_rejects_changed_prices_without_creating_sale(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $product->update(['base_price' => 4]);
+        $this->postJson('/api/v1/orders', [
+            'uuid' => (string) Str::uuid(),
+            'order_type' => 'takeaway',
+            'expected_total' => 3.50,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertSame(100.0, (float) $ingredient->fresh()->current_stock);
+    }
+
+    public function test_pending_checkout_replay_after_price_change_does_not_charge_twice(): void
+    {
+        [$orderId, $product] = $this->makeHeldBillForPaymentReview();
+        $payload = [
+            'uuid' => (string) Str::uuid(),
+            'order_type' => 'takeaway',
+            'expected_cashier_id' => auth()->id(),
+            'expected_total' => 3.50,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ];
+        $first = $this->postJson('/api/v1/orders', $payload)->assertCreated();
+        $product->update(['base_price' => 4]);
+        $retry = $this->postJson('/api/v1/orders', $payload)->assertCreated();
+        $this->assertSame($first->json('data.id'), $retry->json('data.id'));
+        $retry->assertJsonPath('data.total', 3.5);
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_pending_orders_cannot_be_submitted_as_a_different_cashier(): void
+    {
+        [$orderId, $product, $table] = $this->makeHeldBillForPaymentReview();
+        $payload = [
+            'uuid' => (string) Str::uuid(),
+            'expected_cashier_id' => auth()->id() + 1000,
+            'order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ];
+        $this->postJson('/api/v1/orders', $payload)->assertStatus(409);
+        $payload['order_type'] = 'dine_in';
+        $payload['table_id'] = $table->id;
+        unset($payload['payment']);
+        $this->postJson('/api/v1/orders/hold', $payload)->assertStatus(409);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 0);
     }
 
     public function test_held_payment_rejects_invalid_expected_total(): void

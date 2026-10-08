@@ -49,7 +49,9 @@ class UnknownApiException extends ApiException {
 class ApiExceptionMapper {
   static ApiException fromDioException(DioException e) {
     if (e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.connectionTimeout) {
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
       return const NetworkException();
     }
 

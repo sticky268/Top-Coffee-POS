@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/offline/order_outbox.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -46,7 +47,8 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     if (!mounted ||
         state is CheckoutSubmitting ||
         state is CheckoutSuccess ||
-        state is CheckoutHeld) {
+        state is CheckoutHeld ||
+        state is CheckoutQueued) {
       return;
     }
     final branchId = _ref.read(currentBranchProvider)?.id;
@@ -54,8 +56,15 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     final userId = authState is AuthAuthenticated ? authState.user.id : null;
     final requestKey = jsonEncode([
       userId,
-      'checkout', branchId, customerId, orderType, tableId, discountTotal,
-      paymentMethod, tendered, splitPayments,
+      'checkout',
+      branchId,
+      customerId,
+      orderType,
+      tableId,
+      discountTotal,
+      paymentMethod,
+      tendered,
+      splitPayments,
       for (final item in items)
         [item.product.id, item.variant?.id, item.quantity],
     ]);
@@ -78,6 +87,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       _pendingRequests.remove(requestKey);
       if (!mounted) return;
       state = CheckoutSuccess(confirmation);
+    } on QueuedOrderException catch (e) {
+      _pendingRequests.remove(requestKey);
+      if (mounted) state = CheckoutQueued(e.uuid);
     } catch (e) {
       if (!mounted) return;
       state =
@@ -96,7 +108,8 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     if (!mounted ||
         state is CheckoutSubmitting ||
         state is CheckoutSuccess ||
-        state is CheckoutHeld) {
+        state is CheckoutHeld ||
+        state is CheckoutQueued) {
       return;
     }
     final branchId = _ref.read(currentBranchProvider)?.id;
@@ -104,7 +117,12 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     final userId = authState is AuthAuthenticated ? authState.user.id : null;
     final requestKey = jsonEncode([
       userId,
-      'hold', branchId, customerId, orderType, tableId, discountTotal,
+      'hold',
+      branchId,
+      customerId,
+      orderType,
+      tableId,
+      discountTotal,
       for (final item in items)
         [item.product.id, item.variant?.id, item.quantity],
     ]);
@@ -125,6 +143,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       _pendingRequests.remove(requestKey);
       if (!mounted) return;
       state = CheckoutHeld(confirmation);
+    } on QueuedOrderException catch (e) {
+      _pendingRequests.remove(requestKey);
+      if (mounted) state = CheckoutQueued(e.uuid);
     } catch (e) {
       if (!mounted) return;
       state = CheckoutError(

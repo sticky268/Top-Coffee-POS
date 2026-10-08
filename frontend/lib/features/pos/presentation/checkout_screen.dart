@@ -37,8 +37,8 @@ class _SplitPaymentLine {
     this.method = 'cash',
     String amount = '',
     String tendered = '',
-  }) : amountController = TextEditingController(text: amount),
-       tenderedController = TextEditingController(text: tendered);
+  })  : amountController = TextEditingController(text: amount),
+        tenderedController = TextEditingController(text: tendered);
 
   String method;
   final TextEditingController amountController;
@@ -121,15 +121,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkoutState = ref.watch(checkoutControllerProvider);
     final currentBranch = ref.watch(currentBranchProvider);
     final authState = ref.watch(authControllerProvider);
-    final cashierName = authState is AuthAuthenticated
-        ? authState.user.name
-        : null;
-    final isCompleted =
-        checkoutState is CheckoutSuccess || checkoutState is CheckoutHeld;
+    final cashierName =
+        authState is AuthAuthenticated ? authState.user.name : null;
+    final isCompleted = checkoutState is CheckoutSuccess ||
+        checkoutState is CheckoutHeld ||
+        checkoutState is CheckoutQueued;
 
     // Clears the cart exactly once, via the existing CartController ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â not
     // duplicated clearing logic ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â the moment an order actually succeeds.
     ref.listen<CheckoutState>(checkoutControllerProvider, (previous, next) {
+      if (next is CheckoutQueued && previous is! CheckoutQueued) {
+        ref.read(cartControllerProvider.notifier).clear();
+        return;
+      }
       if (next is CheckoutSuccess && previous is! CheckoutSuccess) {
         ref.read(cartControllerProvider.notifier).clear();
         // Include newly completed orders in order history immediately.
@@ -164,75 +168,93 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Review Order')),
         body: switch (checkoutState) {
+          CheckoutQueued(:final uuid) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.cloud_upload_outlined, size: 48),
+                  const SizedBox(height: 16),
+                  const Text('Order saved on this device'),
+                  const SizedBox(height: 8),
+                  const Text(
+                      'Waiting for server confirmation. Check Pending Orders before collecting another payment for this sale.',
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  Text('Reference: $uuid', textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  pos_ui.PrimaryButton(
+                      onPressed: () => context.go('/pending-orders'),
+                      child: const Text('View Pending Orders')),
+                  pos_ui.SecondaryButton(
+                      onPressed: () => context.go('/pos'),
+                      child: const Text('New Order')),
+                ]),
+              ),
+            ),
           CheckoutSuccess(:final confirmation) => _CheckoutSuccessView(
-            confirmation: confirmation,
-          ),
+              confirmation: confirmation,
+            ),
           _ => _CheckoutForm(
-            cart: cart,
-            orderType: _orderType,
-            branchName: currentBranch?.name,
-            branchCode: currentBranch?.code,
-            cashierName: cashierName,
-            paymentMethod: _paymentMethod,
-            selectedTable: _selectedTable,
-            selectedCustomer: _selectedCustomer,
-            onCustomerChanged: (customer) =>
-                setState(() => _selectedCustomer = customer),
-            onCustomerTap: _openCustomerPicker,
-            splitPayments: _splitPayments,
-            onTableChanged: (table) => setState(() => _selectedTable = table),
-            onOrderTypeChanged: (type) {
-              setState(() {
-                _orderType = type;
+              cart: cart,
+              orderType: _orderType,
+              branchName: currentBranch?.name,
+              branchCode: currentBranch?.code,
+              cashierName: cashierName,
+              paymentMethod: _paymentMethod,
+              selectedTable: _selectedTable,
+              selectedCustomer: _selectedCustomer,
+              onCustomerChanged: (customer) =>
+                  setState(() => _selectedCustomer = customer),
+              onCustomerTap: _openCustomerPicker,
+              splitPayments: _splitPayments,
+              onTableChanged: (table) => setState(() => _selectedTable = table),
+              onOrderTypeChanged: (type) {
+                setState(() {
+                  _orderType = type;
 
-                if (type == 'takeaway') {
-                  _selectedTable = null;
-                }
-              });
-            },
-            onPaymentMethodChanged: (method) =>
-                setState(() => _paymentMethod = method),
-            tenderedController: _tenderedController,
-            tenderedAmount: _tenderedAmount,
-            canSaveOrder:
-                cart.items.isNotEmpty &&
-                _selectedTable != null &&
-                checkoutState is! CheckoutSubmitting,
-            onTenderedChanged: () => setState(() {}),
-            isSubmitting: checkoutState is CheckoutSubmitting,
-            errorMessage: checkoutState is CheckoutError
-                ? checkoutState.message
-                : null,
-            onConfirm: () {
-              ref
-                  .read(checkoutControllerProvider.notifier)
-                  .submit(
-                    items: cart.items,
-                    paymentMethod: _paymentMethod,
-                    orderType: _orderType,
-                    tableId: _selectedTable?.id,
-                    tendered: _paymentMethod == 'cash' ? _tenderedAmount : null,
-                    splitPayments: _paymentMethod == 'split'
-                        ? _splitPayments
+                  if (type == 'takeaway') {
+                    _selectedTable = null;
+                  }
+                });
+              },
+              onPaymentMethodChanged: (method) =>
+                  setState(() => _paymentMethod = method),
+              tenderedController: _tenderedController,
+              tenderedAmount: _tenderedAmount,
+              canSaveOrder: cart.items.isNotEmpty &&
+                  _selectedTable != null &&
+                  checkoutState is! CheckoutSubmitting,
+              onTenderedChanged: () => setState(() {}),
+              isSubmitting: checkoutState is CheckoutSubmitting,
+              errorMessage:
+                  checkoutState is CheckoutError ? checkoutState.message : null,
+              onConfirm: () {
+                ref.read(checkoutControllerProvider.notifier).submit(
+                      items: cart.items,
+                      paymentMethod: _paymentMethod,
+                      orderType: _orderType,
+                      tableId: _selectedTable?.id,
+                      tendered:
+                          _paymentMethod == 'cash' ? _tenderedAmount : null,
+                      splitPayments: _paymentMethod == 'split'
+                          ? _splitPayments
                               .map((payment) => payment.toJson())
                               .toList()
-                        : null,
-                    discountTotal: cart.discountTotal,
-                    customerId: _selectedCustomer?.id,
-                  );
-            },
-            onHold: () {
-              ref
-                  .read(checkoutControllerProvider.notifier)
-                  .hold(
-                    items: cart.items,
-                    orderType: 'dine_in',
-                    tableId: _selectedTable!.id,
-                    discountTotal: cart.discountTotal,
-                    customerId: _selectedCustomer?.id,
-                  );
-            },
-          ),
+                          : null,
+                      discountTotal: cart.discountTotal,
+                      customerId: _selectedCustomer?.id,
+                    );
+              },
+              onHold: () {
+                ref.read(checkoutControllerProvider.notifier).hold(
+                      items: cart.items,
+                      orderType: 'dine_in',
+                      tableId: _selectedTable!.id,
+                      discountTotal: cart.discountTotal,
+                      customerId: _selectedCustomer?.id,
+                    );
+              },
+            ),
         },
       ),
     );
@@ -301,8 +323,7 @@ class _CheckoutForm extends StatelessWidget {
           sum + (double.tryParse(payment.amountController.text) ?? 0),
     );
 
-    final splitValid =
-        splitPayments.length >= 2 &&
+    final splitValid = splitPayments.length >= 2 &&
         splitPayments.every((payment) {
           final amount = double.tryParse(payment.amountController.text) ?? 0;
           if (amount <= 0) return false;
@@ -316,15 +337,14 @@ class _CheckoutForm extends StatelessWidget {
         }) &&
         (splitTotal - cart.total).abs() < 0.01;
 
-    final canConfirm =
-        !isSubmitting &&
+    final canConfirm = !isSubmitting &&
         cart.items.isNotEmpty &&
         (orderType == 'takeaway' || selectedTable != null) &&
         (paymentMethod == 'split'
             ? splitValid
             : paymentMethod != 'cash' ||
-                  tenderedAmount == null ||
-                  tenderedAmount! >= cart.total);
+                tenderedAmount == null ||
+                tenderedAmount! >= cart.total);
 
     final customerBill = CustomerBill(
       orderType: orderType,
@@ -416,7 +436,6 @@ class _CheckoutForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-
           Text(
             'Customer',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -779,8 +798,7 @@ class _CheckoutForm extends StatelessWidget {
                                         labelText: 'Method',
                                         filled: true,
                                         fillColor: theme
-                                            .colorScheme
-                                            .surfaceContainerLowest,
+                                            .colorScheme.surfaceContainerLowest,
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(
                                             12,
@@ -837,8 +855,8 @@ class _CheckoutForm extends StatelessWidget {
                                 enabled: !isSubmitting,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
+                                  decimal: true,
+                                ),
                                 decoration: InputDecoration(
                                   labelText: 'Amount',
                                   prefixText: '\$ ',
@@ -860,15 +878,14 @@ class _CheckoutForm extends StatelessWidget {
                                   enabled: !isSubmitting,
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                      ),
+                                    decimal: true,
+                                  ),
                                   decoration: InputDecoration(
                                     labelText: 'Cash received',
                                     prefixText: '\$ ',
                                     filled: true,
                                     fillColor: theme
-                                        .colorScheme
-                                        .surfaceContainerLowest,
+                                        .colorScheme.surfaceContainerLowest,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -972,8 +989,8 @@ class _CheckoutForm extends StatelessWidget {
                             onPressed: isSubmitting
                                 ? null
                                 : () {
-                                    tenderedController.text = amount
-                                        .toStringAsFixed(2);
+                                    tenderedController.text =
+                                        amount.toStringAsFixed(2);
                                     onTenderedChanged();
                                   },
                             style: OutlinedButton.styleFrom(
@@ -1007,8 +1024,8 @@ class _CheckoutForm extends StatelessWidget {
                             change == null
                                 ? 'Change'
                                 : change >= 0
-                                ? 'Change'
-                                : 'Short by',
+                                    ? 'Change'
+                                    : 'Short by',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -1165,7 +1182,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1182,7 +1198,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 24),
-
                 Center(
                   child: Container(
                     width: 72,
@@ -1198,9 +1213,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Text(
                   'Payment Successful',
                   textAlign: TextAlign.center,
@@ -1208,9 +1221,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
                   'Order #${widget.confirmation.displayOrderNumber}',
                   textAlign: TextAlign.center,
@@ -1218,9 +1229,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-
                 const SizedBox(height: 32),
-
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -1251,9 +1260,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -1273,7 +1280,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                         ),
                       ),
                       const SizedBox(height: 14),
-
                       if (payments.length > 1) ...[
                         for (final payment in payments) ...[
                           Row(
@@ -1294,7 +1300,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                               ),
                             ],
                           ),
-
                           if (payment.method == 'cash' &&
                               payment.tendered != null) ...[
                             const SizedBox(height: 4),
@@ -1317,7 +1322,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                               ],
                             ),
                           ],
-
                           if (payment.changeDue != null &&
                               payment.changeDue! > 0) ...[
                             const SizedBox(height: 4),
@@ -1340,7 +1344,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                               ],
                             ),
                           ],
-
                           if (payment != payments.last)
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 14),
@@ -1368,7 +1371,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                             ),
                           ],
                         ),
-
                         if (widget.confirmation.tendered != null) ...[
                           const SizedBox(height: 8),
                           Row(
@@ -1388,7 +1390,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                             ],
                           ),
                         ],
-
                         if (widget.confirmation.changeDue != null &&
                             widget.confirmation.changeDue! > 0) ...[
                           const SizedBox(height: 8),
@@ -1415,15 +1416,11 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 ReceiptActionButtons(
                   orderId: widget.confirmation.orderId,
                 ),
-
                 const SizedBox(height: 16),
-
                 pos_ui.PosActionButton(
                   onPressed: () => context.go('/pos/select-table'),
                   style: FilledButton.styleFrom(
@@ -1437,9 +1434,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 pos_ui.SecondaryButton(
                   onPressed: () => context.go('/home'),
                   style: TextButton.styleFrom(
@@ -1447,7 +1442,6 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                   ),
                   child: const Text('Back to Dashboard'),
                 ),
-
                 const SizedBox(height: 16),
               ],
             ),
@@ -1672,7 +1666,6 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-
               TextField(
                 controller: _searchController,
                 textInputAction: TextInputAction.search,
@@ -1699,7 +1692,6 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               ),
               const SizedBox(height: 8),
               const SizedBox(height: 16),
-
               ListTile(
                 leading: CircleAvatar(
                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
@@ -1715,9 +1707,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                     : null,
                 onTap: () => Navigator.of(context).pop(),
               ),
-
               const SizedBox(height: 8),
-
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -1726,56 +1716,56 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
-
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _customers.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No customers found.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: _customers.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final customer = _customers[index];
-                          final isSelected =
-                              widget.selectedCustomer?.id == customer.id;
+                        ? Center(
+                            child: Text(
+                              'No customers found.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: _customers.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final customer = _customers[index];
+                              final isSelected =
+                                  widget.selectedCustomer?.id == customer.id;
 
-                          return ListTile(
-                            leading: CircleAvatar(
-                              child: Text(
-                                customer.name.isNotEmpty
-                                    ? customer.name[0].toUpperCase()
-                                    : '?',
-                              ),
-                            ),
-                            title: Text(
-                              customer.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle:
-                                customer.phone == null ||
-                                    customer.phone!.isEmpty
-                                ? null
-                                : Text(customer.phone!),
-                            trailing: isSelected
-                                ? Icon(
-                                    Icons.check_circle,
-                                    color: theme.colorScheme.primary,
-                                  )
-                                : null,
-                            onTap: () => Navigator.of(context).pop(customer),
-                          );
-                        },
-                      ),
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  child: Text(
+                                    customer.name.isNotEmpty
+                                        ? customer.name[0].toUpperCase()
+                                        : '?',
+                                  ),
+                                ),
+                                title: Text(
+                                  customer.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: customer.phone == null ||
+                                        customer.phone!.isEmpty
+                                    ? null
+                                    : Text(customer.phone!),
+                                trailing: isSelected
+                                    ? Icon(
+                                        Icons.check_circle,
+                                        color: theme.colorScheme.primary,
+                                      )
+                                    : null,
+                                onTap: () =>
+                                    Navigator.of(context).pop(customer),
+                              );
+                            },
+                          ),
               ),
             ],
           ),

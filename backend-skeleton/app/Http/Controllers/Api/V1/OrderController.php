@@ -153,6 +153,7 @@ class OrderController extends Controller
         
         $validator = Validator::make($request->all(), [
             'uuid' => 'nullable|uuid',
+            'expected_cashier_id' => 'nullable|integer|min:1',
             'branch_id' => 'nullable|integer|exists:branches,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in,takeaway',
@@ -162,6 +163,7 @@ class OrderController extends Controller
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
+            'expected_total' => 'nullable|numeric|min:0',
             'payment.method' => 'required|in:cash,card,qr,split',
             'payment.tendered' => 'nullable|numeric|min:0',
             'payment.payments' => 'required_if:payment.method,split|array|min:2',
@@ -178,6 +180,9 @@ class OrderController extends Controller
             ], 422);
         }
 
+        if ($request->filled('expected_cashier_id') && (int) $request->input('expected_cashier_id') !== (int) $user->id) {
+            return response()->json(['success' => false, 'message' => 'Sign in as the cashier who saved this pending order.'], 409);
+        }
         $clientUuid = $request->input('uuid');
         $fingerprint = $clientUuid !== null
             ? $this->createFingerprint($request, (int) $branchId, (int) $user->id, 'checkout')
@@ -285,6 +290,12 @@ class OrderController extends Controller
                 }
 
                 $total = max(0, round($subtotal - $discountTotal, 2));
+
+                if ($request->filled('expected_total')
+                    && (int) round((float) $request->input('expected_total') * 100)
+                        !== (int) round($total * 100)) {
+                    abort(409, 'Prices have changed. Review this pending order before reconciling payment.');
+                }
 
                 $order = Order::create([
                     'uuid' => $clientUuid ?? (string) Str::uuid(),
@@ -497,6 +508,7 @@ class OrderController extends Controller
 
         $validator = Validator::make($request->all(), [
             'uuid' => 'nullable|uuid',
+            'expected_cashier_id' => 'nullable|integer|min:1',
             'branch_id' => 'nullable|integer|exists:branches,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in',
@@ -516,6 +528,9 @@ class OrderController extends Controller
             ], 422);
         }
 
+        if ($request->filled('expected_cashier_id') && (int) $request->input('expected_cashier_id') !== (int) $user->id) {
+            return response()->json(['success' => false, 'message' => 'Sign in as the cashier who saved this pending order.'], 409);
+        }
         $clientUuid = $request->input('uuid');
         $fingerprint = $clientUuid !== null
             ? $this->createFingerprint($request, (int) $branchId, (int) $user->id, 'hold')
@@ -1800,7 +1815,6 @@ class OrderController extends Controller
         ];
     }
 }
-
 
 
 

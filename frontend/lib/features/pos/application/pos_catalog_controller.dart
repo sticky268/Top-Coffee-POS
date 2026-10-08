@@ -42,6 +42,7 @@ class PosCatalogController extends StateNotifier<PosCatalogState> {
   final Ref _ref;
 
   int? _branchId;
+  int _generation = 0;
   late Future<void> _initialization;
 
   Future<void> get initialization => _initialization;
@@ -54,24 +55,24 @@ class PosCatalogController extends StateNotifier<PosCatalogState> {
 
   Future<void> _load() async {
     if (!mounted) return;
+    final generation = ++_generation;
+    final branchId = _branchId;
+    _ref.read(cachedCatalogProvider.notifier).state = false;
     state = const PosCatalogLoading();
 
     try {
-      final categoriesFuture =
-          _repository.getCategories(branchId: _branchId);
-      final productsFuture =
-          _repository.getProducts(branchId: _branchId);
-
-      final categories = await categoriesFuture;
-      final products = await productsFuture;
-      if (!mounted) return;
+      final results = await Future.wait<dynamic>([
+        _repository.getCategories(branchId: branchId),
+        _repository.getProducts(branchId: branchId),
+      ]);
+      if (!mounted || generation != _generation) return;
 
       state = PosCatalogLoaded(
-        categories: categories,
-        products: products,
+        categories: results[0],
+        products: results[1],
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = PosCatalogError(
         e is ApiException ? e.message : 'Something went wrong',

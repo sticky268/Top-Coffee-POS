@@ -12,8 +12,23 @@ class PrinterService {
     'top_coffee_pos/printer',
   );
 
+  Future<void> _invoke(String method, [Map<String, dynamic>? arguments]) async {
+    try {
+      final accepted = await _channel.invokeMethod<bool>(method, arguments);
+      if (accepted != true) {
+        throw PlatformException(
+            code: 'printer_rejected',
+            message:
+                'The printer did not accept the job. Check its connection before retrying.');
+      }
+    } on MissingPluginException {
+      throw StateError(
+          'Receipt printing is unavailable on this device. Use an E-Receipt.');
+    }
+  }
+
   Future<void> connect(String ipAddress) async {
-    await _channel.invokeMethod<bool>(
+    await _invoke(
       'connect',
       <String, dynamic>{
         'ip': ipAddress,
@@ -22,14 +37,15 @@ class PrinterService {
   }
 
   Future<void> printTest() async {
-    await _channel.invokeMethod<bool>('printTest');
+    await _invoke('printTest');
   }
 
   Future<void> printKhmerTest() async {
-    await _channel.invokeMethod<bool>('printKhmerTest');
+    await _invoke('printKhmerTest');
   }
+
   Future<void> printBitmapStressTest() async {
-    await _channel.invokeMethod<bool>('printBitmapStressTest');
+    await _invoke('printBitmapStressTest');
   }
 
   String _logoFileName(String? branchKey) {
@@ -92,16 +108,14 @@ class PrinterService {
       return <String, dynamic>{
         'name': settings.showItemName ? itemName : '',
         'quantity': settings.showQuantity ? item.quantity : '',
-        'unitPrice': settings.showUnitPrice
-            ? item.unitPrice.toStringAsFixed(2)
-            : '',
-        'lineTotal': settings.showLineTotal
-            ? item.lineTotal.toStringAsFixed(2)
-            : '',
+        'unitPrice':
+            settings.showUnitPrice ? item.unitPrice.toStringAsFixed(2) : '',
+        'lineTotal':
+            settings.showLineTotal ? item.lineTotal.toStringAsFixed(2) : '',
       };
     }).toList();
 
-    await _channel.invokeMethod<bool>(
+    await _invoke(
       'printReceipt',
       <String, dynamic>{
         'logoBytes': logoBytes,
@@ -114,22 +128,17 @@ class PrinterService {
         'boldTotal': settings.boldTotal,
         'boldFooter': settings.boldFooter,
         'documentTitle': '',
-        'orderNumber': settings.showOrderNumber
-            ? receipt.displayOrderReference
-            : '',
+        'orderNumber':
+            settings.showOrderNumber ? receipt.displayOrderReference : '',
         'businessName': settings.businessName,
         'branchName': settings.branchName,
-        'cashierName':
-            settings.showCashier ? receipt.cashierName ?? '' : '',
-        'tableName':
-            settings.showTable ? receipt.tableName ?? '' : '',
-        'orderType':
-            settings.showOrderType ? receipt.orderType : '',
+        'cashierName': settings.showCashier ? receipt.cashierName ?? '' : '',
+        'tableName': settings.showTable ? receipt.tableName ?? '' : '',
+        'orderType': settings.showOrderType ? receipt.orderType : '',
         'subtotal': receipt.subtotal.toStringAsFixed(2),
         'discount': receipt.discountTotal.toStringAsFixed(2),
         'total': receipt.total.toStringAsFixed(2),
-        'paymentMethod':
-            settings.showPaymentMethod ? paymentMethod : '',
+        'paymentMethod': settings.showPaymentMethod ? paymentMethod : '',
         'tendered': tendered,
         'changeDue': changeDue,
         'showSplitPayments': settings.showSplitPayments,
@@ -146,6 +155,7 @@ class PrinterService {
       },
     );
   }
+
   Future<void> printBill(CustomerBill bill) async {
     final settings = await ReceiptSettings.load(
       branchKey: bill.branchCode,
@@ -157,16 +167,14 @@ class PrinterService {
       return <String, dynamic>{
         'name': settings.showItemName ? item.displayName : '',
         'quantity': settings.showQuantity ? item.quantity : '',
-        'unitPrice': settings.showUnitPrice
-            ? item.unitPrice.toStringAsFixed(2)
-            : '',
-        'lineTotal': settings.showLineTotal
-            ? item.lineTotal.toStringAsFixed(2)
-            : '',
+        'unitPrice':
+            settings.showUnitPrice ? item.unitPrice.toStringAsFixed(2) : '',
+        'lineTotal':
+            settings.showLineTotal ? item.lineTotal.toStringAsFixed(2) : '',
       };
     }).toList();
 
-    await _channel.invokeMethod<bool>(
+    await _invoke(
       'printReceipt',
       <String, dynamic>{
         'logoBytes': logoBytes,
@@ -232,20 +240,16 @@ class PrinterService {
     final items = receipt.items.map((item) {
       return <String, dynamic>{
         'name': settings.showItemName ? item.productName : '',
-        'variant': settings.showItemName
-            ? item.variantName ?? ''
-            : '',
+        'variant': settings.showItemName ? item.variantName ?? '' : '',
         'quantity': settings.showQuantity ? item.quantity : '',
-        'unitPrice': settings.showUnitPrice
-            ? item.unitPrice.toStringAsFixed(2)
-            : '',
-        'lineTotal': settings.showLineTotal
-            ? item.lineTotal.toStringAsFixed(2)
-            : '',
+        'unitPrice':
+            settings.showUnitPrice ? item.unitPrice.toStringAsFixed(2) : '',
+        'lineTotal':
+            settings.showLineTotal ? item.lineTotal.toStringAsFixed(2) : '',
       };
     }).toList();
 
-    await _channel.invokeMethod<bool>(
+    await _invoke(
       'printReceiptBitmapTest',
       <String, dynamic>{
         'logoBytes': null,
@@ -257,22 +261,17 @@ class PrinterService {
         'boldBusinessName': settings.boldBusinessName,
         'boldTotal': settings.boldTotal,
         'boldFooter': settings.boldFooter,
-        'orderNumber': settings.showOrderNumber
-            ? receipt.displayOrderReference
-            : '',
+        'orderNumber':
+            settings.showOrderNumber ? receipt.displayOrderReference : '',
         'businessName': settings.businessName,
         'branchName': settings.branchName,
-        'cashierName':
-            settings.showCashier ? receipt.cashierName ?? '' : '',
-        'tableName':
-            settings.showTable ? receipt.tableName ?? '' : '',
-        'orderType':
-            settings.showOrderType ? receipt.orderType : '',
+        'cashierName': settings.showCashier ? receipt.cashierName ?? '' : '',
+        'tableName': settings.showTable ? receipt.tableName ?? '' : '',
+        'orderType': settings.showOrderType ? receipt.orderType : '',
         'subtotal': receipt.subtotal.toStringAsFixed(2),
         'discount': receipt.discountTotal.toStringAsFixed(2),
         'total': receipt.total.toStringAsFixed(2),
-        'paymentMethod':
-            settings.showPaymentMethod ? paymentMethod : '',
+        'paymentMethod': settings.showPaymentMethod ? paymentMethod : '',
         'tendered': tendered,
         'changeDue': changeDue,
         'showSplitPayments': settings.showSplitPayments,
@@ -289,7 +288,8 @@ class PrinterService {
       },
     );
   }
+
   Future<void> disconnect() async {
-    await _channel.invokeMethod<bool>('disconnect');
+    await _invoke('disconnect');
   }
 }
