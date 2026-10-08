@@ -46,10 +46,10 @@ class CategoryTest extends TestCase
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch);
 
-        $global = Category::create(['branch_id' => null, 'name' => 'Coffee', 'sort_order' => 1]);
-        $ownBranch = Category::create(['branch_id' => $branch->id, 'name' => 'Seasonal', 'sort_order' => 2]);
-        $otherBranchCategory = Category::create(['branch_id' => $otherBranch->id, 'name' => 'Other Branch Only', 'sort_order' => 1]);
-        $inactive = Category::create(['branch_id' => null, 'name' => 'Discontinued', 'is_active' => false]);
+        $global = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee', 'sort_order' => 1]);
+        $ownBranch = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => $branch->id, 'name' => 'Seasonal', 'sort_order' => 2]);
+        $otherBranchCategory = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => $otherBranch->id, 'name' => 'Other Branch Only', 'sort_order' => 1]);
+        $inactive = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Discontinued', 'is_active' => false]);
 
         $response = $this->actingAs($user)->getJson('/api/v1/categories');
 
@@ -66,7 +66,7 @@ class CategoryTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
-        Category::create(['branch_id' => $branch->id, 'name' => 'Seasonal']);
+        Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => $branch->id, 'name' => 'Seasonal']);
 
         $response = $this->actingAs($user)->getJson("/api/v1/categories?branch_id={$branch->id}");
 
@@ -97,7 +97,7 @@ class CategoryTest extends TestCase
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
-        Category::create(['branch_id' => $otherBranch->id, 'name' => 'Other Branch Category']);
+        Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => $otherBranch->id, 'name' => 'Other Branch Category']);
 
         $response = $this->actingAs($admin)->getJson("/api/v1/categories?branch_id={$otherBranch->id}");
 
@@ -132,8 +132,8 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
 
-        Category::create(['branch_id' => null, 'name' => 'Second', 'sort_order' => 2]);
-        Category::create(['branch_id' => null, 'name' => 'First', 'sort_order' => 1]);
+        Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Second', 'sort_order' => 2]);
+        Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'First', 'sort_order' => 1]);
 
         $response = $this->actingAs($user)->getJson('/api/v1/categories');
 
@@ -175,7 +175,7 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Old Name',
             'sort_order' => 1,
@@ -209,7 +209,7 @@ class CategoryTest extends TestCase
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch',
         ]);
@@ -234,7 +234,7 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'cashier');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Drinks',
         ]);
@@ -261,7 +261,7 @@ class CategoryTest extends TestCase
 
         $admin = $this->makeUserForBranch($branch, 'admin');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch',
         ]);
@@ -288,7 +288,7 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Coffee',
         ]);
@@ -313,7 +313,7 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Temporary',
             'is_active' => true,
@@ -344,7 +344,7 @@ class CategoryTest extends TestCase
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch',
             'is_active' => true,
@@ -369,7 +369,7 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Coffee',
             'is_active' => true,
@@ -394,7 +394,7 @@ class CategoryTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch, 'manager');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Drinks',
         ]);

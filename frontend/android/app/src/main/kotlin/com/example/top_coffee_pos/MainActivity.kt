@@ -490,6 +490,9 @@ class MainActivity : FlutterActivity() {
         val businessName =
             call.argument<String>("businessName")
                 ?: "TOP COFFEE"
+        val documentTitle =
+            call.argument<String>("documentTitle")
+                ?: "RECEIPT · PAID"
         val branchName =
             call.argument<String>("branchName") ?: ""
         val orderNumber =
@@ -539,6 +542,7 @@ class MainActivity : FlutterActivity() {
             boldTotal = boldTotal,
             boldFooter = boldFooter,
             businessName = businessName,
+            documentTitle = documentTitle,
             branchName = branchName,
             orderNumber = orderNumber,
             cashierName = cashierName,
@@ -597,6 +601,7 @@ class MainActivity : FlutterActivity() {
         boldTotal: Boolean,
         boldFooter: Boolean,
         businessName: String,
+        documentTitle: String,
         branchName: String,
         orderNumber: String,
         cashierName: String,
@@ -733,6 +738,10 @@ class MainActivity : FlutterActivity() {
 
         if (branchName.isNotBlank()) {
             estimateText(branchName, bodySize, true)
+        }
+
+        if (documentTitle.isNotBlank()) {
+            estimateText(documentTitle, bodySize, true)
         }
 
         if (orderNumber.isNotBlank()) {
@@ -956,6 +965,15 @@ class MainActivity : FlutterActivity() {
             if (branchName.isNotBlank()) {
                 drawWrapped(
                     branchName,
+                    bodySize,
+                    true,
+                    Paint.Align.CENTER,
+                )
+            }
+
+            if (documentTitle.isNotBlank()) {
+                drawWrapped(
+                    documentTitle,
                     bodySize,
                     true,
                     Paint.Align.CENTER,

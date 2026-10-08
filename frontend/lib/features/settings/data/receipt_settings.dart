@@ -72,185 +72,194 @@ class ReceiptSettings {
   static const String defaultFooter =
       'Thank you for visiting Top Coffee!';
 
-  static Future<ReceiptSettings> load() async {
+  static String _key(String base, String? branchKey) {
+    final scope = branchKey?.trim();
+    return scope == null || scope.isEmpty ? base : '${base}_branch_${scope.toLowerCase()}';
+  }
+
+  static Future<ReceiptSettings> load({
+    String? branchKey,
+    String? branchNameFallback,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
 
     return ReceiptSettings(
       businessName:
-          prefs.getString('receipt_business_name') ??
+          prefs.getString(_key('receipt_business_name', branchKey)) ??
               defaultBusinessName,
       branchName:
-          prefs.getString('receipt_branch_name') ??
+          prefs.getString(_key('receipt_branch_name', branchKey)) ??
+              branchNameFallback ??
               defaultBranchName,
       logoPosition:
-          prefs.getString('receipt_logo_position') ?? 'Center',
+          prefs.getString(_key('receipt_logo_position', branchKey)) ?? 'Center',
       logoSize:
-          prefs.getString('receipt_logo_size') ?? 'Medium',
+          prefs.getString(_key('receipt_logo_size', branchKey)) ?? 'Medium',
       fontStyle:
-          prefs.getString('receipt_font_style') ?? 'Default',
+          prefs.getString(_key('receipt_font_style', branchKey)) ?? 'Default',
       bodyFontSize:
-          prefs.getString('receipt_body_font_size') ?? 'Medium',
+          prefs.getString(_key('receipt_body_font_size', branchKey)) ?? 'Medium',
       businessFontSize:
-          prefs.getString('receipt_business_font_size') ?? 'Large',
+          prefs.getString(_key('receipt_business_font_size', branchKey)) ?? 'Large',
       footerFontSize:
-          prefs.getString('receipt_footer_font_size') ?? 'Medium',
+          prefs.getString(_key('receipt_footer_font_size', branchKey)) ?? 'Medium',
       boldBusinessName:
-          prefs.getBool('receipt_bold_business_name') ?? true,
+          prefs.getBool(_key('receipt_bold_business_name', branchKey)) ?? true,
       boldTotal:
-          prefs.getBool('receipt_bold_total') ?? true,
+          prefs.getBool(_key('receipt_bold_total', branchKey)) ?? true,
       boldFooter:
-          prefs.getBool('receipt_bold_footer') ?? true,
+          prefs.getBool(_key('receipt_bold_footer', branchKey)) ?? true,
       showOrderNumber:
-          prefs.getBool('receipt_show_order_number') ?? true,
+          prefs.getBool(_key('receipt_show_order_number', branchKey)) ?? true,
       showDateTime:
-          prefs.getBool('receipt_show_date_time') ?? true,
+          prefs.getBool(_key('receipt_show_date_time', branchKey)) ?? true,
       showCashier:
-          prefs.getBool('receipt_show_cashier') ?? true,
+          prefs.getBool(_key('receipt_show_cashier', branchKey)) ?? true,
       showTable:
-          prefs.getBool('receipt_show_table') ?? true,
+          prefs.getBool(_key('receipt_show_table', branchKey)) ?? true,
       showOrderType:
-          prefs.getBool('receipt_show_order_type') ?? true,
+          prefs.getBool(_key('receipt_show_order_type', branchKey)) ?? true,
       showItemName:
-          prefs.getBool('receipt_show_item_name') ?? true,
+          prefs.getBool(_key('receipt_show_item_name', branchKey)) ?? true,
       showQuantity:
-          prefs.getBool('receipt_show_quantity') ?? true,
+          prefs.getBool(_key('receipt_show_quantity', branchKey)) ?? true,
       showUnitPrice:
-          prefs.getBool('receipt_show_unit_price') ?? true,
+          prefs.getBool(_key('receipt_show_unit_price', branchKey)) ?? true,
       showLineTotal:
-          prefs.getBool('receipt_show_line_total') ?? true,
+          prefs.getBool(_key('receipt_show_line_total', branchKey)) ?? true,
       showPaymentMethod:
-          prefs.getBool('receipt_show_payment_method') ?? true,
+          prefs.getBool(_key('receipt_show_payment_method', branchKey)) ?? true,
       showTendered:
-          prefs.getBool('receipt_show_tendered') ?? true,
+          prefs.getBool(_key('receipt_show_tendered', branchKey)) ?? true,
       showChange:
-          prefs.getBool('receipt_show_change') ?? true,
+          prefs.getBool(_key('receipt_show_change', branchKey)) ?? true,
       showSplitPayments:
-          prefs.getBool('receipt_show_split_payments') ?? true,
+          prefs.getBool(_key('receipt_show_split_payments', branchKey)) ?? true,
       footer:
-          prefs.getString('receipt_footer') ?? defaultFooter,
+          prefs.getString(_key('receipt_footer', branchKey)) ?? defaultFooter,
       printerEnabled:
-          prefs.getBool('receipt_printer_enabled') ?? true,
+          prefs.getBool(_key('receipt_printer_enabled', branchKey)) ?? true,
       printerIpAddress:
-          prefs.getString('receipt_printer_ip') ??
+          prefs.getString(_key('receipt_printer_ip', branchKey)) ??
               defaultPrinterIpAddress,
     );
   }
 
-  Future<void> save() async {
+  Future<void> save({String? branchKey}) async {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(
-      'receipt_business_name',
+      _key('receipt_business_name', branchKey),
       businessName,
     );
     await prefs.setString(
-      'receipt_branch_name',
+      _key('receipt_branch_name', branchKey),
       branchName,
     );
     await prefs.setString(
-      'receipt_logo_position',
+      _key('receipt_logo_position', branchKey),
       logoPosition,
     );
     await prefs.setString(
-      'receipt_logo_size',
+      _key('receipt_logo_size', branchKey),
       logoSize,
     );
     await prefs.setString(
-      'receipt_font_style',
+      _key('receipt_font_style', branchKey),
       fontStyle,
     );
     await prefs.setString(
-      'receipt_body_font_size',
+      _key('receipt_body_font_size', branchKey),
       bodyFontSize,
     );
     await prefs.setString(
-      'receipt_business_font_size',
+      _key('receipt_business_font_size', branchKey),
       businessFontSize,
     );
     await prefs.setString(
-      'receipt_footer_font_size',
+      _key('receipt_footer_font_size', branchKey),
       footerFontSize,
     );
 
     await prefs.setBool(
-      'receipt_bold_business_name',
+      _key('receipt_bold_business_name', branchKey),
       boldBusinessName,
     );
     await prefs.setBool(
-      'receipt_bold_total',
+      _key('receipt_bold_total', branchKey),
       boldTotal,
     );
     await prefs.setBool(
-      'receipt_bold_footer',
+      _key('receipt_bold_footer', branchKey),
       boldFooter,
     );
 
     await prefs.setBool(
-      'receipt_show_order_number',
+      _key('receipt_show_order_number', branchKey),
       showOrderNumber,
     );
     await prefs.setBool(
-      'receipt_show_date_time',
+      _key('receipt_show_date_time', branchKey),
       showDateTime,
     );
     await prefs.setBool(
-      'receipt_show_cashier',
+      _key('receipt_show_cashier', branchKey),
       showCashier,
     );
     await prefs.setBool(
-      'receipt_show_table',
+      _key('receipt_show_table', branchKey),
       showTable,
     );
     await prefs.setBool(
-      'receipt_show_order_type',
+      _key('receipt_show_order_type', branchKey),
       showOrderType,
     );
 
     await prefs.setBool(
-      'receipt_show_item_name',
+      _key('receipt_show_item_name', branchKey),
       showItemName,
     );
     await prefs.setBool(
-      'receipt_show_quantity',
+      _key('receipt_show_quantity', branchKey),
       showQuantity,
     );
     await prefs.setBool(
-      'receipt_show_unit_price',
+      _key('receipt_show_unit_price', branchKey),
       showUnitPrice,
     );
     await prefs.setBool(
-      'receipt_show_line_total',
+      _key('receipt_show_line_total', branchKey),
       showLineTotal,
     );
 
     await prefs.setBool(
-      'receipt_show_payment_method',
+      _key('receipt_show_payment_method', branchKey),
       showPaymentMethod,
     );
     await prefs.setBool(
-      'receipt_show_tendered',
+      _key('receipt_show_tendered', branchKey),
       showTendered,
     );
     await prefs.setBool(
-      'receipt_show_change',
+      _key('receipt_show_change', branchKey),
       showChange,
     );
     await prefs.setBool(
-      'receipt_show_split_payments',
+      _key('receipt_show_split_payments', branchKey),
       showSplitPayments,
     );
 
     await prefs.setString(
-      'receipt_footer',
+      _key('receipt_footer', branchKey),
       footer,
     );
 
     await prefs.setBool(
-      'receipt_printer_enabled',
+      _key('receipt_printer_enabled', branchKey),
       printerEnabled,
     );
     await prefs.setString(
-      'receipt_printer_ip',
+      _key('receipt_printer_ip', branchKey),
       printerIpAddress,
     );
   }

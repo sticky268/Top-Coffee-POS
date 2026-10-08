@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/receipt/customer_bill.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/widgets/receipt_action_buttons.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../pos/data/pos_repository.dart';
+import '../application/orders_list_controller.dart';
 import '../application/order_detail_controller.dart';
 import '../application/order_detail_state.dart';
 import '../domain/order_models.dart';
@@ -21,26 +25,79 @@ class OrderDetailScreen extends ConsumerWidget {
     final state = ref.watch(orderDetailControllerProvider(orderId));
     final authState = ref.watch(authControllerProvider);
 
-    final canEdit =
+    final canEditHeld =
+        state is OrderDetailLoaded &&
+        state.order.status == 'held' &&
+        state.order.orderType == 'dine_in' &&
+        authState is AuthAuthenticated &&
+        authState.user.hasPermission('orders.create');
+
+    final canAdjustCompleted =
         state is OrderDetailLoaded &&
         state.order.status == 'completed' &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.edit');
 
+    final canCancel = state is OrderDetailLoaded &&
+        state.order.status == 'held' &&
+        state.order.orderType == 'dine_in' &&
+        authState is AuthAuthenticated &&
+        authState.user.hasPermission('orders.cancel');
+
+    final appBarTitle = state is OrderDetailLoaded
+        ? 'Order ${state.order.displayOrderReference}'
+        : 'Order';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Order #$orderId'),
+        title: Text(appBarTitle),
         actions: [
-          if (canEdit)
+          if (canCancel)
             pos_ui.IconButton(
-              tooltip: 'Edit order',
+              tooltip: 'Cancel order',
+              icon: const Icon(Icons.cancel_outlined),
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Cancel Order?'),
+                    content: const Text(
+                      'This will cancel the held order and release its table. '
+                      'The order will remain in history. This cannot be undone.',
+                    ),
+                    actions: [
+                      pos_ui.SecondaryButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Keep Order'),
+                      ),
+                      pos_ui.DangerButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('Cancel Order'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !context.mounted) return;
+                try {
+                  await ref.read(posRepositoryProvider).cancelHeldOrder(orderId: orderId);
+                  await ref.read(ordersListControllerProvider.notifier).refresh();
+                  if (!context.mounted) return;
+                  await ref.read(orderDetailControllerProvider(orderId).notifier).refresh();
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not cancel order: $error')),
+                  );
+                }
+              },
+            ),
+          if (canEditHeld)
+            pos_ui.IconButton(
+              tooltip: 'Edit open order',
               icon: const Icon(Icons.edit),
               onPressed: () async {
-                final changed = await context.push<bool>(
-                  '/orders/$orderId/edit',
-                );
-
-                if (changed == true && context.mounted) {
+                await context.push<bool>('/pos/open-order/$orderId');
+                if (context.mounted) {
                   await ref
                       .read(orderDetailControllerProvider(orderId).notifier)
                       .refresh();
@@ -59,16 +116,59 @@ class OrderDetailScreen extends ConsumerWidget {
               .read(orderDetailControllerProvider(orderId).notifier)
               .refresh(),
         ),
-        OrderDetailLoaded(:final order) => _OrderDetailBody(order: order),
+        OrderDetailLoaded(:final order) => _OrderDetailBody(
+          order: order,
+          onAdjustCompleted: canAdjustCompleted
+              ? () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Adjust completed order?'),
+                      content: const Text(
+                        'This changes a completed historical sale and updates inventory. '
+                        'The final total must stay equal to the amount already paid. '
+                        'Use the refund or additional payment workflow for payment changes.',
+                      ),
+                      actions: [
+                        pos_ui.SecondaryButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        pos_ui.PrimaryButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
+                          child: const Text('Adjust Order'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed != true || !context.mounted) return;
+                  final changed = await context.push<bool>(
+                    '/orders/$orderId/edit',
+                  );
+                  if (context.mounted && changed == true) {
+                    await ref
+                        .read(orderDetailControllerProvider(orderId).notifier)
+                        .refresh();
+                  }
+                }
+              : null,
+        ),
       },
     );
   }
 }
 
 class _OrderDetailBody extends StatelessWidget {
-  const _OrderDetailBody({required this.order});
+  const _OrderDetailBody({
+    required this.order,
+    this.onAdjustCompleted,
+  });
 
   final OrderDetail order;
+  final VoidCallback? onAdjustCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +187,7 @@ class _OrderDetailBody extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Order #${order.id}', style: theme.textTheme.titleLarge),
+                Text('Order ${order.displayOrderReference}', style: theme.textTheme.titleLarge),
                 const SizedBox(height: 4),
                 Text(
                   dateLabel,
@@ -216,6 +316,68 @@ class _OrderDetailBody extends StatelessWidget {
                       const Divider(height: 24),
                   ],
                 ],
+              ),
+            ),
+          ),
+        ],
+        if (onAdjustCompleted != null) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Completed sale',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Adjustments are restricted and recorded in the audit log.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  pos_ui.OutlinedButton.icon(
+                    onPressed: onAdjustCompleted,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Adjust Order'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (order.status == 'held') ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: BillActionButtons(
+                bill: CustomerBill.fromOrderDetail(order),
+                showHeading: true,
+              ),
+            ),
+          ),
+        ],
+        if (canIssueReceiptForOrderStatus(order.status)) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ReceiptActionButtons(
+                orderId: order.id,
+                showHeading: true,
               ),
             ),
           ),

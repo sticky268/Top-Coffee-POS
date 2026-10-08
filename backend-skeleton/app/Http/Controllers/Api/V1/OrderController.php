@@ -7,11 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Customer;
 use App\Models\OrderItem;
-use App\Models\KitchenTicket;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\AuditLogService;
+use App\Services\OrderNumberService;
 use App\Services\SaleInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -60,7 +60,7 @@ class OrderController extends Controller
         }
         if ($operation === 'hold') {
             return response()->json(['success' => true, 'data' => [
-                'id' => $order->id, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
+                'id' => $order->id, 'order_number' => $order->order_number, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id, 'status' => $order->status,
                 'table_id' => $order->table_id, 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total, 'total' => (float) $order->total,
@@ -72,7 +72,7 @@ class OrderController extends Controller
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
         return response()->json(['success' => true, 'data' => [
-            'id' => $order->id, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
+            'id' => $order->id, 'order_number' => $order->order_number, 'uuid' => $order->uuid, 'order_type' => $order->order_type,
             'customer_id' => $order->customer_id, 'status' => $order->status,
             'subtotal' => (float) $order->subtotal, 'discount_total' => (float) $order->discount_total,
             'total' => (float) $order->total,
@@ -111,7 +111,7 @@ class OrderController extends Controller
      * pre-existing seeder gap, not introduced or fixed here.
      *
      * Deliberately NOT implemented here (out of scope for this task):
-     * inventory deduction, recipes, kitchen tickets, tax calculation,
+     * inventory deduction, recipes, tax calculation,
      * table/dine-in selection beyond the raw order_type field.
      */
     public function store(Request $request)
@@ -153,6 +153,7 @@ class OrderController extends Controller
         
         $validator = Validator::make($request->all(), [
             'uuid' => 'nullable|uuid',
+            'expected_cashier_id' => 'nullable|integer|min:1',
             'branch_id' => 'nullable|integer|exists:branches,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in,takeaway',
@@ -162,6 +163,7 @@ class OrderController extends Controller
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
+            'expected_total' => 'nullable|numeric|min:0',
             'payment.method' => 'required|in:cash,card,qr,split',
             'payment.tendered' => 'nullable|numeric|min:0',
             'payment.payments' => 'required_if:payment.method,split|array|min:2',
@@ -178,6 +180,9 @@ class OrderController extends Controller
             ], 422);
         }
 
+        if ($request->filled('expected_cashier_id') && (int) $request->input('expected_cashier_id') !== (int) $user->id) {
+            return response()->json(['success' => false, 'message' => 'Sign in as the cashier who saved this pending order.'], 409);
+        }
         $clientUuid = $request->input('uuid');
         $fingerprint = $clientUuid !== null
             ? $this->createFingerprint($request, (int) $branchId, (int) $user->id, 'checkout')
@@ -213,6 +218,22 @@ class OrderController extends Controller
             $order = DB::transaction(function () use (
                 $request, $user, $branchId, $customerId, $discountTotal, $paymentMethod, $tendered, $clientUuid, $fingerprint
             ) {
+                if ($request->input('order_type') === 'dine_in') {
+                    $table = \App\Models\RestaurantTable::query()
+                        ->where('branch_id', $branchId)
+                        ->whereKey($request->input('table_id'))
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $table) {
+                        abort(422, 'The selected table is not available at this branch.');
+                    }
+
+                    if (! $table->is_active) {
+                        abort(422, 'The selected table is inactive.');
+                    }
+                }
+
                 $subtotal = 0;
                 $resolvedItems = [];
 
@@ -270,15 +291,21 @@ class OrderController extends Controller
 
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
+                if ($request->filled('expected_total')
+                    && (int) round((float) $request->input('expected_total') * 100)
+                        !== (int) round($total * 100)) {
+                    abort(409, 'Prices have changed. Review this pending order before reconciling payment.');
+                }
+
                 $order = Order::create([
                     'uuid' => $clientUuid ?? (string) Str::uuid(),
                     'request_fingerprint' => $fingerprint,
                     'branch_id' => $branchId,
+                    'order_number' => app(OrderNumberService::class)->nextForBranch((int) $branchId),
                     'user_id' => $user->id,
                     'customer_id' => $customerId,
                     'order_type' => $request->input('order_type'),
                     'table_id' => $request->input('table_id'),
-                    // No kitchen/hold workflow yet (Phase 10/11 territory)
                     // ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â payment confirmation marks the order completed
                     // immediately.
                     'status' => 'completed',
@@ -288,13 +315,6 @@ class OrderController extends Controller
                     'total' => $total,
                     'completed_at' => now(),
                 ]);
-
-                KitchenTicket::create([
-                    'order_id' => $order->id,
-                    'status' => 'new',
-                    'sent_at' => now(),
-                ]);
-
                 foreach ($resolvedItems as $item) {
                     OrderItem::create(array_merge($item, ['order_id' => $order->id]));
                 }
@@ -346,12 +366,8 @@ class OrderController extends Controller
             $order,
             null,
             [
-                'branch_id' => $order->branch_id,
-                'customer_id' => $order->customer_id,
-                'order_type' => $order->order_type,
                 'status' => $order->status,
-                'subtotal' => (float) $order->subtotal,
-                'discount_total' => (float) $order->discount_total,
+                'branch_id' => $order->branch_id,
                 'total' => (float) $order->total,
             ],
         );
@@ -374,16 +390,8 @@ class OrderController extends Controller
                 'customer_id' => $order->customer_id,
                 'total' => (float) $order->total,
                 'payments' => $payments->map(fn (Payment $payment) => [
-                    'id' => $payment->id,
                     'method' => $payment->method,
                     'amount' => (float) $payment->amount,
-                    'tendered' => $payment->tendered !== null
-                        ? (float) $payment->tendered
-                        : null,
-                    'change_due' => $payment->change_due !== null
-                        ? (float) $payment->change_due
-                        : null,
-                    'status' => $payment->status,
                 ])->values()->all(),
             ],
         );
@@ -395,6 +403,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -499,6 +508,7 @@ class OrderController extends Controller
 
         $validator = Validator::make($request->all(), [
             'uuid' => 'nullable|uuid',
+            'expected_cashier_id' => 'nullable|integer|min:1',
             'branch_id' => 'nullable|integer|exists:branches,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'order_type' => 'required|in:dine_in',
@@ -518,6 +528,9 @@ class OrderController extends Controller
             ], 422);
         }
 
+        if ($request->filled('expected_cashier_id') && (int) $request->input('expected_cashier_id') !== (int) $user->id) {
+            return response()->json(['success' => false, 'message' => 'Sign in as the cashier who saved this pending order.'], 409);
+        }
         $clientUuid = $request->input('uuid');
         $fingerprint = $clientUuid !== null
             ? $this->createFingerprint($request, (int) $branchId, (int) $user->id, 'hold')
@@ -539,6 +552,10 @@ class OrderController extends Controller
 
                 if (! $table) {
                     abort(422, 'The selected table is not available at this branch.');
+                }
+
+                if (! $table->is_active) {
+                    abort(422, 'The selected table is inactive.');
                 }
 
                 if ($table->status !== 'available') {
@@ -617,6 +634,7 @@ class OrderController extends Controller
                     'uuid' => $clientUuid ?? (string) Str::uuid(),
                     'request_fingerprint' => $fingerprint,
                     'branch_id' => $branchId,
+                    'order_number' => app(OrderNumberService::class)->nextForBranch((int) $branchId),
                     'user_id' => $user->id,
                     'customer_id' => $customerId,
                     'order_type' => 'dine_in',
@@ -628,13 +646,6 @@ class OrderController extends Controller
                     'total' => $total,
                     'held_at' => now(),
                 ]);
-
-                KitchenTicket::create([
-                    'order_id' => $order->id,
-                    'status' => 'new',
-                    'sent_at' => now(),
-                ]);
-
                 foreach ($resolvedItems as $item) {
                     OrderItem::create(array_merge($item, ['order_id' => $order->id]));
                 }
@@ -693,6 +704,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -853,12 +865,11 @@ class OrderController extends Controller
                     'customer_id' => $customerId,
                 ]);
 
+                // Held orders remain freely editable until payment. Replace the
+                // active bill with the cashier's latest item list.
                 $order->items()->delete();
-
                 foreach ($resolvedItems as $item) {
-                    OrderItem::create(array_merge($item, [
-                        'order_id' => $order->id,
-                    ]));
+                    OrderItem::create(array_merge($item, ['order_id' => $order->id]));
                 }
 
                 if ($table->status !== 'occupied') {
@@ -906,6 +917,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -918,6 +930,97 @@ class OrderController extends Controller
             ],
         ]);
     }
+    /**
+     * POST /api/v1/orders/{id}/cancel
+     * Cancel an unpaid held dine-in order without deleting its history.
+     */
+    public function cancelHeld(Request $request, int $id)
+    {
+        if (! $request->user()->can('orders.cancel')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to cancel orders',
+            ], 403);
+        }
+
+        $user = $request->user();
+
+        try {
+            $order = DB::transaction(function () use ($user, $id) {
+                $order = Order::query()
+                    ->whereKey($id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $order) {
+                    abort(404, 'Order not found.');
+                }
+
+                if (! $user->can('branches.view-all')
+                    && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
+                    abort(403, 'You do not have access to this branch.');
+                }
+
+                if ($order->status !== 'held' || $order->order_type !== 'dine_in') {
+                    abort(409, 'Only held dine-in orders can be cancelled.');
+                }
+
+                if ($order->payments()->exists()) {
+                    abort(409, 'An order with payments cannot be cancelled.');
+                }
+
+                $table = \App\Models\RestaurantTable::query()
+                    ->where('branch_id', $order->branch_id)
+                    ->whereKey($order->table_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                $order->update(['status' => 'cancelled']);
+
+                if ($table) {
+                    $otherHeldOrders = Order::query()
+                        ->where('branch_id', $order->branch_id)
+                        ->where('table_id', $table->id)
+                        ->where('status', 'held')
+                        ->exists();
+
+                    if (! $otherHeldOrders) {
+                        $table->update(['status' => 'available']);
+                    }
+                }
+
+                return $order->fresh();
+            });
+        } catch (HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not cancel the order. Please try again.',
+            ], 500);
+        }
+
+        app(AuditLogService::class)->record(
+            $request,
+            'order.cancelled',
+            $order,
+            ['status' => 'held', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
+            ['status' => 'cancelled', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $order->id,
+                'status' => $order->status,
+                'table_id' => $order->table_id,
+            ],
+        ]);
+    }
+
     /**
      * POST /api/v1/orders/{id}/pay
      *
@@ -1078,6 +1181,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -1249,7 +1353,7 @@ class OrderController extends Controller
         $user = $request->user();
 
         try {
-            $order = DB::transaction(function () use ($request, $user, $id) {
+            $result = DB::transaction(function () use ($request, $user, $id) {
                 $order = Order::query()
                     ->withoutGlobalScope('branch')
                     ->where('id', $id)
@@ -1279,6 +1383,18 @@ class OrderController extends Controller
                     ),
                     2
                 );
+
+                $oldValues = [
+                    'subtotal' => (float) $order->subtotal,
+                    'discount_total' => (float) $order->discount_total,
+                    'total' => (float) $order->total,
+                    'items' => $order->items->map(fn (OrderItem $item) => [
+                        'product_id' => $item->product_id,
+                        'product_variant_id' => $item->product_variant_id,
+                        'quantity' => (int) $item->quantity,
+                        'unit_price' => (float) $item->unit_price,
+                    ])->values()->all(),
+                ];
 
                 $subtotal = 0;
                 $resolvedItems = [];
@@ -1352,6 +1468,12 @@ class OrderController extends Controller
                     round($subtotal - $discountTotal, 2)
                 );
 
+                if (abs($total - $paidTotal) > 0.009) {
+                    abort(
+                        422,
+                        'A completed order adjustment cannot change the amount already paid. Use the refund or additional payment workflow for payment changes.'
+                    );
+                }
 
                 app(SaleInventoryService::class)->reverseForOrder(
                     $order,
@@ -1378,10 +1500,13 @@ class OrderController extends Controller
                     $user->id,
                 );
 
-                return $order->fresh()->load([
-                    'items',
-                    'payments',
-                ]);
+                return [
+                    'order' => $order->fresh()->load([
+                        'items',
+                        'payments',
+                    ]),
+                    'old_values' => $oldValues,
+                ];
             });
         } catch (HttpException $e) {
             return response()->json([
@@ -1395,52 +1520,24 @@ class OrderController extends Controller
             ], 500);
         }
 
+        $order = $result['order'];
+        $oldValues = $result['old_values'];
         $payments = $order->payments->values();
 
         app(AuditLogService::class)->record(
             $request,
-            'order.created',
+            'order.updated',
             $order,
-            null,
+            $oldValues,
             [
-                'branch_id' => $order->branch_id,
-                'customer_id' => $order->customer_id,
-                'order_type' => $order->order_type,
-                'status' => $order->status,
                 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total,
                 'total' => (float) $order->total,
-            ],
-        );
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.paid',
-            $order,
-            [
-                'status' => 'held',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-            ],
-            [
-                'status' => 'completed',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-                'payments' => $payments->map(fn (Payment $payment) => [
-                    'id' => $payment->id,
-                    'method' => $payment->method,
-                    'amount' => (float) $payment->amount,
-                    'tendered' => $payment->tendered !== null
-                        ? (float) $payment->tendered
-                        : null,
-                    'change_due' => $payment->change_due !== null
-                        ? (float) $payment->change_due
-                        : null,
-                    'status' => $payment->status,
+                'items' => $order->items->map(fn (OrderItem $item) => [
+                    'product_id' => $item->product_id,
+                    'product_variant_id' => $item->product_variant_id,
+                    'quantity' => (int) $item->quantity,
+                    'unit_price' => (float) $item->unit_price,
                 ])->values()->all(),
             ],
         );
@@ -1452,6 +1549,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -1541,7 +1639,7 @@ class OrderController extends Controller
             ->when($request->filled('order_number'), function ($query) use ($request) {
                 $value = $request->query('order_number');
                 if (is_numeric($value)) {
-                    $query->where('id', (int) $value);
+                    $query->where('order_number', (int) $value);
                 } else {
                     $query->where('uuid', 'like', "%{$value}%");
                 }
@@ -1627,6 +1725,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,
                 'customer_id' => $order->customer_id,
@@ -1652,7 +1751,7 @@ class OrderController extends Controller
                 // Defensive against a soft-deleted/missing product or
                 // variant on a historical order ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â never lets a null
                 // relationship crash this response.
-                'items' => $order->items->map(fn (OrderItem $item) => [
+                'items' => $order->items->where('quantity', '>', 0)->map(fn (OrderItem $item) => [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
                     'product_variant_id' => $item->product_variant_id,
@@ -1716,7 +1815,6 @@ class OrderController extends Controller
         ];
     }
 }
-
 
 
 

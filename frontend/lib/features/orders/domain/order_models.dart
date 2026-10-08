@@ -125,6 +125,7 @@ class OrderLineItem {
 class OrderSummary {
   const OrderSummary({
     required this.id,
+    this.orderNumber,
     required this.uuid,
     required this.orderType,
     required this.status,
@@ -138,6 +139,7 @@ class OrderSummary {
   });
 
   final int id;
+  final int? orderNumber;
   final String uuid;
   final String orderType;
   final String status;
@@ -153,9 +155,22 @@ class OrderSummary {
   final OrderPaymentSummary? payment;
   final DateTime? createdAt;
 
+  int get effectiveOrderNumber => orderNumber ?? id;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
+
+  String get displayOrderReference {
+    final code = branch?.code.trim();
+    return code != null && code.isNotEmpty
+        ? '$code-$displayOrderNumber'
+        : displayOrderNumber;
+  }
+
   factory OrderSummary.fromJson(Map<String, dynamic> json) {
     return OrderSummary(
       id: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,
       orderType: json['order_type'] as String,
       status: json['status'] as String,
@@ -199,6 +214,7 @@ class OrderTableRef {
 class OrderDetail {
   const OrderDetail({
     required this.id,
+    this.orderNumber,
     required this.uuid,
     required this.orderType,
     required this.status,
@@ -215,6 +231,7 @@ class OrderDetail {
   });
 
   final int id;
+  final int? orderNumber;
   final String uuid;
   final String orderType;
   final String status;
@@ -229,9 +246,22 @@ class OrderDetail {
   final List<OrderPaymentDetail> payments;
   final DateTime? createdAt;
 
+  int get effectiveOrderNumber => orderNumber ?? id;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
+
+  String get displayOrderReference {
+    final code = branch?.code.trim();
+    return code != null && code.isNotEmpty
+        ? '$code-$displayOrderNumber'
+        : displayOrderNumber;
+  }
+
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
     return OrderDetail(
       id: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,
       orderType: json['order_type'] as String,
       status: json['status'] as String,

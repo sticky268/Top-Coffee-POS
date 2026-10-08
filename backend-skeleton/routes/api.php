@@ -7,7 +7,6 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\ExpenseCategoryController;
 use App\Http\Controllers\Api\V1\IngredientController;
-use App\Http\Controllers\Api\V1\KitchenController;
 use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RestaurantTableController;
@@ -88,14 +87,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/hold', [OrderController::class, 'hold']);
         Route::patch('/orders/{id}/hold', [OrderController::class, 'updateHeld'])->whereNumber('id');
         Route::post('/orders/{id}/pay', [OrderController::class, 'payHeld'])->whereNumber('id');
+        Route::post('/orders/{id}/cancel', [OrderController::class, 'cancelHeld'])->whereNumber('id');
         Route::post('/orders', [OrderController::class, 'store']);
         Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
-
-        Route::get('/kitchen/tickets', [KitchenController::class, 'index']);
-        Route::patch('/kitchen/tickets/{id}/status', [KitchenController::class, 'updateStatus'])->whereNumber('id');
-
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
         Route::patch('/ingredients/{id}', [IngredientController::class, 'update'])->whereNumber('id');

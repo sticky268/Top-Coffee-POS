@@ -81,12 +81,12 @@ class DashboardNavigation extends StatelessWidget {
                         onTap: () => _navigate(context, '/orders'),
                       ),
                       _NavigationItem(
-                        icon: Icons.soup_kitchen_outlined,
-                        selectedIcon: Icons.soup_kitchen,
-                        label: 'Kitchen Display',
-                        route: '/kds',
+                        icon: Icons.cloud_upload_outlined,
+                        selectedIcon: Icons.cloud_upload,
+                        label: 'Pending Orders',
+                        route: '/pending-orders',
                         selectedRoute: selectedRoute,
-                        onTap: () => _navigate(context, '/kds'),
+                        onTap: () => _navigate(context, '/pending-orders'),
                       ),
                     ],
                   ),
@@ -307,14 +307,14 @@ class _NavigationItem extends StatelessWidget {
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+            ? theme.colorScheme.onSurface
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     final iconColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+            ? theme.colorScheme.onSurfaceVariant
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

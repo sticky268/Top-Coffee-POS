@@ -17,8 +17,11 @@ use App\Models\ProductVariant;
 use App\Models\RecipeItem;
 use App\Models\RestaurantTable;
 use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -55,7 +58,7 @@ class OrderTest extends TestCase
     private function makeCashier(Branch $branch): User
     {
         $this->seedPermissions();
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -115,7 +118,7 @@ class OrderTest extends TestCase
     {
         $this->seedPermissions();
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager'); // no orders.create permission
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -132,7 +135,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $latte = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $latte->branches()->attach($branch->id, ['is_available' => true, 'price_override' => 3.00]);
@@ -194,7 +197,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -234,10 +237,10 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Test Customer',
             'phone' => '012345678',
@@ -262,10 +265,10 @@ class OrderTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'Downtown', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Customer',
             'phone' => '012345679',
@@ -287,7 +290,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 5.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
 
@@ -308,7 +311,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
 
@@ -327,7 +330,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create([
             'category_id' => $category->id,
@@ -392,7 +395,7 @@ class OrderTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create([
             'category_id' => $category->id,
@@ -435,7 +438,7 @@ class OrderTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $validProduct = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
         $validProduct->branches()->attach($branch->id, ['is_available' => true]);
@@ -496,7 +499,7 @@ class OrderTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeCashier($branch);
 
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -514,6 +517,118 @@ class OrderTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonValidationErrors(['table_id']);
     }
+    public function test_immediate_dine_in_rejects_table_from_another_branch(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $otherBranch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Downtown',
+            'code' => 'PP-02',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $foreignTable = RestaurantTable::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)->postJson('/api/v1/orders', [
+            'order_type' => 'dine_in',
+            'table_id' => $foreignTable->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'The selected table is not available at this branch.');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('payments', 0);
+    }
+
+    public function test_held_dine_in_rejects_table_from_another_branch(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $otherBranch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Downtown',
+            'code' => 'PP-02',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $foreignTable = RestaurantTable::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $foreignTable->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'The selected table is not available at this branch.');
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertSame('available', $foreignTable->fresh()->status);
+    }
+
+    public function test_dine_in_rejects_inactive_table(): void
+    {
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+        $user = $this->makeCashier($branch);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
+        $product = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Latte',
+            'base_price' => 3.00,
+        ]);
+        $product->branches()->attach($branch->id, ['is_available' => true]);
+        $table = RestaurantTable::create([
+            'branch_id' => $branch->id,
+            'name' => 'T1',
+            'capacity' => 4,
+            'status' => 'available',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($user)->postJson('/api/v1/orders/hold', [
+            'order_type' => 'dine_in',
+            'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'The selected table is inactive.');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
     public function test_held_dine_in_order_does_not_deduct_inventory(): void
     {
         $branch = Branch::create(['business_id' => $this->business->id,
@@ -523,7 +638,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -638,7 +753,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -695,6 +810,10 @@ class OrderTest extends TestCase
             [
                 'items' => [
                     [
+                        'product_id' => $latte->id,
+                        'quantity' => 1,
+                    ],
+                    [
                         'product_id' => $americano->id,
                         'quantity' => 2,
                     ],
@@ -706,7 +825,7 @@ class OrderTest extends TestCase
             ->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'held')
-            ->assertJsonPath('data.total', 6);
+            ->assertJsonPath('data.total', 11);
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $user->id,
@@ -721,7 +840,7 @@ class OrderTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(5.0, (float) $auditLog->old_values['total']);
-        $this->assertSame(6.0, (float) $auditLog->new_values['total']);
+        $this->assertSame(11.0, (float) $auditLog->new_values['total']);
         $this->assertSame('held', $auditLog->new_values['status']);
         $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
         $this->assertSame($table->id, $auditLog->new_values['table_id']);
@@ -735,7 +854,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -879,7 +998,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -996,7 +1115,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1123,7 +1242,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1218,7 +1337,7 @@ class OrderTest extends TestCase
 
         $user = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1333,7 +1452,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1394,7 +1513,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1414,7 +1533,7 @@ class OrderTest extends TestCase
             100,
         );
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1547,7 +1666,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1574,7 +1693,7 @@ class OrderTest extends TestCase
             100,
         );
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1688,7 +1807,7 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -1708,7 +1827,7 @@ class OrderTest extends TestCase
             100,
         );
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1788,7 +1907,84 @@ class OrderTest extends TestCase
                 ->current_stock,
         );
     }
-    public function test_editing_order_to_higher_total_preserves_existing_payment_without_additional_payment(): void
+    public function test_completed_order_can_increase_items_with_discount_while_preserving_paid_total(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
+        $khmerProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Khmer Coffee',
+            'base_price' => 5.00,
+        ]);
+        $icedLatte = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+        $khmerProduct->branches()->attach($branch->id, ['is_available' => true]);
+        $icedLatte->branches()->attach($branch->id, ['is_available' => true]);
+
+        $created = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                ['product_id' => $khmerProduct->id, 'quantity' => 2],
+                ['product_id' => $icedLatte->id, 'quantity' => 1],
+            ],
+            'payment' => ['method' => 'cash', 'tendered' => 13.50],
+        ]);
+
+        $created->assertCreated()->assertJsonPath('data.total', 13.5);
+        $orderId = $created->json('data.id');
+
+        $this->actingAs($manager)->patchJson("/api/v1/orders/{$orderId}", [
+            'items' => [
+                ['product_id' => $khmerProduct->id, 'quantity' => 3],
+                ['product_id' => $icedLatte->id, 'quantity' => 1],
+            ],
+            'discount_total' => 5.00,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.total', 13.5);
+
+        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+        $this->assertSame(18.5, (float) $order->subtotal);
+        $this->assertSame(5.0, (float) $order->discount_total);
+        $this->assertSame(13.5, (float) $order->total);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $khmerProduct->id,
+            'quantity' => 3,
+        ]);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $icedLatte->id,
+            'quantity' => 1,
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $orderId,
+            'status' => 'completed',
+            'amount' => 13.50,
+        ]);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('audit_logs', [
+            'auditable_id' => $orderId,
+            'action' => 'order.updated',
+        ]);
+    }
+
+    public function test_editing_order_to_higher_total_requires_payment_reconciliation(): void
     {
         $this->seedPermissions();
 
@@ -1799,11 +1995,11 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1820,65 +2016,43 @@ class OrderTest extends TestCase
             'base_price' => 5.00,
         ]);
 
-        $oldProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
-
-        $newProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
+        $oldProduct->branches()->attach($branch->id, ['is_available' => true]);
+        $newProduct->branches()->attach($branch->id, ['is_available' => true]);
 
         $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
             'order_type' => 'takeaway',
-            'items' => [
-                [
-                    'product_id' => $oldProduct->id,
-                    'quantity' => 1,
-                ],
-            ],
-            'payment' => [
-                'method' => 'cash',
-                'tendered' => 3,
-            ],
+            'items' => [['product_id' => $oldProduct->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 3],
         ]);
 
-        $createResponse
-            ->assertStatus(201)
-            ->assertJsonPath('data.total', 3);
-
+        $createResponse->assertCreated()->assertJsonPath('data.total', 3);
         $orderId = $createResponse->json('data.id');
 
-        $response = $this->actingAs($manager)->patchJson(
+        $this->actingAs($manager)->patchJson(
             "/api/v1/orders/{$orderId}",
-            [
-                'items' => [
-                    [
-                        'product_id' => $newProduct->id,
-                        'quantity' => 1,
-                    ],
-                ],
-            ]
-        );
+            ['items' => [['product_id' => $newProduct->id, 'quantity' => 1]]]
+        )
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'A completed order adjustment cannot change the amount already paid. Use the refund or additional payment workflow for payment changes.'
+            );
 
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('data.id', $orderId)
-            ->assertJsonPath('data.total', 5);
-
-        $this->assertDatabaseCount('payments', 1);
-
-        $this->assertDatabaseHas('payments', [
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'total' => 3]);
+        $this->assertDatabaseHas('order_items', [
             'order_id' => $orderId,
-            'method' => 'cash',
-            'amount' => 3,
-            'tendered' => 3,
-            'status' => 'completed',
-            'processed_by' => $cashier->id,
+            'product_id' => $oldProduct->id,
+            'quantity' => 1,
         ]);
-
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $newProduct->id,
+        ]);
+        $this->assertDatabaseCount('payments', 1);
         $this->assertDatabaseCount('payment_refunds', 0);
     }
-    public function test_editing_order_to_lower_total_preserves_existing_payment_without_refund(): void
+
+    public function test_editing_order_to_lower_total_requires_payment_reconciliation(): void
     {
         $this->seedPermissions();
 
@@ -1889,11 +2063,11 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -1910,64 +2084,42 @@ class OrderTest extends TestCase
             'base_price' => 3.00,
         ]);
 
-        $oldProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
-
-        $newProduct->branches()->attach($branch->id, [
-            'is_available' => true,
-        ]);
+        $oldProduct->branches()->attach($branch->id, ['is_available' => true]);
+        $newProduct->branches()->attach($branch->id, ['is_available' => true]);
 
         $createResponse = $this->actingAs($cashier)->postJson('/api/v1/orders', [
             'order_type' => 'takeaway',
-            'items' => [
-                [
-                    'product_id' => $oldProduct->id,
-                    'quantity' => 1,
-                ],
-            ],
-            'payment' => [
-                'method' => 'cash',
-                'tendered' => 5,
-            ],
+            'items' => [['product_id' => $oldProduct->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
         ]);
 
-        $createResponse
-            ->assertStatus(201)
-            ->assertJsonPath('data.total', 5);
-
+        $createResponse->assertCreated()->assertJsonPath('data.total', 5);
         $orderId = $createResponse->json('data.id');
 
-        $response = $this->actingAs($manager)->patchJson(
+        $this->actingAs($manager)->patchJson(
             "/api/v1/orders/{$orderId}",
-            [
-                'items' => [
-                    [
-                        'product_id' => $newProduct->id,
-                        'quantity' => 1,
-                    ],
-                ],
-            ]
-        );
+            ['items' => [['product_id' => $newProduct->id, 'quantity' => 1]]]
+        )
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'A completed order adjustment cannot change the amount already paid. Use the refund or additional payment workflow for payment changes.'
+            );
 
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('data.id', $orderId)
-            ->assertJsonPath('data.total', 3);
-
-        $this->assertDatabaseCount('payments', 1);
-
-        $this->assertDatabaseHas('payments', [
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'total' => 5]);
+        $this->assertDatabaseHas('order_items', [
             'order_id' => $orderId,
-            'method' => 'cash',
-            'amount' => 5,
-            'tendered' => 5,
-            'status' => 'completed',
-            'processed_by' => $cashier->id,
+            'product_id' => $oldProduct->id,
+            'quantity' => 1,
         ]);
-
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $newProduct->id,
+        ]);
+        $this->assertDatabaseCount('payments', 1);
         $this->assertDatabaseCount('payment_refunds', 0);
     }
+
     public function test_admin_with_orders_edit_permission_can_edit_order(): void
     {
         $this->seedPermissions();
@@ -1979,11 +2131,11 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($branch);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2070,11 +2222,11 @@ class OrderTest extends TestCase
 
         $cashier = $this->makeCashier($orderBranch);
 
-        $manager = User::factory()->create();
+        $manager = User::factory()->create(['business_id' => $this->business->id]);
         $manager->assignRole('manager');
         $manager->branches()->attach($managerBranch->id, ['is_primary' => true]);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2148,7 +2300,7 @@ class OrderTest extends TestCase
 
         $user->givePermissionTo('orders.view');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2223,7 +2375,7 @@ class OrderTest extends TestCase
 
         $user->givePermissionTo('loyalty.manage');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2238,7 +2390,7 @@ class OrderTest extends TestCase
             'is_available' => true,
         ]);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Loyalty Customer',
             'phone' => '012345678',
@@ -2295,7 +2447,7 @@ class OrderTest extends TestCase
 
         $user->givePermissionTo('loyalty.manage');
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -2318,7 +2470,7 @@ class OrderTest extends TestCase
             'is_active' => true,
         ]);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Held Loyalty Customer',
             'phone' => '012345679',
@@ -2385,7 +2537,9 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['name' => 'Coffee', 'branch_id' => null]);
+        Permission::firstOrCreate(['name' => 'orders.view', 'guard_name' => 'web']);
+        $user->givePermissionTo('orders.view');
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'name' => 'Coffee', 'branch_id' => null]);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2399,7 +2553,7 @@ class OrderTest extends TestCase
             'status' => 'available',
             'is_active' => true,
         ]);
-        $customer = Customer::create([
+        $customer = Customer::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Regular Customer',
         ]);
@@ -2428,6 +2582,14 @@ class OrderTest extends TestCase
             'items' => [['product_id' => $product->id, 'quantity' => 2]],
         ])->assertOk()->assertJsonPath('data.total', 7);
 
+        // Reopening must load the saved quantities and authoritative total.
+        $this->getJson("/api/v1/orders/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'held')
+            ->assertJsonPath('data.items.0.quantity', 2)
+            ->assertJsonPath('data.items.0.line_total', 7)
+            ->assertJsonPath('data.total', 7);
+
         $this->assertDatabaseHas('orders', [
             'id' => $orderId,
             'customer_id' => $customer->id,
@@ -2435,7 +2597,20 @@ class OrderTest extends TestCase
         $this->postJson("/api/v1/orders/{$orderId}/pay", [
             'expected_total' => 7,
             'payment' => ['method' => 'cash', 'tendered' => 10],
-        ])->assertOk()->assertJsonPath('data.payment.amount', 7);
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.payment.amount', 7)
+            ->assertJsonPath('data.payment.tendered', 10)
+            ->assertJsonPath('data.payment.change_due', 3);
+
+        // Receipt data comes from the completed order, including saved edits.
+        $this->getJson("/api/v1/orders/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.items.0.quantity', 2)
+            ->assertJsonPath('data.total', 7)
+            ->assertJsonPath('data.payment.amount', 7)
+            ->assertJsonPath('data.payment.change_due', 3);
 
         $this->assertSame(80.0, (float) $ingredient->fresh()->current_stock);
         $this->assertSame('available', $table->fresh()->status);
@@ -2464,6 +2639,133 @@ class OrderTest extends TestCase
         $this->assertSame('occupied', $table->fresh()->status);
     }
 
+    public function test_kitchen_cleanup_preserves_existing_orders_items_payments_and_stock(): void
+    {
+        [$orderId] = $this->makeHeldBillForPaymentReview();
+        $this->postJson("/api/v1/orders/{$orderId}/pay", [
+            'expected_total' => 3.50,
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertOk();
+
+        // Recreate populated legacy tables with their foreign-key dependencies.
+        Schema::table('branches', function (Blueprint $table) {
+            $table->boolean('use_kitchen_display')->default(true);
+        });
+        Schema::create('kitchen_tickets', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+        });
+        Schema::create('kitchen_ticket_items', function (Blueprint $table) {
+            $table->foreignId('kitchen_ticket_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_item_id')->constrained()->cascadeOnDelete();
+        });
+        Schema::create('kitchen_item_voids', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('kitchen_ticket_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_item_id')->constrained()->cascadeOnDelete();
+        });
+        $order = Order::findOrFail($orderId);
+        $ticketId = DB::table('kitchen_tickets')->insertGetId([
+            'order_id' => $orderId,
+            'branch_id' => $order->branch_id,
+        ]);
+        $association = [
+            'kitchen_ticket_id' => $ticketId,
+            'order_item_id' => $order->items()->firstOrFail()->id,
+        ];
+        DB::table('kitchen_ticket_items')->insert($association);
+        DB::table('kitchen_item_voids')->insert($association);
+
+        $before = [];
+        foreach (['orders', 'order_items', 'payments', 'stock_movements', 'ingredients', 'restaurant_tables'] as $name) {
+            $before[$name] = DB::table($name)->orderBy('id')->get()->toJson();
+        }
+        $migration = require database_path('migrations/2026_10_07_000003_remove_kitchen_display_feature.php');
+        $migration->up();
+        $migration->up(); // Cleanup is safe to rerun after the old schema is gone.
+
+        foreach (['kitchen_item_voids', 'kitchen_ticket_items', 'kitchen_tickets'] as $name) {
+            $this->assertFalse(Schema::hasTable($name));
+        }
+        $this->assertFalse(Schema::hasColumn('branches', 'use_kitchen_display'));
+        foreach ($before as $name => $rows) {
+            $this->assertSame($rows, DB::table($name)->orderBy('id')->get()->toJson(), $name);
+        }
+        $this->getJson("/api/v1/orders/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.total', 3.5)
+            ->assertJsonPath('data.payment.change_due', 1.5);
+    }
+
+    public function test_kitchen_cleanup_is_safe_on_fresh_database(): void
+    {
+        $migration = require database_path('migrations/2026_10_07_000003_remove_kitchen_display_feature.php');
+        $migration->up();
+        foreach (['kitchen_item_voids', 'kitchen_ticket_items', 'kitchen_tickets'] as $name) {
+            $this->assertFalse(Schema::hasTable($name));
+        }
+        $this->assertFalse(Schema::hasColumn('branches', 'use_kitchen_display'));
+        $this->assertTrue(Schema::hasTable('orders'));
+        $this->assertTrue(Schema::hasTable('payments'));
+    }
+
+    public function test_pending_checkout_rejects_changed_prices_without_creating_sale(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $product->update(['base_price' => 4]);
+        $this->postJson('/api/v1/orders', [
+            'uuid' => (string) Str::uuid(),
+            'order_type' => 'takeaway',
+            'expected_total' => 3.50,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertSame(100.0, (float) $ingredient->fresh()->current_stock);
+    }
+
+    public function test_pending_checkout_replay_after_price_change_does_not_charge_twice(): void
+    {
+        [$orderId, $product] = $this->makeHeldBillForPaymentReview();
+        $payload = [
+            'uuid' => (string) Str::uuid(),
+            'order_type' => 'takeaway',
+            'expected_cashier_id' => auth()->id(),
+            'expected_total' => 3.50,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ];
+        $first = $this->postJson('/api/v1/orders', $payload)->assertCreated();
+        $product->update(['base_price' => 4]);
+        $retry = $this->postJson('/api/v1/orders', $payload)->assertCreated();
+        $this->assertSame($first->json('data.id'), $retry->json('data.id'));
+        $retry->assertJsonPath('data.total', 3.5);
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_pending_orders_cannot_be_submitted_as_a_different_cashier(): void
+    {
+        [$orderId, $product, $table] = $this->makeHeldBillForPaymentReview();
+        $payload = [
+            'uuid' => (string) Str::uuid(),
+            'expected_cashier_id' => auth()->id() + 1000,
+            'order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ];
+        $this->postJson('/api/v1/orders', $payload)->assertStatus(409);
+        $payload['order_type'] = 'dine_in';
+        $payload['table_id'] = $table->id;
+        unset($payload['payment']);
+        $this->postJson('/api/v1/orders/hold', $payload)->assertStatus(409);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 0);
+    }
+
     public function test_held_payment_rejects_invalid_expected_total(): void
     {
         [$orderId] = $this->makeHeldBillForPaymentReview();
@@ -2483,7 +2785,7 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2508,7 +2810,6 @@ class OrderTest extends TestCase
         $this->assertSame($first->json('data.id'), $retry->json('data.id'));
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('payments', 1);
-        $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
 
@@ -2526,7 +2827,7 @@ class OrderTest extends TestCase
             'capacity' => 4,
             'status' => 'available',
         ]);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2551,7 +2852,6 @@ class OrderTest extends TestCase
         $this->assertSame('occupied', $table->fresh()->status);
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
-        $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
     public function test_checkout_uuid_cannot_be_reused_for_different_items(): void
@@ -2562,7 +2862,7 @@ class OrderTest extends TestCase
             'code' => 'PP-01',
         ]);
         $user = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2594,7 +2894,7 @@ class OrderTest extends TestCase
         ]);
         $firstCashier = $this->makeCashier($branch);
         $secondCashier = $this->makeCashier($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create([
             'category_id' => $category->id,
             'name' => 'Latte',
@@ -2613,7 +2913,6 @@ class OrderTest extends TestCase
         $this->actingAs($secondCashier)->postJson('/api/v1/orders', $payload)->assertStatus(409);
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('payments', 1);
-        $this->assertDatabaseCount('kitchen_tickets', 1);
     }
 
 }

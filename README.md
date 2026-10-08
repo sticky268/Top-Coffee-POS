@@ -1,100 +1,35 @@
-# Top Coffee POS — Phase 2: Project Foundation
+# Top Coffee POS
 
-This delivers the Laravel API foundation and Flutter client foundation described
-in the Phase 1 architecture: folder structure, database migrations, seed data,
-auth (Sanctum + Spatie roles/permissions), API client, routing, theme, and the
-offline-first Drift schema.
+Flutter cashier/management application and Laravel API. The active backend is `backend-skeleton/`; `backend/` is the original scaffold and is not the production application.
 
-**Not built yet (by design — see Phase 1 plan):** POS screens, product/inventory
-UI, orders, payments, reports, kitchen display. Only the foundation.
+## Features
 
-## IMPORTANT — what was and wasn't verified
+Dine-in/takeaway checkout; table and held-order management; cash/card/QR/split payment records; receipts and electronic bills; products, variants and photos; recipes, ingredient stock, wastage and purchase history; staff, customers, loyalty and branches; reports, expenses, subscriptions and audit logs; coffee-themed light/dark UI. Kitchen Display was intentionally removed.
 
-This code was written and reviewed in a sandbox that has **no PHP, Composer,
-Flutter/Dart SDK, MySQL, or Redis installed, and no network access**. I could not
-run `composer install`, `flutter pub get`, migrations, `php artisan test`, or
-`flutter test` here. I did:
-- Run a structural check (brace/parenthesis balance, `<?php` tags) across all
-  62 PHP files and 13 Dart files — no mismatches found. This is **not** a
-  substitute for a real compiler/parser and will not catch type errors,
-  wrong namespaces, or logic bugs.
-- Manually re-read every migration and model against the Phase 1 ERD for
-  consistency (FK targets, cascade rules, column types).
+Card/QR are recorded payment methods. They do not imply integration with a payment gateway or terminal. Release acceptance must include whichever external payment process the business actually uses.
 
-**You need to actually run this on your machine** (steps below) and tell me
-what breaks — that's expected for a from-scratch scaffold and I'll fix issues
-in the next message rather than guessing.
+## Development
 
-## Backend — `backend/`
+Install PHP 8.2+, Composer, Flutter 3.44.9 and Java 17 with Android SDK tooling. Run Composer installation in `backend-skeleton/`, copy its `.env.example` to a local `.env`, configure the development database/cache and generate a development application key. Migrate and seed only the development database. Start the Laravel API, then run `flutter pub get` and `flutter run` from `frontend/`.
 
-```bash
-cd backend
-composer install
-cp .env.example .env
-php artisan key:generate
+The default Android emulator API URL is `http://10.0.2.2:8000/api/v1`. A different device/server needs an explicit `API_BASE_URL`. Production and release builds require the production HTTPS API URL. Configure Java through `JAVA_HOME`/Flutter's JDK settings rather than committing a path from one Windows machine.
 
-# Install Sanctum + Spatie's own migrations/config (not hand-written here —
-# these come from their official installers, on top of which our custom
-# migrations below are layered):
-php artisan install:api          # publishes Sanctum's migration
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+Do not use demo accounts or generate a new application key in an existing production environment.
 
-# Create the database (adjust for your MySQL setup), then:
-php artisan migrate
-php artisan db:seed
+## Verification
 
-php artisan serve
-```
+- Backend: `php vendor/bin/phpunit` from `backend-skeleton/`. PHPUnit uses an isolated SQLite in-memory database and a test-only key.
+- Frontend: `flutter analyze`, `flutter test`, and `flutter build apk --debug` from `frontend/`.
+- GitHub Actions runs the full PHP and Flutter checks and Android debug build. This provides code/build evidence, not physical-printer or deployment certification.
+- The authoritative phase scope and acceptance record is [docs/eight-phase-progress.md](docs/eight-phase-progress.md).
+- Release configuration, database rehearsal, printer/device checks, backup recovery and deployment procedure are in [docs/production-readiness.md](docs/production-readiness.md).
 
-Seeded test accounts (password: `password` for all):
-- admin@topcoffee.test
-- manager@topcoffee.test
-- cashier@topcoffee.test
-- kitchen@topcoffee.test
+## Offline operation
 
-Test the API:
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@topcoffee.test","password":"password","device_name":"curl-test"}'
-```
+Checkout writes a durable request before transmitting it. Pending/review/confirmed requests are visible in Pending Orders. Network/time-out errors retain the exact original UUID and payload, so reconnecting or reopening can recover without recreating the sale. Sync runs only for the signed-in cashier and selected branch. Catalog snapshots expire after 24 hours, and protected cached sessions after 8 hours.
 
-Run the test suite:
-```bash
-php artisan test
-```
+A pending request is **not a completed sale**. It does not print a paid receipt or appear in confirmed server sales until acknowledged. Price, stock, table, permission and subscription conflicts remain for review; never collect a second payment simply because confirmation is delayed. Do not uninstall or clear app data while requests remain unresolved.
 
-## Frontend — `frontend/`
+## Release status
 
-```bash
-cd frontend
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # generates app_database.g.dart (Drift)
-flutter run
-```
-
-If running against `php artisan serve` from an Android emulator, the default
-`API_BASE_URL` (`http://10.0.2.2:8000/api/v1`) already points at your host
-machine. For iOS simulator or a physical device, override it:
-```bash
-flutter run --dart-define=API_BASE_URL=http://<your-machine-ip>:8000/api/v1
-```
-
-Run tests:
-```bash
-flutter test
-```
-
-## Known gaps / honest issues
-
-- `php artisan install:api` and the Spatie publish step are commands *you* run
-  once — I did not fabricate the exact contents of Laravel 11's own generated
-  boilerplate (default `users`/`cache`/`jobs` migrations, `bootstrap/app.php`)
-  since I can't verify them against a real `laravel new` output in this
-  sandbox. My migrations assume the standard Laravel 11 `users` table exists
-  already and extend it.
-- CORS config, rate-limiter fine-tuning, and Redis queue/cache wiring are
-  scaffolded conceptually (`.env.example`) but not stress-tested.
-- Flutter's `app_database.g.dart` is not included — it's generated by
-  `build_runner` and must be produced on your machine.
-- None of this has been run against a real MySQL/Redis instance.
+The feature branch is `feature/kitchen-order-updates`. PR #6 must stay unmerged until the owner explicitly approves. Signed release configuration, production migration/backup rehearsal and actual device/printer acceptance remain mandatory before launch. Do not describe implementation alone as completion of all eight phases.

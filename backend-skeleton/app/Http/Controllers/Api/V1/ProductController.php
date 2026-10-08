@@ -144,14 +144,9 @@ class ProductController extends Controller
      * POST /api/v1/products
      *
      * Requires 'products.manage' (seeded on admin + manager, not cashier —
-     * see RolePermissionSeeder). Branch authorization is enforced only on
-     * the `branches` array in the payload: in this schema a product is a
-     * shared, catalog-wide entity (base_price/category/etc. aren't owned
-     * by any one branch — only branch_product availability/pricing is
-     * branch-specific), so that's the one place "must not
-     * create/update products for unauthorized branches" is actually
-     * meaningful to enforce. A user without branches.view-all may only
-     * assign availability for branches they're assigned to.
+     * see RolePermissionSeeder). Products belong to one business and may be
+     * shared across its branches. Users without branches.view-all may only
+     * assign availability for their assigned branches.
      */
     public function store(Request $request)
     {
@@ -165,7 +160,7 @@ class ProductController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'category_id' => 'required|integer|exists:categories,id',
-            'sku' => 'nullable|string|max:255|unique:products,sku',
+            'sku' => ['nullable', 'string', 'max:255', \Illuminate\Validation\Rule::unique('products', 'sku')->where('business_id', $request->user()->business_id)],
             'description' => 'nullable|string',
             'base_price' => 'required|numeric|min:0',
             'is_active' => 'nullable|boolean',
@@ -216,7 +211,7 @@ class ProductController extends Controller
                 'is_active' => $request->boolean('is_active', true),
             ]);
             if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('products', 'public');
+                $path = $request->file('image')->store('businesses/'.$request->user()->business_id.'/products', 'public');
 
                 $product->images()->create([
                     'path' => $path,
@@ -289,14 +284,14 @@ class ProductController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'category_id' => 'sometimes|required|integer|exists:categories,id',
-            'sku' => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('products', 'sku')->ignore($product->id)],
+            'sku' => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('products', 'sku')->where('business_id', $request->user()->business_id)->ignore($product->id)],
             'description' => 'sometimes|nullable|string',
             'base_price' => 'sometimes|required|numeric|min:0',
             'is_active' => 'sometimes|boolean',
             'image' => 'nullable|image|max:5120',
 
             'variants' => 'sometimes|array',
-            'variants.*.id' => 'nullable|integer|exists:product_variants,id',
+            'variants.*.id' => ['nullable', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $product->id)],
             'variants.*.name' => 'required_with:variants|string|max:255',
             'variants.*.sku' => 'nullable|string|max:255',
             'variants.*.price_delta' => 'required_with:variants|numeric',
@@ -341,7 +336,7 @@ class ProductController extends Controller
             if ($request->hasFile('image')) {
                 $oldImages = $product->images()->get();
 
-                $path = $request->file('image')->store('products', 'public');
+                $path = $request->file('image')->store('businesses/'.$request->user()->business_id.'/products', 'public');
 
                 foreach ($oldImages as $oldImage) {
                     $product->images()->whereKey($oldImage->id)->delete();

@@ -44,7 +44,7 @@ class LoyaltyTest extends TestCase
             'guard_name' => 'web',
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('manager');
         $user->givePermissionTo('loyalty.manage');
         $user->branches()->attach($branch->id, ['is_primary' => true]);

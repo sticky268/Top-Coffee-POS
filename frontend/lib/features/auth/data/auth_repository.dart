@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exceptions.dart';
+import '../../../core/offline/session_cache.dart';
 import '../domain/auth_models.dart';
 
 /// Talks to the /api/v1/auth/* endpoints via the existing [ApiClient].
@@ -8,9 +10,11 @@ import '../domain/auth_models.dart';
 /// (features/auth/application). This class is a thin, testable boundary
 /// around the network calls + token persistence.
 class AuthRepository {
-  AuthRepository(this._apiClient);
+  AuthRepository(this._apiClient, {SessionCache? sessionCache})
+      : _sessionCache = sessionCache;
 
   final ApiClient _apiClient;
+  final SessionCache? _sessionCache;
 
   Future<LoginResult> login({
     required String email,
@@ -30,6 +34,15 @@ class AuthRepository {
     );
 
     await _apiClient.saveToken(result.token);
+    if (_sessionCache != null) {
+      try {
+        await _sessionCache.save(
+            Map<String, dynamic>.from(response.data['data']['user'] as Map),
+            token: result.token);
+      } catch (_) {
+        /* Online login remains usable if its optional cache fails. */
+      }
+    }
     return result;
   }
 
@@ -41,13 +54,34 @@ class AuthRepository {
     try {
       await _apiClient.request((dio) => dio.post('/auth/logout'));
     } finally {
-      await _apiClient.clearToken();
+      try {
+        await _apiClient.clearToken();
+      } finally {
+        await _sessionCache?.clear();
+      }
     }
   }
 
   Future<AuthenticatedUser> getCurrentUser() async {
-    final response = await _apiClient.request((dio) => dio.get('/auth/me'));
-    return AuthenticatedUser.fromJson(response.data['data'] as Map<String, dynamic>);
+    try {
+      final response = await _apiClient.request((dio) => dio.get('/auth/me'));
+      final json = response.data['data'] as Map<String, dynamic>;
+      if (_sessionCache != null) {
+        try {
+          await _sessionCache.save(json,
+              token: await _apiClient.readToken() ?? '');
+        } catch (_) {
+          /* A valid server session does not depend on cached access. */
+        }
+      }
+      return AuthenticatedUser.fromJson(json);
+    } on NetworkException {
+      final cached = _sessionCache == null
+          ? null
+          : await _sessionCache.read(token: await _apiClient.readToken() ?? '');
+      if (cached != null) return AuthenticatedUser.fromJson(cached);
+      rethrow;
+    }
   }
 
   Future<bool> hasStoredToken() async {
@@ -55,11 +89,15 @@ class AuthRepository {
     return token != null && token.isNotEmpty;
   }
 
-  Future<void> clearStoredToken() => _apiClient.clearToken();
+  Future<void> clearStoredToken() async {
+    await _apiClient.clearToken();
+    await _sessionCache?.clear();
+  }
 }
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref.watch(apiClientProvider));
+  return AuthRepository(ref.watch(apiClientProvider),
+      sessionCache: SessionCache());
 });

@@ -43,7 +43,7 @@ class ExpenseTest extends TestCase
             'guard_name' => 'web',
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -122,7 +122,7 @@ class ExpenseTest extends TestCase
         $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
-        $category = ExpenseCategory::create(['name' => 'Supplies']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
 
         $expense = $this->makeExpense($branch, $user, $category);
 
@@ -149,7 +149,7 @@ class ExpenseTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
         $otherUser = $this->makeUserForBranch($otherBranch);
-        $category = ExpenseCategory::create(['name' => 'Supplies']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
 
         $otherExpense = $this->makeExpense(
             $otherBranch,
@@ -176,7 +176,7 @@ class ExpenseTest extends TestCase
         $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
-        $category = ExpenseCategory::create(['name' => 'Utilities']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Utilities']);
 
         $response = $this->actingAs($user)
             ->postJson('/api/v1/expenses', [
@@ -208,7 +208,7 @@ class ExpenseTest extends TestCase
         $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
-        $category = ExpenseCategory::create(['name' => 'Supplies']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
         $expense = $this->makeExpense($branch, $user, $category);
 
         $response = $this->actingAs($user)
@@ -226,7 +226,7 @@ class ExpenseTest extends TestCase
         $branch = $this->createBranch('Riverside', 'PP-01');
 
         $user = $this->makeUserForBranch($branch);
-        $category = ExpenseCategory::create(['name' => 'Supplies']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
         $expense = $this->makeExpense($branch, $user, $category);
 
         $response = $this->actingAs($user)
@@ -257,7 +257,7 @@ class ExpenseTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
         $otherUser = $this->makeUserForBranch($otherBranch);
-        $category = ExpenseCategory::create(['name' => 'Supplies']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
 
         $expense = $this->makeExpense(
             $otherBranch,
@@ -288,7 +288,7 @@ class ExpenseTest extends TestCase
 
         $admin = $this->makeUserForBranch($branch, 'admin');
         $otherUser = $this->makeUserForBranch($otherBranch);
-        $category = ExpenseCategory::create(['name' => 'Supplies']);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
 
         $expense = $this->makeExpense(
             $otherBranch,
@@ -363,11 +363,11 @@ class ExpenseTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $supplies = ExpenseCategory::create([
+        $supplies = ExpenseCategory::forceCreate(['business_id' => $this->business->id,
             'name' => 'Supplies',
         ]);
 
-        $utilities = ExpenseCategory::create([
+        $utilities = ExpenseCategory::forceCreate(['business_id' => $this->business->id,
             'name' => 'Utilities',
         ]);
 
@@ -419,7 +419,7 @@ class ExpenseTest extends TestCase
 
         $branch = $this->createBranch('Riverside', 'PP-01');
         $user = $this->makeUserForBranch($branch);
-        $category = ExpenseCategory::create([
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id,
             'name' => 'Supplies',
         ]);
 
@@ -457,7 +457,7 @@ class ExpenseTest extends TestCase
         $user = $this->makeUserForBranch($branch);
         $otherUser = $this->makeUserForBranch($otherBranch);
 
-        $category = ExpenseCategory::create([
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id,
             'name' => 'Supplies',
         ]);
 

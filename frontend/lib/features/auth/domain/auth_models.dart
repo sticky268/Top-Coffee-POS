@@ -13,7 +13,6 @@ class BranchSummary {
   final int id;
   final String name;
   final String code;
-
   factory BranchSummary.fromJson(Map<String, dynamic> json) {
     return BranchSummary(
       id: json['id'] as int,
@@ -21,6 +20,14 @@ class BranchSummary {
       code: json['code'] as String,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BranchSummary && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 /// The authenticated user plus their roles/permissions/branches, as

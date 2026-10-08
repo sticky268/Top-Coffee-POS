@@ -136,48 +136,11 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
 
       if (!mounted || selectedIngredient == null) return;
 
-      final quantityController = TextEditingController();
-
       final quantity = await showDialog<double>(
         context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: Text(selectedIngredient.name),
-            content: TextField(
-              controller: quantityController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Quantity used',
-                suffixText: selectedIngredient.unit.abbreviation,
-                hintText: 'e.g. 18',
-              ),
-            ),
-            actions: [
-              pos_ui.SecondaryButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              pos_ui.PrimaryButton(
-                onPressed: () {
-                  final value = double.tryParse(quantityController.text.trim());
-
-                  if (value == null || value <= 0) {
-                    return;
-                  }
-
-                  Navigator.of(dialogContext).pop(value);
-                },
-                child: const Text('Add'),
-              ),
-            ],
-          );
-        },
+        builder: (dialogContext) =>
+            _RecipeQuantityDialog(ingredient: selectedIngredient),
       );
-
-      quantityController.dispose();
 
       if (!mounted || quantity == null) return;
 
@@ -370,6 +333,56 @@ class _RecipeItemCard extends StatelessWidget {
           icon: const Icon(Icons.close),
         ),
       ),
+    );
+  }
+}
+
+class _RecipeQuantityDialog extends StatefulWidget {
+  const _RecipeQuantityDialog({required this.ingredient});
+
+  final InventoryIngredient ingredient;
+
+  @override
+  State<_RecipeQuantityDialog> createState() => _RecipeQuantityDialogState();
+}
+
+class _RecipeQuantityDialogState extends State<_RecipeQuantityDialog> {
+  final TextEditingController _quantityController = TextEditingController();
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.ingredient.name),
+      content: TextField(
+        controller: _quantityController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'Quantity used',
+          suffixText: widget.ingredient.unit.abbreviation,
+          hintText: 'e.g. 18',
+        ),
+      ),
+      actions: [
+        pos_ui.SecondaryButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        pos_ui.PrimaryButton(
+          onPressed: () {
+            final value = double.tryParse(_quantityController.text.trim());
+            if (value == null || value <= 0) return;
+            Navigator.of(context).pop(value);
+          },
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }
