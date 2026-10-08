@@ -1904,6 +1904,83 @@ class OrderTest extends TestCase
                 ->current_stock,
         );
     }
+    public function test_completed_order_can_increase_items_with_discount_while_preserving_paid_total(): void
+    {
+        $this->seedPermissions();
+
+        $branch = Branch::create([
+            'business_id' => $this->business->id,
+            'name' => 'Riverside',
+            'code' => 'PP-01',
+        ]);
+
+        $cashier = $this->makeCashier($branch);
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->branches()->attach($branch->id, ['is_primary' => true]);
+
+        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $khmerProduct = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Khmer Coffee',
+            'base_price' => 5.00,
+        ]);
+        $icedLatte = Product::create([
+            'category_id' => $category->id,
+            'name' => 'Iced Latte',
+            'base_price' => 3.50,
+        ]);
+        $khmerProduct->branches()->attach($branch->id, ['is_available' => true]);
+        $icedLatte->branches()->attach($branch->id, ['is_available' => true]);
+
+        $created = $this->actingAs($cashier)->postJson('/api/v1/orders', [
+            'order_type' => 'takeaway',
+            'items' => [
+                ['product_id' => $khmerProduct->id, 'quantity' => 2],
+                ['product_id' => $icedLatte->id, 'quantity' => 1],
+            ],
+            'payment' => ['method' => 'cash', 'tendered' => 13.50],
+        ]);
+
+        $created->assertCreated()->assertJsonPath('data.total', 13.5);
+        $orderId = $created->json('data.id');
+
+        $this->actingAs($manager)->patchJson("/api/v1/orders/{$orderId}", [
+            'items' => [
+                ['product_id' => $khmerProduct->id, 'quantity' => 3],
+                ['product_id' => $icedLatte->id, 'quantity' => 1],
+            ],
+            'discount_total' => 5.00,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.total', 13.5);
+
+        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+        $this->assertSame(18.5, (float) $order->subtotal);
+        $this->assertSame(5.0, (float) $order->discount_total);
+        $this->assertSame(13.5, (float) $order->total);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $khmerProduct->id,
+            'quantity' => 3,
+        ]);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $icedLatte->id,
+            'quantity' => 1,
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $orderId,
+            'status' => 'completed',
+            'amount' => 13.50,
+        ]);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('audit_logs', [
+            'auditable_id' => $orderId,
+            'action' => 'order.updated',
+        ]);
+    }
+
     public function test_editing_order_to_higher_total_requires_payment_reconciliation(): void
     {
         $this->seedPermissions();
