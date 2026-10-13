@@ -259,4 +259,34 @@ class CafeOperationsTest extends TestCase
         $this->assertEquals(0, $account->fresh()->refund_points_debt);
     }
 
+
+    public function test_transfer_cannot_write_to_an_unassigned_branch_and_rolls_back(): void
+    {
+        $other = Branch::create(['business_id' => $this->actor->business_id, 'name' => 'Restricted', 'code' => 'OP-R']);
+        $from = $this->ingredient();
+        $to = $this->ingredient('Coffee', $other);
+        app(StockMovementService::class)->record($from, 'purchase', 2, $this->actor->id);
+        $this->postJson('/api/v1/stock/transfer', $this->payload(['source_ingredient_id' => $from->id, 'destination_ingredient_id' => $to->id, 'quantity' => 0.5, 'reason' => 'Forbidden destination']))->assertForbidden();
+        $this->assertEquals(2, $from->fresh()->current_stock);
+        $this->assertEquals(0, $to->fresh()->current_stock);
+        $this->assertDatabaseCount('stock_movements', 1);
+        $this->assertDatabaseCount('operation_requests', 0);
+    }
+
+    public function test_wastage_refund_preserves_original_cost_after_new_purchases(): void
+    {
+        $this->open();
+        $order = $this->order();
+        $ingredient = $this->ingredient();
+        $stock = app(StockMovementService::class);
+        $stock->record($ingredient, 'purchase', 2, $this->actor->id, null, null, 10);
+        $stock->record($ingredient, 'sale_deduction', -0.2, $this->actor->id, null, $order);
+        $stock->record($ingredient, 'purchase', 1, $this->actor->id, null, null, 20);
+        $before = $ingredient->fresh()->average_unit_cost;
+        $this->postJson("/api/v1/orders/{$order->id}/refund", $this->payload(['amount' => 10, 'reason' => 'Discarded', 'inventory_disposition' => 'wastage']))->assertOk();
+        $this->assertEquals(2.8, $ingredient->fresh()->current_stock);
+        $this->assertEquals($before, $ingredient->fresh()->average_unit_cost);
+        $this->assertDatabaseHas('stock_movements', ['ingredient_id' => $ingredient->id, 'type' => 'wastage', 'quantity' => -0.2, 'unit_cost' => 10]);
+    }
+
 }

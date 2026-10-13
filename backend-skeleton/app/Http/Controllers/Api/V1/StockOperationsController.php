@@ -38,6 +38,7 @@ class StockOperationsController extends Controller
             $from = $rows->get($request->integer('source_ingredient_id'));
             $to = $rows->get($request->integer('destination_ingredient_id'));
             abort_unless($from && $to && $from->branch_id === $branch, 404, 'Accessible ingredients not found.');
+            abort_unless($request->user()->can('branches.view-all') || $request->user()->branches()->where('branches.id', $to->branch_id)->exists(), 403, 'Destination branch access denied.');
             abort_if($from->branch_id === $to->branch_id, 422, 'Choose a different destination branch.');
             abort_unless($from->is_active && $to->is_active && mb_strtolower(trim($from->name)) === mb_strtolower(trim($to->name)), 422, 'Transfer requires matching active ingredients.');
             $quantity = (float) $request->input('quantity');

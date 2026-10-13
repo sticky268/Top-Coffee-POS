@@ -52,13 +52,19 @@ class PaymentAdjustmentController extends Controller
             }
             if ($disposition !== 'consumed') {
                 $deductions = StockMovement::where('reference_type', $order->getMorphClass())->where('reference_id', $order->id)->where('type', 'sale_deduction')->orderBy('ingredient_id')->get()->groupBy('ingredient_id');
+                // Wastage reclassifies the original consumption. It must retain
+                // its historical cost and leave today's remaining-stock valuation intact.
+                $currentCosts = Ingredient::withTrashed()->whereIn('id', $deductions->keys())->orderBy('id')->lockForUpdate()->pluck('average_unit_cost', 'id');
                 app(SaleInventoryService::class)->reverseForOrder($order, $request->user()->id);
                 if ($disposition === 'wastage') {
                     foreach ($deductions as $ingredientId => $rows) {
                         $quantity = (float) $rows->sum('quantity');
                         if ($quantity >= 0) continue;
                         $ingredient = Ingredient::withTrashed()->findOrFail($ingredientId);
-                        app(StockMovementService::class)->record($ingredient, 'wastage', $quantity, $request->user()->id, $request->input('reason'), $order);
+                        $unknown = $rows->contains(fn ($row) => $row->unit_cost === null);
+                        $unitCost = $unknown ? null : $rows->sum(fn ($row) => (float) $row->quantity * (float) $row->unit_cost) / $quantity;
+                        app(StockMovementService::class)->record($ingredient, 'wastage', $quantity, $request->user()->id, $request->input('reason'), $order, $unitCost, $unknown);
+                        $ingredient->forceFill(['average_unit_cost' => $currentCosts->get($ingredientId)])->save();
                     }
                 }
                 $order->forceFill(['inventory_disposed_at' => now()])->save();
