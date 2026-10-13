@@ -12,6 +12,10 @@ class DashboardNavigation extends StatelessWidget {
   final String selectedRoute;
 
   void _navigate(BuildContext context, String route) {
+    final scaffold = Scaffold.maybeOf(context);
+    if (scaffold?.isDrawerOpen ?? false) {
+      scaffold!.closeDrawer();
+    }
     if (selectedRoute == route) return;
     context.go(route);
   }
@@ -242,7 +246,7 @@ class DashboardNavigation extends StatelessWidget {
                         route: '/settings',
                         selectedRoute: selectedRoute,
                         enabled: true,
-                        onTap: () => context.go('/settings'),
+                        onTap: () => _navigate(context, '/settings'),
                       ),
                     ],
                   ),
