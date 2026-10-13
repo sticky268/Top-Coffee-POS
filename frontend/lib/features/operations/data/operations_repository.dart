@@ -151,6 +151,14 @@ class OperationsRepository {
           status < 500;
       operation['error'] = ApiExceptionMapper.fromDioException(e).message;
       await store.write(key, jsonEncode(operation));
+      if (previouslyUncertain &&
+          status != null &&
+          status >= 400 &&
+          status < 500) {
+        throw UncertainOperationException(
+          '${operation['error']}. The earlier result is still unconfirmed; retry the original request after restoring access.',
+        );
+      }
       throw ApiExceptionMapper.fromDioException(e);
     }
   }

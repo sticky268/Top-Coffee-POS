@@ -112,7 +112,7 @@ void main() {
       adapter.status = 403;
       await expectLater(
         repo.retry((await repo.pending()).single),
-        throwsA(isA<ApiException>()),
+        throwsA(isA<UncertainOperationException>()),
       );
       final saved = (await repo.pending()).single;
       expect(saved['rejected'], isFalse);

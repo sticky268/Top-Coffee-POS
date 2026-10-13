@@ -199,4 +199,64 @@ class CafeOperationsTest extends TestCase
         RecipeItem::query()->update(['quantity_used' => 0.2]);
         $this->assertEquals(4, $item->fresh()->ingredient_cost);
     }
+
+    public function test_report_uses_branch_local_dates_and_refund_movement_dates(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-12 16:59:00', 'UTC'));
+        $this->open();
+        $order = $this->order();
+        $ingredient = $this->ingredient();
+        $stock = app(StockMovementService::class);
+        $stock->record($ingredient, 'purchase', 2, $this->actor->id, null, null, 10);
+        $stock->record($ingredient, 'sale_deduction', -0.2, $this->actor->id, null, $order);
+        $this->getJson('/api/v1/reports/operations?branch_id='.$this->branch->id.'&date_from=2026-10-12&date_to=2026-10-12')
+            ->assertOk()->assertJsonPath('data.gross_sales', 10)->assertJsonPath('data.known_ingredient_cost', 2)->assertJsonPath('data.ingredient_margin', 8);
+        // Midnight in Phnom Penh is 17:00 UTC. Refund activity belongs to the next local day.
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-12 17:01:00', 'UTC'));
+        $this->postJson("/api/v1/orders/{$order->id}/refund", $this->payload(['amount' => 10, 'reason' => 'Not prepared', 'inventory_disposition' => 'restock']))->assertOk();
+        $this->getJson('/api/v1/reports/operations?branch_id='.$this->branch->id.'&date_from=2026-10-13&date_to=2026-10-13')
+            ->assertOk()->assertJsonPath('data.gross_sales', 0)->assertJsonPath('data.refunds', 10)->assertJsonPath('data.known_ingredient_cost', -2)->assertJsonPath('data.ingredient_margin', -8);
+        $this->getJson('/api/v1/reports/operations?branch_id='.$this->branch->id.'&date_from=2026-10-12&date_to=2026-10-12')
+            ->assertOk()->assertJsonPath('data.refunds', 0)->assertJsonPath('data.gross_sales', 10);
+        $this->travelBack();
+    }
+
+    public function test_unpriced_consumption_prevents_false_margin(): void
+    {
+        $order = $this->order();
+        $ingredient = $this->ingredient();
+        $stock = app(StockMovementService::class);
+        $stock->record($ingredient, 'purchase', 2, $this->actor->id);
+        $stock->record($ingredient, 'sale_deduction', -0.2, $this->actor->id, null, $order);
+        $day = now('Asia/Phnom_Penh')->toDateString();
+        $this->getJson('/api/v1/reports/operations?branch_id='.$this->branch->id.'&date_from='.$day.'&date_to='.$day)
+            ->assertOk()->assertJsonPath('data.unknown_cost_movements', 1)->assertJsonPath('data.ingredient_margin', null)->assertJsonPath('data.unassigned_cash_payments', 1);
+    }
+
+    public function test_partial_refunds_reverse_points_once_and_future_earnings_repay_debt(): void
+    {
+        $this->open();
+        $customer = \App\Models\Customer::create(['branch_id' => $this->branch->id, 'name' => 'Regular']);
+        \App\Models\LoyaltySetting::create(['branch_id' => $this->branch->id, 'is_enabled' => true, 'points_per_currency_unit' => 1]);
+        $order = $this->order();
+        $order->update(['customer_id' => $customer->id]);
+        $loyalty = app(\App\Services\LoyaltyService::class);
+        $loyalty->awardForOrder($order);
+        $account = $customer->loyaltyAccount()->firstOrFail();
+        $account->update(['points_balance' => 2, 'lifetime_redeemed' => 8]);
+        $partial = $this->payload(['amount' => 4, 'reason' => 'Partial correction', 'inventory_disposition' => 'consumed']);
+        $this->postJson("/api/v1/orders/{$order->id}/refund", $partial)->assertOk();
+        $this->postJson("/api/v1/orders/{$order->id}/refund", $partial)->assertOk();
+        $this->assertEquals(0, $account->fresh()->points_balance);
+        $this->assertEquals(2, $account->fresh()->refund_points_debt);
+        $this->postJson("/api/v1/orders/{$order->id}/refund", $this->payload(['amount' => 6, 'reason' => 'Remaining correction', 'inventory_disposition' => 'consumed']))->assertOk();
+        $this->assertEquals(8, $account->fresh()->refund_points_debt);
+        $next = $this->order();
+        $next->update(['customer_id' => $customer->id]);
+        $loyalty->awardForOrder($next);
+        $loyalty->awardForOrder($next);
+        $this->assertEquals(2, $account->fresh()->points_balance);
+        $this->assertEquals(0, $account->fresh()->refund_points_debt);
+    }
+
 }

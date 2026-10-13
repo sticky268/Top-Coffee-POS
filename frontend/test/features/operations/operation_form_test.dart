@@ -22,6 +22,9 @@ void main() {
                 save: (values) async {
                   sent.add(Map.of(values));
                   if (sent.length == 1) throw const NetworkException();
+                  if (sent.length == 2) {
+                    throw const UncertainOperationException('Restore access');
+                  }
                 },
               ),
               child: const Text('Open'),
@@ -41,7 +44,14 @@ void main() {
     );
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextFormField>(find.byType(TextFormField)).enabled,
+      isFalse,
+    );
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
     expect(sent, [
+      {'amount': 5},
       {'amount': 5},
       {'amount': 5},
     ]);
