@@ -15,7 +15,7 @@ class LoyaltyService
     {
         $earned = LoyaltyTransaction::where('order_id', $order->id)->where('type', 'earned')->first();
         if (! $earned) return;
-        $refunded = (float) DB::table('payment_refunds')->whereIn('payment_id', $order->payments()->select('id'))->sum('amount');
+        $refunded = (float) DB::table('payment_refunds')->whereIn('payment_id', $order->payments()->select('id'))->orderBy('id')->lockForUpdate()->get()->sum('amount');
         $ratio = (float) $order->total > 0 ? min(1, $refunded / (float) $order->total) : 1;
         $target = (int) floor($earned->points * $ratio + 0.000001);
         $points = max(0, $target - (int) $order->refunded_loyalty_points);

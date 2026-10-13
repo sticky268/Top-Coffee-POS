@@ -129,6 +129,18 @@ class OperationsConcurrencyTest extends TestCase
         $this->assertDatabaseCount('payment_refunds', 1);
     }
 
+    public function test_concurrent_partial_refunds_reconcile_both_committed_amounts(): void
+    {
+        $this->open($this->actor); $this->open($this->other);
+        $order = $this->sale();
+        $payload = ['amount' => 4, 'reason' => 'Concurrent partial correction', 'inventory_disposition' => 'consumed'];
+        $results = $this->race([$this->input($this->actor, "/api/v1/orders/{$order->id}/refund", $payload), $this->input($this->other, "/api/v1/orders/{$order->id}/refund", $payload)], 'orders', $order->id);
+        $this->assertSame([200, 200], array_column($results, 'status'), json_encode($results));
+        $totals = array_map(fn ($r) => $r['body']['data']['refunded'], $results); sort($totals);
+        $this->assertEquals([4, 8], $totals);
+        $this->assertEquals(8, DB::table('payment_refunds')->sum('amount'));
+    }
+
     public function test_closing_shift_racing_a_charge_never_changes_a_closed_drawer(): void
     {
         $shift = $this->open($this->actor); $order = $this->sale();

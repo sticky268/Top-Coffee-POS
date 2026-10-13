@@ -14,6 +14,7 @@ use App\Services\ShiftService;
 use App\Services\SaleInventoryService;
 use App\Services\StockMovementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PaymentAdjustmentController extends Controller
 {
@@ -31,7 +32,7 @@ class PaymentAdjustmentController extends Controller
         $result = $ops->run($request, $branch, 'order.refund.'.$id, function () use ($request, $id, $branch) {
             $order = Order::whereKey($id)->where('branch_id', $branch)->lockForUpdate()->firstOrFail();
             abort_unless($order->status === 'completed', 409, 'Only a completed sale can be refunded.');
-            $payments = $order->payments()->with('refunds')->orderBy('id')->lockForUpdate()->get();
+            $payments = $this->paymentRecords($order, true);
             $refunded = $payments->sum(fn ($p) => $p->refunds->sum(fn ($r) => OperationService::cents($r->amount)));
             $available = $payments->sum(fn ($p) => OperationService::cents($p->amount)) - $refunded;
             $remaining = OperationService::cents($request->input('amount'));
@@ -98,9 +99,23 @@ class PaymentAdjustmentController extends Controller
         return ['success' => true, 'data' => $result];
     }
 
+    private function paymentRecords(Order $order, bool $lock): \Illuminate\Support\Collection
+    {
+        $query = $order->payments()->orderBy('id');
+        if ($lock) $query->lockForUpdate();
+        $payments = $query->get();
+        $query = PaymentRefund::whereIn('payment_id', $payments->pluck('id'))->orderBy('id');
+        // InnoDB repeatable-read snapshots may predate a waited-on order lock.
+        // Read refund rows with locks too, so limits and responses see committed corrections.
+        if ($lock) $query->lockForUpdate();
+        $refunds = $query->get()->groupBy('payment_id');
+        foreach ($payments as $payment) $payment->setRelation('refunds', $refunds->get($payment->id, collect()));
+        return $payments;
+    }
+
     private function summary(Order $order): array
     {
-        $payments = $order->payments()->with('refunds')->get();
+        $payments = $this->paymentRecords($order, DB::transactionLevel() > 0);
         $paid = $payments->sum(fn ($p) => OperationService::cents($p->amount));
         $refunded = $payments->sum(fn ($p) => $p->refunds->sum(fn ($r) => OperationService::cents($r->amount)));
         return ['order_id' => $order->id, 'paid' => $paid / 100, 'refunded' => $refunded / 100, 'net_paid' => ($paid - $refunded) / 100, 'supplemental_total' => (float) $order->supplemental_total, 'payments' => $payments->toArray()];
