@@ -1,6 +1,6 @@
 # Reliable café operations — implementation review
 
-Status: published with owner approval in draft PR #7. Code validation passed in POS validation run 38369979566 and Android workflow run 38369979650. Documentation-only commits may trigger follow-up runs. This is the first implementation batch in the broader improvement plan; it is not a production release.
+Status: published with owner approval in draft PR #7. Automated results, including the added MySQL concurrency checks, are recorded in the PR. This remains a draft for review. This is the first implementation batch in the broader improvement plan; it is not a production release.
 
 Base: `feature/kitchen-order-updates`, commit `d97c5acbf08ab633324622ac44ad853d2b1a1c6e`.
 Working branch: `codex/reliable-cafe-operations`.
@@ -32,16 +32,17 @@ Draft PR: https://github.com/sticky268/Top-Coffee-POS/pull/7. Both this PR and P
 - `git diff --check`: clean.
 - GitHub CI: complete Laravel suite passed (339 tests, 1,533 assertions), including local-date refund reporting, spent loyalty points, transfer isolation and historical wastage costs.
 - GitHub CI: Flutter dependency resolution and analysis passed; all 244 frontend tests passed, including recovery and compact phone cart checks.
-- GitHub CI: all 18 café operations tests passed on MySQL 8. This verifies SQL compatibility and transactional outcomes, not concurrent multi-process contention.
+- GitHub CI: all 18 café operations tests passed on MySQL 8. Separate-process tests additionally verify real InnoDB lock contention for duplicate refunds, competing refunds, partial refunds, shift closing versus charges, refunds versus charges, and competing transfers.
+- Concurrency testing exposed repeatable-read snapshots that could over-refund a sale after an order lock wait. Refund eligibility/history, drawer totals and refund loyalty totals now use current locked reads inside their transactions.
+- A populated previous-schema migration rehearsal passed upgrade, repeated migration, pre-adoption rollback and reapplication. It preserves all original columns in 14 tables, including historical financial records, stock, loyalty and Khmer text. New historical costing fields remain unknown.
 - GitHub CI: final Android debug APK build passed. The real Android integration workflow passed login → open with $20 → sell a $3.50 drink with $5 tendered → close with $23.50 counted cash → awaiting manager review.
 - The integration-test SDK dependencies in `pubspec.lock` were captured from the successful CI resolution; existing package versions were preserved.
 
 ## Remaining rollout verification
 
-- Run concurrent multi-process refund/shift/transfer scenarios against MySQL before production rollout. Sequential SQLite/MySQL test passes cannot establish contention behavior.
 - Integration fixtures were used only in a disposable testing database. The fixture seeder refuses non-testing or populated databases and is never invoked by the normal DatabaseSeeder.
 - Inspect the new screens at phone/tablet widths and validate physical receipt/Khmer printing on the café's hardware.
-- Test migrations against a copy of existing data before deploying. New historical costing fields intentionally start unknown; do not fabricate old ingredient costs.
+- Test migrations against a disposable copy of the actual café database before deploying. The CI rehearsal uses representative synthetic historical data, not the café database. New historical costing fields intentionally start unknown; do not fabricate old ingredient costs.
 
 Local Flutter startup was blocked by automatic approval review because dependency startup attempted a cloud instance-metadata request; it was not retried. PHP runtime installation was blocked by network policy. Runtime validation therefore runs in GitHub CI. The owner explicitly approved the public branch/source upload and CI runs.
 
@@ -62,3 +63,9 @@ After this batch passes its gates: add configurable cashier modifiers/notes and 
 ## Proposed review action
 
 Review draft PR #7 targeting `feature/kitchen-order-updates` with the passing code-validation runs. Do not merge this batch or PR #6, and do not deploy, until explicitly approved after validation.
+
+## Reproducing the release checks
+
+The Linux CI MySQL job runs `CafeOperationsTest`, followed by `OperationsConcurrencyTest|OperationsMigrationRehearsalTest`. Release checks require `RUN_OPERATIONS_RELEASE_CHECKS=1`, `APP_ENV=testing`, MySQL, and the database name `operations_testing`. They recreate that disposable database; never point them at a café database. Normal local/SQLite suites skip these opt-in checks.
+
+The concurrency harness starts separate PHP HTTP-kernel processes with disposable bearer tokens and verifies that both requests are waiting on InnoDB locks before releasing the barrier. The migration rehearsal populates the previous schema, compares every original column after upgrade, and exercises rollback only before new operations records exist. It does not establish that rollback is safe after adopting the new workflow.
