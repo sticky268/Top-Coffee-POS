@@ -13,6 +13,19 @@ Future<void> waitForHome(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 200));
     if (find.byType(DashboardScreen).evaluate().isNotEmpty) return;
     if (find.widgetWithText(TextFormField, 'Email').evaluate().isNotEmpty) {
+      if (const bool.fromEnvironment('SMOKE_CI_LOGIN')) {
+        expect(Env.apiBaseUrl, 'http://10.0.2.2:8000/api/v1');
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Email'),
+          'cashier@ci.invalid',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Password'),
+          'ci-disposable-password',
+        );
+        await tester.tap(find.text('Sign in').last);
+        continue;
+      }
       fail(
         'No saved signed-in session. Sign in normally on this emulator, then rerun this test.',
       );
