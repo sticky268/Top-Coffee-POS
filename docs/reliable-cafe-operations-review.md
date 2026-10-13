@@ -1,6 +1,6 @@
 # Reliable café operations — implementation review
 
-Status: published with owner approval in draft PR #7. Current CI results are recorded in the PR; final Android workflow validation is in progress. This is the first implementation batch in the broader improvement plan; it is not a production release.
+Status: published with owner approval in draft PR #7. Code validation passed in POS validation run 38369979566 and Android workflow run 38369979650. Documentation-only commits may trigger follow-up runs. This is the first implementation batch in the broader improvement plan; it is not a production release.
 
 Base: `feature/kitchen-order-updates`, commit `d97c5acbf08ab633324622ac44ad853d2b1a1c6e`.
 Working branch: `codex/reliable-cafe-operations`.
@@ -31,16 +31,15 @@ Draft PR: https://github.com/sticky268/Top-Coffee-POS/pull/7. Both this PR and P
 - Four executable Dart model checks passed: variant multiplier persistence, legacy variant defaults, receipt reconciliation and financially adjusted order flags.
 - `git diff --check`: clean.
 - GitHub CI: complete Laravel suite passed (339 tests, 1,533 assertions), including local-date refund reporting, spent loyalty points, transfer isolation and historical wastage costs.
-- GitHub CI: Flutter dependency resolution, analysis and the full frontend test suite passed, including the recovery edge-case fix.
+- GitHub CI: Flutter dependency resolution and analysis passed; all 244 frontend tests passed, including recovery and compact phone cart checks.
 - GitHub CI: all 18 café operations tests passed on MySQL 8. This verifies SQL compatibility and transactional outcomes, not concurrent multi-process contention.
-- GitHub CI: Android debug APK build passed before the final integration-test timing fix.
+- GitHub CI: final Android debug APK build passed. The real Android integration workflow passed login → open with $20 → sell a $3.50 drink with $5 tendered → close with $23.50 counted cash → awaiting manager review.
 - The integration-test SDK dependencies in `pubspec.lock` were captured from the successful CI resolution; existing package versions were preserved.
 
-## Validation still required
+## Remaining rollout verification
 
 - Run concurrent multi-process refund/shift/transfer scenarios against MySQL before production rollout. Sequential SQLite/MySQL test passes cannot establish contention behavior.
-- Confirm the final Android build and full cashier integration workflow are green. The integration-test dependency lock was updated from CI.
-- Run the Android integration workflow against its disposable testing database. The fixture seeder refuses non-testing or populated databases and is never invoked by the normal DatabaseSeeder.
+- Integration fixtures were used only in a disposable testing database. The fixture seeder refuses non-testing or populated databases and is never invoked by the normal DatabaseSeeder.
 - Inspect the new screens at phone/tablet widths and validate physical receipt/Khmer printing on the café's hardware.
 - Test migrations against a copy of existing data before deploying. New historical costing fields intentionally start unknown; do not fabricate old ingredient costs.
 
@@ -62,4 +61,4 @@ After this batch passes its gates: add configurable cashier modifiers/notes and 
 
 ## Proposed review action
 
-Review draft PR #7 targeting `feature/kitchen-order-updates` after CI finishes. Do not merge this batch or PR #6, and do not deploy, until explicitly approved after validation.
+Review draft PR #7 targeting `feature/kitchen-order-updates` with the passing code-validation runs. Do not merge this batch or PR #6, and do not deploy, until explicitly approved after validation.
