@@ -65,7 +65,11 @@ void main() {
         find.widgetWithText(TextField, 'Amount received'),
         '5',
       );
-      await tester.ensureVisible(find.text('Confirm & Pay'));
+      await tester.scrollUntilVisible(
+        find.text('Confirm & Pay'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.tap(find.text('Confirm & Pay'));
       await waitFor(tester, find.text('Payment Successful'));
       await tester.ensureVisible(find.text('Back to Dashboard'));
