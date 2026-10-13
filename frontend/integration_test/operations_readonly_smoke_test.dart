@@ -9,6 +9,7 @@ import 'package:top_coffee_pos/app.dart';
 import 'package:top_coffee_pos/core/config/env.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/offline/order_sync.dart';
+import 'package:top_coffee_pos/features/operations/data/operations_repository.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:top_coffee_pos/features/operations/presentation/operations_screen.dart';
 
@@ -122,23 +123,45 @@ Future<void> rehearseShift(
     );
     expect(container.read(currentBranchProvider)?.id, 21);
   }
-  expect(
-    find.widgetWithText(FilledButton, 'Close shift'),
-    findsNothing,
-    reason: 'Refusing to interfere with an existing open shift.',
-  );
-  final open = find.widgetWithText(FilledButton, 'Open shift');
-  expect(
-    open,
-    findsOneWidget,
-    reason: 'This account needs permission to open a shift.',
-  );
-  await tester.ensureVisible(open);
-  await tester.tap(open);
-  final openingCash = find.widgetWithText(TextFormField, 'Opening cash');
-  await waitForControl(tester, openingCash);
-  await tester.enterText(openingCash, '20');
-  await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+  const resumeId = int.fromEnvironment('RESUME_SHIFT_ID');
+  if (resumeId > 0) {
+    expect(includeSale, isTrue);
+    final container = ProviderScope.containerOf(tester.element(find.byType(OperationsScreen)));
+    final rows = await tester.runAsync(() =>
+        container.read(operationsRepositoryProvider).get('/shifts'));
+    final targets = (rows as List).cast<Map>().where((row) => row['id'] == resumeId).toList();
+    expect(targets, hasLength(1), reason: 'The explicit rehearsal shift must exist.');
+    final shift = targets.single;
+    expect(shift['branch_id'], 21);
+    expect(shift['user_id'], 16);
+    expect(shift['status'], 'open');
+    expect(num.parse('${shift['opening_cash']}'), 20);
+    expect(shift['payment_totals'], isEmpty,
+        reason: 'Refusing to repeat a sale on a shift with payments.');
+    expect(shift['movements'], isEmpty);
+    for (final key in ['cash_sales', 'cash_refunds', 'cash_in', 'cash_out']) {
+      expect(num.parse('${shift[key]}'), 0);
+    }
+    expect(find.text('Shift #$resumeId · open'), findsOneWidget);
+  } else {
+    expect(
+      find.widgetWithText(FilledButton, 'Close shift'),
+      findsNothing,
+      reason: 'Refusing to interfere with an existing open shift.',
+    );
+    final open = find.widgetWithText(FilledButton, 'Open shift');
+    expect(
+      open,
+      findsOneWidget,
+      reason: 'This account needs permission to open a shift.',
+    );
+    await tester.ensureVisible(open);
+    await tester.tap(open);
+    final openingCash = find.widgetWithText(TextFormField, 'Opening cash');
+    await waitForControl(tester, openingCash);
+    await tester.enterText(openingCash, '20');
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+  }
   final close = find.widgetWithText(FilledButton, 'Close shift');
   await waitForControl(tester, close);
   final card = find.ancestor(of: close, matching: find.byType(Card)).first;
@@ -270,7 +293,7 @@ Future<void> rehearseSale(WidgetTester tester) async {
   await tester.ensureVisible(review);
   await tester.tap(review);
   final amount = find.widgetWithText(TextField, 'Amount received');
-  await waitForControl(tester, amount);
+  await waitForControl(tester, find.text('Takeaway order'));
   await tester.scrollUntilVisible(
     amount,
     200,
