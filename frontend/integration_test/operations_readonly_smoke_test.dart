@@ -168,7 +168,9 @@ Future<void> rehearseReview(WidgetTester tester) async {
   expect(shiftId, greaterThan(0), reason: 'Specify the rehearsal shift ID.');
   final title = find.text('Shift #$shiftId · closed');
   expect(title, findsOneWidget, reason: 'The target shift must be closed.');
-  Finder card() => find.ancestor(of: title, matching: find.byType(Card)).first;
+  // The card disappears during API reloads. Keep this finder empty-safe so
+  // waitForControl can poll until the reviewed card returns.
+  Finder card() => find.ancestor(of: title, matching: find.byType(Card));
   void expectCash(String label, String value) {
     final row = find
         .ancestor(
