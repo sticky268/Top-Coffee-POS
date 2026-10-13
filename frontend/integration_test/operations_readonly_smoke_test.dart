@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:top_coffee_pos/app.dart';
 import 'package:top_coffee_pos/core/config/env.dart';
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/offline/order_sync.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:top_coffee_pos/features/operations/presentation/operations_screen.dart';
@@ -136,16 +137,93 @@ Future<void> rehearseShift(WidgetTester tester) async {
   );
   expect(
     find.descendant(
-      of: find.ancestor(
-        of: find.descendant(of: closedCard, matching: find.text('Difference')),
-        matching: find.byType(Wrap),
-      ).first,
+      of: find
+          .ancestor(
+            of: find.descendant(
+              of: closedCard,
+              matching: find.text('Difference'),
+            ),
+            matching: find.byType(Wrap),
+          )
+          .first,
       matching: find.text('\$0.00'),
     ),
     findsOneWidget,
   );
   expect(tester.takeException(), isNull);
   debugPrint('PASS: $title closed with 20.00 counted and zero difference.');
+}
+
+Future<void> rehearseReview(WidgetTester tester) async {
+  expect(Env.apiBaseUrl, 'http://10.0.2.2:8001/api/v1');
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(OperationsScreen)),
+  );
+  expect(
+    container.read(currentBranchProvider)?.id,
+    21,
+    reason: 'Review is restricted to rehearsal branch 21.',
+  );
+  const shiftId = int.fromEnvironment('REVIEW_SHIFT_ID');
+  expect(shiftId, greaterThan(0), reason: 'Specify the rehearsal shift ID.');
+  final title = find.text('Shift #$shiftId · closed');
+  expect(title, findsOneWidget, reason: 'The target shift must be closed.');
+  Finder card() => find.ancestor(of: title, matching: find.byType(Card)).first;
+  void expectCash(String label, String value) {
+    final row = find
+        .ancestor(
+          of: find.descendant(of: card(), matching: find.text(label)),
+          matching: find.byType(Wrap),
+        )
+        .first;
+    expect(
+      find.descendant(of: row, matching: find.text(value)),
+      findsOneWidget,
+    );
+  }
+
+  expectCash('Opening cash', '\$20.00');
+  expectCash('Expected drawer cash', '\$20.00');
+  expectCash('Counted cash', '\$20.00');
+  expectCash('Difference', '\$0.00');
+  final reviewed = find.descendant(of: card(), matching: find.text('Reviewed'));
+  if (reviewed.evaluate().isEmpty) {
+    expect(
+      find.descendant(
+        of: card(),
+        matching: find.text('Awaiting manager review'),
+      ),
+      findsOneWidget,
+    );
+    final review = find.descendant(
+      of: card(),
+      matching: find.widgetWithText(OutlinedButton, 'Confirm review'),
+    );
+    expect(
+      review,
+      findsOneWidget,
+      reason: 'This account needs reports.view permission.',
+    );
+    await tester.ensureVisible(review);
+    await tester.tap(review);
+    await waitForControl(tester, find.text('Review shift'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+    await waitForControl(tester, reviewed);
+  }
+  await tester.tap(find.byTooltip('Refresh'));
+  await tester.pump();
+  await waitForOperations(tester);
+  expect(
+    reviewed,
+    findsOneWidget,
+    reason: 'Review must persist after API refresh.',
+  );
+  expect(
+    find.descendant(of: card(), matching: find.text('Awaiting manager review')),
+    findsNothing,
+  );
+  expect(tester.takeException(), isNull);
+  debugPrint('PASS: Shift #$shiftId manager review persisted after refresh.');
 }
 
 void main() {
@@ -228,6 +306,15 @@ void main() {
     await tester.tap(shifts);
     await waitForOperations(tester);
     expect(tester.takeException(), isNull);
+    expect(
+      const bool.fromEnvironment('REHEARSE_SHIFT') &&
+          const bool.fromEnvironment('REHEARSE_REVIEW'),
+      isFalse,
+      reason: 'Run shift creation and existing shift review separately.',
+    );
+    if (const bool.fromEnvironment('REHEARSE_REVIEW')) {
+      await rehearseReview(tester);
+    }
     if (const bool.fromEnvironment('REHEARSE_SHIFT')) {
       await rehearseShift(tester);
     }
