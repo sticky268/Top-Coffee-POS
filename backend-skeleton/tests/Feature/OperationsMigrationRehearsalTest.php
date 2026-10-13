@@ -81,5 +81,38 @@ class OperationsMigrationRehearsalTest extends TestCase
         $verify();
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
+
+        // Verify the local rehearsal command against a populated restored copy.
+        $this->artisan('migrate:rollback', ['--step' => 1, '--force' => true])->assertExitCode(0);
+        $target = 'top_coffee_pos_pr7_rehearsal_20000101';
+        DB::statement('CREATE DATABASE `'.$target.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        try {
+            $copyConfig = DB::connection()->getConfig();
+            $copyConfig['database'] = $target;
+            $copyConfig['url'] = null;
+            config(['database.connections.rehearsal_setup' => $copyConfig]);
+            $copy = DB::connection('rehearsal_setup');
+            $copy->statement('SET FOREIGN_KEY_CHECKS=0');
+            foreach (DB::select("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'") as $entry) {
+                $table = array_values((array) $entry)[0];
+                $quoted = '`'.str_replace('`', '``', $table).'`';
+                $create = array_values((array) DB::selectOne('SHOW CREATE TABLE '.$quoted))[1];
+                $copy->statement($create);
+                foreach (DB::table($table)->get() as $row) $copy->table($table)->insert((array) $row);
+            }
+            $copy->statement('SET FOREIGN_KEY_CHECKS=1');
+            $migrationRows = DB::table('migrations')->orderBy('id')->get()->toJson();
+            $this->artisan('pos:rehearse-migration', ['--database' => $target])
+                ->expectsOutputToContain('PASS: all original record values are unchanged.')
+                ->assertExitCode(0);
+            $this->assertSame('mysql', DB::getDefaultConnection());
+            $this->assertFalse(Schema::hasTable('cashier_shifts'));
+            $this->assertSame($migrationRows, DB::table('migrations')->orderBy('id')->get()->toJson());
+            $this->assertTrue(Schema::connection('rehearsal_setup')->hasTable('cashier_shifts'));
+            $verify();
+        } finally {
+            DB::purge('rehearsal_setup');
+            DB::statement('DROP DATABASE `'.$target.'`');
+        }
     }
 }
