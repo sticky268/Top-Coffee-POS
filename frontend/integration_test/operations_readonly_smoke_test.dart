@@ -118,8 +118,9 @@ void main() {
 
     for (final section in ['Stock counts', 'Availability', 'Owner report']) {
       final chip = find.widgetWithText(ChoiceChip, section);
-      if (chip.evaluate().isEmpty)
+      if (chip.evaluate().isEmpty) {
         continue; // Respect this account's permissions.
+      }
       await tester.ensureVisible(chip);
       await tester.tap(chip);
       await waitForOperations(tester);
