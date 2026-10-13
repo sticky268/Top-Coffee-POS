@@ -38,6 +38,7 @@ void main() {
       );
       await tester.tap(find.text('Sign in').last);
       await waitFor(tester, find.text('Cashier workspace'));
+      await waitFor(tester, find.text('Open your shift'));
       await tester.tap(find.text('Open your shift'));
       await waitFor(tester, find.widgetWithText(FilledButton, 'Open shift'));
       await tester.tap(find.text('Open shift').last);
