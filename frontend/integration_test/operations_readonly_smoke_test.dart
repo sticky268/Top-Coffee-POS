@@ -397,6 +397,61 @@ Future<void> rehearseReview(WidgetTester tester) async {
   debugPrint('PASS: Shift #$shiftId manager review persisted after refresh.');
 }
 
+Future<void> rehearseStockCount(WidgetTester tester) async {
+  expect(Env.apiBaseUrl, 'http://10.0.2.2:8001/api/v1');
+  final container = ProviderScope.containerOf(tester.element(find.byType(OperationsScreen)));
+  expect(container.read(currentBranchProvider)?.id, 21);
+  final repo = container.read(operationsRepositoryProvider);
+  final pending = await tester.runAsync(repo.pending);
+  expect(pending, isEmpty, reason: 'Resolve saved operations before the stock test.');
+  final chip = find.widgetWithText(ChoiceChip, 'Stock counts');
+  expect(chip, findsOneWidget, reason: 'Inventory access is required.');
+  await tester.ensureVisible(chip);
+  await tester.tap(chip);
+  await waitForOperations(tester);
+  Future<num> stock() async {
+    final rows = await tester.runAsync(() => repo.get('/ingredients'));
+    final matches = (rows as List).cast<Map>().where((row) => row['id'] == 11).toList();
+    expect(matches, hasLength(1));
+    expect(matches.single['name'], 'Coffee Bean');
+    return num.parse('${matches.single['current_stock']}');
+  }
+  final before = await stock();
+  if ((before - 49.980).abs() < 0.0001) {
+    debugPrint('PASS: Coffee Bean is already at the rehearsal count 49.980; no change submitted.');
+    return;
+  }
+  expect(before, closeTo(49.982, 0.0001),
+      reason: 'Stock changed since the sale check. Refusing to overwrite it.');
+  final card = find.ancestor(of: find.text('Coffee Bean'), matching: find.byType(Card));
+  final count = find.descendant(of: card,
+      matching: find.widgetWithText(OutlinedButton, 'Record count'));
+  expect(count, findsOneWidget, reason: 'Inventory adjustment permission is required.');
+  await tester.ensureVisible(count);
+  await tester.tap(count);
+  final quantity = find.widgetWithText(TextFormField, 'Actual counted quantity');
+  await waitForControl(tester, quantity);
+  await tester.enterText(quantity, '49.980');
+  await tester.enterText(find.widgetWithText(TextFormField, 'Count note'),
+      'Automated rehearsal stock count: 49.982 to 49.980');
+  await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+  for (var i = 0; i < 200; i++) {
+    await tester.pump(const Duration(milliseconds: 200));
+    if (find.byType(AlertDialog).evaluate().isEmpty) break;
+  }
+  expect(find.byType(AlertDialog), findsNothing, reason: 'Stock count must finish saving.');
+  await waitForOperations(tester);
+  expect(await stock(), closeTo(49.980, 0.0001),
+      reason: 'Count must persist in the API.');
+  expect(await tester.runAsync(repo.pending), isEmpty,
+      reason: 'Count must be confirmed, rather than only queued.');
+  await tester.tap(find.byTooltip('Refresh'));
+  await tester.pump();
+  await waitForOperations(tester);
+  expect(tester.takeException(), isNull);
+  debugPrint('PASS: Coffee Bean stock count saved: 49.982 to 49.980 (difference -0.002).');
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('existing signed-in session loads accessible operations views', (
@@ -460,6 +515,14 @@ void main() {
       reason: 'Shift records or the empty state must be displayed.',
     );
     debugPrint('PASS: Shifts loaded without a rendering or API error.');
+
+    if (const bool.fromEnvironment('REHEARSE_STOCK_COUNT')) {
+      expect(const bool.fromEnvironment('REHEARSE_SALE') ||
+          const bool.fromEnvironment('REHEARSE_SHIFT') ||
+          const bool.fromEnvironment('REHEARSE_REVIEW'), isFalse,
+          reason: 'Run the stock count separately from shift actions.');
+      await rehearseStockCount(tester);
+    }
 
     for (final section in ['Stock counts', 'Availability', 'Owner report']) {
       final chip = find.widgetWithText(ChoiceChip, section);
