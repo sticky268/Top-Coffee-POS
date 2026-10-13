@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:top_coffee_pos/features/pos/presentation/widgets/product_card.dart';
+import 'package:top_coffee_pos/features/pos/application/cart_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -10,7 +13,19 @@ import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.
 import 'package:top_coffee_pos/features/operations/presentation/operations_screen.dart';
 
 Future<void> waitForHome(WidgetTester tester) async {
-  for (var i = 0; i < 200; i++) {
+  const interactiveLogin = bool.fromEnvironment('WAIT_FOR_LOGIN');
+  final deadline = DateTime.now().add(const Duration(minutes: 5));
+  var loginPrompted = false;
+  for (
+    var i = 0;
+    interactiveLogin ? DateTime.now().isBefore(deadline) : i < 200;
+    i++
+  ) {
+    if (interactiveLogin) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+    }
     await tester.pump(const Duration(milliseconds: 200));
     if (find.byType(DashboardScreen).evaluate().isNotEmpty) return;
     if (find.widgetWithText(TextFormField, 'Email').evaluate().isNotEmpty) {
@@ -25,6 +40,15 @@ Future<void> waitForHome(WidgetTester tester) async {
           'ci-disposable-password',
         );
         await tester.tap(find.text('Sign in').last);
+        continue;
+      }
+      if (interactiveLogin) {
+        if (!loginPrompted) {
+          debugPrint(
+            'ACTION: Sign in on the emulator now. The test will continue automatically (5 minute limit).',
+          );
+          loginPrompted = true;
+        }
         continue;
       }
       fail(
@@ -74,8 +98,17 @@ Future<void> waitForControl(WidgetTester tester, Finder finder) async {
   expect(finder, findsWidgets, reason: 'The shift action did not finish.');
 }
 
-Future<void> rehearseShift(WidgetTester tester) async {
+Future<void> rehearseShift(
+  WidgetTester tester, {
+  bool includeSale = false,
+}) async {
   expect(Env.apiBaseUrl, 'http://10.0.2.2:8001/api/v1');
+  if (includeSale) {
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OperationsScreen)),
+    );
+    expect(container.read(currentBranchProvider)?.id, 21);
+  }
   expect(
     find.widgetWithText(FilledButton, 'Close shift'),
     findsNothing,
@@ -102,6 +135,11 @@ Future<void> rehearseShift(WidgetTester tester) async {
       .firstWhere(
         (text) => text.startsWith('Shift #') && text.endsWith(' · open'),
       );
+  if (includeSale) {
+    await rehearseSale(tester);
+    await waitForOperations(tester);
+    expect(find.text(title), findsOneWidget);
+  }
   for (var i = 0; i < 200; i++) {
     if (tester.widget<FilledButton>(close).onPressed != null) {
       break;
@@ -117,7 +155,7 @@ Future<void> rehearseShift(WidgetTester tester) async {
   await tester.tap(close);
   final countedCash = find.widgetWithText(TextFormField, 'Counted cash');
   await waitForControl(tester, countedCash);
-  await tester.enterText(countedCash, '20');
+  await tester.enterText(countedCash, includeSale ? '23.50' : '20');
   await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
   final closedTitle = find.text(title.replaceFirst(' · open', ' · closed'));
   await waitForControl(tester, closedTitle);
@@ -150,8 +188,95 @@ Future<void> rehearseShift(WidgetTester tester) async {
     ),
     findsOneWidget,
   );
+  if (includeSale) {
+    for (final entry in {
+      'Cash sales': '\$3.50',
+      'Expected drawer cash': '\$23.50',
+    }.entries) {
+      final row = find.ancestor(
+        of: find.descendant(of: closedCard, matching: find.text(entry.key)),
+        matching: find.byType(Wrap),
+      );
+      expect(
+        find.descendant(of: row, matching: find.text(entry.value)),
+        findsOneWidget,
+      );
+    }
+  }
   expect(tester.takeException(), isNull);
-  debugPrint('PASS: $title closed with 20.00 counted and zero difference.');
+  debugPrint(
+    'PASS: $title closed with ${includeSale ? '23.50' : '20.00'} counted and zero difference.',
+  );
+}
+
+Future<void> rehearseSale(WidgetTester tester) async {
+  final operationsContext = tester.element(find.byType(OperationsScreen));
+  final container = ProviderScope.containerOf(operationsContext);
+  expect(container.read(currentBranchProvider)?.id, 21);
+  expect(
+    container.read(cartControllerProvider).items,
+    isEmpty,
+    reason: 'Refusing to submit a pre-existing cart.',
+  );
+  await tester.tap(find.byTooltip('New takeaway order'));
+  final productCard = find.byWidgetPredicate(
+    (widget) => widget is ProductCard && widget.product.id == 1,
+  );
+  await waitForControl(tester, productCard);
+  final product = tester.widget<ProductCard>(productCard).product;
+  expect(product.name, 'Iced Latte');
+  await tester.ensureVisible(productCard);
+  if (product.hasVariants) {
+    final variants = product.variants
+        .where((v) => (v.price - 3.50).abs() < 0.001)
+        .toList();
+    expect(
+      variants,
+      isNotEmpty,
+      reason: 'A 3.50 Iced Latte variant is required.',
+    );
+    await tester.tap(productCard);
+    final variant = find.widgetWithText(ListTile, variants.first.name);
+    await waitForControl(tester, variant);
+    await tester.tap(variant);
+  } else {
+    expect(product.price, 3.50, reason: 'Branch price must be 3.50.');
+    await tester.tap(productCard);
+  }
+  await tester.pump();
+  final cart = container.read(cartControllerProvider);
+  expect(cart.items, hasLength(1));
+  expect(cart.items.single.quantity, 1);
+  expect(cart.items.single.product.id, 1);
+  expect(
+    cart.total,
+    3.50,
+    reason: 'Confirm the total before submitting payment.',
+  );
+  final review = find.text('Review Order').last;
+  await tester.ensureVisible(review);
+  await tester.tap(review);
+  final amount = find.widgetWithText(TextField, 'Amount received');
+  await waitForControl(tester, amount);
+  await tester.scrollUntilVisible(
+    amount,
+    200,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.enterText(amount, '5');
+  await tester.scrollUntilVisible(
+    find.text('Confirm & Pay'),
+    200,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.tap(find.text('Confirm & Pay'));
+  await waitForControl(tester, find.text('Payment Successful'));
+  debugPrint('PASS: One Iced Latte cash sale completed for 3.50.');
+  await tester.ensureVisible(find.text('Back to Dashboard'));
+  await tester.tap(find.text('Back to Dashboard'));
+  await waitForControl(tester, find.byType(DashboardScreen));
+  GoRouter.of(tester.element(find.byType(DashboardScreen))).go('/operations');
+  await tester.pump();
 }
 
 Future<void> rehearseReview(WidgetTester tester) async {
@@ -309,7 +434,8 @@ void main() {
     await waitForOperations(tester);
     expect(tester.takeException(), isNull);
     expect(
-      const bool.fromEnvironment('REHEARSE_SHIFT') &&
+      (const bool.fromEnvironment('REHEARSE_SHIFT') ||
+              const bool.fromEnvironment('REHEARSE_SALE')) &&
           const bool.fromEnvironment('REHEARSE_REVIEW'),
       isFalse,
       reason: 'Run shift creation and existing shift review separately.',
@@ -317,8 +443,12 @@ void main() {
     if (const bool.fromEnvironment('REHEARSE_REVIEW')) {
       await rehearseReview(tester);
     }
-    if (const bool.fromEnvironment('REHEARSE_SHIFT')) {
-      await rehearseShift(tester);
+    if (const bool.fromEnvironment('REHEARSE_SHIFT') ||
+        const bool.fromEnvironment('REHEARSE_SALE')) {
+      await rehearseShift(
+        tester,
+        includeSale: const bool.fromEnvironment('REHEARSE_SALE'),
+      );
     }
   });
 }
