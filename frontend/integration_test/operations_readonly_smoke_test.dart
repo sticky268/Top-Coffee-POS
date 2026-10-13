@@ -13,6 +13,19 @@ import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.
 import 'package:top_coffee_pos/features/operations/presentation/operations_screen.dart';
 
 Future<void> waitForHome(WidgetTester tester) async {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final previous = binding.shouldPropagateDevicePointerEvents;
+  try {
+    if (const bool.fromEnvironment('WAIT_FOR_LOGIN')) {
+      binding.shouldPropagateDevicePointerEvents = true;
+    }
+    await _waitForHome(tester);
+  } finally {
+    binding.shouldPropagateDevicePointerEvents = previous;
+  }
+}
+
+Future<void> _waitForHome(WidgetTester tester) async {
   const interactiveLogin = bool.fromEnvironment('WAIT_FOR_LOGIN');
   final deadline = DateTime.now().add(const Duration(minutes: 5));
   var loginPrompted = false;
