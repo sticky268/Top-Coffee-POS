@@ -37,6 +37,16 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resolved-flutter-lock
+          path: frontend/pubspec.lock
+          retention-days: 7
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top-coffee-debug-apk
+          path: frontend/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7

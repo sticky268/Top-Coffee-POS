@@ -97,8 +97,9 @@ class _OperationFormState extends State<_OperationForm> {
       await widget.save(_submitted!);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (e is ApiException && e is! NetworkException && e is! ServerException)
+      if (e is ApiException && e is! NetworkException && e is! ServerException) {
         _submitted = null;
+      }
       if (mounted) {
         setState(() => _error = e is ApiException ? e.message : e.toString());
       }
