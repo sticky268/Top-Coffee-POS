@@ -35,11 +35,14 @@ class RehearseOperationsMigration extends Command
         unset($source['read'], $source['write']);
         $source['url'] = null;
         $source['database'] = $target;
+        // Migrator switches the default using Connection::getName(). A copied
+        // config must not retain the original connection's embedded name.
+        $source['name'] = $alias;
         config(['database.connections.'.$alias => $source]);
         DB::purge($alias);
         try {
             $connection = DB::connection($alias);
-            if ($connection->selectOne('SELECT DATABASE() AS name')->name !== $target) {
+            if ($connection->getName() !== $alias || $connection->selectOne('SELECT DATABASE() AS name')->name !== $target) {
                 throw new \RuntimeException('Connected database does not match the rehearsal target.');
             }
             $schema = Schema::connection($alias);

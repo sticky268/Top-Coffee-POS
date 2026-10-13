@@ -90,6 +90,7 @@ class OperationsMigrationRehearsalTest extends TestCase
             $copyConfig = DB::connection()->getConfig();
             $copyConfig['database'] = $target;
             $copyConfig['url'] = null;
+            $copyConfig['name'] = 'rehearsal_setup';
             config(['database.connections.rehearsal_setup' => $copyConfig]);
             $copy = DB::connection('rehearsal_setup');
             $copy->statement('SET FOREIGN_KEY_CHECKS=0');
@@ -106,7 +107,8 @@ class OperationsMigrationRehearsalTest extends TestCase
                 ->expectsOutputToContain('PASS: all original record values are unchanged.')
                 ->assertExitCode(0);
             $this->assertSame('mysql', DB::getDefaultConnection());
-            $this->assertFalse(Schema::hasTable('cashier_shifts'));
+            $this->assertFalse(Schema::connection('mysql')->hasTable('cashier_shifts'));
+            $this->assertFalse(Schema::connection('mysql')->hasColumn('ingredients', 'average_unit_cost'));
             $this->assertSame($migrationRows, DB::table('migrations')->orderBy('id')->get()->toJson());
             $this->assertTrue(Schema::connection('rehearsal_setup')->hasTable('cashier_shifts'));
             $verify();
