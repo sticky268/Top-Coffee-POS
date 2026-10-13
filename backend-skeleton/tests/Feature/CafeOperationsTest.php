@@ -266,9 +266,9 @@ class CafeOperationsTest extends TestCase
         $from = $this->ingredient();
         $to = $this->ingredient('Coffee', $other);
         app(StockMovementService::class)->record($from, 'purchase', 2, $this->actor->id);
-        $this->postJson('/api/v1/stock/transfer', $this->payload(['source_ingredient_id' => $from->id, 'destination_ingredient_id' => $to->id, 'quantity' => 0.5, 'reason' => 'Forbidden destination']))->assertForbidden();
+        $this->postJson('/api/v1/stock/transfer', $this->payload(['source_ingredient_id' => $from->id, 'destination_ingredient_id' => $to->id, 'quantity' => 0.5, 'reason' => 'Forbidden destination']))->assertNotFound();
         $this->assertEquals(2, $from->fresh()->current_stock);
-        $this->assertEquals(0, $to->fresh()->current_stock);
+        $this->assertDatabaseHas('ingredients', ['id' => $to->id, 'current_stock' => 0]);
         $this->assertDatabaseCount('stock_movements', 1);
         $this->assertDatabaseCount('operation_requests', 0);
     }
