@@ -133,12 +133,18 @@ class OperationsConcurrencyTest extends TestCase
     {
         $this->open($this->actor); $this->open($this->other);
         $order = $this->sale();
+        $customer = \App\Models\Customer::create(['branch_id' => $this->branch->id, 'name' => 'Race regular']);
+        $order->update(['customer_id' => $customer->id]);
+        \App\Models\LoyaltySetting::create(['branch_id' => $this->branch->id, 'is_enabled' => true, 'points_per_currency_unit' => 1]);
+        app(\App\Services\LoyaltyService::class)->awardForOrder($order);
         $payload = ['amount' => 4, 'reason' => 'Concurrent partial correction', 'inventory_disposition' => 'consumed'];
         $results = $this->race([$this->input($this->actor, "/api/v1/orders/{$order->id}/refund", $payload), $this->input($this->other, "/api/v1/orders/{$order->id}/refund", $payload)], 'orders', $order->id);
         $this->assertSame([200, 200], array_column($results, 'status'), json_encode($results));
         $totals = array_map(fn ($r) => $r['body']['data']['refunded'], $results); sort($totals);
         $this->assertEquals([4, 8], $totals);
         $this->assertEquals(8, DB::table('payment_refunds')->sum('amount'));
+        $this->assertEquals(2, $customer->loyaltyAccount()->firstOrFail()->points_balance);
+        $this->assertEquals(8, $order->fresh()->refunded_loyalty_points);
     }
 
     public function test_closing_shift_racing_a_charge_never_changes_a_closed_drawer(): void
