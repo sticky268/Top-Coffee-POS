@@ -1,10 +1,10 @@
 # Reliable café operations — implementation review
 
-Status: locally implemented, awaiting full runtime validation and authorization to publish to the public GitHub repository. This is the first implementation batch in the broader improvement plan; it is not a production release.
+Status: published with owner approval in draft PR #7. Current CI results are recorded in the PR; final Android workflow validation is in progress. This is the first implementation batch in the broader improvement plan; it is not a production release.
 
 Base: `feature/kitchen-order-updates`, commit `d97c5acbf08ab633324622ac44ad853d2b1a1c6e`.
 Working branch: `codex/reliable-cafe-operations`.
-PR #6 must remain unmerged without the owner's explicit approval.
+Draft PR: https://github.com/sticky268/Top-Coffee-POS/pull/7. Both this PR and PR #6 require explicit merge approval.
 
 ## Implemented in this batch
 
@@ -19,7 +19,7 @@ PR #6 must remain unmerged without the owner's explicit approval.
 - Product variants can scale the base recipe using a positive quantity multiplier. Existing configured modifier recipe rows are included when present on order items; the modifier editor and cashier option selection are future work.
 - Recipe availability and ingredient cost views for base products and active variants. These are estimates per product, not reservations or a guarantee that simultaneous carts can all be fulfilled. Normal transactional stock checks still apply at sale completion.
 - A cashier workspace with direct takeaway, dine-in, orders, shift and saved-order actions. Navigation hides unrelated management actions according to the current user's permissions; backend permissions remain authoritative.
-- Branch selection and saved-order status in the application shell.
+- Branch selection and saved-order status in the application shell. Short phone carts scroll to keep the order total and checkout action reachable.
 - Daily operations reporting for selectable 1/7/30-day periods and accessible branch comparison. Receipts, refunds, ingredient consumption and wastage use their own transaction dates. Ingredient margin excludes wastage and operating expenses; unpriced records are visible.
 - Physical and electronic receipts include supplemental charges, recorded refunds and net paid amounts. Completed sales with financial adjustments cannot be edited through the old item-adjustment endpoint.
 - Backend transaction/isolation tests, frontend recovery/dialog/workspace tests, and a real Android integration workflow covering login → opening shift → drink sale → cash reconciliation.
@@ -30,16 +30,21 @@ PR #6 must remain unmerged without the owner's explicit approval.
 - Dart parser/formatter: changed frontend source and added tests parse successfully.
 - Four executable Dart model checks passed: variant multiplier persistence, legacy variant defaults, receipt reconciliation and financially adjusted order flags.
 - `git diff --check`: clean.
+- GitHub CI: complete Laravel suite passed (339 tests, 1,533 assertions), including local-date refund reporting, spent loyalty points, transfer isolation and historical wastage costs.
+- GitHub CI: Flutter dependency resolution, analysis and the full frontend test suite passed, including the recovery edge-case fix.
+- GitHub CI: all 18 café operations tests passed on MySQL 8. This verifies SQL compatibility and transactional outcomes, not concurrent multi-process contention.
+- GitHub CI: Android debug APK build passed before the final integration-test timing fix.
+- The integration-test SDK dependencies in `pubspec.lock` were captured from the successful CI resolution; existing package versions were preserved.
 
 ## Validation still required
 
-- Run the complete Laravel test suite against SQLite, then concurrency-sensitive scenarios against MySQL. SQLite tests cannot establish production row-lock behavior.
-- Run `flutter pub get`, `flutter analyze`, all frontend tests and an Android build. Update `pubspec.lock` after resolving the new SDK integration-test dependency.
+- Run concurrent multi-process refund/shift/transfer scenarios against MySQL before production rollout. Sequential SQLite/MySQL test passes cannot establish contention behavior.
+- Confirm the final Android build and full cashier integration workflow are green. The integration-test dependency lock was updated from CI.
 - Run the Android integration workflow against its disposable testing database. The fixture seeder refuses non-testing or populated databases and is never invoked by the normal DatabaseSeeder.
 - Inspect the new screens at phone/tablet widths and validate physical receipt/Khmer printing on the café's hardware.
 - Test migrations against a copy of existing data before deploying. New historical costing fields intentionally start unknown; do not fabricate old ingredient costs.
 
-Local Flutter startup was blocked by automatic approval review because dependency startup attempted a cloud instance-metadata request. PHP runtime installation was blocked by network policy. Public GitHub branch/source upload was also rejected by automatic approval review even after verifying account/repository ownership; it requires explicit approval for public source disclosure. No runtime test pass or successful upload is claimed.
+Local Flutter startup was blocked by automatic approval review because dependency startup attempted a cloud instance-metadata request; it was not retried. PHP runtime installation was blocked by network policy. Runtime validation therefore runs in GitHub CI. The owner explicitly approved the public branch/source upload and CI runs.
 
 ## Operation and rollout rules
 
@@ -57,4 +62,4 @@ After this batch passes its gates: add configurable cashier modifiers/notes and 
 
 ## Proposed review action
 
-Publish this batch to a separate branch in `sticky268/Top-Coffee-POS`, open a draft PR targeting `feature/kitchen-order-updates`, and run CI. Publishing discloses the changed source because the repository is public. Do not merge this batch or PR #6, and do not deploy, until explicitly approved after validation.
+Review draft PR #7 targeting `feature/kitchen-order-updates` after CI finishes. Do not merge this batch or PR #6, and do not deploy, until explicitly approved after validation.
