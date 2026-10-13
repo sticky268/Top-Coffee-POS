@@ -30,20 +30,23 @@ class _PaymentOperationsScreenState
 
   Future<void> _load() async {
     final generation = ++_generation;
-    if (mounted)
+    if (mounted) {
       setState(() {
         _data = null;
         _error = null;
       });
+    }
     try {
       final data = await ref
           .read(operationsRepositoryProvider)
           .get('/orders/${widget.orderId}/financials');
-      if (mounted && generation == _generation)
+      if (mounted && generation == _generation) {
         setState(() => _data = Map<String, dynamic>.from(data as Map));
+      }
     } catch (e) {
-      if (mounted && generation == _generation)
+      if (mounted && generation == _generation) {
         setState(() => _error = e is ApiException ? e.message : '$e');
+      }
     }
   }
 
@@ -79,8 +82,9 @@ class _PaymentOperationsScreenState
         const OperationField('reason', 'Reason'),
       ],
       save: (values) async {
-        if (ref.read(currentBranchProvider)?.id != branch)
+        if (ref.read(currentBranchProvider)?.id != branch) {
           throw const AuthException('Branch changed.');
+        }
         await ref
             .read(operationsRepositoryProvider)
             .write(

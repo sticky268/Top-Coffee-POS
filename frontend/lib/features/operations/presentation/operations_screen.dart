@@ -49,8 +49,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     try {
       final repo = ref.read(operationsRepositoryProvider);
       final saved = await repo.pending();
-      if (mounted && generation == _generation)
+      if (mounted && generation == _generation) {
         setState(() => _pending = saved);
+      }
       final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final start = DateFormat(
         'yyyy-MM-dd',
@@ -383,11 +384,12 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                 i['is_active'] == true,
           )
           .toList();
-      if (matches.length != 1)
+      if (matches.length != 1) {
         throw const ValidationException(
           {},
           'Destination needs exactly one matching active ingredient.',
         );
+      }
       await _form(
         'Transfer ${source['name']}',
         '/stock/transfer',
@@ -403,10 +405,11 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
             'Confirm the goods are physically received. Both branch balances update together.',
       );
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e is ApiException ? e.message : '$e')),
         );
+      }
     }
   }
 
@@ -483,8 +486,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     ref.listen(currentBranchProvider, (old, next) {
       if (old?.id != next?.id) _load();
     });
-    if (auth is! AuthAuthenticated)
+    if (auth is! AuthAuthenticated) {
       return const Scaffold(body: Center(child: Text('Sign in to continue.')));
+    }
     final sections = [
       'Shifts',
       if (auth.user.hasPermission('inventory.view')) ...[
@@ -598,10 +602,11 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                         .read(operationsRepositoryProvider)
                         .retry(operation);
                   } catch (e) {
-                    if (mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(
                         context,
                       ).showSnackBar(SnackBar(content: Text('$e')));
+                    }
                   }
                   if (mounted) _load();
                 },

@@ -61,10 +61,11 @@ class OrderDetailScreen extends ConsumerWidget {
               tooltip: 'Payment history and corrections',
               onPressed: () async {
                 await context.push<void>('/orders/$orderId/financials');
-                if (context.mounted)
+                if (context.mounted) {
                   await ref
                       .read(orderDetailControllerProvider(orderId).notifier)
                       .refresh();
+                }
               },
             ),
           if (canCancel)
@@ -81,27 +82,6 @@ class OrderDetailScreen extends ConsumerWidget {
                       'The order will remain in history. This cannot be undone.',
                     ),
                     actions: [
-                      if (state is OrderDetailLoaded &&
-                          state.order.status == 'completed')
-                        IconButton(
-                          icon: const Icon(
-                            Icons.account_balance_wallet_outlined,
-                          ),
-                          tooltip: 'Payment history and corrections',
-                          onPressed: () async {
-                            await context.push<void>(
-                              '/orders/$orderId/financials',
-                            );
-                            if (context.mounted)
-                              await ref
-                                  .read(
-                                    orderDetailControllerProvider(
-                                      orderId,
-                                    ).notifier,
-                                  )
-                                  .refresh();
-                          },
-                        ),
                       pos_ui.SecondaryButton(
                         onPressed: () => Navigator.of(dialogContext).pop(false),
                         child: const Text('Keep Order'),
@@ -172,27 +152,6 @@ class OrderDetailScreen extends ConsumerWidget {
                         'Use the refund or additional payment workflow for payment changes.',
                       ),
                       actions: [
-                        if (state is OrderDetailLoaded &&
-                            state.order.status == 'completed')
-                          IconButton(
-                            icon: const Icon(
-                              Icons.account_balance_wallet_outlined,
-                            ),
-                            tooltip: 'Payment history and corrections',
-                            onPressed: () async {
-                              await context.push<void>(
-                                '/orders/$orderId/financials',
-                              );
-                              if (context.mounted)
-                                await ref
-                                    .read(
-                                      orderDetailControllerProvider(
-                                        orderId,
-                                      ).notifier,
-                                    )
-                                    .refresh();
-                            },
-                          ),
                         pos_ui.SecondaryButton(
                           onPressed: () =>
                               Navigator.of(dialogContext).pop(false),

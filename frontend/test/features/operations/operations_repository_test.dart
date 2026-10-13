@@ -41,11 +41,12 @@ class _Adapter implements HttpClientAdapter {
     Future<void>? cancel,
   ) async {
     requests.add(Map<String, dynamic>.from(options.data as Map));
-    if (timeout)
+    if (timeout) {
       throw DioException(
         requestOptions: options,
         type: DioExceptionType.receiveTimeout,
       );
+    }
     return ResponseBody.fromString(
       jsonEncode(
         status == 200

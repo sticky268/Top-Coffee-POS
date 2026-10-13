@@ -86,7 +86,7 @@ class CashierWorkspace extends ConsumerWidget {
                     data: (orders) =>
                         '${orders.where((o) => o.status != 'synced').length} waiting for confirmation or review',
                     loading: () => 'Checking saved orders…',
-                    error: (_, _) => 'Could not check saved orders',
+                    error: (_, __) => 'Could not check saved orders',
                   ),
                 ),
                 onTap: () => context.go('/pending-orders'),

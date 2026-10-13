@@ -99,8 +99,9 @@ class _OperationFormState extends State<_OperationForm> {
     } catch (e) {
       if (e is ApiException && e is! NetworkException && e is! ServerException)
         _submitted = null;
-      if (mounted)
+      if (mounted) {
         setState(() => _error = e is ApiException ? e.message : e.toString());
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -156,14 +157,16 @@ class _OperationFormState extends State<_OperationForm> {
                                 : TextInputType.text,
                             validator: (v) {
                               final text = (v ?? '').trim();
-                              if (text.isEmpty)
+                              if (text.isEmpty) {
                                 return f.optional ? null : 'Required';
+                              }
                               if (f.number) {
                                 final number = num.tryParse(text);
                                 if (number == null ||
                                     !number.isFinite ||
-                                    number < 0)
+                                    number < 0) {
                                   return 'Enter a non-negative number';
+                                }
                               }
                               return null;
                             },
