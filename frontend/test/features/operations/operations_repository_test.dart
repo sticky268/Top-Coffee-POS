@@ -1,0 +1,156 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:top_coffee_pos/core/network/api_client.dart';
+import 'package:top_coffee_pos/core/network/api_exceptions.dart';
+import 'package:top_coffee_pos/core/offline/local_store.dart';
+import 'package:top_coffee_pos/features/operations/data/operations_repository.dart';
+
+class _Api extends Mock implements ApiClient {}
+
+class _Memory extends LocalStore {
+  final Map<String, String> values = {};
+  @override
+  Future<String?> read(String key) async => values[key];
+  @override
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    values.remove(key);
+  }
+
+  @override
+  Future<Map<String, String>> entries(String prefix) async =>
+      Map.fromEntries(values.entries.where((e) => e.key.startsWith(prefix)));
+}
+
+class _Adapter implements HttpClientAdapter {
+  final List<Map<String, dynamic>> requests = [];
+  int status = 200;
+  bool timeout = false;
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? stream,
+    Future<void>? cancel,
+  ) async {
+    requests.add(Map<String, dynamic>.from(options.data as Map));
+    if (timeout)
+      throw DioException(
+        requestOptions: options,
+        type: DioExceptionType.receiveTimeout,
+      );
+    return ResponseBody.fromString(
+      jsonEncode(
+        status == 200
+            ? {
+                'data': {'id': 5, 'status': 'closed'},
+              }
+            : {'message': 'Rejected'},
+      ),
+      status,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+void main() {
+  late _Api api;
+  late _Adapter adapter;
+  late _Memory store;
+  late OperationsScope? scope;
+  late OperationsRepository repo;
+  setUp(() {
+    api = _Api();
+    adapter = _Adapter();
+    store = _Memory();
+    scope = (userId: 1, branchId: 2);
+    final dio = Dio(BaseOptions(baseUrl: 'https://example.invalid'));
+    dio.httpClientAdapter = adapter;
+    when(() => api.dio).thenReturn(dio);
+    repo = OperationsRepository(api, store, () => scope);
+  });
+
+  test(
+    'restart retries an uncertain financial operation with the original UUID',
+    () async {
+      adapter.timeout = true;
+      await expectLater(
+        repo.write('/orders/5/refund', {'amount': 3}),
+        throwsA(isA<NetworkException>()),
+      );
+      final saved = (await repo.pending()).single;
+      adapter.timeout = false;
+      final restarted = OperationsRepository(api, store, () => scope);
+      await restarted.write('/orders/5/refund', {'amount': 3});
+      expect(adapter.requests.map((r) => r['uuid']).toSet(), {saved['uuid']});
+      expect(await restarted.pending(), isEmpty);
+    },
+  );
+
+  test(
+    'loss of permission after an uncertain response cannot discard the request',
+    () async {
+      adapter.timeout = true;
+      await expectLater(
+        repo.write('/shifts/5/close', {'counted_cash': 20}),
+        throwsA(isA<NetworkException>()),
+      );
+      adapter.timeout = false;
+      adapter.status = 403;
+      await expectLater(
+        repo.retry((await repo.pending()).single),
+        throwsA(isA<ApiException>()),
+      );
+      final saved = (await repo.pending()).single;
+      expect(saved['rejected'], isFalse);
+      await expectLater(
+        repo.dismissRejected(saved),
+        throwsA(isA<AuthException>()),
+      );
+      expect(await repo.pending(), hasLength(1));
+    },
+  );
+
+  test(
+    'a confirmed first-attempt validation rejection can be dismissed',
+    () async {
+      adapter.status = 422;
+      await expectLater(
+        repo.write('/stock/count', {'counted_stock': 3}),
+        throwsA(isA<ApiException>()),
+      );
+      final saved = (await repo.pending()).single;
+      expect(saved['rejected'], isTrue);
+      await repo.dismissRejected(saved);
+      expect(await repo.pending(), isEmpty);
+    },
+  );
+
+  test('pending requests are isolated by user and branch', () async {
+    adapter.timeout = true;
+    await expectLater(
+      repo.write('/shifts', {'opening_cash': 20}),
+      throwsA(isA<NetworkException>()),
+    );
+    final saved = (await repo.pending()).single;
+    scope = (userId: 1, branchId: 3);
+    expect(await repo.pending(), isEmpty);
+    expect(() => repo.retry(saved), throwsA(isA<AuthException>()));
+    scope = (userId: 2, branchId: 2);
+    expect(await repo.pending(), isEmpty);
+    scope = (userId: 1, branchId: 2);
+    expect(await repo.pending(), hasLength(1));
+  });
+}

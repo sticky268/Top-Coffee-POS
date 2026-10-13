@@ -25,6 +25,8 @@ class StockMovementService
         int $createdBy,
         ?string $reason = null,
         ?Model $reference = null,
+        ?float $unitCost = null,
+        bool $unknownCost = false,
     ): StockMovement {
         if (! in_array($type, [
             'purchase',
@@ -52,13 +54,13 @@ class StockMovementService
             $createdBy,
             $reason,
             $reference,
+            $unitCost,
+            $unknownCost,
         ) {
             $query = Ingredient::query();
 
             if (
-                $type === 'sale_deduction'
-                && $reference instanceof \App\Models\Order
-                && $quantity > 0
+$reference instanceof \App\Models\Order && ($quantity > 0 || $type === 'wastage')
             ) {
                 $query->withTrashed();
             }
@@ -81,7 +83,15 @@ class StockMovementService
                 );
             }
 
+            $cost = $lockedIngredient->average_unit_cost;
+            if ($quantity > 0 && $unknownCost) $cost = null;
+            if ($quantity > 0 && $unitCost !== null) {
+                // Unknown opening stock stays unknown until exhausted or costed.
+                $cost = $currentStock == 0 ? $unitCost : ($cost === null ? null :
+                    ($currentStock * (float) $cost + $quantity * $unitCost) / $newBalance);
+            }
             $lockedIngredient->forceFill([
+                'average_unit_cost' => $cost,
                 'current_stock' => $newBalance,
             ])->save();
 
@@ -95,6 +105,7 @@ class StockMovementService
                 'reference_id' => $reference?->getKey(),
                 'reason' => $reason,
                 'created_by' => $createdBy,
+                'unit_cost' => $unknownCost ? null : ($unitCost ?? $lockedIngredient->average_unit_cost),
             ]);
         });
     }

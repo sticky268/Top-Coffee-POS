@@ -55,6 +55,8 @@ import 'package:top_coffee_pos/features/branches/presentation/edit_branch_screen
 
 import '../../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
+import '../../features/operations/presentation/operations_screen.dart';
+import '../../features/operations/presentation/payment_operations_screen.dart';
 
 final RouteObserver<ModalRoute<void>> appRouteObserver =
     RouteObserver<ModalRoute<void>>();
@@ -108,8 +110,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             AppShell(selectedRoute: state.uri.path, child: child),
         routes: [
           GoRoute(
-              path: '/pending-orders',
-              builder: (context, state) => const PendingOrdersScreen()),
+            path: '/operations',
+            builder: (context, state) => const OperationsScreen(),
+          ),
+          GoRoute(
+            path: '/orders/:id/financials',
+            builder: (context, state) => PaymentOperationsScreen(
+              orderId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: '/pending-orders',
+            builder: (context, state) => const PendingOrdersScreen(),
+          ),
           GoRoute(
             path: '/home',
             builder: (context, state) => const DashboardScreen(),
@@ -121,15 +134,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pos',
             builder: (context, state) => PosScreen(
-              initialTable:
-                  state.extra is PosTable ? state.extra as PosTable : null,
+              initialTable: state.extra is PosTable
+                  ? state.extra as PosTable
+                  : null,
             ),
           ),
           GoRoute(
             path: '/pos/checkout',
             builder: (context, state) => CheckoutScreen(
-              initialTable:
-                  state.extra is PosTable ? state.extra as PosTable : null,
+              initialTable: state.extra is PosTable
+                  ? state.extra as PosTable
+                  : null,
             ),
           ),
           GoRoute(

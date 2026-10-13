@@ -30,6 +30,18 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'subscription.active'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::get('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'index']);
+        Route::post('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'open']);
+        Route::post('/shifts/{id}/movements', [\App\Http\Controllers\Api\V1\ShiftController::class, 'movement'])->whereNumber('id');
+        Route::post('/shifts/{id}/close', [\App\Http\Controllers\Api\V1\ShiftController::class, 'close'])->whereNumber('id');
+        Route::post('/shifts/{id}/review', [\App\Http\Controllers\Api\V1\ShiftController::class, 'review'])->whereNumber('id');
+        Route::get('/orders/{id}/financials', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'show'])->whereNumber('id');
+        Route::post('/orders/{id}/refund', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'refund'])->whereNumber('id');
+        Route::post('/orders/{id}/additional-charge', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'charge'])->whereNumber('id');
+        Route::post('/stock/count', [\App\Http\Controllers\Api\V1\StockOperationsController::class, 'count']);
+        Route::post('/stock/transfer', [\App\Http\Controllers\Api\V1\StockOperationsController::class, 'transfer']);
+        Route::get('/products/availability', [\App\Http\Controllers\Api\V1\OperationsReportController::class, 'availability']);
+        Route::get('/reports/operations', [\App\Http\Controllers\Api\V1\OperationsReportController::class, 'report']);
         Route::get('/subscription', [SubscriptionController::class, 'show']);
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/reports', [ReportsController::class, 'index']);

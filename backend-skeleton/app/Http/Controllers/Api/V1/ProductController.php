@@ -130,6 +130,7 @@ class ProductController extends Controller
                     'id' => $variant->id,
                     'name' => $variant->name,
                     'price' => $effectivePrice + (float) $variant->price_delta,
+                    'recipe_multiplier' => (float) $variant->recipe_multiplier,
                 ])->values(),
             ];
         });
@@ -171,6 +172,7 @@ class ProductController extends Controller
             'variants.*.sku' => 'nullable|string|max:255',
             'variants.*.price_delta' => 'required_with:variants|numeric',
             'variants.*.is_active' => 'nullable|boolean',
+            'variants.*.recipe_multiplier' => 'nullable|numeric|gt:0|max:100',
 
             'branches' => 'nullable|array',
             'branches.*.branch_id' => 'required_with:branches|integer|exists:branches,id',
@@ -225,6 +227,7 @@ class ProductController extends Controller
                     'name' => $variantInput['name'],
                     'sku' => $variantInput['sku'] ?? null,
                     'price_delta' => $variantInput['price_delta'],
+                    'recipe_multiplier' => $variantInput['recipe_multiplier'] ?? 1,
                     'is_active' => $variantInput['is_active'] ?? true,
                 ]);
             }
@@ -296,6 +299,7 @@ class ProductController extends Controller
             'variants.*.sku' => 'nullable|string|max:255',
             'variants.*.price_delta' => 'required_with:variants|numeric',
             'variants.*.is_active' => 'nullable|boolean',
+            'variants.*.recipe_multiplier' => 'nullable|numeric|gt:0|max:100',
 
             'branches' => 'sometimes|array',
             'branches.*.branch_id' => 'required_with:branches|integer|exists:branches,id',
@@ -363,6 +367,7 @@ class ProductController extends Controller
                             'name' => $variantInput['name'],
                             'sku' => $variantInput['sku'] ?? $variant->sku,
                             'price_delta' => $variantInput['price_delta'],
+                    'recipe_multiplier' => $variantInput['recipe_multiplier'] ?? $variant->recipe_multiplier,
                             'is_active' => $variantInput['is_active'] ?? $variant->is_active,
                         ]);
                         continue;
@@ -373,6 +378,7 @@ class ProductController extends Controller
                         'name' => $variantInput['name'],
                         'sku' => $variantInput['sku'] ?? null,
                         'price_delta' => $variantInput['price_delta'],
+                    'recipe_multiplier' => $variantInput['recipe_multiplier'] ?? 1,
                         'is_active' => $variantInput['is_active'] ?? true,
                     ]);
                 }
@@ -436,6 +442,7 @@ class ProductController extends Controller
                 'name' => $variant->name,
                 'sku' => $variant->sku,
                 'price_delta' => (float) $variant->price_delta,
+                'recipe_multiplier' => (float) $variant->recipe_multiplier,
                 'is_active' => (bool) $variant->is_active,
             ])->values(),
             'branches' => $product->branches->map(fn ($branch) => [

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/application/auth_controller.dart';
+import '../../../auth/application/auth_state.dart';
 
 import '../../../../core/theme/app_colors.dart';
 
@@ -53,6 +56,14 @@ class DashboardNavigation extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
+                  _NavigationItem(
+                    icon: Icons.assignment_outlined,
+                    selectedIcon: Icons.assignment,
+                    label: 'Daily Operations',
+                    route: '/operations',
+                    selectedRoute: selectedRoute,
+                    onTap: () => _navigate(context, '/operations'),
+                  ),
                   _NavigationSection(
                     title: 'MAIN',
                     children: [
@@ -278,7 +289,7 @@ class _NavigationSection extends StatelessWidget {
   }
 }
 
-class _NavigationItem extends StatelessWidget {
+class _NavigationItem extends ConsumerWidget {
   const _NavigationItem({
     required this.icon,
     required this.selectedIcon,
@@ -298,7 +309,32 @@ class _NavigationItem extends StatelessWidget {
   final bool enabled;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
+    final permission = {
+      '/orders': 'orders.view',
+      '/pos/select-table': 'orders.create',
+      '/pending-orders': 'orders.create',
+      '/products': 'products.manage',
+      '/products/categories': 'products.manage',
+      '/inventory': 'inventory.view',
+      '/tables': 'tables.manage',
+      '/expenses': 'expenses.manage',
+      '/suppliers': 'inventory.manage',
+      '/purchases': 'inventory.manage',
+      '/customers': 'customers.manage',
+      '/loyalty': 'loyalty.manage',
+      '/reports': 'reports.view',
+      '/staff': 'users.manage',
+      '/audit-log': 'audit.view',
+      '/branches': 'branches.manage',
+      '/settings': 'settings.manage',
+    }[route];
+    if (auth is AuthAuthenticated &&
+        permission != null &&
+        !auth.user.hasPermission(permission)) {
+      return const SizedBox.shrink();
+    }
     final theme = Theme.of(context);
     final selected = route == '/pos/select-table'
         ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
@@ -307,14 +343,14 @@ class _NavigationItem extends StatelessWidget {
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-            ? theme.colorScheme.onSurface
-            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     final iconColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-            ? theme.colorScheme.onSurfaceVariant
-            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

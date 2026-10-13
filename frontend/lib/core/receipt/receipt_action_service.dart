@@ -15,10 +15,8 @@ import '../printer/printer_service.dart';
 import 'customer_bill.dart';
 
 class ReceiptActionService {
-  ReceiptActionService(
-    this._repository, {
-    PrinterService? printerService,
-  }) : _printerService = printerService ?? PrinterService();
+  ReceiptActionService(this._repository, {PrinterService? printerService})
+    : _printerService = printerService ?? PrinterService();
 
   final PosRepository _repository;
   final PrinterService _printerService;
@@ -144,20 +142,13 @@ class ReceiptActionService {
     Rect? sharePositionOrigin,
   }) async {
     final directory = await getTemporaryDirectory();
-    final safeReference = reference.replaceAll(
-      RegExp(r'[^A-Za-z0-9_-]'),
-      '-',
-    );
-    final file = File(
-      '${directory.path}/$filePrefix-$safeReference.pdf',
-    );
+    final safeReference = reference.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '-');
+    final file = File('${directory.path}/$filePrefix-$safeReference.pdf');
     await file.writeAsBytes(bytes, flush: true);
 
     await SharePlus.instance.share(
       ShareParams(
-        files: <XFile>[
-          XFile(file.path, mimeType: 'application/pdf'),
-        ],
+        files: <XFile>[XFile(file.path, mimeType: 'application/pdf')],
         title: title,
         subject: subject,
         text: text,
@@ -173,12 +164,14 @@ class ReceiptActionService {
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
         : receipt.payment != null
-            ? <PaymentConfirmation>[receipt.payment!]
-            : <PaymentConfirmation>[];
+        ? <PaymentConfirmation>[receipt.payment!]
+        : <PaymentConfirmation>[];
 
     return _buildPdf(
       settings: settings,
-      documentTitle: '',
+      documentTitle: receipt.refundedTotal > 0
+          ? 'RECEIPT · REFUND RECORDED'
+          : '',
       orderReference: receipt.displayOrderReference,
       orderType: receipt.orderType,
       branchName: receipt.branchName,
@@ -187,6 +180,8 @@ class ReceiptActionService {
       subtotal: receipt.subtotal,
       discountTotal: receipt.discountTotal,
       total: receipt.total,
+      supplementalTotal: receipt.supplementalTotal,
+      refundedTotal: receipt.refundedTotal,
       createdAt: receipt.createdAt,
       items: receipt.items
           .map(
@@ -204,10 +199,7 @@ class ReceiptActionService {
     );
   }
 
-  Future<List<int>> _buildBillPdf(
-    CustomerBill bill,
-    ReceiptSettings settings,
-  ) {
+  Future<List<int>> _buildBillPdf(CustomerBill bill, ReceiptSettings settings) {
     return _buildPdf(
       settings: settings,
       documentTitle: 'E-BILL · UNPAID',
@@ -245,6 +237,8 @@ class ReceiptActionService {
     required double subtotal,
     required double discountTotal,
     required double total,
+    double supplementalTotal = 0,
+    double refundedTotal = 0,
     required DateTime? createdAt,
     required List<_PdfLine> items,
     required List<PaymentConfirmation> payments,
@@ -306,8 +300,7 @@ class ReceiptActionService {
                 _pdfInfoRow('Order', orderReference),
                 if (settings.showDateTime && createdAtText.isNotEmpty)
                   _pdfInfoRow('Date', createdAtText),
-                if (settings.showOrderType)
-                  _pdfInfoRow('Type', orderTypeText),
+                if (settings.showOrderType) _pdfInfoRow('Type', orderTypeText),
                 if (settings.showTable &&
                     (tableName?.trim().isNotEmpty ?? false))
                   _pdfInfoRow('Table', tableName!.trim()),
@@ -375,18 +368,21 @@ class ReceiptActionService {
           pw.SizedBox(height: 16),
           _pdfAmountRow('Subtotal', money.format(subtotal)),
           if (discountTotal > 0)
-            _pdfAmountRow(
-              'Discount',
-              '- ${money.format(discountTotal)}',
-            ),
+            _pdfAmountRow('Discount', '- ${money.format(discountTotal)}'),
+          if (supplementalTotal > 0)
+            _pdfAmountRow('Additional charge', money.format(supplementalTotal)),
           pw.SizedBox(height: 6),
           pw.Divider(color: PdfColors.grey400),
           pw.SizedBox(height: 4),
-          _pdfAmountRow(
-            'TOTAL',
-            money.format(total),
-            emphasized: true,
-          ),
+          _pdfAmountRow('TOTAL', money.format(total), emphasized: true),
+          if (refundedTotal > 0) ...<pw.Widget>[
+            _pdfAmountRow('Refunded', money.format(refundedTotal)),
+            _pdfAmountRow(
+              'NET PAID',
+              money.format(total - refundedTotal),
+              emphasized: true,
+            ),
+          ],
           if (payments.isNotEmpty) ...<pw.Widget>[
             pw.SizedBox(height: 18),
             pw.Text(
@@ -415,10 +411,7 @@ class ReceiptActionService {
                     if (settings.showChange &&
                         payment.changeDue != null &&
                         payment.changeDue! > 0)
-                      _pdfInfoRow(
-                        'Change',
-                        money.format(payment.changeDue),
-                      ),
+                      _pdfInfoRow('Change', money.format(payment.changeDue)),
                   ],
                 ),
               ),
@@ -456,10 +449,7 @@ class ReceiptActionService {
             width: 86,
             child: pw.Text(
               label,
-              style: const pw.TextStyle(
-                fontSize: 9,
-                color: PdfColors.grey700,
-              ),
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
             ),
           ),
           pw.Expanded(

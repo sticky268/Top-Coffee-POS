@@ -22,8 +22,8 @@ const _testUser = AuthenticatedUser(
   id: 1,
   name: 'Alex',
   email: 'cashier@topcoffee.test',
-  roles: ['cashier'],
-  permissions: ['orders.create'],
+  roles: ['manager'],
+  permissions: ['orders.create', 'reports.view'],
   branches: [BranchSummary(id: 1, name: 'Riverside', code: 'PP-01')],
 );
 
