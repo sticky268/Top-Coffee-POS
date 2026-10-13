@@ -112,6 +112,9 @@ Future<void> waitForControl(WidgetTester tester, Finder finder) async {
   expect(finder, findsWidgets, reason: 'The shift action did not finish.');
 }
 
+double get rehearsalSalePrice =>
+    double.parse(const String.fromEnvironment('SALE_PRICE', defaultValue: '3.50'));
+
 Future<void> rehearseShift(
   WidgetTester tester, {
   bool includeSale = false,
@@ -191,7 +194,7 @@ Future<void> rehearseShift(
   await tester.tap(close);
   final countedCash = find.widgetWithText(TextFormField, 'Counted cash');
   await waitForControl(tester, countedCash);
-  await tester.enterText(countedCash, includeSale ? '23.50' : '20');
+  await tester.enterText(countedCash, includeSale ? (20 + rehearsalSalePrice).toStringAsFixed(2) : '20');
   await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
   final closedTitle = find.text(title.replaceFirst(' · open', ' · closed'));
   await waitForControl(tester, closedTitle);
@@ -226,8 +229,8 @@ Future<void> rehearseShift(
   );
   if (includeSale) {
     for (final entry in {
-      'Cash sales': '\$3.50',
-      'Expected drawer cash': '\$23.50',
+      'Cash sales': '\${rehearsalSalePrice.toStringAsFixed(2)}',
+      'Expected drawer cash': '\${(20 + rehearsalSalePrice).toStringAsFixed(2)}',
     }.entries) {
       final row = find.ancestor(
         of: find.descendant(of: closedCard, matching: find.text(entry.key)),
@@ -241,11 +244,14 @@ Future<void> rehearseShift(
   }
   expect(tester.takeException(), isNull);
   debugPrint(
-    'PASS: $title closed with ${includeSale ? '23.50' : '20.00'} counted and zero difference.',
+    'PASS: $title closed with ${includeSale ? (20 + rehearsalSalePrice).toStringAsFixed(2) : '20.00'} counted and zero difference.',
   );
 }
 
 Future<void> rehearseSale(WidgetTester tester) async {
+  const productId = int.fromEnvironment('SALE_PRODUCT_ID', defaultValue: 1);
+  final salePrice = rehearsalSalePrice;
+  expect(salePrice, greaterThan(0));
   final operationsContext = tester.element(find.byType(OperationsScreen));
   final container = ProviderScope.containerOf(operationsContext);
   expect(container.read(currentBranchProvider)?.id, 21);
@@ -256,37 +262,39 @@ Future<void> rehearseSale(WidgetTester tester) async {
   );
   await tester.tap(find.byTooltip('New takeaway order'));
   final productCard = find.byWidgetPredicate(
-    (widget) => widget is ProductCard && widget.product.id == 1,
+    (widget) => widget is ProductCard && widget.product.id == productId,
   );
-  await waitForControl(tester, productCard);
+  await waitForControl(tester, find.byType(GridView));
+  await tester.scrollUntilVisible(productCard, 250,
+      scrollable: find.descendant(of: find.byType(GridView), matching: find.byType(Scrollable)));
   final product = tester.widget<ProductCard>(productCard).product;
-  expect(product.name, 'Iced Latte');
+  if (productId == 1) expect(product.name, 'Iced Latte');
   await tester.ensureVisible(productCard);
   if (product.hasVariants) {
     final variants = product.variants
-        .where((v) => (v.price - 3.50).abs() < 0.001)
+        .where((v) => (v.price - salePrice).abs() < 0.001)
         .toList();
     expect(
       variants,
       isNotEmpty,
-      reason: 'A 3.50 Iced Latte variant is required.',
+      reason: 'A variant matching the expected sale price is required.',
     );
     await tester.tap(productCard);
     final variant = find.widgetWithText(ListTile, variants.first.name);
     await waitForControl(tester, variant);
     await tester.tap(variant);
   } else {
-    expect(product.price, 3.50, reason: 'Branch price must be 3.50.');
+    expect(product.price, salePrice, reason: 'Check the branch price before payment.');
     await tester.tap(productCard);
   }
   await tester.pump();
   final cart = container.read(cartControllerProvider);
   expect(cart.items, hasLength(1));
   expect(cart.items.single.quantity, 1);
-  expect(cart.items.single.product.id, 1);
+  expect(cart.items.single.product.id, productId);
   expect(
     cart.total,
-    3.50,
+    salePrice,
     reason: 'Confirm the total before submitting payment.',
   );
   final review = find.text('Review Order').last;
@@ -299,7 +307,7 @@ Future<void> rehearseSale(WidgetTester tester) async {
     200,
     scrollable: find.byType(Scrollable).last,
   );
-  await tester.enterText(amount, '5');
+  await tester.enterText(amount, salePrice.toStringAsFixed(2));
   await tester.scrollUntilVisible(
     find.text('Confirm & Pay'),
     200,
@@ -307,7 +315,7 @@ Future<void> rehearseSale(WidgetTester tester) async {
   );
   await tester.tap(find.text('Confirm & Pay'));
   await waitForControl(tester, find.text('Payment Successful'));
-  debugPrint('PASS: One Iced Latte cash sale completed for 3.50.');
+  debugPrint('PASS: Product #$productId cash sale completed for ${salePrice.toStringAsFixed(2)}.');
   await tester.ensureVisible(find.text('Back to Dashboard'));
   await tester.tap(find.text('Back to Dashboard'));
   await waitForControl(tester, find.byType(DashboardScreen));
