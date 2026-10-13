@@ -12,6 +12,7 @@ import 'package:top_coffee_pos/core/offline/order_sync.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/pos/application/pos_catalog_controller.dart';
 import 'package:top_coffee_pos/features/pos/application/pos_catalog_state.dart';
+import 'package:top_coffee_pos/features/pos/data/pos_repository.dart' show cachedCatalogProvider;
 import 'package:top_coffee_pos/features/operations/data/operations_repository.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:top_coffee_pos/features/operations/presentation/operations_screen.dart';
