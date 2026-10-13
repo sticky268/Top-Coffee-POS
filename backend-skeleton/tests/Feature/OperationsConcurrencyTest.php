@@ -156,6 +156,24 @@ class OperationsConcurrencyTest extends TestCase
         $this->assertEquals($expected - 20, Payment::where('shift_id', $shift)->sum('amount'));
     }
 
+    public function test_refund_racing_a_charge_preserves_a_valid_correction_order(): void
+    {
+        $this->open($this->actor); $this->open($this->other);
+        $order = $this->sale();
+        $refund = $this->input($this->actor, "/api/v1/orders/{$order->id}/refund", ['amount' => 10, 'reason' => 'Refund race', 'inventory_disposition' => 'consumed']);
+        $charge = $this->input($this->other, "/api/v1/orders/{$order->id}/additional-charge", ['amount' => 2, 'method' => 'cash', 'tendered' => 2, 'reason' => 'Charge race']);
+        $results = $this->race([$refund, $charge], 'orders', $order->id);
+        $this->assertSame(200, $results[0]['status'], json_encode($results));
+        $this->assertContains($results[1]['status'], [200, 409], json_encode($results));
+        $this->assertEquals(10, DB::table('payment_refunds')->sum('amount'));
+        if ($results[1]['status'] === 200) {
+            // The charge must precede the refund, never append to a refunded sale.
+            $this->assertEquals(12, $results[0]['body']['data']['paid']);
+        } else {
+            $this->assertEquals(10, Payment::where('order_id', $order->id)->sum('amount'));
+        }
+    }
+
     public function test_competing_transfers_cannot_overdraw_source_stock(): void
     {
         $otherBranch = Branch::create(['business_id' => $this->actor->business_id, 'name' => 'Destination', 'code' => 'DEST']);

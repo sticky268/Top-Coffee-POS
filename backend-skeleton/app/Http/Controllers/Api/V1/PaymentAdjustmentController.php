@@ -84,7 +84,7 @@ class PaymentAdjustmentController extends Controller
         $result = $ops->run($request, $branch, 'order.charge.'.$id, function () use ($request, $id, $branch) {
             $order = Order::whereKey($id)->where('branch_id', $branch)->lockForUpdate()->firstOrFail();
             abort_unless($order->status === 'completed', 409, 'Only a completed sale can receive an additional charge.');
-            abort_if($order->payments()->whereHas('refunds')->exists(), 409, 'An already refunded sale cannot receive an additional charge.');
+            abort_if($this->paymentRecords($order, true)->contains(fn ($p) => $p->refunds->isNotEmpty()), 409, 'An already refunded sale cannot receive an additional charge.');
             $amount = OperationService::cents($request->input('amount'));
             $cash = $request->input('method') === 'cash';
             $tendered = OperationService::cents($request->input('tendered', $request->input('amount')));
