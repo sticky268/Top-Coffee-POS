@@ -9,6 +9,9 @@ import 'package:top_coffee_pos/app.dart';
 import 'package:top_coffee_pos/core/config/env.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/offline/order_sync.dart';
+import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
+import 'package:top_coffee_pos/features/pos/application/pos_catalog_controller.dart';
+import 'package:top_coffee_pos/features/pos/application/pos_catalog_state.dart';
 import 'package:top_coffee_pos/features/operations/data/operations_repository.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:top_coffee_pos/features/operations/presentation/operations_screen.dart';
@@ -452,6 +455,68 @@ Future<void> rehearseStockCount(WidgetTester tester) async {
   debugPrint('PASS: Coffee Bean stock count saved: 49.982 to 49.980 (difference -0.002).');
 }
 
+Future<void> rehearseAvailability(WidgetTester tester) async {
+  expect(Env.apiBaseUrl, 'http://10.0.2.2:8001/api/v1');
+  final context = tester.element(find.byType(OperationsScreen));
+  final container = ProviderScope.containerOf(context);
+  final router = GoRouter.of(context);
+  expect(container.read(currentBranchProvider)?.id, 21);
+  expect(container.read(cartControllerProvider).items, isEmpty);
+  final api = container.read(apiClientProvider);
+  final rows = await tester.runAsync(() =>
+      container.read(operationsRepositoryProvider).get('/products'));
+  final products = (rows as List).cast<Map>().where((p) => p['id'] == 6).toList();
+  expect(products, hasLength(1), reason: 'Product #6 must initially be available.');
+  expect(num.parse('${products.single['price']}'), 5);
+  Future<Map> setAvailable(bool value) async {
+    final response = await tester.runAsync(() => api.request(
+      (dio) => dio.patch('/products/6', data: {
+        'branches': [{'branch_id': 21, 'is_available': value, 'price_override': null}],
+      }),
+    ));
+    final product = response!.data['data'] as Map;
+    final branch = (product['branches'] as List).cast<Map>()
+        .singleWhere((b) => b['branch_id'] == 21);
+    expect(branch['is_available'], value);
+    expect(branch['price_override'], isNull);
+    return product;
+  }
+  Future<PosCatalogLoaded> refreshCatalog() async {
+    await tester.runAsync(() =>
+        container.read(posCatalogControllerProvider.notifier).refresh());
+    await tester.pump();
+    expect(container.read(cachedCatalogProvider), isFalse,
+        reason: 'Availability must be checked against the live API.');
+    final state = container.read(posCatalogControllerProvider);
+    expect(state, isA<PosCatalogLoaded>());
+    return state as PosCatalogLoaded;
+  }
+  try {
+    await setAvailable(false);
+    router.go('/pos');
+    await tester.pump();
+    final hidden = await refreshCatalog();
+    expect(hidden.products.where((p) => p.id == 6), isEmpty,
+        reason: 'Unavailable product must be excluded from the POS catalog.');
+    expect(find.byWidgetPredicate(
+        (w) => w is ProductCard && w.product.id == 6), findsNothing);
+    expect(container.read(cartControllerProvider).items, isEmpty);
+    debugPrint('PASS: Product #6 unavailable and excluded from the live POS catalog.');
+  } finally {
+    await setAvailable(true);
+    router.go('/pos');
+    await tester.pump();
+    final restored = await refreshCatalog();
+    expect(restored.products.where((p) => p.id == 6), hasLength(1),
+        reason: 'Product #6 must return after availability is restored.');
+    debugPrint('PASS: Product #6 availability restored; branch price override remains null.');
+  }
+  router.go('/operations');
+  await tester.pump();
+  await waitForOperations(tester);
+  expect(tester.takeException(), isNull);
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('existing signed-in session loads accessible operations views', (
@@ -516,6 +581,14 @@ void main() {
     );
     debugPrint('PASS: Shifts loaded without a rendering or API error.');
 
+    if (const bool.fromEnvironment('REHEARSE_AVAILABILITY')) {
+      expect(const bool.fromEnvironment('REHEARSE_SALE') ||
+          const bool.fromEnvironment('REHEARSE_SHIFT') ||
+          const bool.fromEnvironment('REHEARSE_REVIEW') ||
+          const bool.fromEnvironment('REHEARSE_STOCK_COUNT'), isFalse,
+          reason: 'Run availability separately from other mutations.');
+      await rehearseAvailability(tester);
+    }
     if (const bool.fromEnvironment('REHEARSE_STOCK_COUNT')) {
       expect(const bool.fromEnvironment('REHEARSE_SALE') ||
           const bool.fromEnvironment('REHEARSE_SHIFT') ||
