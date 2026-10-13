@@ -55,7 +55,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.ensureVisible(find.text('Review Order').last);
       await tester.tap(find.text('Review Order').last);
-      await waitFor(tester, find.widgetWithText(TextField, 'Amount received'));
+      await waitFor(tester, find.text('Takeaway order'));
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextField, 'Amount received'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.enterText(
         find.widgetWithText(TextField, 'Amount received'),
         '5',
