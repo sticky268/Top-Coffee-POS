@@ -229,8 +229,8 @@ Future<void> rehearseShift(
   );
   if (includeSale) {
     for (final entry in {
-      'Cash sales': '\${rehearsalSalePrice.toStringAsFixed(2)}',
-      'Expected drawer cash': '\${(20 + rehearsalSalePrice).toStringAsFixed(2)}',
+      'Cash sales': r'$' + rehearsalSalePrice.toStringAsFixed(2),
+      'Expected drawer cash': r'$' + (20 + rehearsalSalePrice).toStringAsFixed(2),
     }.entries) {
       final row = find.ancestor(
         of: find.descendant(of: closedCard, matching: find.text(entry.key)),
