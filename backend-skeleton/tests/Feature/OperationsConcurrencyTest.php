@@ -127,6 +127,29 @@ class OperationsConcurrencyTest extends TestCase
         $this->assertDatabaseCount('payments', 2);
     }
 
+    public function test_concurrent_matching_held_payments_return_one_receipt_and_one_payment(): void
+    {
+        $category = \App\Models\Category::create(['branch_id' => $this->branch->id, 'name' => 'Held race coffee']);
+        $product = \App\Models\Product::create(['category_id' => $category->id,
+            'name' => 'Coffee', 'base_price' => 10, 'is_active' => true]);
+        $product->branches()->attach($this->branch->id, ['is_available' => true]);
+        $table = \App\Models\RestaurantTable::create(['branch_id' => $this->branch->id,
+            'name' => 'Race table', 'capacity' => 2, 'status' => 'available', 'is_active' => true]);
+        $id = $this->postJson('/api/v1/orders/hold', ['branch_id' => $this->branch->id,
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertCreated()->json('data.id');
+        $payload = ['expected_total' => 10, 'payment' => ['method' => 'card']];
+        // Separate tokens and matching payloads model two overlapping retries.
+        $first = $this->input($this->actor, "/api/v1/orders/$id/pay", $payload);
+        $second = $this->input($this->actor, "/api/v1/orders/$id/pay", $payload);
+        $results = $this->race([$first, $second], 'orders', $id);
+        $this->assertSame([200, 200], array_column($results, 'status'), json_encode($results));
+        $this->assertSame($results[0]['body']['data'], $results[1]['body']['data']);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('restaurant_tables', ['id' => $table->id, 'status' => 'available']);
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'order.paid')->count());
+    }
+
     public function test_simultaneous_same_uuid_refund_is_applied_once(): void
     {
         $this->open($this->actor);

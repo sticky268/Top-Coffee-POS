@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 
@@ -387,7 +388,7 @@ class ApiPosRepository implements PosRepository {
     List<Map<String, dynamic>>? splitPayments,
     int? branchId,
   }) async {
-    final response = await _apiClient.request(
+    Future<Response<dynamic>> send() => _apiClient.request(
       (dio) => dio.post(
         '/orders/$orderId/pay',
         data: {
@@ -403,6 +404,15 @@ class ApiPosRepository implements PosRepository {
       ),
     );
 
+    Response<dynamic> response;
+    try {
+      response = await send();
+    } on NetworkException {
+      // The server acknowledges matching retries without paying twice.
+      response = await send();
+    } on ServerException {
+      response = await send();
+    }
     return OrderConfirmation.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );

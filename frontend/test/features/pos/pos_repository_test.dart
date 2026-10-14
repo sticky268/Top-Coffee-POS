@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/core/network/api_client.dart';
+import 'package:top_coffee_pos/core/network/api_exceptions.dart';
 import 'package:top_coffee_pos/features/pos/data/pos_repository.dart';
 import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
 
@@ -16,6 +17,29 @@ void main() {
   setUp(() {
     apiClient = MockApiClient();
     repository = ApiPosRepository(apiClient);
+  });
+
+  test('held payment retries an uncertain response with the identical payload', () async {
+    final mockDio = MockDio();
+    final bodies = <Map<String, dynamic>>[];
+    var attempts = 0;
+    when(() => mockDio.post<dynamic>(any(), data: any(named: 'data')))
+        .thenAnswer((invocation) async {
+      bodies.add(Map<String, dynamic>.from(invocation.namedArguments[#data] as Map));
+      if (attempts++ == 0) throw const NetworkException();
+      return Response(data: {
+        'data': {'id': 42, 'total': 3.5, 'payment': {'method': 'cash', 'tendered': 5}}
+      }, requestOptions: RequestOptions(path: '/orders/42/pay'));
+    });
+    when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((invocation) async {
+      final call = invocation.positionalArguments[0] as Future<Response<dynamic>> Function(Dio);
+      return call(mockDio);
+    });
+    final result = await repository.payHeldOrder(orderId: 42, paymentMethod: 'cash',
+        expectedTotal: 3.5, tendered: 5, branchId: 2);
+    expect(result.orderId, 42);
+    expect(bodies, hasLength(2));
+    expect(bodies[0], bodies[1]);
   });
 
   group('getCategories', () {

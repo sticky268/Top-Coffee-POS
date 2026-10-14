@@ -2766,6 +2766,28 @@ class OrderTest extends TestCase
         $this->assertDatabaseCount('payments', 0);
     }
 
+    public function test_matching_held_payment_retry_returns_receipt_without_repeating_effects(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $input = ['expected_total' => 3.5, 'payment' => ['method' => 'cash', 'tendered' => 5]];
+        $first = $this->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertOk();
+        $before = [];
+        foreach (['orders', 'payments', 'stock_movements', 'loyalty_transactions', 'audit_logs'] as $name) {
+            $before[$name] = DB::table($name)->orderBy('id')->get()->toJson();
+        }
+        $retry = $this->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertOk();
+        $this->assertSame($first->json('data'), $retry->json('data'));
+        foreach ($before as $name => $rows) {
+            $this->assertSame($rows, DB::table($name)->orderBy('id')->get()->toJson(), $name);
+        }
+        $input['payment']['tendered'] = 10;
+        $this->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertConflict();
+        $input['payment']['tendered'] = 5;
+        $other = $this->makeCashier(Branch::findOrFail($table->branch_id));
+        $this->actingAs($other)->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertConflict();
+        $this->assertDatabaseCount('payments', 1);
+    }
+
     public function test_held_payment_rejects_invalid_expected_total(): void
     {
         [$orderId] = $this->makeHeldBillForPaymentReview();

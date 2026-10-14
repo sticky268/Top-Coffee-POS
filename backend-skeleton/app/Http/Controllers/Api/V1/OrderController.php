@@ -1069,7 +1069,6 @@ class OrderController extends Controller
             ) {
                 $order = Order::query()
                     ->where('id', $id)
-                    ->where('status', 'held')
                     ->where('order_type', 'dine_in')
                     ->lockForUpdate()
                     ->first();
@@ -1082,6 +1081,36 @@ class OrderController extends Controller
                     && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
                     abort(403, 'You do not have access to this branch.');
                 }
+                // The order ID is the payment idempotency key. A retry can only
+                // acknowledge the same cashier and the same persisted payment.
+                if ($order->status !== 'held') {
+                    abort_unless($order->status === 'completed', 409, 'This order is no longer payable.');
+                    if ($request->filled('expected_total')) {
+                        abort_if((int) round((float) $request->input('expected_total') * 100)
+                            !== (int) round((float) $order->total * 100), 409, 'The order total has changed.');
+                    }
+                    $payments = $order->payments()->orderBy('id')->get();
+                    $parts = $paymentMethod === 'split' ? $request->input('payment.payments') : [[
+                        'method' => $paymentMethod, 'amount' => $order->total,
+                        'tendered' => $tenderedInput ?? $order->total,
+                    ]];
+                    $expected = array_map(fn ($part) => [
+                        $part['method'], (int) round((float) $part['amount'] * 100),
+                        $part['method'] === 'cash'
+                            ? (int) round((float) ($part['tendered'] ?? 0) * 100) : null,
+                    ], $parts);
+                    $actual = $payments->map(fn (Payment $payment) => [
+                        $payment->method, (int) round((float) $payment->amount * 100),
+                        $payment->method === 'cash'
+                            ? (int) round((float) $payment->tendered * 100) : null,
+                    ])->all();
+                    abort_unless($payments->isNotEmpty() && $actual === $expected
+                        && $payments->every(fn (Payment $payment) => $payment->status === 'completed'
+                            && (int) $payment->processed_by === (int) $user->id),
+                        409, 'This order already has a different payment. Review its receipt.');
+                    return ['order' => $order, 'payments' => $payments];
+                }
+
 
                 $table = \App\Models\RestaurantTable::query()
                     ->where('branch_id', $order->branch_id)
