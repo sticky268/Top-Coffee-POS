@@ -57,8 +57,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     if (authState is AuthAuthenticated &&
         authState.user.requireManagerControls &&
         !authState.user.canApproveCheckout &&
-        discountTotal * 100 >
-            items.fold<double>(0, (sum, item) => sum + item.lineTotal) *
+        (discountTotal * 100).round() * 100 >
+            (items.fold<double>(0, (sum, item) => sum + item.lineTotal) * 100)
+                    .round() *
                 authState.user.managerDiscountPercent) {
       state = const CheckoutError(
         'A manager must sign in to approve this discount.',
@@ -130,8 +131,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     if (authState is AuthAuthenticated &&
         authState.user.requireManagerControls &&
         !authState.user.canApproveCheckout &&
-        discountTotal * 100 >
-            items.fold<double>(0, (sum, item) => sum + item.lineTotal) *
+        (discountTotal * 100).round() * 100 >
+            (items.fold<double>(0, (sum, item) => sum + item.lineTotal) * 100)
+                    .round() *
                 authState.user.managerDiscountPercent) {
       state = const CheckoutError(
         'A manager must sign in to approve this discount.',

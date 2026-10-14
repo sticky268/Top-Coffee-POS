@@ -98,6 +98,24 @@ class CheckoutControlsTest extends TestCase
         $this->assertDatabaseCount('payment_refunds', 1);
     }
 
+    public function test_held_sale_requires_shift_at_payment_and_retains_manager_discount_approval(): void
+    {
+        $table = \App\Models\RestaurantTable::create(['branch_id' => $this->branch->id, 'name' => 'Table', 'capacity' => 2, 'status' => 'available', 'is_active' => true]);
+        $input = $this->payload(['order_type' => 'dine_in', 'table_id' => $table->id, 'discount_total' => 2]);
+        $this->postJson('/api/v1/orders/hold', $input + ['approved_by' => 999])->assertForbidden();
+        $this->actor->syncRoles(['manager']);
+        $id = $this->postJson('/api/v1/orders/hold', $input)->assertCreated()->json('data.id');
+        $this->actor->syncRoles(['cashier']);
+        $payment = ['branch_id' => $this->branch->id, 'payment' => ['method' => 'cash', 'tendered' => 8]];
+        $this->postJson('/api/v1/orders/'.$id.'/pay', $payment)->assertConflict();
+        $this->assertDatabaseHas('orders', ['id' => $id, 'status' => 'held']);
+        $this->assertDatabaseCount('payments', 0);
+        $this->open();
+        $this->postJson('/api/v1/orders/'.$id.'/pay', $payment)->assertOk();
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'order.discount_approved', 'user_id' => $this->actor->id]);
+    }
+
     public function test_console_enable_is_business_specific_and_audited(): void
     {
         $other = Business::factory()->create();
