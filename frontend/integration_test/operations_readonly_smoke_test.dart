@@ -886,7 +886,18 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
             matching: find.byType(Scrollable)).first);
     expect(retry, findsOneWidget);
     await tester.ensureVisible(retry);
-    await tester.tap(retry);
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 12 && retry.hitTestable().evaluate().isEmpty; i++) {
+      await tester.drag(
+        find.descendant(of: find.byType(OperationsScreen),
+            matching: find.byType(Scrollable)).first,
+        const Offset(0, -250),
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(retry.hitTestable(), findsOneWidget,
+        reason: 'The retry button must be visible and tappable.');
+    await tester.tap(retry.hitTestable());
     for (var i = 0; i < 200; i++) {
       await tester.pump(const Duration(milliseconds: 200));
       if ((await tester.runAsync(repo.pending))!.isEmpty) break;
