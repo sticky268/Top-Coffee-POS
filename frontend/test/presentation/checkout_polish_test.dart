@@ -1,0 +1,299 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
+import 'package:top_coffee_pos/core/theme/app_theme.dart';
+import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
+import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
+import 'package:top_coffee_pos/features/pos/application/cart_controller.dart';
+import 'package:top_coffee_pos/features/pos/application/checkout_controller.dart';
+import 'package:top_coffee_pos/features/pos/application/checkout_state.dart';
+import 'package:top_coffee_pos/features/pos/data/pos_repository.dart';
+import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
+import 'package:top_coffee_pos/features/pos/presentation/checkout_screen.dart';
+import 'package:top_coffee_pos/features/pos/presentation/widgets/cart_panel.dart';
+
+import 'ui_polish_test.dart' show savePreview;
+
+class MockPosRepository extends Mock implements PosRepository {}
+
+class MockAuthRepository extends Mock implements AuthRepository {}
+
+class FixtureCheckoutController extends CheckoutController {
+  FixtureCheckoutController(
+    super.repository,
+    super.ref,
+    CheckoutState initial,
+  ) {
+    state = initial;
+  }
+}
+
+const product = PosProduct(
+  id: 1,
+  name: 'Iced Caramel Latte with Oat Milk',
+  sku: null,
+  description: null,
+  category: null,
+  price: 3.50,
+  variants: [],
+);
+const branch = BranchSummary(id: 21, name: 'Rehearsal', code: 'PP-01');
+
+void main() {
+  setUpAll(() async {
+    for (final font in [
+      ('Inter', 'assets/fonts/Inter.ttf'),
+      ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
+    ]) {
+      final loader = FontLoader(font.$1)..addFont(rootBundle.load(font.$2));
+      await loader.load();
+    }
+  });
+
+  Future<({ProviderContainer container, MockPosRepository repository})> setup(
+    WidgetTester tester, {
+    required Widget child,
+    double scale = 1,
+    bool dark = false,
+    CheckoutState state = const CheckoutIdle(),
+    GlobalKey? preview,
+  }) async {
+    final repo = MockPosRepository();
+    final auth = MockAuthRepository();
+    when(() => auth.hasStoredToken()).thenAnswer((_) async => false);
+    final container = ProviderContainer(
+      overrides: [
+        posRepositoryProvider.overrideWithValue(repo),
+        authRepositoryProvider.overrideWithValue(auth),
+        currentBranchProvider.overrideWith(
+          (ref) =>
+              CurrentBranchNotifier(ref, listenToAuth: false)
+                ..selectBranch(branch),
+        ),
+        checkoutControllerProvider.overrideWith(
+          (ref) => FixtureCheckoutController(repo, ref, state),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(cartControllerProvider.notifier).addItem(product);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: dark ? AppTheme.dark : AppTheme.light,
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: RepaintBoundary(key: preview, child: child),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    return (container: container, repository: repo);
+  }
+
+  for (final size in [
+    const Size(360, 800),
+    const Size(800, 1280),
+    const Size(1280, 800),
+  ]) {
+    for (final scale in [1.0, 2.0]) {
+      for (final dark in [false, true]) {
+        testWidgets(
+          'checkout choices, cash entry and change fit $size text $scale dark $dark',
+          (tester) async {
+            await tester.binding.setSurfaceSize(size);
+            addTearDown(() => tester.binding.setSurfaceSize(null));
+            final preview = GlobalKey();
+            final built = await setup(
+              tester,
+              child: const CheckoutScreen(),
+              scale: scale,
+              dark: dark,
+              preview: preview,
+            );
+            expect(tester.takeException(), isNull);
+            final scrollable = find.byType(Scrollable).first;
+            final amount = find.widgetWithText(TextField, 'Amount received');
+            await tester.scrollUntilVisible(
+              amount,
+              350,
+              scrollable: scrollable,
+              maxScrolls: 50,
+            );
+            await tester.enterText(amount, '2.00');
+            await tester.pumpAndSettle();
+            expect(
+              find.text('Cash received is below the total.'),
+              findsOneWidget,
+            );
+            final pay = find.text('Confirm & Pay');
+            await tester.scrollUntilVisible(
+              pay,
+              250,
+              scrollable: scrollable,
+              maxScrolls: 50,
+            );
+            final button = tester.widget<FilledButton>(
+              find.ancestor(of: pay, matching: find.byType(FilledButton)).first,
+            );
+            expect(button.onPressed, isNull);
+            await tester.scrollUntilVisible(
+              find.text('Exact \$3.50'),
+              -250,
+              scrollable: scrollable,
+              maxScrolls: 50,
+            );
+            await tester.tap(find.text('Exact \$3.50'));
+            await tester.pumpAndSettle();
+            expect((tester.widget<TextField>(amount)).controller!.text, '3.50');
+            expect(
+              find.text('Cash received is below the total.'),
+              findsNothing,
+            );
+            expect(tester.takeException(), isNull);
+            if (size.width == 360 && scale == 1) {
+              await tester.scrollUntilVisible(
+                pay,
+                180,
+                scrollable: scrollable,
+                maxScrolls: 50,
+              );
+              await savePreview(
+                tester,
+                preview,
+                'checkout-payment-360-${dark ? 'dark' : 'light'}',
+              );
+            }
+            verifyZeroInteractions(built.repository);
+          },
+        );
+      }
+    }
+  }
+
+  testWidgets('split selection keeps payment inputs and does not submit', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final built = await setup(tester, child: const CheckoutScreen(), scale: 2);
+    await tester.scrollUntilVisible(
+      find.text('Split'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+      maxScrolls: 50,
+    );
+    await tester.tap(find.text('Split'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Amount').first,
+      300,
+      scrollable: find.byType(Scrollable).first,
+      maxScrolls: 50,
+    );
+    expect(find.text('Split payment'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    verifyZeroInteractions(built.repository);
+  });
+
+  testWidgets(
+    'cart quantity, discount and clear cancellation preserve cart behavior',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final preview = GlobalKey();
+      final built = await setup(
+        tester,
+        child: const Scaffold(body: CartPanel()),
+        scale: 2,
+        preview: preview,
+      );
+      await tester.tap(find.byTooltip('Increase quantity'));
+      await tester.pumpAndSettle();
+      expect(
+        built.container.read(cartControllerProvider).items.single.quantity,
+        2,
+      );
+      await tester.tap(find.byTooltip('Decrease quantity'));
+      await tester.pumpAndSettle();
+      expect(
+        built.container.read(cartControllerProvider).items.single.quantity,
+        1,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Add discount'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Add discount'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '0.50');
+      await tester.ensureVisible(find.byTooltip('Apply discount'));
+      await tester.tap(find.byTooltip('Apply discount'));
+      await tester.pumpAndSettle();
+      expect(built.container.read(cartControllerProvider).discountTotal, 0.50);
+      expect(built.container.read(cartControllerProvider).total, 3.0);
+      await tester.scrollUntilVisible(
+        find.text('Clear Cart'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Clear Cart'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(built.container.read(cartControllerProvider).items, hasLength(1));
+      expect(tester.takeException(), isNull);
+      await savePreview(tester, preview, 'cart-360-large-text');
+      verifyZeroInteractions(built.repository);
+    },
+  );
+
+  for (final state in [
+    const CheckoutQueued('621f0e83-69ca-4ad4-bff6-845d216e8024'),
+    const CheckoutSuccess(
+      OrderConfirmation(
+        orderId: 42,
+        orderNumber: 121,
+        total: 1234567.89,
+        paymentMethod: 'cash',
+        tendered: 1234568,
+        changeDue: 0.11,
+      ),
+    ),
+  ]) {
+    testWidgets('confirmation state ${state.runtimeType} fits large phone text', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final preview = GlobalKey();
+      final built = await setup(
+        tester,
+        child: const CheckoutScreen(),
+        state: state,
+        scale: 2,
+        preview: preview,
+      );
+      expect(tester.takeException(), isNull);
+      if (state is CheckoutQueued) {
+        expect(find.text('Order saved on this device'), findsOneWidget);
+        expect(find.text('Payment Successful'), findsNothing);
+      } else {
+        expect(find.text('Order #121'), findsOneWidget);
+        expect(find.text('Payment Successful'), findsOneWidget);
+      }
+      await savePreview(
+        tester,
+        preview,
+        'checkout-${state is CheckoutQueued ? 'pending' : 'success'}-large-text',
+      );
+      verifyZeroInteractions(built.repository);
+    });
+  }
+}

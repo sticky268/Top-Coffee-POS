@@ -7,6 +7,7 @@ import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../application/cart_controller.dart';
 import '../../domain/pos_models.dart';
 import 'cart_line_tile.dart';
+import 'checkout_summary.dart';
 
 class CartPanel extends ConsumerWidget {
   const CartPanel({super.key, this.selectedTable});
@@ -22,7 +23,9 @@ class CartPanel extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxHeight < 380;
+        final compact =
+            constraints.maxHeight < 380 ||
+            MediaQuery.textScalerOf(context).scale(14) > 20;
         final lines = cart.isEmpty
             ? const _EmptyCart()
             : ListView.separated(
@@ -37,29 +40,29 @@ class CartPanel extends ConsumerWidget {
         final children = <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'Order Summary',
-                          style: theme.textTheme.titleMedium,
-                          overflow: TextOverflow.ellipsis,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Order Summary',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (selectedTable != null)
+                      Text(
+                        selectedTable!.name,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      if (selectedTable != null) ...[
-                        const SizedBox(width: 8),
-                        Chip(
-                          avatar: const Icon(Icons.table_restaurant, size: 16),
-                          label: Text(selectedTable!.name),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ],
-                    ],
-                  ),
+                  ],
                 ),
                 if (!cart.isEmpty)
                   pos_ui.DangerButton.outlinedIcon(
@@ -87,18 +90,7 @@ class CartPanel extends ConsumerWidget {
                   currency: currency,
                 ),
                 const Divider(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Total', style: theme.textTheme.titleMedium),
-                    Text(
-                      currency.format(cart.total),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                CheckoutTotalCard(value: currency.format(cart.total)),
                 const SizedBox(height: 16),
                 pos_ui.PosActionButton(
                   onPressed: cart.isEmpty
@@ -164,17 +156,7 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          Text(value, style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
+    return CheckoutAmountRow(label: label, value: value);
   }
 }
 
@@ -216,28 +198,26 @@ class _DiscountRowState extends State<_DiscountRow> {
 
     if (!_editing) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Discount', style: theme.textTheme.bodyMedium),
-                  if (widget.discountTotal > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '- ${widget.currency.format(widget.discountTotal)}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Discount', style: theme.textTheme.bodyMedium),
+                if (widget.discountTotal > 0)
+                  Text(
+                    '- ${widget.currency.format(widget.discountTotal)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ],
-              ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 8),
             pos_ui.OutlinedButton.icon(
               onPressed: () => setState(() => _editing = true),
               icon: const Icon(Icons.discount_outlined, size: 18),
@@ -249,32 +229,36 @@ class _DiscountRowState extends State<_DiscountRow> {
         ),
       );
     }
-
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Discount', style: theme.textTheme.bodyMedium),
-          const SizedBox(width: 16),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => _apply(),
+                ),
               ),
-              decoration: const InputDecoration(
-                prefixText: '\$ ',
-                isDense: true,
-                border: OutlineInputBorder(),
+              const SizedBox(width: 8),
+              pos_ui.IconButton(
+                icon: const Icon(Icons.check),
+                tooltip: 'Apply discount',
+                onPressed: _apply,
               ),
-              onSubmitted: (_) => _apply(),
-            ),
-          ),
-          pos_ui.IconButton(
-            icon: const Icon(Icons.check, size: 20),
-            visualDensity: VisualDensity.compact,
-            onPressed: _apply,
+            ],
           ),
         ],
       ),

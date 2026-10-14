@@ -18,6 +18,7 @@ import '../application/cart_state.dart';
 import '../application/checkout_controller.dart';
 import '../application/checkout_state.dart';
 import '../domain/pos_models.dart';
+import 'widgets/checkout_summary.dart';
 
 /// Order review + payment screen, reached via the cart's "Review Order" /
 /// "Checkout" action. Reads the cart at build time; on a successful order,
@@ -37,8 +38,8 @@ class _SplitPaymentLine {
     this.method = 'cash',
     String amount = '',
     String tendered = '',
-  })  : amountController = TextEditingController(text: amount),
-        tenderedController = TextEditingController(text: tendered);
+  }) : amountController = TextEditingController(text: amount),
+       tenderedController = TextEditingController(text: tendered);
 
   String method;
   final TextEditingController amountController;
@@ -121,9 +122,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkoutState = ref.watch(checkoutControllerProvider);
     final currentBranch = ref.watch(currentBranchProvider);
     final authState = ref.watch(authControllerProvider);
-    final cashierName =
-        authState is AuthAuthenticated ? authState.user.name : null;
-    final isCompleted = checkoutState is CheckoutSuccess ||
+    final cashierName = authState is AuthAuthenticated
+        ? authState.user.name
+        : null;
+    final isCompleted =
+        checkoutState is CheckoutSuccess ||
         checkoutState is CheckoutHeld ||
         checkoutState is CheckoutQueued;
 
@@ -169,92 +172,103 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         appBar: AppBar(title: const Text('Review Order')),
         body: switch (checkoutState) {
           CheckoutQueued(:final uuid) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Icon(Icons.cloud_upload_outlined, size: 48),
                   const SizedBox(height: 16),
                   const Text('Order saved on this device'),
                   const SizedBox(height: 8),
                   const Text(
-                      'Waiting for server confirmation. Check Pending Orders before collecting another payment for this sale.',
-                      textAlign: TextAlign.center),
+                    'Waiting for server confirmation. Check Pending Orders before collecting another payment for this sale.',
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 8),
                   Text('Reference: $uuid', textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   pos_ui.PrimaryButton(
-                      onPressed: () => context.go('/pending-orders'),
-                      child: const Text('View Pending Orders')),
+                    onPressed: () => context.go('/pending-orders'),
+                    child: const Text('View Pending Orders'),
+                  ),
                   pos_ui.SecondaryButton(
-                      onPressed: () => context.go('/pos'),
-                      child: const Text('New Order')),
-                ]),
+                    onPressed: () => context.go('/pos'),
+                    child: const Text('New Order'),
+                  ),
+                ],
               ),
             ),
+          ),
           CheckoutSuccess(:final confirmation) => _CheckoutSuccessView(
-              confirmation: confirmation,
-            ),
+            confirmation: confirmation,
+          ),
           _ => _CheckoutForm(
-              cart: cart,
-              orderType: _orderType,
-              branchName: currentBranch?.name,
-              branchCode: currentBranch?.code,
-              cashierName: cashierName,
-              paymentMethod: _paymentMethod,
-              selectedTable: _selectedTable,
-              selectedCustomer: _selectedCustomer,
-              onCustomerChanged: (customer) =>
-                  setState(() => _selectedCustomer = customer),
-              onCustomerTap: _openCustomerPicker,
-              splitPayments: _splitPayments,
-              onTableChanged: (table) => setState(() => _selectedTable = table),
-              onOrderTypeChanged: (type) {
-                setState(() {
-                  _orderType = type;
+            cart: cart,
+            orderType: _orderType,
+            branchName: currentBranch?.name,
+            branchCode: currentBranch?.code,
+            cashierName: cashierName,
+            paymentMethod: _paymentMethod,
+            selectedTable: _selectedTable,
+            selectedCustomer: _selectedCustomer,
+            onCustomerChanged: (customer) =>
+                setState(() => _selectedCustomer = customer),
+            onCustomerTap: _openCustomerPicker,
+            splitPayments: _splitPayments,
+            onTableChanged: (table) => setState(() => _selectedTable = table),
+            onOrderTypeChanged: (type) {
+              setState(() {
+                _orderType = type;
 
-                  if (type == 'takeaway') {
-                    _selectedTable = null;
-                  }
-                });
-              },
-              onPaymentMethodChanged: (method) =>
-                  setState(() => _paymentMethod = method),
-              tenderedController: _tenderedController,
-              tenderedAmount: _tenderedAmount,
-              canSaveOrder: cart.items.isNotEmpty &&
-                  _selectedTable != null &&
-                  checkoutState is! CheckoutSubmitting,
-              onTenderedChanged: () => setState(() {}),
-              isSubmitting: checkoutState is CheckoutSubmitting,
-              errorMessage:
-                  checkoutState is CheckoutError ? checkoutState.message : null,
-              onConfirm: () {
-                ref.read(checkoutControllerProvider.notifier).submit(
-                      items: cart.items,
-                      paymentMethod: _paymentMethod,
-                      orderType: _orderType,
-                      tableId: _selectedTable?.id,
-                      tendered:
-                          _paymentMethod == 'cash' ? _tenderedAmount : null,
-                      splitPayments: _paymentMethod == 'split'
-                          ? _splitPayments
+                if (type == 'takeaway') {
+                  _selectedTable = null;
+                }
+              });
+            },
+            onPaymentMethodChanged: (method) =>
+                setState(() => _paymentMethod = method),
+            tenderedController: _tenderedController,
+            tenderedAmount: _tenderedAmount,
+            canSaveOrder:
+                cart.items.isNotEmpty &&
+                _selectedTable != null &&
+                checkoutState is! CheckoutSubmitting,
+            onTenderedChanged: () => setState(() {}),
+            isSubmitting: checkoutState is CheckoutSubmitting,
+            errorMessage: checkoutState is CheckoutError
+                ? checkoutState.message
+                : null,
+            onConfirm: () {
+              ref
+                  .read(checkoutControllerProvider.notifier)
+                  .submit(
+                    items: cart.items,
+                    paymentMethod: _paymentMethod,
+                    orderType: _orderType,
+                    tableId: _selectedTable?.id,
+                    tendered: _paymentMethod == 'cash' ? _tenderedAmount : null,
+                    splitPayments: _paymentMethod == 'split'
+                        ? _splitPayments
                               .map((payment) => payment.toJson())
                               .toList()
-                          : null,
-                      discountTotal: cart.discountTotal,
-                      customerId: _selectedCustomer?.id,
-                    );
-              },
-              onHold: () {
-                ref.read(checkoutControllerProvider.notifier).hold(
-                      items: cart.items,
-                      orderType: 'dine_in',
-                      tableId: _selectedTable!.id,
-                      discountTotal: cart.discountTotal,
-                      customerId: _selectedCustomer?.id,
-                    );
-              },
-            ),
+                        : null,
+                    discountTotal: cart.discountTotal,
+                    customerId: _selectedCustomer?.id,
+                  );
+            },
+            onHold: () {
+              ref
+                  .read(checkoutControllerProvider.notifier)
+                  .hold(
+                    items: cart.items,
+                    orderType: 'dine_in',
+                    tableId: _selectedTable!.id,
+                    discountTotal: cart.discountTotal,
+                    customerId: _selectedCustomer?.id,
+                  );
+            },
+          ),
         },
       ),
     );
@@ -323,7 +337,8 @@ class _CheckoutForm extends StatelessWidget {
           sum + (double.tryParse(payment.amountController.text) ?? 0),
     );
 
-    final splitValid = splitPayments.length >= 2 &&
+    final splitValid =
+        splitPayments.length >= 2 &&
         splitPayments.every((payment) {
           final amount = double.tryParse(payment.amountController.text) ?? 0;
           if (amount <= 0) return false;
@@ -337,14 +352,15 @@ class _CheckoutForm extends StatelessWidget {
         }) &&
         (splitTotal - cart.total).abs() < 0.01;
 
-    final canConfirm = !isSubmitting &&
+    final canConfirm =
+        !isSubmitting &&
         cart.items.isNotEmpty &&
         (orderType == 'takeaway' || selectedTable != null) &&
         (paymentMethod == 'split'
             ? splitValid
             : paymentMethod != 'cash' ||
-                tenderedAmount == null ||
-                tenderedAmount! >= cart.total);
+                  tenderedAmount == null ||
+                  tenderedAmount! >= cart.total);
 
     final customerBill = CustomerBill(
       orderType: orderType,
@@ -370,435 +386,444 @@ class _CheckoutForm extends StatelessWidget {
     );
 
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (errorMessage != null) ...[
-            _ErrorBanner(message: errorMessage!),
-            const SizedBox(height: 16),
-          ],
-          Text(
-            'Review Order',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (orderType == 'dine_in' && selectedTable != null)
-            Text(
-              ' · Dine-in',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            )
-          else if (orderType == 'takeaway')
-            Text(
-              'Takeaway order',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
-            Text(
-              'Dine-in order',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          const SizedBox(height: 24),
-          Text(
-            'Order Type',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment<String>(
-                  value: 'takeaway',
-                  label: Text('Takeaway'),
-                  icon: Icon(Icons.shopping_bag_outlined),
-                ),
-                ButtonSegment<String>(
-                  value: 'dine_in',
-                  label: Text('Dine-in'),
-                  icon: Icon(Icons.table_restaurant_outlined),
-                ),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (errorMessage != null) ...[
+                _ErrorBanner(message: errorMessage!),
+                const SizedBox(height: 16),
               ],
-              selected: {orderType},
-              onSelectionChanged: isSubmitting
-                  ? null
-                  : (selection) => onOrderTypeChanged(selection.first),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Customer',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          pos_ui.ActionSurface(
-            onTap: isSubmitting ? null : onCustomerTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(12),
+              Text(
+                'Review Order',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
               ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Icon(
-                      selectedCustomer == null
-                          ? Icons.person_outline
-                          : Icons.person,
-                      color: theme.colorScheme.onPrimaryContainer,
+              const SizedBox(height: 8),
+              if (orderType == 'dine_in' && selectedTable != null)
+                Text(
+                  'Dine-in order',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else if (orderType == 'takeaway')
+                Text(
+                  'Takeaway order',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                Text(
+                  'Dine-in order',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Text(
+                'Order Type',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              CheckoutChoiceSelector(
+                choices: const [
+                  CheckoutChoice(
+                    'takeaway',
+                    'Takeaway',
+                    Icons.shopping_bag_outlined,
+                  ),
+                  CheckoutChoice(
+                    'dine_in',
+                    'Dine-in',
+                    Icons.table_restaurant_outlined,
+                  ),
+                ],
+                selected: orderType,
+                enabled: !isSubmitting,
+                onChanged: onOrderTypeChanged,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Customer',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              pos_ui.ActionSurface(
+                onTap: isSubmitting ? null : onCustomerTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        child: Icon(
+                          selectedCustomer == null
+                              ? Icons.person_outline
+                              : Icons.person,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              selectedCustomer?.name ?? 'Walk-in Customer',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (selectedCustomer?.phone != null &&
+                                selectedCustomer!.phone!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                selectedCustomer!.phone!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ] else if (selectedCustomer == null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'No customer selected',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'ORDER',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                elevation: 1,
+                color: theme.colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  child: Column(
+                    children: [
+                      for (final item in cart.items)
+                        CheckoutOrderLine(
+                          title: item.product.name,
+                          variant: item.variant?.name,
+                          quantity: item.quantity,
+                          unitPrice: currency.format(item.unitPrice),
+                          lineTotal: currency.format(
+                            item.unitPrice * item.quantity,
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      Divider(color: theme.colorScheme.outlineVariant),
+                      const SizedBox(height: 16),
+                      _SummaryRow(
+                        label: 'Subtotal',
+                        value: currency.format(cart.subtotal),
+                      ),
+                      if (cart.discountTotal > 0)
+                        _SummaryRow(
+                          label: 'Discount',
+                          value: '- ${currency.format(cart.discountTotal)}',
+                        ),
+                      const SizedBox(height: 8),
+                      CheckoutTotalCard(value: currency.format(cart.total)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Card(
+                elevation: 1,
+                color: theme.colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: BillActionButtons(
+                    bill: customerBill,
+                    showHeading: true,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (orderType == 'dine_in' && selectedTable != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'TABLE',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 1,
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            Icons.table_restaurant_outlined,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedTable!.name,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Dine-in · ${selectedTable!.capacity} seats',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                ),
+              ],
+              const SizedBox(height: 32),
+              Text(
+                'PAYMENT',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Choose how the customer is paying',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CheckoutChoiceSelector(
+                choices: const [
+                  CheckoutChoice('cash', 'Cash', Icons.payments_outlined),
+                  CheckoutChoice('card', 'Card', Icons.credit_card_outlined),
+                  CheckoutChoice('qr', 'QR', Icons.qr_code_2_outlined),
+                  CheckoutChoice('split', 'Split', Icons.call_split_outlined),
+                ],
+                selected: paymentMethod,
+                enabled: !isSubmitting,
+                onChanged: onPaymentMethodChanged,
+              ),
+              const SizedBox(height: 16),
+              if (paymentMethod == 'split') ...[
+                Card(
+                  elevation: 1,
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          selectedCustomer?.name ?? 'Walk-in Customer',
-                          style: theme.textTheme.titleSmall?.copyWith(
+                          'Split payment',
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (selectedCustomer?.phone != null &&
-                            selectedCustomer!.phone!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            selectedCustomer!.phone!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Divide the total across multiple payment methods.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
-                        ] else if (selectedCustomer == null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'No customer selected',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'ORDER',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            elevation: 1,
-            color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: Column(
-                children: [
-                  for (final item in cart.items)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${item.quantity}',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
+                        ),
+                        const SizedBox(height: 16),
+                        for (
+                          var index = 0;
+                          index < splitPayments.length;
+                          index++
+                        )
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.product.name,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (item.variant != null) ...[
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    item.variant!.name,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 3),
-                                Text(
-                                  currency.format(item.unitPrice),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            currency.format(item.unitPrice * item.quantity),
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Divider(color: theme.colorScheme.outlineVariant),
-                  const SizedBox(height: 16),
-                  _SummaryRow(
-                    label: 'Subtotal',
-                    value: currency.format(cart.subtotal),
-                  ),
-                  if (cart.discountTotal > 0)
-                    _SummaryRow(
-                      label: 'Discount',
-                      value: '- ${currency.format(cart.discountTotal)}',
-                    ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Total',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        currency.format(cart.total),
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Card(
-            elevation: 1,
-            color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: BillActionButtons(
-                bill: customerBill,
-                showHeading: true,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (orderType == 'dine_in' && selectedTable != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'TABLE',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              elevation: 1,
-              color: theme.colorScheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        Icons.table_restaurant_outlined,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selectedTable!.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Dine-in · ${selectedTable!.capacity} seats',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 32),
-          Text(
-            'PAYMENT',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Choose how the customer is paying',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'cash',
-                label: Text('Cash'),
-                icon: Icon(Icons.payments_outlined),
-              ),
-              ButtonSegment(
-                value: 'card',
-                label: Text('Card'),
-                icon: Icon(Icons.credit_card_outlined),
-              ),
-              ButtonSegment(
-                value: 'qr',
-                label: Text('QR'),
-                icon: Icon(Icons.qr_code_2_outlined),
-              ),
-              ButtonSegment(
-                value: 'split',
-                label: Text('Split'),
-                icon: Icon(Icons.call_split_outlined),
-              ),
-            ],
-            selected: {paymentMethod},
-            onSelectionChanged: isSubmitting
-                ? null
-                : (selection) => onPaymentMethodChanged(selection.first),
-          ),
-          const SizedBox(height: 16),
-          if (paymentMethod == 'split') ...[
-            Card(
-              elevation: 1,
-              color: theme.colorScheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Split payment',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Divide the total across multiple payment methods.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    for (var index = 0; index < splitPayments.length; index++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
+                              child: Column(
                                 children: [
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
-                                      initialValue: splitPayments[index].method,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          initialValue:
+                                              splitPayments[index].method,
+                                          decoration: InputDecoration(
+                                            labelText: 'Method',
+                                            filled: true,
+                                            fillColor: theme
+                                                .colorScheme
+                                                .surfaceContainerLowest,
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                          ),
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'cash',
+                                              child: Text('Cash'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'card',
+                                              child: Text('Card'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'qr',
+                                              child: Text('QR'),
+                                            ),
+                                          ],
+                                          onChanged: isSubmitting
+                                              ? null
+                                              : (method) {
+                                                  if (method == null) return;
+                                                  splitPayments[index].method =
+                                                      method;
+                                                  onTenderedChanged();
+                                                },
+                                        ),
+                                      ),
+                                      if (splitPayments.length > 2) ...[
+                                        const SizedBox(width: 8),
+                                        pos_ui.IconButton(
+                                          tooltip: 'Remove payment',
+                                          onPressed: isSubmitting
+                                              ? null
+                                              : () {
+                                                  splitPayments[index]
+                                                      .dispose();
+                                                  splitPayments.removeAt(index);
+                                                  onTenderedChanged();
+                                                },
+                                          icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller:
+                                        splitPayments[index].amountController,
+                                    enabled: !isSubmitting,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    decoration: InputDecoration(
+                                      labelText: 'Amount',
+                                      prefixText: '\$ ',
+                                      filled: true,
+                                      fillColor: theme
+                                          .colorScheme
+                                          .surfaceContainerLowest,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    onChanged: (_) => onTenderedChanged(),
+                                  ),
+                                  if (splitPayments[index].method ==
+                                      'cash') ...[
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: splitPayments[index]
+                                          .tenderedController,
+                                      enabled: !isSubmitting,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
                                       decoration: InputDecoration(
-                                        labelText: 'Method',
+                                        labelText: 'Cash received',
+                                        prefixText: '\$ ',
                                         filled: true,
                                         fillColor: theme
-                                            .colorScheme.surfaceContainerLowest,
+                                            .colorScheme
+                                            .surfaceContainerLowest,
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(
                                             12,
@@ -806,291 +831,209 @@ class _CheckoutForm extends StatelessWidget {
                                           borderSide: BorderSide.none,
                                         ),
                                       ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'cash',
-                                          child: Text('Cash'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'card',
-                                          child: Text('Card'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'qr',
-                                          child: Text('QR'),
-                                        ),
-                                      ],
-                                      onChanged: isSubmitting
-                                          ? null
-                                          : (method) {
-                                              if (method == null) return;
-                                              splitPayments[index].method =
-                                                  method;
-                                              onTenderedChanged();
-                                            },
-                                    ),
-                                  ),
-                                  if (splitPayments.length > 2) ...[
-                                    const SizedBox(width: 8),
-                                    pos_ui.IconButton(
-                                      tooltip: 'Remove payment',
-                                      onPressed: isSubmitting
-                                          ? null
-                                          : () {
-                                              splitPayments[index].dispose();
-                                              splitPayments.removeAt(index);
-                                              onTenderedChanged();
-                                            },
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                      ),
+                                      onChanged: (_) => onTenderedChanged(),
                                     ),
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller:
-                                    splitPayments[index].amountController,
-                                enabled: !isSubmitting,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'Amount',
-                                  prefixText: '\$ ',
-                                  filled: true,
-                                  fillColor:
-                                      theme.colorScheme.surfaceContainerLowest,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                                onChanged: (_) => onTenderedChanged(),
-                              ),
-                              if (splitPayments[index].method == 'cash') ...[
-                                const SizedBox(height: 8),
-                                TextField(
-                                  controller:
-                                      splitPayments[index].tenderedController,
-                                  enabled: !isSubmitting,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                                  decoration: InputDecoration(
-                                    labelText: 'Cash received',
-                                    prefixText: '\$ ',
-                                    filled: true,
-                                    fillColor: theme
-                                        .colorScheme.surfaceContainerLowest,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                  onChanged: (_) => onTenderedChanged(),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    pos_ui.OutlinedButton.icon(
-                      onPressed: isSubmitting
-                          ? null
-                          : () {
-                              splitPayments.add(
-                                _SplitPaymentLine(method: 'qr'),
-                              );
-                              onTenderedChanged();
-                            },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add payment method'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _SummaryRow(
-                      label: 'Paid',
-                      value: currency.format(splitTotal),
-                    ),
-                    _SummaryRow(
-                      label: splitTotal >= cart.total ? 'Change' : 'Remaining',
-                      value: currency.format(
-                        splitTotal >= cart.total
-                            ? splitTotal - cart.total
-                            : cart.total - splitTotal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (paymentMethod == 'cash') ...[
-            Card(
-              elevation: 1,
-              color: theme.colorScheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cash',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: tenderedController,
-                      enabled: !isSubmitting,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Amount received',
-                        prefixText: '\$ ',
-                        filled: true,
-                        fillColor: theme.colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onChanged: (_) => onTenderedChanged(),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Quick amounts',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final amount in {cart.total, 15.0, 20.0, 50.0})
-                          pos_ui.OutlinedButton(
-                            onPressed: isSubmitting
-                                ? null
-                                : () {
-                                    tenderedController.text =
-                                        amount.toStringAsFixed(2);
-                                    onTenderedChanged();
-                                  },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
                             ),
-                            child: Text(currency.format(amount)),
                           ),
+                        pos_ui.OutlinedButton.icon(
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  splitPayments.add(
+                                    _SplitPaymentLine(method: 'qr'),
+                                  );
+                                  onTenderedChanged();
+                                },
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add payment method'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _SummaryRow(
+                          label: 'Paid',
+                          value: currency.format(splitTotal),
+                        ),
+                        _SummaryRow(
+                          label: splitTotal >= cart.total
+                              ? 'Change'
+                              : 'Remaining',
+                          value: currency.format(
+                            splitTotal >= cart.total
+                                ? splitTotal - cart.total
+                                : cart.total - splitTotal,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            change == null
-                                ? 'Change'
-                                : change >= 0
-                                    ? 'Change'
-                                    : 'Short by',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (paymentMethod == 'cash') ...[
+                Card(
+                  elevation: 1,
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cash',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: tenderedController,
+                          enabled: !isSubmitting,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Amount received',
+                            helperText:
+                                'Enter cash received to calculate change.',
+                            helperMaxLines: 3,
+                            errorText: change != null && change < 0
+                                ? 'Cash received is below the total.'
+                                : null,
+                            errorMaxLines: 3,
+                            prefixText: '\$ ',
+                            filled: true,
+                            fillColor: theme.colorScheme.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
                             ),
                           ),
-                          Text(
-                            change == null
+                          onChanged: (_) => onTenderedChanged(),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Quick amounts',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final amount in {cart.total, 15.0, 20.0, 50.0})
+                              pos_ui.OutlinedButton(
+                                onPressed: isSubmitting
+                                    ? null
+                                    : () {
+                                        tenderedController.text = amount
+                                            .toStringAsFixed(2);
+                                        onTenderedChanged();
+                                      },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  amount == cart.total
+                                      ? 'Exact ${currency.format(amount)}'
+                                      : currency.format(amount),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: CheckoutAmountRow(
+                            label: change != null && change < 0
+                                ? 'Short by'
+                                : 'Change',
+                            value: change == null
                                 ? '—'
                                 : currency.format(change.abs()),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: change != null && change < 0
-                                  ? theme.colorScheme.error
-                                  : theme.colorScheme.onSurface,
-                            ),
+                            emphasized: true,
+                            valueColor: change != null && change < 0
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.onSurface,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+              if (selectedTable != null)
+                pos_ui.OutlinedButton(
+                  onPressed: canSaveOrder ? onHold : null,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    side: BorderSide.none,
+                    backgroundColor: theme.colorScheme.surfaceContainerLow,
+                    foregroundColor: theme.colorScheme.onSurface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('Save for Later'),
+                ),
+              if (selectedTable != null) const SizedBox(height: 8),
+              pos_ui.PosActionButton(
+                onPressed: canConfirm ? onConfirm : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(58),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                isLoading: isSubmitting,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    const Text(
+                      'Confirm & Pay',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      currency.format(cart.total),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
-          const SizedBox(height: 32),
-          if (selectedTable != null)
-            pos_ui.OutlinedButton(
-              onPressed: canSaveOrder ? onHold : null,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                side: BorderSide.none,
-                backgroundColor: theme.colorScheme.surfaceContainerLow,
-                foregroundColor: theme.colorScheme.onSurface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Text('Save for Later'),
-            ),
-          if (selectedTable != null) const SizedBox(height: 8),
-          pos_ui.PosActionButton(
-            onPressed: canConfirm ? onConfirm : null,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(58),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            isLoading: isSubmitting,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Confirm & Pay',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  currency.format(cart.total),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1104,19 +1047,7 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = theme.textTheme.bodyLarge;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: style),
-          Text(value, style: style),
-        ],
-      ),
-    );
+    return CheckoutAmountRow(label: label, value: value);
   }
 }
 
@@ -1230,35 +1161,9 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'TOTAL PAID',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        currency.format(widget.confirmation.total),
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
+                CheckoutTotalCard(
+                  label: 'Total paid',
+                  value: currency.format(widget.confirmation.total),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -1282,66 +1187,24 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                       const SizedBox(height: 14),
                       if (payments.length > 1) ...[
                         for (final payment in payments) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _paymentLabel(payment.method),
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                currency.format(payment.amount),
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          CheckoutAmountRow(
+                            label: _paymentLabel(payment.method),
+                            value: currency.format(payment.amount),
                           ),
                           if (payment.method == 'cash' &&
                               payment.tendered != null) ...[
                             const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Cash received',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  currency.format(payment.tendered),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                            CheckoutAmountRow(
+                              label: 'Cash received',
+                              value: currency.format(payment.tendered),
                             ),
                           ],
                           if (payment.changeDue != null &&
                               payment.changeDue! > 0) ...[
                             const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Change',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  currency.format(payment.changeDue),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                            CheckoutAmountRow(
+                              label: 'Change',
+                              value: currency.format(payment.changeDue),
                             ),
                           ],
                           if (payment != payments.last)
@@ -1351,65 +1214,29 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                             ),
                         ],
                       ] else ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _paymentLabel(
-                                  widget.confirmation.paymentMethod,
-                                ),
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              currency.format(widget.confirmation.total),
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                        CheckoutAmountRow(
+                          label: _paymentLabel(
+                            widget.confirmation.paymentMethod,
+                          ),
+                          value: currency.format(widget.confirmation.total),
                         ),
                         if (widget.confirmation.tendered != null) ...[
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Cash received',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                currency.format(widget.confirmation.tendered),
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
+                          CheckoutAmountRow(
+                            label: 'Cash received',
+                            value: currency.format(
+                              widget.confirmation.tendered,
+                            ),
                           ),
                         ],
                         if (widget.confirmation.changeDue != null &&
                             widget.confirmation.changeDue! > 0) ...[
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Change',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                currency.format(widget.confirmation.changeDue),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          CheckoutAmountRow(
+                            label: 'Change',
+                            value: currency.format(
+                              widget.confirmation.changeDue,
+                            ),
                           ),
                         ],
                       ],
@@ -1417,9 +1244,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ReceiptActionButtons(
-                  orderId: widget.confirmation.orderId,
-                ),
+                ReceiptActionButtons(orderId: widget.confirmation.orderId),
                 const SizedBox(height: 16),
                 pos_ui.PosActionButton(
                   onPressed: () => context.go('/pos/select-table'),
@@ -1720,52 +1545,51 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _customers.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No customers found.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                    ? Center(
+                        child: Text(
+                          'No customers found.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _customers.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final customer = _customers[index];
+                          final isSelected =
+                              widget.selectedCustomer?.id == customer.id;
+
+                          return ListTile(
+                            leading: CircleAvatar(
+                              child: Text(
+                                customer.name.isNotEmpty
+                                    ? customer.name[0].toUpperCase()
+                                    : '?',
                               ),
                             ),
-                          )
-                        : ListView.separated(
-                            itemCount: _customers.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final customer = _customers[index];
-                              final isSelected =
-                                  widget.selectedCustomer?.id == customer.id;
-
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  child: Text(
-                                    customer.name.isNotEmpty
-                                        ? customer.name[0].toUpperCase()
-                                        : '?',
-                                  ),
-                                ),
-                                title: Text(
-                                  customer.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: customer.phone == null ||
-                                        customer.phone!.isEmpty
-                                    ? null
-                                    : Text(customer.phone!),
-                                trailing: isSelected
-                                    ? Icon(
-                                        Icons.check_circle,
-                                        color: theme.colorScheme.primary,
-                                      )
-                                    : null,
-                                onTap: () =>
-                                    Navigator.of(context).pop(customer),
-                              );
-                            },
-                          ),
+                            title: Text(
+                              customer.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle:
+                                customer.phone == null ||
+                                    customer.phone!.isEmpty
+                                ? null
+                                : Text(customer.phone!),
+                            trailing: isSelected
+                                ? Icon(
+                                    Icons.check_circle,
+                                    color: theme.colorScheme.primary,
+                                  )
+                                : null,
+                            onTap: () => Navigator.of(context).pop(customer),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
