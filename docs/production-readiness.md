@@ -43,3 +43,16 @@ Deployment and PR merging require explicit owner approval after the candidate co
 If the release fails, stop new writes, preserve logs and unresolved device queues, and revert application code to the known compatible version. If a destructive migration prevents that version from running, restore the verified database/assets backup through the approved recovery procedure. Reconcile transactions created after the backup before reopening the POS. Never silently delete pending orders to make an error disappear.
 
 References: [Laravel deployment guidance](https://laravel.com/framework/docs/12.x/deployment) and [Flutter offline-first guidance](https://docs.flutter.dev/app-architecture/design-patterns/offline-first). The checks above are specific to this POS; the references do not certify its deployment.
+
+## System-wide review follow-up (14 October 2026)
+
+See [system-wide engineering review](system-wide-engineering-review.md) for the current candidate, severity-ranked fixes, exact diffs and tests. Earlier acceptance above remains historical evidence for its named commit.
+
+- Set `CACHE_STORE` (the old example's `CACHE_DRIVER` was ignored).
+- Configure `SANCTUM_TOKEN_EXPIRATION` to the business-approved positive lifetime in minutes; production readiness rejects an indefinite lifetime. Revocation on password reset/deactivation is automatic.
+- The read-only production check now compares cached ingredient stock against the movement ledger. Investigate discrepancies; do not directly edit stock to silence the check.
+- Demo seeders refuse production. Continue using deliberate onboarding and private credentials.
+- Rehearse the new completion index and receipt-name columns on staging before approved migrations. Historical receipt rows retain their catalog fallback.
+- The asset restore helper rejects traversal, links and special files. Continue restoring only into an isolated empty target and verifying database/assets totals before any recovery cutover.
+- Kitchen-display removal is preserved at the owner's explicit direction.
+- Verify actual production HTTPS, signing, backups, monitoring/alert delivery, physical receipt/scanner/share behavior and offline recovery before release. CI does not certify these environment-specific controls.
