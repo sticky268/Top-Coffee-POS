@@ -54,6 +54,17 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     final branchId = _ref.read(currentBranchProvider)?.id;
     final authState = _ref.read(authControllerProvider);
     final userId = authState is AuthAuthenticated ? authState.user.id : null;
+    if (authState is AuthAuthenticated &&
+        authState.user.requireManagerControls &&
+        !authState.user.canApproveCheckout &&
+        discountTotal * 100 >
+            items.fold<double>(0, (sum, item) => sum + item.lineTotal) *
+                authState.user.managerDiscountPercent) {
+      state = const CheckoutError(
+        'A manager must sign in to approve this discount.',
+      );
+      return;
+    }
     final requestKey = jsonEncode([
       userId,
       'checkout',
@@ -92,8 +103,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       if (mounted) state = CheckoutQueued(e.uuid);
     } catch (e) {
       if (!mounted) return;
-      state =
-          CheckoutError(e is ApiException ? e.message : 'Something went wrong');
+      state = CheckoutError(
+        e is ApiException ? e.message : 'Something went wrong',
+      );
     }
   }
 
@@ -115,6 +127,17 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     final branchId = _ref.read(currentBranchProvider)?.id;
     final authState = _ref.read(authControllerProvider);
     final userId = authState is AuthAuthenticated ? authState.user.id : null;
+    if (authState is AuthAuthenticated &&
+        authState.user.requireManagerControls &&
+        !authState.user.canApproveCheckout &&
+        discountTotal * 100 >
+            items.fold<double>(0, (sum, item) => sum + item.lineTotal) *
+                authState.user.managerDiscountPercent) {
+      state = const CheckoutError(
+        'A manager must sign in to approve this discount.',
+      );
+      return;
+    }
     final requestKey = jsonEncode([
       userId,
       'hold',
@@ -157,8 +180,5 @@ class CheckoutController extends StateNotifier<CheckoutState> {
 
 final checkoutControllerProvider =
     StateNotifierProvider.autoDispose<CheckoutController, CheckoutState>((ref) {
-  return CheckoutController(
-    ref.watch(posRepositoryProvider),
-    ref,
-  );
-});
+      return CheckoutController(ref.watch(posRepositoryProvider), ref);
+    });

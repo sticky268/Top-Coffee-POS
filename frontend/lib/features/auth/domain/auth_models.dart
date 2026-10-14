@@ -23,8 +23,7 @@ class BranchSummary {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BranchSummary && other.id == id;
+      identical(this, other) || other is BranchSummary && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
@@ -40,6 +39,9 @@ class AuthenticatedUser {
     required this.roles,
     required this.permissions,
     required this.branches,
+    this.requireCashShift = false,
+    this.requireManagerControls = false,
+    this.managerDiscountPercent = 10,
   });
 
   final int id;
@@ -48,9 +50,23 @@ class AuthenticatedUser {
   final List<String> roles;
   final List<String> permissions;
   final List<BranchSummary> branches;
+  final bool requireCashShift, requireManagerControls;
+  final double managerDiscountPercent;
+
+  bool get canApproveCheckout => hasRole('admin') || hasRole('manager');
 
   factory AuthenticatedUser.fromJson(Map<String, dynamic> json) {
     return AuthenticatedUser(
+      requireCashShift:
+          (json['checkout_controls'] as Map?)?['require_cash_shift'] == true,
+      requireManagerControls:
+          (json['checkout_controls'] as Map?)?['require_manager_controls'] ==
+          true,
+      managerDiscountPercent:
+          double.tryParse(
+            '${(json['checkout_controls'] as Map?)?['manager_discount_percent']}',
+          ) ??
+          10,
       id: json['id'] as int,
       name: json['name'] as String,
       email: json['email'] as String,

@@ -37,6 +37,9 @@ class ProductionCheck extends Command
             $ran = Schema::hasTable('migrations') ? DB::table('migrations')->pluck('migration')->all() : [];
             $required = array_map(fn ($path) => basename($path, '.php'), glob(database_path('migrations/*.php')) ?: []);
             $checks['migrations_current'] = count(array_diff($required, $ran)) === 0;
+            $checks['checkout_controls_enabled'] = ! \App\Models\Business::where('is_active', true)->where(function ($query) {
+                $query->where('require_cash_shift', false)->orWhere('require_manager_controls', false);
+            })->exists();
             $checks['business_ownership_verified'] = app(\App\Services\TenantIntegrity::class)->report()['ready'];
             $checks['kitchen_schema_removed'] = ! Schema::hasTable('kitchen_tickets')
                 && ! Schema::hasTable('kitchen_ticket_items')

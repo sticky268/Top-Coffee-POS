@@ -58,6 +58,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'roles' => $user->getRoleNames(),
                     'permissions' => $user->getAllPermissions()->pluck('name'),
+                    'checkout_controls' => $user->business->only(['require_cash_shift', 'require_manager_controls', 'manager_discount_percent']),
                     'branches' => $user->branches()->select('branches.id', 'branches.name', 'branches.code')->get(),
                 ],
             ],
@@ -83,6 +84,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
+                    'checkout_controls' => $user->business->only(['require_cash_shift', 'require_manager_controls', 'manager_discount_percent']),
                 'branches' => $user->branches()->select('branches.id', 'branches.name', 'branches.code')->get(),
             ],
         ]);
