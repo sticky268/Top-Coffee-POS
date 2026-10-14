@@ -194,14 +194,28 @@ void main() {
       scrollable: find.byType(Scrollable).first,
       maxScrolls: 50,
     );
+    await tester.ensureVisible(
+      find
+          .ancestor(
+            of: find.text('Split'),
+            matching: find.byType(OutlinedButton),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Split').hitTestable(), findsOneWidget);
     await tester.tap(find.text('Split'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.widgetWithText(TextField, 'Amount').first,
+      find.text('Split payment'),
       300,
       scrollable: find.byType(Scrollable).first,
       maxScrolls: 50,
     );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(TextField, 'Amount').first);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Amount'), findsWidgets);
     expect(find.text('Split payment'), findsOneWidget);
     expect(tester.takeException(), isNull);
     verifyZeroInteractions(built.repository);
