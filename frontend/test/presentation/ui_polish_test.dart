@@ -56,6 +56,9 @@ void main() {
     final loader = FontLoader('Inter')
       ..addFont(rootBundle.load('assets/fonts/Inter.ttf'));
     await loader.load();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await icons.load();
   });
 
   for (final size in [
@@ -123,6 +126,31 @@ void main() {
                                   QuickAction(
                                     label: 'New Order',
                                     icon: Icons.add_shopping_cart,
+                                    onTap: () => taps++,
+                                  ),
+                                  QuickAction(
+                                    label: 'Orders',
+                                    icon: Icons.receipt_long_outlined,
+                                    onTap: () => taps++,
+                                  ),
+                                  QuickAction(
+                                    label: 'Customers',
+                                    icon: Icons.people_outline,
+                                    onTap: () => taps++,
+                                  ),
+                                  QuickAction(
+                                    label: 'Products',
+                                    icon: Icons.local_cafe_outlined,
+                                    onTap: () => taps++,
+                                  ),
+                                  QuickAction(
+                                    label: 'Inventory',
+                                    icon: Icons.inventory_2_outlined,
+                                    onTap: () => taps++,
+                                  ),
+                                  QuickAction(
+                                    label: 'Reports',
+                                    icon: Icons.bar_chart_outlined,
                                     onTap: () => taps++,
                                   ),
                                   QuickAction(
@@ -197,17 +225,21 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     var taps = 0;
+    final previewKey = GlobalKey();
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
           theme: AppTheme.light,
           home: MediaQuery(
             data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-            child: Scaffold(
-              body: ProductGrid(
-                products: const [product],
-                crossAxisCount: 2,
-                onProductSelected: (_) => taps++,
+            child: RepaintBoundary(
+              key: previewKey,
+              child: Scaffold(
+                body: ProductGrid(
+                  products: const [product],
+                  crossAxisCount: 2,
+                  onProductSelected: (_) => taps++,
+                ),
               ),
             ),
           ),
@@ -219,7 +251,47 @@ void main() {
     await tester.tap(find.text(product.name));
     expect(taps, 1);
     expect(find.text('\$3.50'), findsOneWidget);
+    await savePreview(tester, previewKey, 'pos-360-large-text');
   });
+
+  for (final width in [259.0, 459.0, 939.0]) {
+    testWidgets('product grid fits the actual tablet catalog pane $width', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(Size(width, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: ProductGrid(
+                products: const [product],
+                crossAxisCount: 4,
+                onProductSelected: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      final columns =
+          (grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount)
+              .crossAxisCount;
+      expect(
+        columns,
+        width < 300
+            ? 1
+            : width < 600
+            ? 2
+            : 4,
+      );
+      final price = tester.renderObject<RenderParagraph>(find.text('\$3.50'));
+      expect(price.didExceedMaxLines, isFalse);
+    });
+  }
 
   testWidgets('Categories selects one navigation item', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 1600));
@@ -244,5 +316,23 @@ void main() {
     expect(selected, hasLength(1));
     expect((selected.single.title! as Text).data, 'Categories');
     expect(tester.takeException(), isNull);
+  });
+}
+
+Future<void> savePreview(
+  WidgetTester tester,
+  GlobalKey key,
+  String name,
+) async {
+  await tester.runAsync(() async {
+    final boundary =
+        key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage(pixelRatio: 1);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    final folder = Directory('build/ui-polish')..createSync(recursive: true);
+    File(
+      '${folder.path}/$name.png',
+    ).writeAsBytesSync(bytes!.buffer.asUint8List());
+    image.dispose();
   });
 }

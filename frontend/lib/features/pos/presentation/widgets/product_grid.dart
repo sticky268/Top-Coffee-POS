@@ -30,16 +30,20 @@ class ProductGrid extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+        // Use the catalog pane's width; the tablet cart takes its own space.
+        final columns =
+            ((constraints.maxWidth - 16) / (scale > 1.4 ? 256 : 166))
+                .floor()
+                .clamp(1, crossAxisCount);
         final tileWidth =
-            (constraints.maxWidth - 32 - 16 * (crossAxisCount - 1)) /
-            crossAxisCount;
+            (constraints.maxWidth - 32 - 16 * (columns - 1)) / columns;
         final tileHeight =
             (tileWidth / 1.05).clamp(180.0, 280.0) +
             (scale - 1).clamp(0.0, 3.0) * 80;
         return GridView.builder(
           padding: const EdgeInsets.all(16),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
+            crossAxisCount: columns,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             mainAxisExtent: tileHeight,
