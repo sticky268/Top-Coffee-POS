@@ -287,6 +287,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -615,6 +617,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -833,6 +837,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -1495,6 +1501,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -1803,8 +1811,8 @@ class OrderController extends Controller
                     'id' => $item->id,
                     'product_id' => $item->product_id,
                     'product_variant_id' => $item->product_variant_id,
-                    'product_name' => $item->product?->name ?? 'Unknown product',
-                    'variant_name' => $item->variant?->name,
+                    'product_name' => $item->product_name ?? $item->product?->name ?? 'Unknown product',
+                    'variant_name' => $item->variant_name ?? $item->variant?->name,
                     'quantity' => $item->quantity,
                     'unit_price' => (float) $item->unit_price,
                     'line_total' => round((float) $item->unit_price * $item->quantity, 2),

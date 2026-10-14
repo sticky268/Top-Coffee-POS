@@ -68,6 +68,18 @@ class SystemIntegrityReviewTest extends TestCase
         $this->assertEquals(1, $this->ingredient->fresh()->current_stock);
     }
 
+    public function test_reprinting_a_sale_keeps_the_product_name_from_checkout(): void
+    {
+        $this->product->branches()->attach($this->branch->id, ['is_available' => true]);
+        $id = $this->postJson('/api/v1/orders', ['branch_id' => $this->branch->id,
+            'order_type' => 'takeaway', 'items' => [['product_id' => $this->product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'card'],
+        ])->assertCreated()->json('data.id');
+        $this->product->update(['name' => 'New catalog name']);
+        $this->getJson('/api/v1/orders/'.$id)->assertOk()
+            ->assertJsonPath('data.items.0.product_name', 'Coffee');
+    }
+
     public function test_invalid_branch_timezone_is_rejected(): void
     {
         $this->patchJson('/api/v1/branches/'.$this->branch->id,
