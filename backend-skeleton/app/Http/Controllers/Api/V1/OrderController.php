@@ -1268,22 +1268,25 @@ class OrderController extends Controller
             abort(422, 'A split payment must contain at least two payment methods.');
         }
 
-        $splitTotal = round(
-            collect($payments)->sum(
-                fn (array $payment) => (float) $payment['amount']
-            ),
-            2
+        // Validate the same rounded cents that will be persisted per payment.
+        // Rounding only the aggregate can accept rows whose stored sum differs.
+        $splitCents = array_map(
+            fn (array $payment) => (int) round((float) $payment['amount'] * 100),
+            $payments,
         );
+        if (in_array(0, $splitCents, true)) {
+            abort(422, 'Each split payment must be at least one cent.');
+        }
 
-        if (abs($splitTotal - $total) > 0.001) {
+        if (array_sum($splitCents) !== (int) round($total * 100)) {
             abort(422, 'Split payment amounts must equal the order total.');
         }
 
         $createdPayments = [];
 
-        foreach ($payments as $paymentInput) {
+        foreach ($payments as $index => $paymentInput) {
             $method = $paymentInput['method'];
-            $amount = round((float) $paymentInput['amount'], 2);
+            $amount = $splitCents[$index] / 100;
             $portionTendered = $paymentInput['tendered'] ?? null;
             $changeDue = null;
 

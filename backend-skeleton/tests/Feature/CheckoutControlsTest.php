@@ -116,6 +116,31 @@ class CheckoutControlsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'order.discount_approved', 'user_id' => $this->actor->id]);
     }
 
+
+    public function test_split_payment_validates_persisted_cents_and_rolls_back_invalid_rows(): void
+    {
+        foreach ([[0.005, 9.995], [0.004, 9.996]] as [$first, $second]) {
+            $this->postJson('/api/v1/orders', $this->payload(['payment' => [
+                'method' => 'split', 'payments' => [
+                    ['method' => 'card', 'amount' => $first],
+                    ['method' => 'qr', 'amount' => $second],
+                ],
+            ]]))->assertUnprocessable();
+            foreach (['orders', 'order_items', 'payments', 'stock_movements'] as $table) {
+                $this->assertDatabaseCount($table, 0);
+            }
+        }
+
+        $this->postJson('/api/v1/orders', $this->payload(['payment' => [
+            'method' => 'split', 'payments' => [
+                ['method' => 'card', 'amount' => 3.33],
+                ['method' => 'qr', 'amount' => 6.67],
+            ],
+        ]]))->assertCreated();
+        $this->assertDatabaseCount('payments', 2);
+        $this->assertEquals(10, \App\Models\Payment::sum('amount'));
+    }
+
     public function test_console_enable_is_business_specific_and_audited(): void
     {
         $other = Business::factory()->create();
