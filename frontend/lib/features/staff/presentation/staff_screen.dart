@@ -84,7 +84,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
 
     if (authState is! AuthAuthenticated) {
       return const Scaffold(
-        body: const PageContent(
+        body: PageContent(
           maxWidth: 1000,
           child: Center(child: CircularProgressIndicator()),
         ),

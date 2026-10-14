@@ -63,7 +63,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
 
     if (authState is! AuthAuthenticated) {
       return const Scaffold(
-        body: const PageContent(
+        body: PageContent(
           maxWidth: 1000,
           child: Center(child: CircularProgressIndicator()),
         ),

@@ -159,41 +159,43 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: widget.searchController,
-                  onChanged: (_) => setState(() {}),
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => widget.onSearch(),
-                  decoration: InputDecoration(
-                    hintText: 'Search receipt number',
-                    helperText: 'Use the number printed on the receipt.',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: widget.searchController.text.isNotEmpty
-                        ? pos_ui.IconButton(
-                            tooltip: 'Clear search',
-                            onPressed: () {
-                              widget.searchController.clear();
-                              widget.onSearch();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.clear),
-                          )
-                        : null,
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(14)),
-                    ),
-                    isDense: true,
+              TextField(
+                controller: widget.searchController,
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => widget.onSearch(),
+                decoration: InputDecoration(
+                  hintText: 'Search receipt number',
+                  helperText: 'Use the number printed on the receipt.',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: widget.searchController.text.isNotEmpty
+                      ? pos_ui.IconButton(
+                          tooltip: 'Clear search',
+                          onPressed: () {
+                            widget.searchController.clear();
+                            widget.onSearch();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.clear),
+                        )
+                      : null,
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
                   ),
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: 8),
-              pos_ui.OutlinedButton.icon(
-                onPressed: widget.onOpenFilters,
-                icon: const Icon(Icons.tune),
-                label: const Text('Filter'),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: pos_ui.OutlinedButton.icon(
+                  onPressed: widget.onOpenFilters,
+                  icon: const Icon(Icons.tune),
+                  label: const Text('Filter'),
+                ),
               ),
             ],
           ),

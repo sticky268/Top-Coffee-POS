@@ -488,7 +488,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     });
     if (auth is! AuthAuthenticated) {
       return const Scaffold(
-        body: const PageContent(
+        body: PageContent(
           maxWidth: 1000,
           child: Center(child: Text('Sign in to continue.')),
         ),
