@@ -77,7 +77,7 @@ class ReportsController extends Controller
         $orders = Order::query()
             ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
             ->where('status', 'completed')
-            ->whereBetween(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), [$dateFrom->copy()->utc(), $dateTo->copy()->utc()])
+            ->completedDuring($dateFrom->copy()->utc(), $dateTo->copy()->addMicrosecond()->utc())
             ->when($branchId !== null, function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             });
@@ -141,7 +141,7 @@ class ReportsController extends Controller
             ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
                 $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
-                    ->whereBetween(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), [$dateFrom->copy()->utc(), $dateTo->copy()->utc()])
+                    ->completedDuring($dateFrom->copy()->utc(), $dateTo->copy()->addMicrosecond()->utc())
                     ->when($branchId !== null, function ($query) use ($branchId) {
                         $query->where('branch_id', $branchId);
                     });
@@ -177,7 +177,7 @@ class ReportsController extends Controller
             ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
                 $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
-                    ->whereBetween(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), [$dateFrom->copy()->utc(), $dateTo->copy()->utc()])
+                    ->completedDuring($dateFrom->copy()->utc(), $dateTo->copy()->addMicrosecond()->utc())
                     ->when($branchId !== null, function ($query) use ($branchId) {
                         $query->where('branch_id', $branchId);
                     });

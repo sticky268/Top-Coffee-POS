@@ -9,7 +9,6 @@ use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -68,8 +67,7 @@ class DashboardController extends Controller
         $todayOrders = Order::query()
             ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
             ->where('status', 'completed')
-            ->where(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), '>=', $today)
-            ->where(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), '<', $tomorrow)
+            ->completedDuring($today, $tomorrow)
             ->when($branchId !== null, function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             });
@@ -134,8 +132,7 @@ class DashboardController extends Controller
                 $total = Order::query()
                     ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
                     ->where('status', 'completed')
-                    ->where(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), '>=', $date->copy()->utc())
-                    ->where(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), '<', $nextDate->copy()->utc())
+                    ->completedDuring($date->copy()->utc(), $nextDate->copy()->utc())
                     ->when($branchId !== null, function ($query) use ($branchId) {
                         $query->where('branch_id', $branchId);
                     })

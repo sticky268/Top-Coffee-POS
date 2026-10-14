@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\BranchScoped;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
@@ -46,6 +47,17 @@ class Order extends Model
             if ($order->wasRecentlyCreated || $order->wasChanged(['discount_total', 'subtotal'])) {
                 app(\App\Services\CheckoutControls::class)->discount($order);
             }
+        });
+    }
+
+    /** Indexed completion-time interval, with a fallback for legacy sales. */
+    public function scopeCompletedDuring(Builder $query, $from, $until): Builder
+    {
+        return $query->where(function ($query) use ($from, $until) {
+            $query->where(fn ($query) => $query->where('orders.completed_at', '>=', $from)
+                ->where('orders.completed_at', '<', $until))
+                ->orWhere(fn ($query) => $query->whereNull('orders.completed_at')
+                    ->where('orders.created_at', '>=', $from)->where('orders.created_at', '<', $until));
         });
     }
 
