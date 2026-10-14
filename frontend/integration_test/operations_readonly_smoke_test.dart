@@ -790,7 +790,14 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
   expect(container.read(currentBranchProvider)?.id, 21);
   final repo = container.read(operationsRepositoryProvider);
   final api = container.read(apiClientProvider);
-  expect(await tester.runAsync(repo.pending), isEmpty);
+  const resumeUuid = String.fromEnvironment('RESUME_OPERATION_UUID');
+  final existing = (await tester.runAsync(repo.pending))!;
+  if (resumeUuid.isEmpty) {
+    expect(existing, isEmpty);
+  } else {
+    expect(existing.length, lessThanOrEqualTo(1));
+    if (existing.isNotEmpty) expect(existing.single['uuid'], resumeUuid);
+  }
   Future<num> stock() async {
     final rows = await tester.runAsync(() => repo.get('/ingredients'));
     final item = (rows as List).cast<Map>().singleWhere((r) => r['id'] == 11);
@@ -799,7 +806,7 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
 
   expect(
     await stock(),
-    closeTo(49.980, 0.0001),
+    closeTo(resumeUuid.isEmpty ? 49.980 : 49.978, 0.0001),
     reason: 'Refusing to overwrite a changed stock baseline.',
   );
   var dropConfirmation = true;
@@ -832,13 +839,25 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
     Object? failure;
     await tester.runAsync(() async {
       try {
-        await repo.write('/stock/count', {
+        final values = <String, dynamic>{
           'ingredient_id': 11,
           'expected_stock': 49.980,
           'counted_stock': 49.978,
-          'reason':
-              'Automated rehearsal: recover lost stock-count confirmation',
-        });
+          'reason': 'Automated rehearsal: recover lost stock-count confirmation',
+        };
+        if (resumeUuid.isEmpty) {
+          await repo.write('/stock/count', values);
+        } else {
+          await repo.retry({
+            'uuid': resumeUuid,
+            'user_id': 16,
+            'branch_id': 21,
+            'path': '/stock/count',
+            'payload': {...values, 'branch_id': 21, 'expected_user_id': 16},
+            'rejected': false,
+            'attempted': true,
+          });
+        }
       } catch (error) {
         failure = error;
       }
