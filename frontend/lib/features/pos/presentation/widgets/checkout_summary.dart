@@ -37,11 +37,12 @@ class CheckoutAmountRow extends StatelessWidget {
           final stacked =
               MediaQuery.textScalerOf(context).scale(14) > 20 ||
               constraints.maxWidth < 240;
-          if (stacked)
+          if (stacked) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [labelText, const SizedBox(height: 4), valueText],
             );
+          }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
