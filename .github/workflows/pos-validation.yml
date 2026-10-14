@@ -84,6 +84,13 @@ jobs:
           retention-days: 7
       - run: flutter analyze
       - run: flutter test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cashier-ui-previews
+          path: frontend/build/ui-polish/*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:

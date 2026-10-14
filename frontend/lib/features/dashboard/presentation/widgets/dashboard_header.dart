@@ -86,34 +86,51 @@ class DashboardHeader extends ConsumerWidget {
               ),
               if (user.branches.length > 1 || canViewAllBranches) ...[
                 const SizedBox(height: 8),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<BranchSummary?>(
-                    value: currentBranch,
-                    isDense: true,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down),
-                    hint: const Text('Select branch'),
-                    items: [
-                      if (canViewAllBranches)
-                        const DropdownMenuItem<BranchSummary?>(
-                          value: null,
-                          child: Text('All Branches'),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<BranchSummary?>(
+                          value: currentBranch,
+                          isDense: false,
+                          isExpanded: true,
+                          borderRadius: BorderRadius.circular(14),
+                          icon: const Icon(Icons.keyboard_arrow_down),
+                          hint: const Text('Select branch'),
+                          items: [
+                            if (canViewAllBranches)
+                              const DropdownMenuItem<BranchSummary?>(
+                                value: null,
+                                child: Text('All Branches'),
+                              ),
+                            ...user.branches.map((branch) {
+                              return DropdownMenuItem<BranchSummary?>(
+                                value: branch,
+                                child: Text(
+                                  '${branch.name} (${branch.code})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }),
+                          ],
+                          onChanged: (branch) {
+                            ref
+                                .read(currentBranchProvider.notifier)
+                                .selectBranch(branch);
+                          },
                         ),
-                      ...user.branches.map((branch) {
-                        return DropdownMenuItem<BranchSummary?>(
-                          value: branch,
-                          child: Text(
-                            '${branch.name} (${branch.code})',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (branch) {
-                      ref
-                          .read(currentBranchProvider.notifier)
-                          .selectBranch(branch);
-                    },
+                      ),
+                    ),
                   ),
                 ),
               ] else if (currentBranch != null) ...[
@@ -128,11 +145,7 @@ class DashboardHeader extends ConsumerWidget {
             ],
           ),
         ),
-        const pos_ui.IconButton(
-          icon: Icon(Icons.notifications_outlined),
-          tooltip: 'Notifications',
-          onPressed: null,
-        ),
+
         pos_ui.IconButton(
           icon: const Icon(Icons.logout),
           tooltip: 'Log out',

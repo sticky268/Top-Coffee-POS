@@ -60,22 +60,6 @@ class DashboardNavigation extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  _NavigationItem(
-                    icon: Icons.assignment_outlined,
-                    selectedIcon: Icons.assignment,
-                    label: 'Daily Operations',
-                    route: '/operations',
-                    selectedRoute: selectedRoute,
-                    onTap: () => _navigate(context, '/operations'),
-                  ),
-                  _NavigationItem(
-                    icon: Icons.print_outlined,
-                    selectedIcon: Icons.print,
-                    label: 'Print Queue',
-                    route: '/print-queue',
-                    selectedRoute: selectedRoute,
-                    onTap: () => _navigate(context, '/print-queue'),
-                  ),
                   _NavigationSection(
                     title: 'MAIN',
                     children: [
@@ -137,6 +121,23 @@ class DashboardNavigation extends StatelessWidget {
                   _NavigationSection(
                     title: 'OPERATIONS',
                     children: [
+                      _NavigationItem(
+                        icon: Icons.assignment_outlined,
+                        selectedIcon: Icons.assignment,
+                        label: 'Daily Operations',
+                        route: '/operations',
+                        selectedRoute: selectedRoute,
+                        onTap: () => _navigate(context, '/operations'),
+                      ),
+                      _NavigationItem(
+                        icon: Icons.print_outlined,
+                        selectedIcon: Icons.print,
+                        label: 'Print Queue',
+                        route: '/print-queue',
+                        selectedRoute: selectedRoute,
+                        onTap: () => _navigate(context, '/print-queue'),
+                      ),
+
                       _NavigationItem(
                         icon: Icons.inventory_2_outlined,
                         selectedIcon: Icons.inventory_2,
@@ -350,6 +351,9 @@ class _NavigationItem extends ConsumerWidget {
     final theme = Theme.of(context);
     final selected = route == '/pos/select-table'
         ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
+        : route == '/products' &&
+              selectedRoute.startsWith('/products/categories')
+        ? false
         : selectedRoute == route || selectedRoute.startsWith('$route/');
 
     final foregroundColor = selected

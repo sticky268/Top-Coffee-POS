@@ -27,32 +27,47 @@ class ProductGrid extends ConsumerWidget {
       return const _EmptyProducts();
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.05,
-      ),
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
-        return ProductCard(
-          product: product,
-          onTap: () {
-            if (product.hasVariants) {
-              showVariantSelector(
-                context,
-                ref,
-                product,
-                onVariantSelected: onVariantSelected,
-              );
-            } else if (onProductSelected != null) {
-              onProductSelected!(product);
-            } else {
-              ref.read(cartControllerProvider.notifier).addItem(product);
-            }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+        // Use the catalog pane's width; the tablet cart takes its own space.
+        final columns =
+            ((constraints.maxWidth - 16) / (scale > 1.4 ? 256 : 166))
+                .floor()
+                .clamp(1, crossAxisCount);
+        final tileWidth =
+            (constraints.maxWidth - 32 - 16 * (columns - 1)) / columns;
+        final tileHeight =
+            (tileWidth / 1.05).clamp(180.0, 280.0) +
+            (scale - 1).clamp(0.0, 3.0) * 80;
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            mainAxisExtent: tileHeight,
+          ),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return ProductCard(
+              product: product,
+              onTap: () {
+                if (product.hasVariants) {
+                  showVariantSelector(
+                    context,
+                    ref,
+                    product,
+                    onVariantSelected: onVariantSelected,
+                  );
+                } else if (onProductSelected != null) {
+                  onProductSelected!(product);
+                } else {
+                  ref.read(cartControllerProvider.notifier).addItem(product);
+                }
+              },
+            );
           },
         );
       },
