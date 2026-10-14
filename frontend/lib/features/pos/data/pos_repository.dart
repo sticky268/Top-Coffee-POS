@@ -92,16 +92,19 @@ class ApiPosRepository implements PosRepository {
     OrderOutbox? outbox,
     int? Function()? userId,
     void Function()? onCachedCatalog,
+    bool Function()? requireCashShift,
   }) : _localStore = localStore,
        _outbox = outbox,
        _userId = userId,
-       _onCachedCatalog = onCachedCatalog;
+       _onCachedCatalog = onCachedCatalog,
+       _requireCashShift = requireCashShift;
 
   final ApiClient _apiClient;
   final LocalStore? _localStore;
   final OrderOutbox? _outbox;
   final int? Function()? _userId;
   final void Function()? _onCachedCatalog;
+  final bool Function()? _requireCashShift;
 
   Future<List<dynamic>> _catalog(String path, int? branchId) async {
     final userId = _userId?.call();
@@ -158,6 +161,20 @@ class ApiPosRepository implements PosRepository {
     if (_localStore != null && userId != null && branchId != null) {
       final shift = await _localStore.read('active-shift:$userId:$branchId');
       payload = {...payload, 'shift_id': int.tryParse(shift ?? '')};
+    }
+    final payment = payload['payment'] as Map?;
+    final cash =
+        payment?['method'] == 'cash' ||
+        (payment?['payments'] as List? ?? []).any(
+          (part) => (part as Map)['method'] == 'cash',
+        );
+    if (_requireCashShift?.call() == true &&
+        cash &&
+        payload['shift_id'] == null) {
+      throw const ValidationException(
+        {},
+        'Open your shift in Daily Operations before accepting cash.',
+      );
     }
     if (_outbox != null) {
       if (userId == null || branchId == null) {
@@ -454,6 +471,10 @@ final posRepositoryProvider = Provider<PosRepository>((ref) {
     userId: () {
       final auth = ref.read(authControllerProvider);
       return auth is AuthAuthenticated ? auth.user.id : null;
+    },
+    requireCashShift: () {
+      final auth = ref.read(authControllerProvider);
+      return auth is AuthAuthenticated && auth.user.requireCashShift;
     },
     onCachedCatalog: () =>
         ref.read(cachedCatalogProvider.notifier).state = true,
