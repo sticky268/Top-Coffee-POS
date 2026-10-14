@@ -152,8 +152,19 @@ class OrderOutbox {
     if (!_changes.isClosed) _changes.add(null);
   }
 
+  Future<bool> _acknowledged(PendingOrder order) async {
+    final stored = await store.read(
+      'order:${order.userId}:${order.branchId}:${order.uuid}',
+    );
+    return stored != null &&
+        PendingOrder.fromJson(
+          Map<String, dynamic>.from(jsonDecode(stored) as Map),
+        ).status == 'synced';
+  }
+
   Future<void> finish(PendingOrder order, {int? orderId, Object? error}) =>
       _serialized(() async {
+        if (await _acknowledged(order)) return;
         final value = order.toJson();
         value['status'] = error == null
             ? 'synced'
@@ -168,6 +179,7 @@ class OrderOutbox {
       });
 
   Future<void> retry(PendingOrder order) => _serialized(() async {
+    if (await _acknowledged(order)) return;
     final value = order.toJson();
     value['status'] = 'pending';
     value['error'] = null;

@@ -232,6 +232,9 @@ class OrderController extends Controller
                     if (! $table->is_active) {
                         abort(422, 'The selected table is inactive.');
                     }
+                    if ($table->status !== 'available') {
+                        abort(409, 'The selected table is no longer available. Open its saved bill before paying.');
+                    }
                 }
 
                 $subtotal = 0;
