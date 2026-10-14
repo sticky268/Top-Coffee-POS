@@ -1092,7 +1092,7 @@ class OrderController extends Controller
                         abort_if((int) round((float) $request->input('expected_total') * 100)
                             !== (int) round((float) $order->total * 100), 409, 'The order total has changed.');
                     }
-                    $payments = $order->payments()->orderBy('id')->get();
+                    $payments = $order->payments()->orderBy('id')->lockForUpdate()->get();
                     $parts = $paymentMethod === 'split' ? $request->input('payment.payments') : [[
                         'method' => $paymentMethod, 'amount' => $order->total,
                         'tendered' => $tenderedInput ?? $order->total,
