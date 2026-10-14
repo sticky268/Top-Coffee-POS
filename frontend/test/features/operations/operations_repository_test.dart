@@ -8,6 +8,7 @@ import 'package:top_coffee_pos/core/network/api_client.dart';
 import 'package:top_coffee_pos/core/network/api_exceptions.dart';
 import 'package:top_coffee_pos/core/offline/local_store.dart';
 import 'package:top_coffee_pos/features/operations/data/operations_repository.dart';
+import 'package:top_coffee_pos/features/purchasing/data/purchase_repository.dart';
 
 class _Api extends Mock implements ApiClient {}
 
@@ -51,7 +52,11 @@ class _Adapter implements HttpClientAdapter {
       jsonEncode(
         status == 200
             ? {
-                'data': {'id': 5, 'status': 'closed'},
+                'data': options.path == '/purchases' ? {
+                  'id': 5, 'branch_id': 2, 'supplier_id': 3, 'created_by': 1,
+                  'total_cost': 6, 'purchased_at': '2026-10-14',
+                  'supplier': {'id': 3, 'name': 'Supplier'}, 'items': [],
+                } : {'id': 5, 'status': 'closed'},
               }
             : {'message': 'Rejected'},
       ),
@@ -138,6 +143,26 @@ void main() {
       expect(await repo.pending(), isEmpty);
     },
   );
+
+  test('purchase timeout survives restart and a new confirmed purchase gets a new UUID', () async {
+    Future<void> create(ApiPurchaseRepository purchases) async {
+      await purchases.createPurchase(branchId: 2, supplierId: 3,
+        purchasedAt: DateTime(2026, 10, 14),
+        items: [const PurchaseCreateItem(ingredientId: 4, quantity: 2, unitCost: 3)]);
+    }
+    adapter.timeout = true;
+    await expectLater(create(ApiPurchaseRepository(api, repo)), throwsA(isA<NetworkException>()));
+    final original = (await repo.pending()).single['uuid'];
+    adapter.timeout = false;
+    final restarted = OperationsRepository(api, store, () => scope);
+    final purchases = ApiPurchaseRepository(api, restarted);
+    await create(purchases);
+    expect(adapter.requests[1]['uuid'], original);
+    expect(await restarted.pending(), isEmpty);
+    await create(purchases);
+    expect(adapter.requests[2]['uuid'], isNot(original));
+    expect(adapter.requests[2]['expected_user_id'], 1);
+  });
 
   test('pending requests are isolated by user and branch', () async {
     adapter.timeout = true;
