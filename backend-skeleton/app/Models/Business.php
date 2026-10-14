@@ -25,6 +25,9 @@ class Business extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'require_cash_shift' => 'boolean',
+        'require_manager_controls' => 'boolean',
+        'manager_discount_percent' => 'decimal:2',
         'started_at' => 'datetime',
         'expires_at' => 'datetime',
     ];

@@ -56,6 +56,10 @@ jobs:
       - run: php vendor/bin/phpunit --filter CafeOperationsTest
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest'
+      - name: Checkout controls and business isolation on MySQL
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest'
+      - name: Verify private MySQL backup and isolated restore
+        run: bash tools/test_mysql_backup.sh
   flutter:
     runs-on: ubuntu-latest
     defaults:

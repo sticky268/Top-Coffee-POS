@@ -21,3 +21,9 @@ Thumbs.db
 # Logs / caches
 *.log
 .phpunit.result.cache
+**/__pycache__/
+*.sql
+*.sql.gz
+*.cnf
+*.keystore
+*.jks

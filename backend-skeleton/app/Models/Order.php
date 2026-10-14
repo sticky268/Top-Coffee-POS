@@ -27,6 +27,28 @@ class Order extends Model
         'created_offline_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Order $order) {
+            if ($order->isDirty(['discount_total', 'subtotal'])) {
+                // Audit only after a persisted ID exists, in the same transaction.
+                $actor = auth()->user();
+                if ($actor && $actor->business->require_manager_controls) {
+                    $discount = \App\Services\OperationService::cents($order->discount_total);
+                    $subtotal = \App\Services\OperationService::cents($order->subtotal);
+                    abort_if($discount > $subtotal, 422, 'Discount cannot exceed the subtotal.');
+                    abort_if($discount > 0 && $discount * 100 > $subtotal * (float) $actor->business->manager_discount_percent
+                        && ! app(\App\Services\CheckoutControls::class)->manager($actor), 403, 'A manager must sign in to approve this discount.');
+                }
+            }
+        });
+        static::saved(function (Order $order) {
+            if ($order->wasRecentlyCreated || $order->wasChanged(['discount_total', 'subtotal'])) {
+                app(\App\Services\CheckoutControls::class)->discount($order);
+            }
+        });
+    }
+
     public function items()
     {
         return $this->hasMany(OrderItem::class);

@@ -31,6 +31,9 @@ class PaymentAdjustmentController extends Controller
         $request->validate(['amount' => 'required|numeric|gt:0|decimal:0,2', 'reason' => 'required|string|max:255', 'inventory_disposition' => 'required|in:consumed,restock,wastage']);
         $result = $ops->run($request, $branch, 'order.refund.'.$id, function () use ($request, $id, $branch) {
             $order = Order::whereKey($id)->where('branch_id', $branch)->lockForUpdate()->firstOrFail();
+            if ($request->user()->business->require_manager_controls) {
+                abort_unless(app(\App\Services\CheckoutControls::class)->manager($request->user()), 403, 'A manager must sign in to approve this payment adjustment.');
+            }
             abort_unless($order->status === 'completed', 409, 'Only a completed sale can be refunded.');
             $payments = $this->paymentRecords($order, true);
             $refunded = $payments->sum(fn ($p) => $p->refunds->sum(fn ($r) => OperationService::cents($r->amount)));
@@ -71,7 +74,7 @@ class PaymentAdjustmentController extends Controller
                 $order->forceFill(['inventory_disposed_at' => now()])->save();
             }
             app(\App\Services\LoyaltyService::class)->reverseForOrder($order, $request->user()->id);
-            app(AuditLogService::class)->record($request, 'order.refunded', $order, null, $request->only(['amount', 'reason', 'inventory_disposition']));
+            app(AuditLogService::class)->record($request, 'order.refunded', $order, null, $request->only(['amount', 'reason', 'inventory_disposition']) + ['approved_by' => $request->user()->id]);
             return $this->summary($order);
         });
         return ['success' => true, 'data' => $result];
@@ -83,6 +86,9 @@ class PaymentAdjustmentController extends Controller
         $request->validate(['amount' => 'required|numeric|gt:0|max:9999999.99|decimal:0,2', 'method' => 'required|in:cash,card,qr', 'tendered' => 'nullable|numeric|min:0|decimal:0,2', 'reason' => 'required|string|max:255']);
         $result = $ops->run($request, $branch, 'order.charge.'.$id, function () use ($request, $id, $branch) {
             $order = Order::whereKey($id)->where('branch_id', $branch)->lockForUpdate()->firstOrFail();
+            if ($request->user()->business->require_manager_controls) {
+                abort_unless(app(\App\Services\CheckoutControls::class)->manager($request->user()), 403, 'A manager must sign in to approve this payment adjustment.');
+            }
             abort_unless($order->status === 'completed', 409, 'Only a completed sale can receive an additional charge.');
             abort_if($this->paymentRecords($order, true)->contains(fn ($p) => $p->refunds->isNotEmpty()), 409, 'An already refunded sale cannot receive an additional charge.');
             $amount = OperationService::cents($request->input('amount'));

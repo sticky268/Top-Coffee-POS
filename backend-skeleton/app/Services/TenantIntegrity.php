@@ -40,6 +40,16 @@ class TenantIntegrity
             $mismatches[$name] = DB::table($left.' as a')->join('branches as b', 'b.id', '=', 'a.branch_id')
                 ->join($right.' as r', 'r.id', '=', 'a.'.$key)->whereColumn('r.business_id', '!=', 'b.business_id')->count();
         }
+        foreach (['orders' => 'user_id', 'cashier_shifts' => 'user_id', 'stock_movements' => 'created_by'] as $table => $actor) {
+            $mismatches[$table.'_actor'] = DB::table($table.' as a')->join('branches as b', 'b.id', '=', 'a.branch_id')
+                ->join('users as u', 'u.id', '=', 'a.'.$actor)->whereColumn('u.business_id', '!=', 'b.business_id')->count();
+        }
+        $mismatches['recipe_ingredient_branch'] = DB::table('recipe_items as r')->join('ingredients as i', 'i.id', '=', 'r.ingredient_id')
+            ->whereColumn('r.branch_id', '!=', 'i.branch_id')->count();
+        $mismatches['payment_shift_owner'] = DB::table('payments as p')->join('orders as o', 'o.id', '=', 'p.order_id')
+            ->join('cashier_shifts as s', 's.id', '=', 'p.shift_id')->where(function ($q) {
+                $q->whereColumn('s.branch_id', '!=', 'o.branch_id')->orWhereColumn('s.user_id', '!=', 'p.processed_by');
+            })->count();
         $mismatches['order_product'] = DB::table('order_items as i')->join('orders as o', 'o.id', '=', 'i.order_id')
             ->join('branches as b', 'b.id', '=', 'o.branch_id')->join('products as p', 'p.id', '=', 'i.product_id')
             ->whereColumn('p.business_id', '!=', 'b.business_id')->count();
