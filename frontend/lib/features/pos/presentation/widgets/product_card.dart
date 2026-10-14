@@ -46,31 +46,38 @@ class ProductCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child:
-                          product.imageUrl != null &&
-                              product.imageUrl!.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                product.imageUrl!,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ColoredBox(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          child:
+                              product.imageUrl != null &&
+                                  product.imageUrl!.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    product.imageUrl!,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Center(
+                                      child: Icon(
+                                        Icons.local_cafe_outlined,
+                                        size: 32,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
                                   child: Icon(
                                     Icons.local_cafe_outlined,
                                     size: 32,
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                              ),
-                            )
-                          : Center(
-                              child: Icon(
-                                Icons.local_cafe_outlined,
-                                size: 32,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -82,15 +89,29 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      priceLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: priceFontSize,
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            priceLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: priceFontSize,
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          product.hasVariants
+                              ? Icons.tune_rounded
+                              : Icons.add_circle_outline_rounded,
+                          size: 22,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -225,7 +225,8 @@ class OrderListingTest extends TestCase
         $branch = $this->createBranch('Riverside', 'PP-01');
         $cashier = $this->makeCashier($branch);
 
-        $target = $this->createOrder($branch, $cashier);
+        // A random all-digit UUID prefix is interpreted as an order number.
+        $target = $this->createOrder($branch, $cashier, ['uuid' => 'cafe0001-0000-4000-8000-000000000001']);
         $this->createOrder($branch, $cashier, ['status' => 'cancelled']);
 
         $byOrderNumber = $this->actingAs($cashier)->getJson(

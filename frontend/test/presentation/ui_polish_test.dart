@@ -229,7 +229,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [authRepositoryProvider.overrideWithValue(auth)],
-        child: MaterialApp(
+        child: const MaterialApp(
           home: Scaffold(
             body: DashboardNavigation(selectedRoute: '/products/categories'),
           ),
