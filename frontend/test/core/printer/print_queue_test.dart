@@ -190,6 +190,30 @@ void main() {
       expect(printer.sent.last['netPaid'], '0.00');
     },
   );
+  test(
+    'retrying an older failed version cannot send a second unlabelled original',
+    () async {
+      final old = await enqueue();
+      printer.failConnect = true;
+      await queue.send(old.id, selected);
+      final updated = await enqueue(
+        payload: {
+          'total': '5.00',
+          'refunded': '5.00',
+          'netPaid': '0.00',
+          'documentTitle': '',
+        },
+      );
+      printer.failConnect = false;
+      await queue.send(updated.id, selected);
+      final retry = await queue.send(old.id, selected);
+      expect(retry.status, PrintStatus.uncertain);
+      expect(printer.sent, hasLength(1));
+      final copy = await queue.copy(old.id, selected);
+      expect(copy.payload['documentTitle'], 'COPY');
+    },
+  );
+
   test('storage failure prevents any printer transmission', () async {
     final failing = PrintQueue(
       FailingStore(),

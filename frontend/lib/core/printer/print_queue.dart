@@ -255,6 +255,22 @@ class PrintQueue {
     if (job.status != PrintStatus.waiting && job.status != PrintStatus.failed) {
       return job;
     }
+    if (!job.isCopy &&
+        (await _list(selected)).any(
+          (other) =>
+              other.id != job.id &&
+              other.documentId == job.documentId &&
+              (other.status == PrintStatus.sent ||
+                  other.status == PrintStatus.uncertain),
+        )) {
+      job = job.change({
+        'status': PrintStatus.uncertain.name,
+        'error':
+            'Another version of this document had a send attempt. Check paper and use Reprint COPY.',
+      });
+      await _save(job);
+      return job;
+    }
     var invoked = false;
     try {
       final ip = (await destination(job)).trim();

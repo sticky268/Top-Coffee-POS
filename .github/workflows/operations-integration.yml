@@ -10,7 +10,7 @@ permissions:
   contents: read
 concurrency:
   group: operations-integration-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   android-workflow:
     runs-on: ubuntu-latest
