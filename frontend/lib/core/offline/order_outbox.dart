@@ -115,17 +115,22 @@ class OrderOutbox {
     required String endpoint,
     required Map<String, dynamic> payload,
   }) => _serialized(() async {
+    final requestUuid = payload['uuid'] as String?;
     final canonical = {...payload}..remove('uuid');
     final fingerprint = jsonEncode([
       endpoint,
       {...canonical}..remove('shift_id'),
     ]);
     for (final order in await list(userId, branchId)) {
-      if (order.fingerprint == fingerprint && order.status != 'synced') {
+      // Explicit IDs represent individual sales, even when baskets match.
+      // Legacy callers without an ID retain payload-based retry recovery.
+      if (requestUuid != null
+          ? order.uuid == requestUuid
+          : order.fingerprint == fingerprint && order.status != 'synced') {
         return order;
       }
     }
-    final uuid = _newUuid();
+    final uuid = requestUuid ?? _newUuid();
     final order = PendingOrder(
       uuid: uuid,
       userId: userId,

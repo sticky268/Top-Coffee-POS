@@ -141,6 +141,23 @@ class CheckoutControlsTest extends TestCase
         $this->assertEquals(10, \App\Models\Payment::sum('amount'));
     }
 
+    public function test_discount_cannot_exceed_subtotal_when_manager_controls_are_disabled(): void
+    {
+        $this->actor->business->forceFill(['require_manager_controls' => false])->save();
+        $table = \App\Models\RestaurantTable::create(['branch_id' => $this->branch->id,
+            'name' => 'Discount table', 'capacity' => 2, 'status' => 'available', 'is_active' => true]);
+        $this->postJson('/api/v1/orders', $this->payload(['discount_total' => 11,
+            'payment' => ['method' => 'card']]))->assertUnprocessable();
+        $this->postJson('/api/v1/orders/hold', $this->payload(['discount_total' => 11,
+            'order_type' => 'dine_in', 'table_id' => $table->id]))->assertUnprocessable();
+        foreach (['orders', 'order_items', 'payments', 'stock_movements'] as $name) {
+            $this->assertDatabaseCount($name, 0);
+        }
+        $this->assertDatabaseHas('restaurant_tables', ['id' => $table->id, 'status' => 'available']);
+        $this->postJson('/api/v1/orders', $this->payload(['discount_total' => 10,
+            'payment' => ['method' => 'card']]))->assertCreated()->assertJsonPath('data.total', 0);
+    }
+
     public function test_console_enable_is_business_specific_and_audited(): void
     {
         $other = Business::factory()->create();

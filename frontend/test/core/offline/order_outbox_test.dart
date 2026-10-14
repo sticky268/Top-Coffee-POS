@@ -27,6 +27,27 @@ class MemoryStore implements LocalStore {
 }
 
 void main() {
+  test('identical offline sales with different IDs remain separate', () async {
+    final outbox = OrderOutbox(MemoryStore());
+    addTearDown(outbox.close);
+    Future<PendingOrder> save(String uuid) => outbox.prepare(
+      userId: 1,
+      branchId: 2,
+      endpoint: '/orders',
+      payload: {'uuid': uuid, 'branch_id': 2, 'total': 5},
+    );
+    final first = await save('sale-a');
+    await outbox.finish(first, error: const NetworkException());
+    final second = await save('sale-b');
+    expect(second.uuid, 'sale-b');
+    expect(await outbox.list(1, 2), hasLength(2));
+    expect((await save('sale-a')).uuid, first.uuid);
+    await outbox.finish(first, orderId: 7);
+    expect((await save('sale-a')).orderId, 7);
+    expect(await outbox.list(1, 2), hasLength(2));
+  });
+
+
   test(
     'retry after a shift change preserves the original shift and UUID',
     () async {
