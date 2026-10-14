@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -60,6 +61,7 @@ void main() {
             documentId: 'receipt:fixture',
             reference: 'FIXTURE-000001',
             payload: {
+              'logoBytes': Uint8List.fromList([1, 2, 3]),
               'total': '5.00',
               'documentTitle': '',
               'items': [
@@ -85,10 +87,15 @@ void main() {
           );
           await queue.send(original.id, scope);
           expect(printer.sent, hasLength(1));
+          expect(printer.sent.single['logoBytes'], [1, 2, 3]);
+          expect((await store.entries('print-asset:')).length, 1);
           expect(
             (printer.sent.single['items'] as List).single['name'],
             'កាហ្វេ',
           );
+          await store.write('literal_%:one', 'first');
+          await store.write('literalX%:two', 'second');
+          expect(await store.entries('literal_%:'), {'literal_%:one': 'first'});
           final interrupted = await queue.enqueue(
             selected: scope,
             documentId: 'receipt:interrupted',

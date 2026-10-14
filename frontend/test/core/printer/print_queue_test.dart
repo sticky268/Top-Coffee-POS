@@ -240,6 +240,49 @@ void main() {
     },
   );
 
+  test('receipt jobs share one stored logo asset in the same scope', () async {
+    final payload = <String, dynamic>{
+      'logoBytes': Uint8List.fromList([1, 2, 3]),
+      'total': '5.00',
+    };
+    await enqueue(payload: payload);
+    await queue.enqueue(
+      selected: selected,
+      documentId: 'receipt:another',
+      reference: '122',
+      payload: payload,
+    );
+    expect(await store.entries('print-asset:'), hasLength(1));
+    expect(await queue.list(selected), hasLength(2));
+  });
+
+  test(
+    'scope switch during persisted logo loading also stops transmission',
+    () async {
+      final assetStore = SwitchingAssetStore(() {
+        current = (userId: 16, branchId: 22);
+      });
+      final guarded = PrintQueue(
+        assetStore,
+        printer,
+        () => current,
+        (_) async => 'ip',
+      );
+      addTearDown(guarded.dispose);
+      final job = await guarded.enqueue(
+        selected: selected,
+        documentId: 'receipt:asset',
+        reference: '1',
+        payload: {
+          'logoBytes': Uint8List.fromList([1, 2, 3]),
+        },
+      );
+      assetStore.switchOnRead = true;
+      expect((await guarded.send(job.id, selected)).status, PrintStatus.failed);
+      expect(printer.sent, isEmpty);
+    },
+  );
+
   test('storage failure prevents any printer transmission', () async {
     final failing = PrintQueue(
       FailingStore(),
@@ -266,4 +309,15 @@ class FailingStore extends MemoryLocalStore {
   @override
   Future<void> write(String key, String value) async =>
       throw StateError('Disk full');
+}
+
+class SwitchingAssetStore extends MemoryLocalStore {
+  SwitchingAssetStore(this.changeScope);
+  final void Function() changeScope;
+  bool switchOnRead = false;
+  @override
+  Future<String?> read(String key) async {
+    if (switchOnRead && key.startsWith('print-asset:')) changeScope();
+    return super.read(key);
+  }
 }

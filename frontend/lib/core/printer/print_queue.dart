@@ -111,6 +111,8 @@ class PrintQueue {
   Future<void>? _ready;
   String _prefix(PrintScope s) => 'print:${s.userId}:${s.branchId}:';
   String _key(PrintJob job) => '${_prefix(job.scope)}${job.id}';
+  String _assetKey(PrintScope selected, String id) =>
+      'print-asset:${selected.userId}:${selected.branchId}:$id';
 
   Future<void> _initialize() => _ready ??= _recover();
   Future<void> _recover() async {
@@ -195,9 +197,11 @@ class PrintQueue {
     // Native byte buffers are persisted as base64 and restored only on send.
     final saved = Map<String, dynamic>.from(payload);
     if (saved['logoBytes'] != null) {
-      saved['logoBytes'] = base64Encode(
-        List<int>.from(saved['logoBytes'] as List),
-      );
+      final encoded = base64Encode(List<int>.from(saved['logoBytes'] as List));
+      final assetId = const Uuid().v5(Namespace.url.value, encoded);
+      final key = _assetKey(selected, assetId);
+      if (await store.read(key) == null) await store.write(key, encoded);
+      saved['logoBytes'] = '@asset:$assetId';
     }
     final snapshot = Map<String, dynamic>.from(
       jsonDecode(jsonEncode(saved)) as Map,
@@ -296,10 +300,19 @@ class PrintQueue {
       _guard(selected);
       final payload = Map<String, dynamic>.from(job.payload);
       if (payload['logoBytes'] != null) {
-        payload['logoBytes'] = Uint8List.fromList(
-          base64Decode(payload['logoBytes'] as String),
-        );
+        var encoded = payload['logoBytes'] as String;
+        if (encoded.startsWith('@asset:')) {
+          final saved = await store.read(
+            _assetKey(selected, encoded.substring(7)),
+          );
+          if (saved == null) {
+            throw StateError('Saved receipt logo is unavailable.');
+          }
+          encoded = saved;
+        }
+        payload['logoBytes'] = Uint8List.fromList(base64Decode(encoded));
       }
+      _guard(selected);
       invoked = true;
       await printer.sendPayload(payload);
       job = job.change({'status': PrintStatus.sent.name, 'error': null});

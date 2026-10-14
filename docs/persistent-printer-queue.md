@@ -3,7 +3,7 @@
 Receipt and unpaid-bill jobs are stored before connecting to the printer. The
 SQLite store is already isolated by API URL; queue keys additionally include the
 signed-in user and selected branch. Each job retains its printable snapshot,
-including totals/refunds, item quantities, formatting and logo bytes.
+including totals/refunds, item quantities, formatting and logo bytes. Logos are stored once per account/branch as shared assets; job reads query only the matching SQLite key prefix.
 
 Open **Print Queue** in the navigation menu, or use **Queue** on the receipt/bill
 notification. Receipt Settings configures the printer for the selected branch.

@@ -16,17 +16,19 @@ class SqliteLocalStore implements LocalStore {
   Future<void>? _ready;
 
   Future<void> _initialize() => _ready ??= database.customStatement(
-        'CREATE TABLE IF NOT EXISTS offline_entries '
-        '(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)',
-      );
+    'CREATE TABLE IF NOT EXISTS offline_entries '
+    '(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)',
+  );
 
   @override
   Future<String?> read(String key) async {
     await _initialize();
-    final rows = await database.customSelect(
-      'SELECT value FROM offline_entries WHERE key = ?',
-      variables: [Variable.withString(key)],
-    ).get();
+    final rows = await database
+        .customSelect(
+          'SELECT value FROM offline_entries WHERE key = ?',
+          variables: [Variable.withString(key)],
+        )
+        .get();
     return rows.isEmpty ? null : rows.single.read<String>('value');
   }
 
@@ -42,15 +44,23 @@ class SqliteLocalStore implements LocalStore {
   @override
   Future<void> delete(String key) async {
     await _initialize();
-    await database
-        .customStatement('DELETE FROM offline_entries WHERE key = ?', [key]);
+    await database.customStatement(
+      'DELETE FROM offline_entries WHERE key = ?',
+      [key],
+    );
   }
 
   @override
   Future<Map<String, String>> entries(String prefix) async {
     await _initialize();
     final rows = await database
-        .customSelect('SELECT key, value FROM offline_entries')
+        .customSelect(
+          'SELECT key, value FROM offline_entries WHERE substr(key, 1, ?) = ?',
+          variables: [
+            Variable.withInt(prefix.length),
+            Variable.withString(prefix),
+          ],
+        )
         .get();
     return {
       for (final row in rows)
