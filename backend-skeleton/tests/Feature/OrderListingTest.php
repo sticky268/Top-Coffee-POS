@@ -104,6 +104,25 @@ class OrderListingTest extends TestCase
         return $order;
     }
 
+    public function test_list_and_detail_return_the_same_branch_receipt_number(): void
+    {
+        $branch = $this->createBranch('Riverside', 'PP-01');
+        $cashier = $this->makeCashier($branch);
+        $order = $this->createOrder($branch, $cashier, ['order_number' => 121]);
+
+        $this->assertNotEquals($order->id, $order->order_number);
+
+        $this->actingAs($cashier)->getJson('/api/v1/orders')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $order->id)
+            ->assertJsonPath('data.0.order_number', 121);
+
+        $this->getJson('/api/v1/orders/'.$order->id)
+            ->assertOk()
+            ->assertJsonPath('data.id', $order->id)
+            ->assertJsonPath('data.order_number', 121);
+    }
+
     // --- index() -------------------------------------------------------
 
     public function test_unauthenticated_request_is_rejected(): void
