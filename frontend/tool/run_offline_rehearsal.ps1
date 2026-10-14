@@ -29,7 +29,7 @@ try {
     $job = Start-Job -ArgumentList $frontend, $Flutter, $handoff -ScriptBlock {
         param($directory, $flutterPath, $requestId)
         Set-Location $directory
-        & $flutterPath test integration_test/operations_readonly_smoke_test.dart -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8001/api/v1 --dart-define=REHEARSE_OFFLINE=true "--dart-define=LOGIN_HANDOFF_ID=$requestId"
+        & $flutterPath test integration_test/operations_readonly_smoke_test.dart -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8001/api/v1 --dart-define=REHEARSE_OFFLINE=true "--dart-define=LOGIN_HANDOFF_ID=$requestId" 2>&1 | ForEach-Object { "$_" }
         Write-Output "FLUTTER_EXIT_CODE=$LASTEXITCODE"
     }
     $deadline = (Get-Date).AddMinutes(12)
@@ -39,17 +39,17 @@ try {
         if (-not $sent) {
             $ErrorActionPreference = "Continue"
             $marker = (& $Adb -s emulator-5554 shell run-as com.example.top_coffee_pos cat files/rehearsal-session-request 2>$null | Out-String).Trim()
-            $ErrorActionPreference = "Stop"
             if ($marker -eq $handoff) {
-                & $Adb -s emulator-5554 push $temporary $remote 2>$null | Out-Null
+                & $Adb -s emulator-5554 push $temporary $remote 2>&1 | Out-Null
                 if ($LASTEXITCODE -ne 0) { throw "Could not transfer the local session." }
-                & $Adb -s emulator-5554 shell run-as com.example.top_coffee_pos cp $remote files/rehearsal-session.json 2>$null | Out-Null
+                & $Adb -s emulator-5554 shell run-as com.example.top_coffee_pos cp $remote files/rehearsal-session.json 2>&1 | Out-Null
                 if ($LASTEXITCODE -ne 0) { throw "Could not place the session in the test app." }
-                & $Adb -s emulator-5554 shell rm -f $remote 2>$null | Out-Null
+                & $Adb -s emulator-5554 shell rm -f $remote 2>&1 | Out-Null
                 Remove-Item -LiteralPath $temporary -Force
                 $sent = $true
                 Write-Output "Session delivered to emulator; automatic login will continue."
             }
+            $ErrorActionPreference = "Stop"
         }
         Start-Sleep -Milliseconds 500
     }
@@ -62,6 +62,6 @@ try {
     }
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
     $ErrorActionPreference = "Continue"
-    & $Adb -s emulator-5554 shell rm -f $remote 2>$null | Out-Null
-    & $Adb -s emulator-5554 shell run-as com.example.top_coffee_pos rm -f files/rehearsal-session.json files/rehearsal-session-request 2>$null | Out-Null
+    & $Adb -s emulator-5554 shell rm -f $remote 2>&1 | Out-Null
+    & $Adb -s emulator-5554 shell run-as com.example.top_coffee_pos rm -f files/rehearsal-session.json files/rehearsal-session-request 2>&1 | Out-Null
 }
