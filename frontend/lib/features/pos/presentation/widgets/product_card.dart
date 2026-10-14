@@ -59,6 +59,7 @@ class ProductCard extends StatelessWidget {
                                     product.imageUrl!,
                                     width: double.infinity,
                                     fit: BoxFit.cover,
+                                    cacheWidth: (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(1, 1024),
                                     errorBuilder: (_, __, ___) => Center(
                                       child: Icon(
                                         Icons.local_cafe_outlined,

@@ -37,7 +37,7 @@ class PosCatalogLoaded extends PosCatalogState {
 
     final query = searchQuery.trim().toLowerCase();
     if (query.isNotEmpty) {
-      result = result.where((p) => p.name.toLowerCase().contains(query)).toList();
+      result = result.where((p) => (p.name.toLowerCase().contains(query) || (p.sku?.toLowerCase().contains(query) ?? false))).toList();
     }
 
     return result;

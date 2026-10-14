@@ -7,6 +7,8 @@ import '../../../core/receipt/last_receipt_provider.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
+import '../application/cart_controller.dart';
+import 'widgets/variant_selector_sheet.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
 import 'widgets/cart_panel.dart';
@@ -165,6 +167,7 @@ class _PhoneLayout extends ConsumerWidget {
       children: [
         const SizedBox(height: 16),
         ProductSearchField(
+          onSubmitted: (code) => _scanProduct(context, ref, code),
           onChanged: (query) => ref
               .read(posCatalogControllerProvider.notifier)
               .updateSearchQuery(query),
@@ -218,6 +221,7 @@ class _TabletLayout extends ConsumerWidget {
             children: [
               const SizedBox(height: 16),
               ProductSearchField(
+          onSubmitted: (code) => _scanProduct(context, ref, code),
                 onChanged: (query) => ref
                     .read(posCatalogControllerProvider.notifier)
                     .updateSearchQuery(query),
@@ -293,5 +297,23 @@ class _CatalogErrorView extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+void _scanProduct(BuildContext context, WidgetRef ref, String code) {
+  final catalog = ref.read(posCatalogControllerProvider);
+  if (catalog is! PosCatalogLoaded) return;
+  final matches = catalog.products.where((product) =>
+      product.sku?.trim().toLowerCase() == code.trim().toLowerCase()).toList();
+  if (matches.length != 1) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('SKU not found. Search by product name.')));
+    return;
+  }
+  final product = matches.single;
+  if (product.hasVariants) {
+    showVariantSelector(context, ref, product);
+  } else {
+    ref.read(cartControllerProvider.notifier).addItem(product);
   }
 }
