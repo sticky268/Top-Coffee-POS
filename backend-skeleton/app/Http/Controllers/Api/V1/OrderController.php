@@ -1796,6 +1796,7 @@ class OrderController extends Controller
 
         return [
             'id' => $order->id,
+            'order_number' => $order->order_number,
             'uuid' => $order->uuid,
             'order_type' => $order->order_type,
             'status' => $order->status,
