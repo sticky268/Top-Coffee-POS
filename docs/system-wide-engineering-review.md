@@ -90,6 +90,7 @@ On the cashier device verify real printer failure/retry, paper width/cutting and
 - `backend-skeleton/database/seeders/UserSeeder.php`
 - `backend-skeleton/tests/Feature/AuditLogApiTest.php`
 - `backend-skeleton/tests/Feature/OperationsConcurrencyTest.php`
+- `backend-skeleton/tests/Feature/OperationsMigrationRehearsalTest.php`
 - `backend-skeleton/tests/Feature/ProductionCheckTest.php`
 - `backend-skeleton/tests/Feature/ReportsTest.php`
 - `backend-skeleton/tests/Feature/SystemIntegrityReviewTest.php`

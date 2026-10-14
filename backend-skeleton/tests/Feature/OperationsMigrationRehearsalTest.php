@@ -20,10 +20,10 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertSame('mysql', config('database.default'));
         $this->assertSame('operations_testing', config('database.connections.mysql.database'));
         $this->disposable = true;
-        // This candidate adds checkout controls after the daily-operations migration.
-        // Rehearse from the same pre-operations schema by rolling back both.
+        // Rehearse daily operations, checkout controls, completion index and receipt
+        // snapshots together from the same populated pre-operations schema.
         $this->artisan('migrate:fresh', ['--force' => true])->assertExitCode(0);
-        $this->artisan('migrate:rollback', ['--step' => 2, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => 4, '--force' => true])->assertExitCode(0);
         $this->assertFalse(Schema::hasTable('cashier_shifts'));
         $this->assertFalse(Schema::hasColumn('ingredients', 'average_unit_cost'));
     }
@@ -67,6 +67,9 @@ class OperationsMigrationRehearsalTest extends TestCase
         };
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
+        $this->assertTrue(Schema::hasIndex('orders', 'orders_branch_status_completed_index'));
+        $this->assertNull(DB::table('order_items')->value('product_name'));
+        $this->assertNull(DB::table('order_items')->value('variant_name'));
         $this->assertNull(DB::table('ingredients')->value('average_unit_cost'));
         $this->assertNull(DB::table('stock_movements')->value('unit_cost'));
         $this->assertNull(DB::table('order_items')->value('ingredient_cost'));
@@ -79,13 +82,14 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
         // Rollback rehearsal occurs before any new shift/correction data is written.
-        $this->artisan('migrate:rollback', ['--step' => 2, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => 4, '--force' => true])->assertExitCode(0);
         $verify();
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
 
         // Verify the local rehearsal command against a populated restored copy.
-        $this->artisan('migrate:rollback', ['--step' => 2, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => 4, '--force' => true])->assertExitCode(0);
+        $this->assertFalse(Schema::hasColumn('order_items', 'product_name'));
         $target = 'top_coffee_pos_pr7_rehearsal_20000101';
         DB::statement('CREATE DATABASE `'.$target.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
         try {
