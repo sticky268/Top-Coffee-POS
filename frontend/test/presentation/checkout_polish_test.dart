@@ -296,7 +296,8 @@ void main() {
         expect(find.text('Order saved on this device'), findsOneWidget);
         expect(find.text('Payment Successful'), findsNothing);
       } else {
-        expect(find.text('Order #121'), findsOneWidget);
+        expect(find.text('Order #000121'), findsOneWidget);
+        expect(find.text('Order #000042'), findsNothing);
         expect(find.text('Payment Successful'), findsOneWidget);
       }
       await savePreview(
