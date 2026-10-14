@@ -558,6 +558,9 @@ class MainActivity : FlutterActivity() {
             showSplitPayments = showSplitPayments,
             items = items,
             payments = payments,
+            supplemental = call.argument<String>("supplemental") ?: "0.00",
+            refunded = call.argument<String>("refunded") ?: "0.00",
+            netPaid = call.argument<String>("netPaid"),
         )
 
         result.success(true)
@@ -617,6 +620,9 @@ class MainActivity : FlutterActivity() {
         showSplitPayments: Boolean,
         items: List<*>,
         payments: List<*>,
+        supplemental: String = "0.00",
+        refunded: String = "0.00",
+        netPaid: String? = null,
     ) {
         val receiptWidth = 576
         val left = 24f
@@ -790,6 +796,11 @@ class MainActivity : FlutterActivity() {
             estimateText("Discount: $discount", bodySize)
         }
 
+        if (supplemental != "0.00") estimateText("Additional charge: $supplemental", bodySize)
+        if (refunded != "0.00") {
+            estimateText("Refunded: $refunded", bodySize)
+            estimateText("NET PAID: ${netPaid ?: total}", bodySize, true)
+        }
         estimateText(
             "TOTAL:           $total",
             bodySize,
@@ -1129,6 +1140,11 @@ class MainActivity : FlutterActivity() {
                 boldTotal,
             )
 
+            if (supplemental != "0.00") drawWrapped("Additional charge: $supplemental", bodySize)
+            if (refunded != "0.00") {
+                drawWrapped("Refunded: $refunded", bodySize)
+                drawWrapped("NET PAID: ${netPaid ?: total}", bodySize, true)
+            }
             drawSeparator()
 
             if (paymentMethod.isNotBlank()) {

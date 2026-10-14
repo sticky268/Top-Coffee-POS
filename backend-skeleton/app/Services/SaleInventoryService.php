@@ -21,7 +21,7 @@ class SaleInventoryService
     public function reverseForOrder(Order $order, int $createdBy): void
     {
         $movementRows = \App\Models\StockMovement::query()
-            ->selectRaw('ingredient_id, SUM(quantity) as net_quantity')
+            ->selectRaw('ingredient_id, SUM(quantity) as net_quantity, SUM(quantity * unit_cost) as net_cost, SUM(CASE WHEN unit_cost IS NULL THEN 1 ELSE 0 END) as unknown_costs')
             ->where('reference_type', $order->getMorphClass())
             ->where('reference_id', $order->id)
             ->where('type', 'sale_deduction')
@@ -52,6 +52,8 @@ class SaleInventoryService
                 $createdBy,
                 "Sale reversal for Order #{$order->id}",
                 $order,
+                $movementRow->unknown_costs == 0 ? (float) $movementRow->net_cost / $netQuantity : null,
+                $movementRow->unknown_costs > 0,
             );
         }
     }
@@ -64,22 +66,27 @@ class SaleInventoryService
      */
     public function deductForOrder(Order $order, int $createdBy): void
     {
-        $order->loadMissing('items');
+        $order->loadMissing(['items.variant', 'items.modifiers']);
 
         foreach ($order->items as $orderItem) {
+            $modifierIds = $orderItem->modifiers->pluck('modifier_id');
             $recipeItems = RecipeItem::query()
                 ->where('branch_id', $order->branch_id)
-                ->where('product_id', $orderItem->product_id)
-                ->whereNull('modifier_id')
+                ->where(function ($q) use ($orderItem, $modifierIds) {
+                    $q->where(fn ($base) => $base->where('product_id', $orderItem->product_id)->whereNull('modifier_id'))
+                        ->orWhere(fn ($extra) => $extra->whereNull('product_id')->whereIn('modifier_id', $modifierIds));
+                })
                 ->get();
 
+            $cost = 0.0;
+            $costKnown = $recipeItems->isNotEmpty();
             foreach ($recipeItems as $recipeItem) {
                 $quantity = (float) $recipeItem->quantity_used
-                    * (int) $orderItem->quantity;
+                    * (int) $orderItem->quantity
+                    * ($recipeItem->modifier_id === null ? (float) ($orderItem->variant?->recipe_multiplier ?? 1) : 1);
+                $quantity = round($quantity, 3);
 
-                if ($quantity <= 0) {
-                    continue;
-                }
+                abort_if($quantity <= 0, 422, 'Recipe consumption is below stock precision. Use a smaller ingredient unit.');
 
                 $ingredient = $recipeItem->ingredient()->first();
 
@@ -89,7 +96,7 @@ class SaleInventoryService
                     );
                 }
 
-                $this->stockMovementService->record(
+                $movement = $this->stockMovementService->record(
                     $ingredient,
                     'sale_deduction',
                     -$quantity,
@@ -97,7 +104,10 @@ class SaleInventoryService
                     "Sale deduction for Order #{$order->id}",
                     $order,
                 );
+                $costKnown = $costKnown && $movement->unit_cost !== null;
+                $cost += $quantity * (float) $movement->unit_cost;
             }
+            $orderItem->forceFill(['ingredient_cost' => $costKnown ? $cost : null])->save();
         }
     }
 }

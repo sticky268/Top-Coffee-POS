@@ -39,10 +39,7 @@ abstract class PosRepository {
     int? branchId,
   });
 
-  Future<void> deleteTable({
-    required int tableId,
-    int? branchId,
-  });
+  Future<void> deleteTable({required int tableId, int? branchId});
 
   Future<OrderConfirmation> holdOrder({
     required List<CartItem> items,
@@ -72,9 +69,7 @@ abstract class PosRepository {
     int? branchId,
   });
 
-  Future<OrderReceipt> getOrderReceipt({
-    required int orderId,
-  });
+  Future<OrderReceipt> getOrderReceipt({required int orderId});
 
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
@@ -91,15 +86,16 @@ abstract class PosRepository {
 }
 
 class ApiPosRepository implements PosRepository {
-  ApiPosRepository(this._apiClient,
-      {LocalStore? localStore,
-      OrderOutbox? outbox,
-      int? Function()? userId,
-      void Function()? onCachedCatalog})
-      : _localStore = localStore,
-        _outbox = outbox,
-        _userId = userId,
-        _onCachedCatalog = onCachedCatalog;
+  ApiPosRepository(
+    this._apiClient, {
+    LocalStore? localStore,
+    OrderOutbox? outbox,
+    int? Function()? userId,
+    void Function()? onCachedCatalog,
+  }) : _localStore = localStore,
+       _outbox = outbox,
+       _userId = userId,
+       _onCachedCatalog = onCachedCatalog;
 
   final ApiClient _apiClient;
   final LocalStore? _localStore;
@@ -113,17 +109,22 @@ class ApiPosRepository implements PosRepository {
         ? null
         : 'catalog:$userId:$branchId:$path';
     try {
-      final response = await _apiClient.request((dio) => dio.get(path,
-          queryParameters: {if (branchId != null) 'branch_id': branchId}));
+      final response = await _apiClient.request(
+        (dio) => dio.get(
+          path,
+          queryParameters: {if (branchId != null) 'branch_id': branchId},
+        ),
+      );
       final data = response.data['data'] as List;
       if (cacheKey != null && _localStore != null) {
         try {
           await _localStore.write(
-              cacheKey,
-              jsonEncode({
-                'saved_at': DateTime.now().toUtc().toIso8601String(),
-                'data': data,
-              }));
+            cacheKey,
+            jsonEncode({
+              'saved_at': DateTime.now().toUtc().toIso8601String(),
+              'data': data,
+            }),
+          );
         } catch (_) {
           // An unavailable cache must not turn a successful read into a failure.
         }
@@ -134,9 +135,9 @@ class ApiPosRepository implements PosRepository {
         final stored = await _localStore.read(cacheKey);
         if (stored != null) {
           final snapshot = jsonDecode(stored) as Map<String, dynamic>;
-          final age = DateTime.now()
-              .toUtc()
-              .difference(DateTime.parse(snapshot['saved_at'] as String));
+          final age = DateTime.now().toUtc().difference(
+            DateTime.parse(snapshot['saved_at'] as String),
+          );
           if (!age.isNegative && age < const Duration(hours: 24)) {
             _onCachedCatalog?.call();
             return snapshot['data'] as List;
@@ -148,28 +149,38 @@ class ApiPosRepository implements PosRepository {
   }
 
   Future<OrderConfirmation> _submit(
-      String endpoint, Map<String, dynamic> payload) async {
+    String endpoint,
+    Map<String, dynamic> payload,
+  ) async {
     final userId = _userId?.call();
     final branchId = payload['branch_id'] as int?;
     PendingOrder? pending;
+    if (_localStore != null && userId != null && branchId != null) {
+      final shift = await _localStore.read('active-shift:$userId:$branchId');
+      payload = {...payload, 'shift_id': int.tryParse(shift ?? '')};
+    }
     if (_outbox != null) {
       if (userId == null || branchId == null) {
         throw const AuthException(
-            'Sign in and select a branch before submitting an order.');
+          'Sign in and select a branch before submitting an order.',
+        );
       }
       pending = await _outbox.prepare(
-          userId: userId,
-          branchId: branchId,
-          endpoint: endpoint,
-          payload: payload);
+        userId: userId,
+        branchId: branchId,
+        endpoint: endpoint,
+        payload: payload,
+      );
       payload = pending.payload;
     }
     Future<OrderConfirmation> send() async {
       try {
-        final response = await _apiClient
-            .request((dio) => dio.post(endpoint, data: payload));
+        final response = await _apiClient.request(
+          (dio) => dio.post(endpoint, data: payload),
+        );
         final confirmation = OrderConfirmation.fromJson(
-            response.data['data'] as Map<String, dynamic>);
+          response.data['data'] as Map<String, dynamic>,
+        );
         if (pending != null) {
           await _outbox!.finish(pending, orderId: confirmation.orderId);
         }
@@ -211,9 +222,7 @@ class ApiPosRepository implements PosRepository {
     final response = await _apiClient.request(
       (dio) => dio.get(
         '/tables',
-        queryParameters: {
-          if (branchId != null) 'branch_id': branchId,
-        },
+        queryParameters: {if (branchId != null) 'branch_id': branchId},
       ),
     );
 
@@ -250,9 +259,7 @@ class ApiPosRepository implements PosRepository {
       ),
     );
 
-    return PosTable.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    return PosTable.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   @override
@@ -283,22 +290,15 @@ class ApiPosRepository implements PosRepository {
       ),
     );
 
-    return PosTable.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    return PosTable.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   @override
-  Future<void> deleteTable({
-    required int tableId,
-    int? branchId,
-  }) async {
+  Future<void> deleteTable({required int tableId, int? branchId}) async {
     await _apiClient.request(
       (dio) => dio.delete(
         '/tables/$tableId',
-        queryParameters: {
-          if (branchId != null) 'branch_id': branchId,
-        },
+        queryParameters: {if (branchId != null) 'branch_id': branchId},
       ),
     );
   }
@@ -392,16 +392,12 @@ class ApiPosRepository implements PosRepository {
   }
 
   @override
-  Future<OrderReceipt> getOrderReceipt({
-    required int orderId,
-  }) async {
+  Future<OrderReceipt> getOrderReceipt({required int orderId}) async {
     final response = await _apiClient.request(
       (dio) => dio.get('/orders/$orderId'),
     );
 
-    return OrderReceipt.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    return OrderReceipt.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   @override
@@ -420,10 +416,11 @@ class ApiPosRepository implements PosRepository {
     return _submit('/orders', {
       if (_outbox != null)
         'expected_total': double.parse(
-            (items.fold<double>(0, (sum, item) => sum + item.lineTotal) -
-                    discountTotal)
-                .clamp(0, double.infinity)
-                .toStringAsFixed(2)),
+          (items.fold<double>(0, (sum, item) => sum + item.lineTotal) -
+                  discountTotal)
+              .clamp(0, double.infinity)
+              .toStringAsFixed(2),
+        ),
       if (requestUuid != null) 'uuid': requestUuid,
       if (branchId != null) 'branch_id': branchId,
       if (customerId != null) 'customer_id': customerId,

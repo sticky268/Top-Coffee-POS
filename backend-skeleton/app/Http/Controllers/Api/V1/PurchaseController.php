@@ -229,6 +229,7 @@ class PurchaseController extends Controller
                         $user->id,
                         'Purchase #' . $purchase->id,
                         $purchase,
+                        $unitCost,
                     );
                 }
 

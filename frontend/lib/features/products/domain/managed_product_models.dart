@@ -23,7 +23,10 @@ class ManagedProductCategoryRef {
   final String name;
 
   factory ManagedProductCategoryRef.fromJson(Map<String, dynamic> json) {
-    return ManagedProductCategoryRef(id: json['id'] as int, name: json['name'] as String);
+    return ManagedProductCategoryRef(
+      id: json['id'] as int,
+      name: json['name'] as String,
+    );
   }
 }
 
@@ -34,6 +37,7 @@ class ManagedProductVariant {
     this.sku,
     required this.priceDelta,
     this.isActive = true,
+    this.recipeMultiplier = 1,
   });
 
   /// null for a variant not yet saved to the backend — a new row added
@@ -44,6 +48,7 @@ class ManagedProductVariant {
   final String? sku;
   final double priceDelta;
   final bool isActive;
+  final double recipeMultiplier;
 
   factory ManagedProductVariant.fromJson(Map<String, dynamic> json) {
     return ManagedProductVariant(
@@ -51,6 +56,7 @@ class ManagedProductVariant {
       name: json['name'] as String,
       sku: json['sku'] as String?,
       priceDelta: (json['price_delta'] as num).toDouble(),
+      recipeMultiplier: (json['recipe_multiplier'] as num?)?.toDouble() ?? 1,
       isActive: json['is_active'] as bool? ?? true,
     );
   }
@@ -61,6 +67,7 @@ class ManagedProductVariant {
       'name': name,
       'sku': (sku != null && sku!.trim().isNotEmpty) ? sku!.trim() : null,
       'price_delta': priceDelta,
+      'recipe_multiplier': recipeMultiplier,
       'is_active': isActive,
     };
   }
@@ -71,6 +78,7 @@ class ManagedProductVariant {
     bool clearSku = false,
     double? priceDelta,
     bool? isActive,
+    double? recipeMultiplier,
   }) {
     return ManagedProductVariant(
       id: id,
@@ -78,6 +86,7 @@ class ManagedProductVariant {
       sku: clearSku ? null : (sku ?? this.sku),
       priceDelta: priceDelta ?? this.priceDelta,
       isActive: isActive ?? this.isActive,
+      recipeMultiplier: recipeMultiplier ?? this.recipeMultiplier,
     );
   }
 
@@ -125,14 +134,17 @@ class ManagedProduct {
       sku: json['sku'] as String?,
       description: json['description'] as String?,
       categoryId: categoryJson?['id'] as int? ?? 0,
-      category: categoryJson != null ? ManagedProductCategoryRef.fromJson(categoryJson) : null,
+      category: categoryJson != null
+          ? ManagedProductCategoryRef.fromJson(categoryJson)
+          : null,
       basePrice: (json['base_price'] as num).toDouble(),
       isActive: json['is_active'] as bool? ?? true,
       variants: (json['variants'] as List? ?? const [])
           .map((v) => ManagedProductVariant.fromJson(v as Map<String, dynamic>))
           .toList(),
       imageUrl: (json['images'] as List? ?? const []).isNotEmpty
-          ? ((json['images'] as List).first as Map<String, dynamic>)['url'] as String?
+          ? ((json['images'] as List).first as Map<String, dynamic>)['url']
+                as String?
           : null,
     );
   }
@@ -161,18 +173,25 @@ class ManagedProduct {
       sku: product.sku,
       description: product.description,
       categoryId: product.category?.id ?? 0,
-      category:
-          product.category != null ? ManagedProductCategoryRef(id: product.category!.id, name: product.category!.name) : null,
+      category: product.category != null
+          ? ManagedProductCategoryRef(
+              id: product.category!.id,
+              name: product.category!.name,
+            )
+          : null,
       basePrice: product.price,
       isActive: true,
       variants: product.variants
-          .map((PosProductVariant v) => ManagedProductVariant(
-                id: v.id,
-                name: v.name,
-                sku: null,
-                priceDelta: v.price - product.price,
-                isActive: true,
-              ))
+          .map(
+            (PosProductVariant v) => ManagedProductVariant(
+              id: v.id,
+              name: v.name,
+              sku: null,
+              priceDelta: v.price - product.price,
+              recipeMultiplier: v.recipeMultiplier,
+              isActive: true,
+            ),
+          )
           .toList(),
     );
   }
@@ -189,7 +208,9 @@ class ManagedProduct {
       'name': name,
       'category_id': categoryId,
       'sku': (sku != null && sku!.trim().isNotEmpty) ? sku!.trim() : null,
-      'description': (description != null && description!.trim().isNotEmpty) ? description!.trim() : null,
+      'description': (description != null && description!.trim().isNotEmpty)
+          ? description!.trim()
+          : null,
       'base_price': basePrice,
       'is_active': isActive,
       'variants': variants.map((v) => v.toJson()).toList(),

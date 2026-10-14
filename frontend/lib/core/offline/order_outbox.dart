@@ -37,30 +37,30 @@ class PendingOrder {
   final int? orderId;
 
   factory PendingOrder.fromJson(Map<String, dynamic> json) => PendingOrder(
-        uuid: json['uuid'] as String,
-        userId: json['user_id'] as int,
-        branchId: json['branch_id'] as int,
-        endpoint: json['endpoint'] as String,
-        payload: Map<String, dynamic>.from(json['payload'] as Map),
-        createdAt: DateTime.parse(json['created_at'] as String),
-        fingerprint: json['fingerprint'] as String,
-        status: json['status'] as String,
-        error: json['error'] as String?,
-        orderId: json['order_id'] as int?,
-      );
+    uuid: json['uuid'] as String,
+    userId: json['user_id'] as int,
+    branchId: json['branch_id'] as int,
+    endpoint: json['endpoint'] as String,
+    payload: Map<String, dynamic>.from(json['payload'] as Map),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    fingerprint: json['fingerprint'] as String,
+    status: json['status'] as String,
+    error: json['error'] as String?,
+    orderId: json['order_id'] as int?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'uuid': uuid,
-        'user_id': userId,
-        'branch_id': branchId,
-        'endpoint': endpoint,
-        'payload': payload,
-        'created_at': createdAt.toIso8601String(),
-        'fingerprint': fingerprint,
-        'status': status,
-        'error': error,
-        'order_id': orderId,
-      };
+    'uuid': uuid,
+    'user_id': userId,
+    'branch_id': branchId,
+    'endpoint': endpoint,
+    'payload': payload,
+    'created_at': createdAt.toIso8601String(),
+    'fingerprint': fingerprint,
+    'status': status,
+    'error': error,
+    'order_id': orderId,
+  };
 }
 
 /// A durable write-ahead journal. The server remains authoritative for prices,
@@ -68,7 +68,7 @@ class PendingOrder {
 /// creates a new UUID; replay always uses the exact original request.
 class OrderOutbox {
   OrderOutbox(this.store, {String Function()? newUuid})
-      : _newUuid = newUuid ?? const Uuid().v4;
+    : _newUuid = newUuid ?? const Uuid().v4;
   final LocalStore store;
   final String Function() _newUuid;
   Future<void> _tail = Future.value();
@@ -83,60 +83,67 @@ class OrderOutbox {
   }
 
   Future<T> withRequestLock<T>(String uuid, Future<T> Function() action) {
-    final next =
-        (_requestLocks[uuid] ?? Future<void>.value()).then((_) => action());
+    final next = (_requestLocks[uuid] ?? Future<void>.value()).then(
+      (_) => action(),
+    );
     final tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     _requestLocks[uuid] = tail;
-    unawaited(tail.then((_) {
-      if (identical(_requestLocks[uuid], tail)) _requestLocks.remove(uuid);
-    }));
+    unawaited(
+      tail.then((_) {
+        if (identical(_requestLocks[uuid], tail)) _requestLocks.remove(uuid);
+      }),
+    );
     return next;
   }
 
   Future<List<PendingOrder>> list(int userId, int branchId) async {
     final entries = await store.entries('order:$userId:$branchId:');
     final orders = entries.values
-        .map((value) => PendingOrder.fromJson(
-              Map<String, dynamic>.from(jsonDecode(value) as Map),
-            ))
+        .map(
+          (value) => PendingOrder.fromJson(
+            Map<String, dynamic>.from(jsonDecode(value) as Map),
+          ),
+        )
         .toList();
     orders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return orders;
   }
 
-  Future<PendingOrder> prepare(
-          {required int userId,
-          required int branchId,
-          required String endpoint,
-          required Map<String, dynamic> payload}) =>
-      _serialized(() async {
-        final canonical = {...payload}..remove('uuid');
-        final fingerprint = jsonEncode([endpoint, canonical]);
-        for (final order in await list(userId, branchId)) {
-          if (order.fingerprint == fingerprint && order.status != 'synced') {
-            return order;
-          }
-        }
-        final uuid = _newUuid();
-        final order = PendingOrder(
-            uuid: uuid,
-            userId: userId,
-            branchId: branchId,
-            endpoint: endpoint,
-            payload: {
-              ...canonical,
-              'uuid': uuid,
-              'expected_cashier_id': userId
-            },
-            createdAt: DateTime.now().toUtc(),
-            fingerprint: fingerprint);
-        await _save(order);
+  Future<PendingOrder> prepare({
+    required int userId,
+    required int branchId,
+    required String endpoint,
+    required Map<String, dynamic> payload,
+  }) => _serialized(() async {
+    final canonical = {...payload}..remove('uuid');
+    final fingerprint = jsonEncode([
+      endpoint,
+      {...canonical}..remove('shift_id'),
+    ]);
+    for (final order in await list(userId, branchId)) {
+      if (order.fingerprint == fingerprint && order.status != 'synced') {
         return order;
-      });
+      }
+    }
+    final uuid = _newUuid();
+    final order = PendingOrder(
+      uuid: uuid,
+      userId: userId,
+      branchId: branchId,
+      endpoint: endpoint,
+      payload: {...canonical, 'uuid': uuid, 'expected_cashier_id': userId},
+      createdAt: DateTime.now().toUtc(),
+      fingerprint: fingerprint,
+    );
+    await _save(order);
+    return order;
+  });
 
   Future<void> _save(PendingOrder order) async {
-    await store.write('order:${order.userId}:${order.branchId}:${order.uuid}',
-        jsonEncode(order.toJson()));
+    await store.write(
+      'order:${order.userId}:${order.branchId}:${order.uuid}',
+      jsonEncode(order.toJson()),
+    );
     if (!_changes.isClosed) _changes.add(null);
   }
 
@@ -146,20 +153,21 @@ class OrderOutbox {
         value['status'] = error == null
             ? 'synced'
             : error is NetworkException || error is ServerException
-                ? 'pending'
-                : 'review';
+            ? 'pending'
+            : 'review';
         value['order_id'] = orderId;
-        value['error'] =
-            error is ApiException ? error.message : error?.toString();
+        value['error'] = error is ApiException
+            ? error.message
+            : error?.toString();
         await _save(PendingOrder.fromJson(value));
       });
 
   Future<void> retry(PendingOrder order) => _serialized(() async {
-        final value = order.toJson();
-        value['status'] = 'pending';
-        value['error'] = null;
-        await _save(PendingOrder.fromJson(value));
-      });
+    final value = order.toJson();
+    value['status'] = 'pending';
+    value['error'] = null;
+    await _save(PendingOrder.fromJson(value));
+  });
 
   /// Only acknowledged records can be cleared: uncertain payments are retained.
   Future<void> clearAcknowledged(int userId, int branchId) =>

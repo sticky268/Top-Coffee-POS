@@ -10,7 +10,7 @@ class StockMovement extends Model
     // StockMovementService — this model is intentionally "dumb".
     protected $fillable = [
         'ingredient_id', 'branch_id', 'type', 'quantity', 'balance_after',
-        'reference_type', 'reference_id', 'reason', 'created_by',
+        'reference_type', 'reference_id', 'reason', 'created_by', 'unit_cost',
     ];
 
     protected $casts = [

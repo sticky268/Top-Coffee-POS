@@ -9,6 +9,7 @@ import '../application/dashboard_controller.dart';
 import '../application/dashboard_state.dart';
 import '../domain/dashboard_models.dart';
 import 'widgets/dashboard_header.dart';
+import '../../operations/presentation/cashier_workspace.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/recent_orders_section.dart';
 import 'widgets/sales_overview_chart.dart';
@@ -19,9 +20,12 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dashboardState = ref.watch(dashboardControllerProvider);
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
+    if (user != null && !user.hasPermission('reports.view')) {
+      return CashierWorkspace(user: user);
+    }
+    final dashboardState = ref.watch(dashboardControllerProvider);
 
     return Scaffold(
       body: SafeArea(

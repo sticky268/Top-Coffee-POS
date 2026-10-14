@@ -10,11 +10,12 @@ class NetworkException extends ApiException {
   const NetworkException([super.message = 'No internet connection']);
 }
 
+class UncertainOperationException extends ApiException {
+  const UncertainOperationException(super.message);
+}
+
 class ValidationException extends ApiException {
-  const ValidationException(
-    this.errors, [
-    super.message = 'Validation failed',
-  ]);
+  const ValidationException(this.errors, [super.message = 'Validation failed']);
 
   final Map<String, dynamic> errors;
 }

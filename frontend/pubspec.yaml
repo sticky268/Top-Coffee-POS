@@ -1,5 +1,5 @@
 name: top_coffee_pos
-description: Top Coffee POS - Flutter client (cashier POS, manager console, kitchen display)
+description: Top Coffee POS - Flutter client (cashier POS, manager console, inventory and daily operations)
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -45,6 +45,8 @@ dependencies:
   shared_preferences: ^2.5.5
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0

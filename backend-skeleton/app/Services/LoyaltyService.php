@@ -11,6 +11,24 @@ use Illuminate\Support\Facades\DB;
 
 class LoyaltyService
 {
+    public function reverseForOrder(Order $order, int $actor): void
+    {
+        $earned = LoyaltyTransaction::where('order_id', $order->id)->where('type', 'earned')->first();
+        if (! $earned) return;
+        $refunded = (float) DB::table('payment_refunds')->whereIn('payment_id', $order->payments()->select('id'))->orderBy('id')->lockForUpdate()->get()->sum('amount');
+        $ratio = (float) $order->total > 0 ? min(1, $refunded / (float) $order->total) : 1;
+        $target = (int) floor($earned->points * $ratio + 0.000001);
+        $points = max(0, $target - (int) $order->refunded_loyalty_points);
+        if ($points === 0) return;
+        $account = CustomerLoyaltyAccount::whereKey($earned->customer_loyalty_account_id)->lockForUpdate()->firstOrFail();
+        $removed = min($account->points_balance, $points);
+        $account->points_balance -= $removed;
+        $account->refund_points_debt += $points - $removed;
+        $account->save();
+        $order->forceFill(['refunded_loyalty_points' => $target])->save();
+        LoyaltyTransaction::create(['customer_loyalty_account_id' => $account->id, 'customer_id' => $order->customer_id, 'branch_id' => $order->branch_id, 'order_id' => $order->id, 'type' => 'adjustment', 'points' => -$removed, 'balance_after' => $account->points_balance, 'description' => 'Refund points reversal; operator #'.$actor]);
+    }
+
     /**
      * Award loyalty points for a completed order.
      *
@@ -66,20 +84,29 @@ class LoyaltyService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $account->points_balance += $points;
+            $debtPayment = min((int) $account->refund_points_debt, $points);
+            $account->refund_points_debt -= $debtPayment;
+            $account->points_balance += $points - $debtPayment;
             $account->lifetime_earned += $points;
             $account->save();
 
-            return LoyaltyTransaction::create([
+            $earned = LoyaltyTransaction::create([
                 'customer_loyalty_account_id' => $account->id,
                 'customer_id' => $order->customer_id,
                 'branch_id' => $order->branch_id,
                 'order_id' => $order->id,
                 'type' => 'earned',
                 'points' => $points,
-                'balance_after' => $account->points_balance,
+                'balance_after' => $account->points_balance + $debtPayment,
                 'description' => 'Points earned from order #' . $order->id,
             ]);
+            if ($debtPayment > 0) LoyaltyTransaction::create([
+                'customer_loyalty_account_id' => $account->id, 'customer_id' => $order->customer_id,
+                'branch_id' => $order->branch_id, 'order_id' => $order->id, 'type' => 'adjustment',
+                'points' => -$debtPayment, 'balance_after' => $account->points_balance,
+                'description' => 'Refund points debt repayment',
+            ]);
+            return $earned;
         });
     }
 }

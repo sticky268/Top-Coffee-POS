@@ -68,7 +68,12 @@ class PosCategory {
 }
 
 class PosProductVariant {
-  const PosProductVariant({required this.id, required this.name, required this.price});
+  const PosProductVariant({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.recipeMultiplier = 1,
+  });
 
   final int id;
   final String name;
@@ -77,12 +82,14 @@ class PosProductVariant {
   /// plus the variant's delta) â€” the backend already does this math, see
   /// ProductController::index(), so this is a display-ready number.
   final double price;
+  final double recipeMultiplier;
 
   factory PosProductVariant.fromJson(Map<String, dynamic> json) {
     return PosProductVariant(
       id: json['id'] as int,
       name: json['name'] as String,
       price: (json['price'] as num).toDouble(),
+      recipeMultiplier: (json['recipe_multiplier'] as num?)?.toDouble() ?? 1,
     );
   }
 }
@@ -110,7 +117,7 @@ class PosProduct {
     required this.category,
     required this.price,
     required this.variants,
-	this.imageUrl,
+    this.imageUrl,
   });
 
   final int id;
@@ -135,15 +142,18 @@ class PosProduct {
       sku: json['sku'] as String?,
       description: json['description'] as String?,
       category: json['category'] != null
-          ? PosProductCategoryRef.fromJson(json['category'] as Map<String, dynamic>)
+          ? PosProductCategoryRef.fromJson(
+              json['category'] as Map<String, dynamic>,
+            )
           : null,
-	price: (json['price'] as num).toDouble(),
-	variants: (json['variants'] as List? ?? const [])
-    	.map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
-    	.toList(),
-	imageUrl: (json['images'] as List? ?? const []).isNotEmpty
-    ? ((json['images'] as List).first as Map<String, dynamic>)['url'] as String?
-    : null,
+      price: (json['price'] as num).toDouble(),
+      variants: (json['variants'] as List? ?? const [])
+          .map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
+          .toList(),
+      imageUrl: (json['images'] as List? ?? const []).isNotEmpty
+          ? ((json['images'] as List).first as Map<String, dynamic>)['url']
+                as String?
+          : null,
     );
   }
 }
@@ -171,7 +181,11 @@ class CartItem {
   String get lineKey => '${product.id}:${variant?.id ?? 'base'}';
 
   CartItem copyWith({int? quantity}) {
-    return CartItem(product: product, variant: variant, quantity: quantity ?? this.quantity);
+    return CartItem(
+      product: product,
+      variant: variant,
+      quantity: quantity ?? this.quantity,
+    );
   }
 }
 
@@ -262,6 +276,7 @@ class OrderConfirmation {
     );
   }
 }
+
 class OrderReceipt {
   const OrderReceipt({
     required this.orderId,
@@ -280,6 +295,8 @@ class OrderReceipt {
     this.payment,
     this.payments = const [],
     this.createdAt,
+    this.supplementalTotal = 0,
+    this.refundedTotal = 0,
   });
 
   final int orderId;
@@ -290,6 +307,9 @@ class OrderReceipt {
   final double subtotal;
   final double discountTotal;
   final double total;
+  final double supplementalTotal;
+  final double refundedTotal;
+  double get netPaid => total - refundedTotal;
   final String? branchName;
   final String? branchCode;
   final String? cashierName;
@@ -332,9 +352,7 @@ class OrderReceipt {
         ? json['payments'] as List
         : const [];
 
-    final itemsJson = json['items'] is List
-        ? json['items'] as List
-        : const [];
+    final itemsJson = json['items'] is List ? json['items'] as List : const [];
 
     return OrderReceipt(
       orderId: json['id'] as int,
@@ -345,6 +363,8 @@ class OrderReceipt {
       subtotal: (json['subtotal'] as num).toDouble(),
       discountTotal: (json['discount_total'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
+      supplementalTotal: (json['supplemental_total'] as num?)?.toDouble() ?? 0,
+      refundedTotal: (json['refunded_total'] as num?)?.toDouble() ?? 0,
       branchName: branch?['name'] as String?,
       branchCode: branch?['code'] as String?,
       cashierName: cashier?['name'] as String?,
@@ -363,18 +383,17 @@ class OrderReceipt {
               'status': paymentJson['status'],
             })
           : null,
-       payments: paymentsJson
-           .whereType<Map<String, dynamic>>()
-           .map(
-             (payment) => PaymentConfirmation.fromJson(payment),
-           )
-           .toList(),
+      payments: paymentsJson
+          .whereType<Map<String, dynamic>>()
+          .map((payment) => PaymentConfirmation.fromJson(payment))
+          .toList(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
     );
   }
 }
+
 class OpenOrderItem {
   const OpenOrderItem({
     required this.id,
@@ -435,11 +454,7 @@ class OpenOrder {
       discountTotal: (json['discount_total'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
       items: (json['items'] as List<dynamic>)
-          .map(
-            (item) => OpenOrderItem.fromJson(
-              item as Map<String, dynamic>,
-            ),
-          )
+          .map((item) => OpenOrderItem.fromJson(item as Map<String, dynamic>))
           .toList(),
     );
   }

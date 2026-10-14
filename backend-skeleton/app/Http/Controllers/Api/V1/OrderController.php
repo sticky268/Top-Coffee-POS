@@ -1377,6 +1377,8 @@ class OrderController extends Controller
                     },
                 ]);
 
+                abort_if((float) $order->supplemental_total > 0 || $order->payments()->whereHas('refunds')->exists(), 409, 'A financially adjusted sale cannot be edited. Create a new sale for additional items.');
+
                 $paidTotal = round(
                     $order->payments->sum(
                         fn (Payment $payment) => (float) $payment->amount
@@ -1732,7 +1734,9 @@ class OrderController extends Controller
                 'status' => $order->status,
                 'subtotal' => (float) $order->subtotal,
                 'discount_total' => (float) $order->discount_total,
-                'total' => (float) $order->total,
+                'total' => (float) $order->total + (float) $order->supplemental_total,
+                'supplemental_total' => (float) $order->supplemental_total,
+                'refunded_total' => (float) \App\Models\PaymentRefund::whereIn('payment_id', $order->payments->pluck('id'))->sum('amount'),
                 'branch' => $order->branch ? [
                     'id' => $order->branch->id,
                     'name' => $order->branch->name,

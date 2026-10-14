@@ -35,10 +35,13 @@ class OrderDetailScreen extends ConsumerWidget {
     final canAdjustCompleted =
         state is OrderDetailLoaded &&
         state.order.status == 'completed' &&
+        state.order.supplementalTotal == 0 &&
+        state.order.refundedTotal == 0 &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.edit');
 
-    final canCancel = state is OrderDetailLoaded &&
+    final canCancel =
+        state is OrderDetailLoaded &&
         state.order.status == 'held' &&
         state.order.orderType == 'dine_in' &&
         authState is AuthAuthenticated &&
@@ -52,6 +55,19 @@ class OrderDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(appBarTitle),
         actions: [
+          if (state is OrderDetailLoaded && state.order.status == 'completed')
+            IconButton(
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              tooltip: 'Payment history and corrections',
+              onPressed: () async {
+                await context.push<void>('/orders/$orderId/financials');
+                if (context.mounted) {
+                  await ref
+                      .read(orderDetailControllerProvider(orderId).notifier)
+                      .refresh();
+                }
+              },
+            ),
           if (canCancel)
             pos_ui.IconButton(
               tooltip: 'Cancel order',
@@ -79,10 +95,16 @@ class OrderDetailScreen extends ConsumerWidget {
                 );
                 if (confirmed != true || !context.mounted) return;
                 try {
-                  await ref.read(posRepositoryProvider).cancelHeldOrder(orderId: orderId);
-                  await ref.read(ordersListControllerProvider.notifier).refresh();
+                  await ref
+                      .read(posRepositoryProvider)
+                      .cancelHeldOrder(orderId: orderId);
+                  await ref
+                      .read(ordersListControllerProvider.notifier)
+                      .refresh();
                   if (!context.mounted) return;
-                  await ref.read(orderDetailControllerProvider(orderId).notifier).refresh();
+                  await ref
+                      .read(orderDetailControllerProvider(orderId).notifier)
+                      .refresh();
                 } catch (error) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -162,10 +184,7 @@ class OrderDetailScreen extends ConsumerWidget {
 }
 
 class _OrderDetailBody extends StatelessWidget {
-  const _OrderDetailBody({
-    required this.order,
-    this.onAdjustCompleted,
-  });
+  const _OrderDetailBody({required this.order, this.onAdjustCompleted});
 
   final OrderDetail order;
   final VoidCallback? onAdjustCompleted;
@@ -187,7 +206,10 @@ class _OrderDetailBody extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Order ${order.displayOrderReference}', style: theme.textTheme.titleLarge),
+                Text(
+                  'Order ${order.displayOrderReference}',
+                  style: theme.textTheme.titleLarge,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   dateLabel,
@@ -375,10 +397,7 @@ class _OrderDetailBody extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: ReceiptActionButtons(
-                orderId: order.id,
-                showHeading: true,
-              ),
+              child: ReceiptActionButtons(orderId: order.id, showHeading: true),
             ),
           ),
         ],
