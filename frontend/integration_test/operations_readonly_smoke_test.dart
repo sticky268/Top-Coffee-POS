@@ -518,6 +518,103 @@ Future<void> rehearseAvailability(WidgetTester tester) async {
   expect(tester.takeException(), isNull);
 }
 
+Future<void> rehearseRefund(WidgetTester tester) async {
+  expect(Env.apiBaseUrl, 'http://10.0.2.2:8001/api/v1');
+  final context = tester.element(find.byType(OperationsScreen));
+  final container = ProviderScope.containerOf(context);
+  final router = GoRouter.of(context);
+  expect(container.read(currentBranchProvider)?.id, 21);
+  final repo = container.read(operationsRepositoryProvider);
+  Future<Map> financials() async =>
+      Map.from(await tester.runAsync(() => repo.get('/orders/124/financials')) as Map);
+  Future<num> stock() async {
+    final rows = await tester.runAsync(() => repo.get('/ingredients'));
+    final ingredient = (rows as List).cast<Map>().singleWhere((r) => r['id'] == 11);
+    return num.parse('${ingredient['current_stock']}');
+  }
+  final before = await financials();
+  expect(before['order_id'], 124);
+  expect(before['paid'], 5);
+  expect(before['refunded'], 0, reason: 'Refusing to repeat a refund.');
+  expect(before['net_paid'], 5);
+  expect(await stock(), closeTo(49.980, 0.0001));
+  expect(await tester.runAsync(repo.pending), isEmpty);
+  expect(find.widgetWithText(FilledButton, 'Close shift'), findsNothing,
+      reason: 'Refusing to interfere with a pre-existing shift.');
+  final open = find.widgetWithText(FilledButton, 'Open shift');
+  expect(open, findsOneWidget);
+  await tester.ensureVisible(open);
+  await tester.tap(open);
+  final opening = find.widgetWithText(TextFormField, 'Opening cash');
+  await waitForControl(tester, opening);
+  await tester.enterText(opening, '20');
+  await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+  final close = find.widgetWithText(FilledButton, 'Close shift');
+  await waitForControl(tester, close);
+  final openCard = find.ancestor(of: close, matching: find.byType(Card));
+  final title = tester.widgetList<Text>(
+      find.descendant(of: openCard, matching: find.byType(Text)))
+      .map((t) => t.data ?? '')
+      .singleWhere((t) => t.startsWith('Shift #') && t.endsWith(' · open'));
+  final shiftId = int.parse(title.split(' ')[1]);
+  debugPrint('STEP: Refund rehearsal opened shift #$shiftId with 20.00.');
+  router.go('/orders/124/financials');
+  await tester.pump();
+  final refund = find.widgetWithText(OutlinedButton, 'Refund');
+  await waitForControl(tester, refund);
+  expect(find.text(r'Refunded: $0.00'), findsOneWidget);
+  await tester.ensureVisible(refund);
+  await tester.tap(refund);
+  final amount = find.widgetWithText(TextFormField, 'Amount');
+  await waitForControl(tester, amount);
+  expect(find.text('consumed'), findsOneWidget);
+  await tester.enterText(amount, '5');
+  await tester.enterText(find.widgetWithText(TextFormField, 'Reason'),
+      'Automated rehearsal full cash refund: consumed ingredients');
+  await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+  await waitForControl(tester, find.text(r'Refunded: $5.00'));
+  expect(find.text(r'Net paid: $0.00'), findsOneWidget);
+  final after = await financials();
+  expect(after['refunded'], 5);
+  expect(after['net_paid'], 0);
+  final refunds = (after['payments'] as List).cast<Map>()
+      .expand((p) => (p['refunds'] as List).cast<Map>()).toList();
+  expect(refunds, hasLength(1));
+  expect(refunds.single['inventory_disposition'], 'consumed');
+  expect(refunds.single['shift_id'], shiftId);
+  expect(await stock(), closeTo(49.980, 0.0001),
+      reason: 'Consumed refund must leave stock unchanged.');
+  router.go('/operations');
+  await tester.pump();
+  await waitForOperations(tester);
+  final rows = await tester.runAsync(() => repo.get('/shifts'));
+  final shift = (rows as List).cast<Map>().singleWhere((r) => r['id'] == shiftId);
+  expect(shift['cash_refunds'], 5);
+  expect(shift['live_expected_cash'], 15);
+  expect(find.text(title), findsOneWidget);
+  for (var i = 0; i < 200; i++) {
+    if (tester.widget<FilledButton>(close).onPressed != null) break;
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+  expect(tester.widget<FilledButton>(close).onPressed, isNotNull);
+  await tester.ensureVisible(close);
+  await tester.tap(close);
+  final counted = find.widgetWithText(TextFormField, 'Counted cash');
+  await waitForControl(tester, counted);
+  await tester.enterText(counted, '15');
+  await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+  await waitForControl(tester, find.text(title.replaceFirst(' · open', ' · closed')));
+  final savedRows = await tester.runAsync(() => repo.get('/shifts'));
+  final saved = (savedRows as List).cast<Map>().singleWhere((r) => r['id'] == shiftId);
+  expect(saved['status'], 'closed');
+  expect(num.parse('${saved['expected_cash']}'), 15);
+  expect(num.parse('${saved['counted_cash']}'), 15);
+  expect(num.parse('${saved['difference']}'), 0);
+  expect(await tester.runAsync(repo.pending), isEmpty);
+  expect(tester.takeException(), isNull);
+  debugPrint('PASS: Order #124 refunded 5.00 as consumed; stock unchanged at 49.980; shift #$shiftId closed with 15.00 and zero difference.');
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('existing signed-in session loads accessible operations views', (
@@ -582,6 +679,15 @@ void main() {
     );
     debugPrint('PASS: Shifts loaded without a rendering or API error.');
 
+    if (const bool.fromEnvironment('REHEARSE_REFUND')) {
+      expect(const bool.fromEnvironment('REHEARSE_SALE') ||
+          const bool.fromEnvironment('REHEARSE_SHIFT') ||
+          const bool.fromEnvironment('REHEARSE_REVIEW') ||
+          const bool.fromEnvironment('REHEARSE_STOCK_COUNT') ||
+          const bool.fromEnvironment('REHEARSE_AVAILABILITY'), isFalse,
+          reason: 'Run the refund separately from other mutations.');
+      await rehearseRefund(tester);
+    }
     if (const bool.fromEnvironment('REHEARSE_AVAILABILITY')) {
       expect(const bool.fromEnvironment('REHEARSE_SALE') ||
           const bool.fromEnvironment('REHEARSE_SHIFT') ||
