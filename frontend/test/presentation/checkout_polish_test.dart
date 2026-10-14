@@ -56,6 +56,7 @@ void main() {
   Future<({ProviderContainer container, MockPosRepository repository})> setup(
     WidgetTester tester, {
     required Widget child,
+    Size size = const Size(360, 800),
     double scale = 1,
     bool dark = false,
     CheckoutState state = const CheckoutIdle(),
@@ -86,7 +87,10 @@ void main() {
         child: MaterialApp(
           theme: dark ? AppTheme.dark : AppTheme.light,
           home: MediaQuery(
-            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            data: MediaQueryData(
+              size: size,
+              textScaler: TextScaler.linear(scale),
+            ),
             child: RepaintBoundary(key: preview, child: child),
           ),
         ),
@@ -112,6 +116,7 @@ void main() {
             final built = await setup(
               tester,
               child: const CheckoutScreen(),
+              size: size,
               scale: scale,
               dark: dark,
               preview: preview,
@@ -250,6 +255,12 @@ void main() {
       expect(built.container.read(cartControllerProvider).items, hasLength(1));
       expect(tester.takeException(), isNull);
       await savePreview(tester, preview, 'cart-360-large-text');
+      await tester.scrollUntilVisible(
+        find.text('Review Order'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await savePreview(tester, preview, 'cart-total-360-large-text');
       verifyZeroInteractions(built.repository);
     },
   );
