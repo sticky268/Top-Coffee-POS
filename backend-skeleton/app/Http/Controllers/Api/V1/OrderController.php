@@ -336,6 +336,44 @@ class OrderController extends Controller
 
                 app(\App\Services\LoyaltyService::class)->awardForOrder($order);
 
+                $payments = $order->payments()->get()->values();
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.created',
+                    $order,
+                    null,
+                    [
+                        'status' => $order->status,
+                        'branch_id' => $order->branch_id,
+                        'total' => (float) $order->total,
+                    ],
+                );
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.paid',
+                    $order,
+                    [
+                        'status' => 'held',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                    ],
+                    [
+                        'status' => 'completed',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                        'payments' => $payments->map(fn (Payment $payment) => [
+                            'method' => $payment->method,
+                            'amount' => (float) $payment->amount,
+                        ])->values()->all(),
+                    ],
+                );
+
                 return $order->load(['items', 'payments']);
             });
         } catch (UniqueConstraintViolationException $e) {
@@ -359,42 +397,6 @@ class OrderController extends Controller
         }
 
         $payments = $order->payments->values();
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.created',
-            $order,
-            null,
-            [
-                'status' => $order->status,
-                'branch_id' => $order->branch_id,
-                'total' => (float) $order->total,
-            ],
-        );
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.paid',
-            $order,
-            [
-                'status' => 'held',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-            ],
-            [
-                'status' => 'completed',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-                'payments' => $payments->map(fn (Payment $payment) => [
-                    'method' => $payment->method,
-                    'amount' => (float) $payment->amount,
-                ])->values()->all(),
-            ],
-        );
 
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
@@ -1112,6 +1114,7 @@ class OrderController extends Controller
                     $user->id,
                     true,
                 );
+                $payments = collect($payments)->values();
                 $order->update([
                     'status' => 'completed',
                     'completed_at' => now(),
@@ -1121,6 +1124,39 @@ class OrderController extends Controller
                     'status' => 'available',
                 ]);
 
+                app(\App\Services\LoyaltyService::class)->awardForOrder($order);
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.paid',
+                    $order,
+                    [
+                        'status' => 'held',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                    ],
+                    [
+                        'status' => 'completed',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                        'payments' => $payments->map(fn (Payment $payment) => [
+                            'id' => $payment->id,
+                            'method' => $payment->method,
+                            'amount' => (float) $payment->amount,
+                            'tendered' => $payment->tendered !== null
+                                ? (float) $payment->tendered
+                                : null,
+                            'change_due' => $payment->change_due !== null
+                                ? (float) $payment->change_due
+                                : null,
+                            'status' => $payment->status,
+                        ])->values()->all(),
+                    ],
+                );
                 return [
                     'order' => $order->fresh(),
                     'payments' => $payments,
@@ -1141,39 +1177,6 @@ class OrderController extends Controller
         $order = $result['order'];
         $payments = collect($result['payments'])->values();
 
-        app(\App\Services\LoyaltyService::class)->awardForOrder($order);
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.paid',
-            $order,
-            [
-                'status' => 'held',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-            ],
-            [
-                'status' => 'completed',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-                'payments' => $payments->map(fn (Payment $payment) => [
-                    'id' => $payment->id,
-                    'method' => $payment->method,
-                    'amount' => (float) $payment->amount,
-                    'tendered' => $payment->tendered !== null
-                        ? (float) $payment->tendered
-                        : null,
-                    'change_due' => $payment->change_due !== null
-                        ? (float) $payment->change_due
-                        : null,
-                    'status' => $payment->status,
-                ])->values()->all(),
-            ],
-        );
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
 

@@ -106,6 +106,27 @@ class OperationsConcurrencyTest extends TestCase
         }
     }
 
+    public function test_concurrent_checkouts_allocate_distinct_branch_numbers(): void
+    {
+        $category = \App\Models\Category::create(['branch_id' => $this->branch->id, 'name' => 'Race coffee']);
+        $product = \App\Models\Product::create(['category_id' => $category->id,
+            'name' => 'Coffee', 'base_price' => 10, 'is_active' => true]);
+        $product->branches()->attach($this->branch->id, ['is_available' => true]);
+        $payload = ['order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'card']];
+        $results = $this->race([
+            $this->input($this->actor, '/api/v1/orders', $payload),
+            $this->input($this->other, '/api/v1/orders', $payload),
+        ], 'branches', $this->branch->id);
+        $this->assertSame([201, 201], array_column($results, 'status'), json_encode($results));
+        $numbers = array_map(fn ($r) => $r['body']['data']['order_number'], $results);
+        sort($numbers);
+        $this->assertSame([1, 2], $numbers);
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('payments', 2);
+    }
+
     public function test_simultaneous_same_uuid_refund_is_applied_once(): void
     {
         $this->open($this->actor);

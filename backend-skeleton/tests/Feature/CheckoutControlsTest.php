@@ -158,6 +158,36 @@ class CheckoutControlsTest extends TestCase
             'payment' => ['method' => 'card']]))->assertCreated()->assertJsonPath('data.total', 0);
     }
 
+    public function test_checkout_audit_failure_rolls_back_the_entire_sale(): void
+    {
+        $this->mock(\App\Services\AuditLogService::class, function ($mock) {
+            $mock->shouldReceive('record')->andThrow(new \RuntimeException('Audit unavailable'));
+        });
+        $this->postJson('/api/v1/orders', $this->payload(['payment' => ['method' => 'card']]))
+            ->assertStatus(500);
+        foreach (['orders', 'order_items', 'payments', 'stock_movements'] as $name) {
+            $this->assertDatabaseCount($name, 0);
+        }
+    }
+
+    public function test_held_payment_loyalty_failure_preserves_the_unpaid_bill(): void
+    {
+        $table = \App\Models\RestaurantTable::create(['branch_id' => $this->branch->id,
+            'name' => 'Atomic table', 'capacity' => 2, 'status' => 'available', 'is_active' => true]);
+        $id = $this->postJson('/api/v1/orders/hold', $this->payload([
+            'order_type' => 'dine_in', 'table_id' => $table->id]))->assertCreated()->json('data.id');
+        $this->mock(\App\Services\LoyaltyService::class, function ($mock) {
+            $mock->shouldReceive('awardForOrder')->andThrow(new \RuntimeException('Loyalty unavailable'));
+        });
+        $this->postJson('/api/v1/orders/'.$id.'/pay', ['payment' => ['method' => 'card']])
+            ->assertStatus(500);
+        $this->assertDatabaseHas('orders', ['id' => $id, 'status' => 'held']);
+        $this->assertDatabaseHas('restaurant_tables', ['id' => $table->id, 'status' => 'occupied']);
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertDatabaseCount('stock_movements', 0);
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'order.paid']);
+    }
+
     public function test_console_enable_is_business_specific_and_audited(): void
     {
         $other = Business::factory()->create();
