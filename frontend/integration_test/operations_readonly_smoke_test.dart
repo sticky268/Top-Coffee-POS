@@ -862,6 +862,9 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
     await tester.pump();
     await waitForOperations(tester);
     final retry = find.widgetWithText(TextButton, 'Retry original request');
+    await tester.scrollUntilVisible(retry, 300,
+        scrollable: find.descendant(of: find.byType(OperationsScreen),
+            matching: find.byType(Scrollable)).first);
     expect(retry, findsOneWidget);
     await tester.ensureVisible(retry);
     await tester.tap(retry);
