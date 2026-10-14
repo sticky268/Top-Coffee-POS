@@ -108,8 +108,8 @@ class PurchaseController extends Controller
                 'purchased_at' => ['required', 'date'],
                 'items' => ['required', 'array', 'min:1'],
                 'items.*.ingredient_id' => ['required', 'integer', 'distinct', 'exists:ingredients,id'],
-                'items.*.quantity' => ['required', 'numeric', 'gt:0'],
-                'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
+                'items.*.quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,3'],
+                'items.*.unit_cost' => ['required', 'numeric', 'min:0', 'decimal:0,4'],
             ]
         );
 

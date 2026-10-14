@@ -83,7 +83,7 @@ class RecipeController extends Controller
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'items' => ['required', 'array'],
             'items.*.ingredient_id' => ['required', 'integer', 'distinct'],
-            'items.*.quantity_used' => ['required', 'numeric', 'gt:0'],
+            'items.*.quantity_used' => ['required', 'numeric', 'gt:0', 'decimal:0,3'],
         ]);
 
         if ($validator->fails()) {

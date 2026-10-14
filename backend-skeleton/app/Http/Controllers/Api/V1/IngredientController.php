@@ -295,7 +295,7 @@ class IngredientController extends Controller
             $request->all(),
             [
                 'type' => ['required', 'string', 'in:purchase,adjustment,wastage,sale_deduction'],
-                'quantity' => ['required', 'numeric', 'not_in:0'],
+                'quantity' => ['required', 'numeric', 'not_in:0', 'decimal:0,3'],
                 'reason' => ['nullable', 'string', 'max:255'],
             ]
         );
@@ -361,7 +361,6 @@ class IngredientController extends Controller
             ], 404);
         }
 
-        $ingredient->refresh();
         $ingredient->refresh();
         $ingredient->load('unit:id,name,abbreviation');
 

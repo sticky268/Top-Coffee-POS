@@ -40,6 +40,11 @@ class ProductionCheck extends Command
             $checks['checkout_controls_enabled'] = ! \App\Models\Business::where('is_active', true)->where(function ($query) {
                 $query->where('require_cash_shift', false)->orWhere('require_manager_controls', false);
             })->exists();
+            $ledger = DB::table('stock_movements')->selectRaw('ingredient_id, SUM(quantity) as ledger_stock')->groupBy('ingredient_id');
+            $checks['stock_cache_matches_ledger'] = ! DB::table('ingredients')
+                ->leftJoinSub($ledger, 'ledger', 'ledger.ingredient_id', '=', 'ingredients.id')
+                ->whereRaw('ABS(ingredients.current_stock - COALESCE(ledger.ledger_stock, 0)) > 0.0005')
+                ->exists();
             $checks['business_ownership_verified'] = app(\App\Services\TenantIntegrity::class)->report()['ready'];
             $checks['kitchen_schema_removed'] = ! Schema::hasTable('kitchen_tickets')
                 && ! Schema::hasTable('kitchen_ticket_items')
