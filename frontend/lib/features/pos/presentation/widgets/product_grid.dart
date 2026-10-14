@@ -27,32 +27,43 @@ class ProductGrid extends ConsumerWidget {
       return const _EmptyProducts();
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.05,
-      ),
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
-        return ProductCard(
-          product: product,
-          onTap: () {
-            if (product.hasVariants) {
-              showVariantSelector(
-                context,
-                ref,
-                product,
-                onVariantSelected: onVariantSelected,
-              );
-            } else if (onProductSelected != null) {
-              onProductSelected!(product);
-            } else {
-              ref.read(cartControllerProvider.notifier).addItem(product);
-            }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+        final tileWidth =
+            (constraints.maxWidth - 32 - 16 * (crossAxisCount - 1)) /
+            crossAxisCount;
+        final tileHeight =
+            (tileWidth / 1.05).clamp(180.0, 280.0) +
+            (scale - 1).clamp(0.0, 3.0) * 80;
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            mainAxisExtent: tileHeight,
+          ),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return ProductCard(
+              product: product,
+              onTap: () {
+                if (product.hasVariants) {
+                  showVariantSelector(
+                    context,
+                    ref,
+                    product,
+                    onVariantSelected: onVariantSelected,
+                  );
+                } else if (onProductSelected != null) {
+                  onProductSelected!(product);
+                } else {
+                  ref.read(cartControllerProvider.notifier).addItem(product);
+                }
+              },
+            );
           },
         );
       },

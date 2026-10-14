@@ -26,15 +26,14 @@ class QuickActionsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return GridView.count(
       crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      // 1.25 rather than 1.4 — a little more height headroom before the
-      // compact tier below has to kick in (same rationale as StatCardsGrid).
-      childAspectRatio: 1.25,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      mainAxisExtent: 112 + (textScale - 1).clamp(0.0, 3.0) * 50,
       children: [
         for (final action in actions) _QuickActionButton(action: action),
       ],
@@ -69,49 +68,41 @@ class _QuickActionButton extends StatelessWidget {
       child: pos_ui.ActionSurface(
         borderRadius: BorderRadius.circular(14),
         onTap: action.onTap,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Genuine responsive tiering: below this height, shrink
-            // padding/spacing/font so the button looks intentional at
-            // small sizes, not just "doesn't overflow".
-            final isCompact = constraints.maxHeight < 64;
-            final padding = isCompact ? 6.0 : 12.0;
-            final gap = isCompact ? 2.0 : 8.0;
-            final labelFontSize = isCompact
-                ? 11.0
-                : null; // null keeps theme default
-
-            return Padding(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Expanded + FittedBox is what actually prevents
-                  // overflow: the icon shrinks to whatever space is left
-                  // after the fixed-height label line, instead of always
-                  // rendering at a fixed 28px regardless of available room.
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Icon(action.icon, size: 28, color: iconColor),
-                    ),
+        child: Tooltip(
+          message: action.label,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color:
+                        (isPrimary
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.primary)
+                            .withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  SizedBox(height: gap),
-                  Text(
+                  child: Icon(action.icon, size: 24, color: iconColor),
+                ),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: Text(
                     action.label,
                     textAlign: TextAlign.center,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: textColor,
-                      fontSize: labelFontSize,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
-            );
-          },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

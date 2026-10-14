@@ -32,35 +32,44 @@ class DashboardScreen extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            // Phone: 2 stat columns / 3 action columns.
-            // Tablet & desktop: 4 stat columns / 5 action columns (fits all
-            // 5 quick actions in one row).
-            final isCompact = width < 600;
-            final statColumns = isCompact ? 2 : 4;
-            final actionColumns = isCompact ? 3 : 5;
+            final contentWidth = (width - 32).clamp(0.0, 1280.0);
+            final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+            final statColumns = (contentWidth / (textScale > 1.4 ? 240 : 160))
+                .floor()
+                .clamp(1, 4);
+            final actionColumns = (contentWidth / (textScale > 1.4 ? 210 : 150))
+                .floor()
+                .clamp(1, 4);
 
             return RefreshIndicator(
               onRefresh: () =>
                   ref.read(dashboardControllerProvider.notifier).refresh(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (user != null)
-                      DashboardHeader(
-                        user: user,
-                        onLogout: () =>
-                            ref.read(authControllerProvider.notifier).logout(),
-                      ),
-                    const SizedBox(height: 24),
-                    _DashboardBody(
-                      state: dashboardState,
-                      statColumns: statColumns,
-                      actionColumns: actionColumns,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1312),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (user != null)
+                          DashboardHeader(
+                            user: user,
+                            onLogout: () => ref
+                                .read(authControllerProvider.notifier)
+                                .logout(),
+                          ),
+                        const SizedBox(height: 24),
+                        _DashboardBody(
+                          state: dashboardState,
+                          statColumns: statColumns,
+                          actionColumns: actionColumns,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -225,7 +234,7 @@ class _DashboardContent extends StatelessWidget {
       children: [
         StatCardsGrid(stats: stats, crossAxisCount: statColumns),
         const SizedBox(height: 24),
-        Text('Quick Actions', style: theme.textTheme.titleMedium),
+        Text('Quick Actions', style: theme.textTheme.titleLarge),
         const SizedBox(height: 16),
         QuickActionsGrid(actions: actions, crossAxisCount: actionColumns),
         const SizedBox(height: 24),
@@ -241,7 +250,7 @@ class _DashboardContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text('Recent Orders', style: theme.textTheme.titleMedium),
+        Text('Recent Orders', style: theme.textTheme.titleLarge),
         const SizedBox(height: 16),
         RecentOrdersSection(orders: recentOrders),
       ],

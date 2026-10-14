@@ -53,11 +53,13 @@ class StatCardsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
-      // 1.45 rather than 1.6 — gives cells a little more height headroom
-      // before the responsive tier below even has to kick in. This alone
-      // doesn't guarantee no overflow (see _StatCard for the actual fix);
-      // it just means the compact tier is needed less often.
-      childAspectRatio: 1.45,
+      mainAxisExtent:
+          150 +
+          (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(
+                0.0,
+                3.0,
+              ) *
+              60,
       children: [for (final c in cards) _StatCard(data: c)],
     );
   }
@@ -97,7 +99,7 @@ class _StatCard extends StatelessWidget {
           final iconPadding = isCompact ? 5.0 : 8.0;
           final iconSize = isCompact ? 16.0 : 20.0;
           final valueFontSize = isCompact ? 17.0 : 22.0;
-          final labelFontSize = isCompact ? 11.0 : 14.0;
+          final labelFontSize = isCompact ? 12.0 : 14.0;
           final gap = isCompact ? 4.0 : 8.0;
 
           return Padding(

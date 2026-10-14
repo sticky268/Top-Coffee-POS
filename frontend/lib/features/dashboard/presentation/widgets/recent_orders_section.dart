@@ -49,37 +49,85 @@ class _RecentOrderTile extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: '\$');
     final statusColor = order.status.color(theme.colorScheme);
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: statusColor.withValues(alpha: 0.15),
-        child: Icon(order.status.icon, color: statusColor, size: 20),
-      ),
-      title: Text(
-        '${order.orderNumber} • ${order.itemCount} item${order.itemCount == 1 ? '' : 's'}',
-      ),
-      subtitle: Text(
-        [
-          timeLabel,
-          if (order.customerOrTable != null) order.customerOrTable!,
-        ].join(' · '),
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            currency.format(order.total),
-            style: theme.textTheme.titleMedium,
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${order.orderNumber} • ${order.itemCount} item${order.itemCount == 1 ? '' : 's'}',
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          [
+            timeLabel,
+            if (order.customerOrTable != null) order.customerOrTable!,
+          ].join(' · '),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 2),
-          Text(
+        ),
+      ],
+    );
+    final summary = Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          currency.format(order.total),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
             order.status.label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: statusColor,
-              fontSize: 12,
-            ),
+            style: theme.textTheme.labelMedium?.copyWith(color: statusColor),
           ),
-        ],
+        ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              constraints.maxWidth < 500 ||
+              MediaQuery.textScalerOf(context).scale(14) > 19;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: statusColor.withValues(alpha: 0.12),
+                child: Icon(order.status.icon, color: statusColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: compact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          details,
+                          const SizedBox(height: 12),
+                          summary,
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: details),
+                          const SizedBox(width: 16),
+                          summary,
+                        ],
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
