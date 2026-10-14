@@ -18,6 +18,10 @@ class AuditLogService
         ?array $oldValues = null,
         ?array $newValues = null,
     ): AuditLog {
+        $branchId = $auditable instanceof \App\Models\Branch
+            ? $auditable->getKey() : $auditable?->getAttribute('branch_id');
+        $branchId ??= $request->input('branch_id');
+        if ($branchId !== null) $newValues = ($newValues ?? []) + ['branch_id' => (int) $branchId];
         return AuditLog::create([
             'user_id' => $request->user()?->id,
             'action' => $action,

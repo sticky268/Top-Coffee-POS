@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 
 use App\Models\Branch;
+use App\Services\AuditLogService;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -173,7 +174,7 @@ class UserController extends Controller
             ], 403);
         }
 
-        $user = DB::transaction(function () use ($data, $branchIds, $primaryBranchId, $actor) {
+        $user = DB::transaction(function () use ($data, $branchIds, $primaryBranchId, $actor, $request) {
             $user = User::create([
                 'business_id' => $actor->business_id,
                 'name' => $data['name'],
@@ -187,6 +188,8 @@ class UserController extends Controller
 
             $this->syncBranches($user, $branchIds, $primaryBranchId);
 
+            app(AuditLogService::class)->record($request, 'user.created', $user, null,
+                ['name' => $user->name, 'role' => $data['role'], 'branch_ids' => $branchIds]);
             return $user->load([
                 'roles:id,name',
                 'branches:id,name,code',
@@ -325,7 +328,8 @@ class UserController extends Controller
             }
         }
 
-        DB::transaction(function () use ($user, $data, $branchIds, $primaryBranchId) {
+        DB::transaction(function () use ($user, $data, $branchIds, $primaryBranchId, $request) {
+            $old = $user->only(['name', 'email', 'phone', 'is_active']);
             $update = [];
 
             foreach (['name', 'email', 'phone', 'is_active'] as $field) {
@@ -366,6 +370,11 @@ class UserController extends Controller
                         ]);
                     });
             }
+            app(AuditLogService::class)->record($request, 'user.updated', $user, $old,
+                $user->only(['name', 'email', 'phone', 'is_active']) + [
+                    'role' => $data['role'] ?? null, 'branch_ids' => $branchIds,
+                    'password_reset' => isset($data['password']),
+                ]);
         });
 
         $user->load([
@@ -405,7 +414,8 @@ class UserController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($user) {
+        DB::transaction(function () use ($user, $request) {
+            app(AuditLogService::class)->record($request, 'user.deleted', $user, $user->only(['name', 'email']), null);
             $user->tokens()->delete();
             $user->delete();
         });

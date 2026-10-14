@@ -1,5 +1,6 @@
 """Validate report fixtures with independent Excel and PDF readers."""
 from pathlib import Path
+import re
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
@@ -14,5 +15,6 @@ assert formula_name.data_type == "s", "Product names must remain literal text"
 reader = PdfReader(root / "sales.pdf")
 assert reader.pages
 text = "\n".join(page.extract_text() for page in reader.pages)
-assert "Top Coffee" in text and "12.5" in text
+compact = re.sub(r"\s+", "", text)
+assert "TopCoffee" in compact and "12.5" in compact, repr(text)
 print("Excel opens correctly, amounts are numeric, formula names are text, and PDF contains report data.")

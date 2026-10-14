@@ -221,7 +221,7 @@ class CustomerController extends Controller
             'orders' => function ($query) {
                 $query->where('status', 'completed')
                     ->with(['items.product'])
-                    ->latest('created_at');
+                    ->latest('created_at')->limit(20);
             },
         ]);
 
@@ -346,6 +346,9 @@ class CustomerController extends Controller
             ], 403);
         }
 
+        $request->validate(['per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1']);
+
         $orders = $customer->orders()
             ->where('status', 'completed')
             ->with(['items.product', 'payments'])
@@ -391,6 +394,9 @@ class CustomerController extends Controller
                 'lifetime_redeemed' => 0,
             ]);
         }
+
+        $request->validate(['per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1']);
 
         $transactions = $account->transactions()
             ->with(['branch:id,name', 'order:id,uuid'])
@@ -475,15 +481,9 @@ class CustomerController extends Controller
         }
 
         $result = DB::transaction(function () use ($customer, $validated, $branchId) {
-            $account = $customer->loyaltyAccount()->first();
-
-            if (! $account) {
-                $account = $customer->loyaltyAccount()->create([
-                    'points_balance' => 0,
-                    'lifetime_earned' => 0,
-                    'lifetime_redeemed' => 0,
-                ]);
-            }
+            $account = $customer->loyaltyAccount()->firstOrCreate([], [
+                'points_balance' => 0, 'lifetime_earned' => 0, 'lifetime_redeemed' => 0,
+            ]);
 
             $account = $customer->loyaltyAccount()
                 ->lockForUpdate()

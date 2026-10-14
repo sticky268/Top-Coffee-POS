@@ -124,4 +124,21 @@ class AuditLogApiTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.action', 'inventory.adjusted');
     }
+    public function test_audit_viewer_cannot_read_an_unassigned_branchs_events(): void
+    {
+        $business = \App\Models\Business::factory()->create();
+        $a = \App\Models\Branch::factory()->create(['business_id' => $business->id]);
+        $b = \App\Models\Branch::factory()->create(['business_id' => $business->id]);
+        $viewer = User::factory()->create(['business_id' => $business->id]);
+        $viewer->branches()->attach($a->id);
+        $viewer->givePermissionTo(Permission::findOrCreate('audit.view'));
+        $this->actingAs($viewer);
+        foreach ([$a, $b] as $branch) {
+            AuditLog::create(['user_id' => $viewer->id, 'action' => 'inventory.counted',
+                'new_values' => ['branch_id' => $branch->id]]);
+        }
+        $this->getJson('/api/v1/audit-logs')->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.new_values.branch_id', $a->id);
+    }
+
 }

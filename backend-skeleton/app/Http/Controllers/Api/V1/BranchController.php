@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class BranchController extends Controller
 {
@@ -118,10 +119,13 @@ class BranchController extends Controller
             ], 403);
         }
 
-        $branch = Branch::create(array_merge(
-            $validator->validated(),
-            ['business_id' => $request->user()->business_id],
-        ));
+        $branch = DB::transaction(function () use ($business, $request, $validator) {
+            \App\Models\Business::whereKey($business->id)->lockForUpdate()->firstOrFail();
+            $currentCount = $business->branches()->lockForUpdate()->get(['branches.id'])->count();
+            abort_if($currentCount >= $business->plan->branch_limit, 403, 'Your plan branch limit has been reached.');
+            return Branch::create(array_merge($validator->validated(),
+                ['business_id' => $request->user()->business_id]));
+        });
 
         return response()->json([
             'success' => true,

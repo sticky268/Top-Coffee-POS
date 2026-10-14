@@ -150,6 +150,23 @@ class OperationsConcurrencyTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'order.paid')->count());
     }
 
+    public function test_concurrent_branch_creation_cannot_exceed_the_plan_limit(): void
+    {
+        $plan = \App\Models\Plan::create(['name' => 'Two branches', 'slug' => 'race-two',
+            'branch_limit' => 2, 'price' => 0, 'billing_interval' => 'monthly', 'is_active' => true]);
+        $this->actor->business->update(['plan_id' => $plan->id]);
+        $permission = Permission::findOrCreate('branches.manage');
+        $this->actor->givePermissionTo($permission);
+        $first = $this->input($this->actor, '/api/v1/branches',
+            ['name' => 'Second', 'code' => 'RACE-2', 'timezone' => 'UTC']);
+        $second = $this->input($this->actor, '/api/v1/branches',
+            ['name' => 'Third', 'code' => 'RACE-3', 'timezone' => 'UTC']);
+        $results = $this->race([$first, $second], 'businesses', $this->actor->business_id);
+        $statuses = array_column($results, 'status'); sort($statuses);
+        $this->assertSame([201, 403], $statuses, json_encode($results));
+        $this->assertSame(2, Branch::where('business_id', $this->actor->business_id)->count());
+    }
+
     public function test_simultaneous_same_uuid_refund_is_applied_once(): void
     {
         $this->open($this->actor);
