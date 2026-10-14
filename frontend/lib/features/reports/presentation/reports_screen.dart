@@ -9,6 +9,8 @@ import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/reports_controller.dart';
 import '../application/reports_state.dart';
 import '../domain/reports_models.dart';
+import '../../../core/branch/current_branch_provider.dart';
+import 'report_export_actions.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -31,6 +33,7 @@ class ReportsScreen extends ConsumerWidget {
           ),
           ReportsLoaded(:final report, :final dateFrom, :final dateTo) =>
             _ReportsContent(
+              branch: ref.watch(currentBranchProvider)?.name ?? 'All accessible branches (UTC)',
               report: report,
               dateFrom: dateFrom,
               dateTo: dateTo,
@@ -53,6 +56,7 @@ class ReportsScreen extends ConsumerWidget {
 class _ReportsContent extends StatelessWidget {
   const _ReportsContent({
     required this.report,
+    required this.branch,
     required this.dateFrom,
     required this.dateTo,
     required this.selectedRange,
@@ -61,6 +65,7 @@ class _ReportsContent extends StatelessWidget {
   });
 
   final ReportsData report;
+  final String branch;
   final DateTime dateFrom;
   final DateTime dateTo;
   final ReportsDateRange selectedRange;
@@ -89,6 +94,8 @@ class _ReportsContent extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 16),
+          ReportExportActions(report: report, branch: branch),
           const SizedBox(height: 16),
           _SummaryGrid(summary: report.summary),
           const SizedBox(height: 16),

@@ -84,6 +84,18 @@ jobs:
           retention-days: 7
       - run: flutter analyze
       - run: flutter test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exported Excel and PDF with independent readers
+        run: |
+          python -m pip install 'openpyxl>=3.1,<4' 'pypdf>=5,<7'
+          python tool/verify_report_exports.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report-export-previews
+          path: frontend/build/report-exports/*
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:

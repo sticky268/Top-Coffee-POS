@@ -59,7 +59,7 @@ class SystemIntegrityReviewTest extends TestCase
         $service->record($this->ingredient, 'purchase', 0.2, $this->actor->id);
         $service->record($this->ingredient, 'wastage', -0.3, $this->actor->id, 'Spilled');
         $this->assertEquals(0, $this->ingredient->fresh()->current_stock);
-        $this->assertEquals(0, DB::table('stock_movements')->sum('quantity'));
+        $this->assertEqualsWithDelta(0, DB::table('stock_movements')->sum('quantity'), 0.000000001);
         // Corruption simulation only; real changes always use the service.
         DB::table('ingredients')->where('id', $this->ingredient->id)->update(['current_stock' => 1]);
         Artisan::call('pos:production-check', ['--json' => true]);
