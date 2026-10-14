@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -96,8 +98,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Select a category')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select a category')));
       return;
     }
 
@@ -184,219 +187,224 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (errorMessage != null) ...[
-                _ErrorBanner(message: errorMessage),
+      body: PageContent(
+        maxWidth: 800,
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (errorMessage != null) ...[
+                  _ErrorBanner(message: errorMessage),
+                  const SizedBox(height: 16),
+                ],
+                TextFormField(
+                  controller: _nameController,
+                  enabled: !isSaving,
+                  decoration: const InputDecoration(
+                    labelText: 'Product name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Enter a product name'
+                      : null,
+                  textInputAction: TextInputAction.next,
+                ),
                 const SizedBox(height: 16),
-              ],
-              TextFormField(
-                controller: _nameController,
-                enabled: !isSaving,
-                decoration: const InputDecoration(
-                  labelText: 'Product name',
-                  border: OutlineInputBorder(),
+                TextFormField(
+                  controller: _skuController,
+                  enabled: !isSaving,
+                  decoration: const InputDecoration(
+                    labelText: 'SKU (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
-                validator: (value) => (value == null || value.trim().isEmpty)
-                    ? 'Enter a product name'
-                    : null,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _skuController,
-                enabled: !isSaving,
-                decoration: const InputDecoration(
-                  labelText: 'SKU (optional)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  enabled: !isSaving,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                enabled: !isSaving,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _basePriceController,
+                  enabled: !isSaving,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Base price',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    final parsed = double.tryParse((value ?? '').trim());
+                    if (parsed == null) return 'Enter a valid price';
+                    if (parsed < 0) return 'Price cannot be negative';
+                    return null;
+                  },
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _basePriceController,
-                enabled: !isSaving,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Base price',
-                  prefixText: '\$ ',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final parsed = double.tryParse((value ?? '').trim());
-                  if (parsed == null) return 'Enter a valid price';
-                  if (parsed < 0) return 'Price cannot be negative';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Product Photo', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (_selectedImage != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(_selectedImage!.path),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Product Photo', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    if (_selectedImage != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(_selectedImage!.path),
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    else
+                      Container(
                         height: 180,
                         width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  else
-                    Container(
-                      height: 180,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.colorScheme.outline),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.add_a_photo_outlined, size: 40),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  pos_ui.OutlinedButton.icon(
-                    onPressed: isSaving ? null : _pickImage,
-                    icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(
-                      _selectedImage == null ? 'Choose Photo' : 'Change Photo',
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              DropdownButtonFormField<int>(
-                initialValue: _selectedCategoryId,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  for (final category in widget.args.categories)
-                    DropdownMenuItem(
-                      value: category.id,
-                      child: Text(category.name),
-                    ),
-                ],
-                onChanged: isSaving
-                    ? null
-                    : (value) => setState(() => _selectedCategoryId = value),
-                validator: (value) =>
-                    value == null ? 'Select a category' : null,
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Active'),
-                subtitle: const Text('Visible in the catalog when on'),
-                value: _isActive,
-                onChanged: isSaving
-                    ? null
-                    : (value) => setState(() => _isActive = value),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Variants', style: theme.textTheme.titleMedium),
-                  pos_ui.SecondaryButton.icon(
-                    onPressed: isSaving ? null : _addVariant,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Variant'),
-                  ),
-                ],
-              ),
-              if (_variants.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'No variants — this product has a single price',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                )
-              else
-                Card(
-                  child: Column(
-                    children: [
-                      for (final variant in _variants)
-                        ListTile(
-                          title: Text(variant.name),
-                          subtitle: variant.isActive
-                              ? null
-                              : const Text('Disabled'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${variant.priceDelta >= 0 ? '+' : ''}${currency.format(variant.priceDelta)}',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                              pos_ui.IconButton(
-                                icon: const Icon(Icons.edit_outlined),
-                                tooltip: 'Edit variant',
-                                onPressed: isSaving
-                                    ? null
-                                    : () => _editVariant(variant),
-                              ),
-                            ],
-                          ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: theme.colorScheme.outline),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                    ],
-                  ),
+                        child: const Center(
+                          child: Icon(Icons.add_a_photo_outlined, size: 40),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    pos_ui.OutlinedButton.icon(
+                      onPressed: isSaving ? null : _pickImage,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _selectedImage == null
+                            ? 'Choose Photo'
+                            : 'Change Photo',
+                      ),
+                    ),
+                  ],
                 ),
-              if (_isEditing) ...[
+
                 const SizedBox(height: 16),
-                pos_ui.OutlinedButton.icon(
-                  onPressed: isSaving
+
+                DropdownButtonFormField<int>(
+                  initialValue: _selectedCategoryId,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final category in widget.args.categories)
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(category.name),
+                      ),
+                  ],
+                  onChanged: isSaving
                       ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => RecipeEditorScreen(
-                                product: widget.args.initialProduct!,
-                              ),
+                      : (value) => setState(() => _selectedCategoryId = value),
+                  validator: (value) =>
+                      value == null ? 'Select a category' : null,
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active'),
+                  subtitle: const Text('Visible in the catalog when on'),
+                  value: _isActive,
+                  onChanged: isSaving
+                      ? null
+                      : (value) => setState(() => _isActive = value),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Variants', style: theme.textTheme.titleMedium),
+                    pos_ui.SecondaryButton.icon(
+                      onPressed: isSaving ? null : _addVariant,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Variant'),
+                    ),
+                  ],
+                ),
+                if (_variants.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No variants — this product has a single price',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else
+                  Card(
+                    child: Column(
+                      children: [
+                        for (final variant in _variants)
+                          ListTile(
+                            title: Text(variant.name),
+                            subtitle: variant.isActive
+                                ? null
+                                : const Text('Disabled'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${variant.priceDelta >= 0 ? '+' : ''}${currency.format(variant.priceDelta)}',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                pos_ui.IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  tooltip: 'Edit variant',
+                                  onPressed: isSaving
+                                      ? null
+                                      : () => _editVariant(variant),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                  icon: const Icon(Icons.restaurant_menu_outlined),
-                  label: const Text('Manage Recipe'),
+                          ),
+                      ],
+                    ),
+                  ),
+                if (_isEditing) ...[
+                  const SizedBox(height: 16),
+                  pos_ui.OutlinedButton.icon(
+                    onPressed: isSaving
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => RecipeEditorScreen(
+                                  product: widget.args.initialProduct!,
+                                ),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.restaurant_menu_outlined),
+                    label: const Text('Manage Recipe'),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                pos_ui.PrimaryButton(
+                  onPressed: isSaving ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  isLoading: isSaving,
+                  child: Text(_isEditing ? 'Save Changes' : 'Create Product'),
                 ),
               ],
-              const SizedBox(height: 24),
-              pos_ui.PrimaryButton(
-                onPressed: isSaving ? null : _submit,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                isLoading: isSaving,
-                child: Text(_isEditing ? 'Save Changes' : 'Create Product'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

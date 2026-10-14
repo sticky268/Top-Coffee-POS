@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -55,18 +57,21 @@ class ProductsScreen extends ConsumerWidget {
               label: const Text('Add Product'),
             )
           : null,
-      body: switch (state) {
-        ProductsLoading() => const Center(child: CircularProgressIndicator()),
-        ProductsError(:final message) => _ProductsErrorView(
-          message: message,
-          onRetry: () =>
-              ref.read(productsControllerProvider.notifier).refresh(),
-        ),
-        ProductsLoaded loaded => _ProductsBody(
-          state: loaded,
-          canModify: canModify,
-        ),
-      },
+      body: PageContent(
+        maxWidth: 1000,
+        child: switch (state) {
+          ProductsLoading() => const Center(child: CircularProgressIndicator()),
+          ProductsError(:final message) => _ProductsErrorView(
+            message: message,
+            onRetry: () =>
+                ref.read(productsControllerProvider.notifier).refresh(),
+          ),
+          ProductsLoaded loaded => _ProductsBody(
+            state: loaded,
+            canModify: canModify,
+          ),
+        },
+      ),
     );
   }
 }
@@ -124,15 +129,17 @@ class _ProductsBodyState extends ConsumerState<_ProductsBody> {
           .setProductActive(product.id, false);
       if (!mounted) return;
       ref.read(productsControllerProvider.notifier).refresh();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('"${product.name}" disabled')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('"${product.name}" disabled')));
     } catch (e) {
       if (!mounted) return;
       final message = e is ApiException
           ? e.message
           : 'Could not disable this product';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _disablingIds.remove(product.id));
     }

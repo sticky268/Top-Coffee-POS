@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/page_content.dart';
+import '../../../pos/presentation/widgets/checkout_summary.dart';
 import '../../domain/order_models.dart';
 import 'order_status_helpers.dart';
 
@@ -25,42 +27,19 @@ class OrderListTile extends StatelessWidget {
       if (order.cashier != null) order.cashier!.name,
     ];
 
-    return ListTile(
+    return RecordTile(
       onTap: onTap,
       leading: CircleAvatar(
         backgroundColor: statusColor.withValues(alpha: 0.15),
-        child: Text(
-          '#${order.displayOrderNumber}',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: statusColor,
-          ),
-        ),
+        child: Icon(Icons.receipt_long_outlined, color: statusColor),
       ),
-      title: Text('Order ${order.displayOrderReference}'),
-      subtitle: Text(
-        subtitleParts.join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            currency.format(order.total),
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            orderStatusLabel(order.status),
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: statusColor,
-              fontSize: 12,
-            ),
-          ),
-        ],
+      title: 'Order ${order.displayOrderReference}',
+      subtitle: subtitleParts.join(' · '),
+      trailing: const Icon(Icons.chevron_right),
+      details: CheckoutAmountRow(
+        label: orderStatusLabel(order.status),
+        value: currency.format(order.total),
+        valueColor: statusColor,
       ),
     );
   }

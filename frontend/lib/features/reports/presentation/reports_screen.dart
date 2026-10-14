@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -16,30 +18,33 @@ class ReportsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
-      body: switch (state) {
-        ReportsLoading() => const Center(child: CircularProgressIndicator()),
-        ReportsError(:final message) => _ErrorView(
-          message: message,
-          onRetry: () {
-            ref.read(reportsControllerProvider.notifier).refresh();
-          },
-        ),
-        ReportsLoaded(:final report, :final dateFrom, :final dateTo) =>
-          _ReportsContent(
-            report: report,
-            dateFrom: dateFrom,
-            dateTo: dateTo,
-            selectedRange: ref
-                .read(reportsControllerProvider.notifier)
-                .selectedRange,
-            onRangeSelected: (range) {
-              ref.read(reportsControllerProvider.notifier).selectRange(range);
-            },
-            onRefresh: () {
-              return ref.read(reportsControllerProvider.notifier).refresh();
+      body: PageContent(
+        maxWidth: 1200,
+        child: switch (state) {
+          ReportsLoading() => const Center(child: CircularProgressIndicator()),
+          ReportsError(:final message) => _ErrorView(
+            message: message,
+            onRetry: () {
+              ref.read(reportsControllerProvider.notifier).refresh();
             },
           ),
-      },
+          ReportsLoaded(:final report, :final dateFrom, :final dateTo) =>
+            _ReportsContent(
+              report: report,
+              dateFrom: dateFrom,
+              dateTo: dateTo,
+              selectedRange: ref
+                  .read(reportsControllerProvider.notifier)
+                  .selectedRange,
+              onRangeSelected: (range) {
+                ref.read(reportsControllerProvider.notifier).selectRange(range);
+              },
+              onRefresh: () {
+                return ref.read(reportsControllerProvider.notifier).refresh();
+              },
+            ),
+        },
+      ),
     );
   }
 }
@@ -292,8 +297,9 @@ class _SectionCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),

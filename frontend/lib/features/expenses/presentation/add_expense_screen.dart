@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -111,8 +113,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } on ApiException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
 
@@ -178,93 +181,96 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       appBar: AppBar(
         title: Text(widget.expense == null ? 'Add Expense' : 'Edit Expense'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            switch (categoryState) {
-              ExpenseCategoriesLoading() => const LinearProgressIndicator(),
-              ExpenseCategoriesError(:final message) => Text(
-                message,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              ExpenseCategoriesLoaded(:final categories) =>
-                pos_ui.ActionSurface(
-                  onTap: () => _selectCategory(categories),
-                  borderRadius: BorderRadius.circular(4),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                    child: Text(
-                      _selectedCategoryId == null
-                          ? 'Select category'
-                          : categories
-                                .firstWhere(
-                                  (category) =>
-                                      category.id == _selectedCategoryId,
-                                )
-                                .name,
+      body: PageContent(
+        maxWidth: 800,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              switch (categoryState) {
+                ExpenseCategoriesLoading() => const LinearProgressIndicator(),
+                ExpenseCategoriesError(:final message) => Text(
+                  message,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                ExpenseCategoriesLoaded(:final categories) =>
+                  pos_ui.ActionSurface(
+                    onTap: () => _selectCategory(categories),
+                    borderRadius: BorderRadius.circular(4),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Text(
+                        _selectedCategoryId == null
+                            ? 'Select category'
+                            : categories
+                                  .firstWhere(
+                                    (category) =>
+                                        category.id == _selectedCategoryId,
+                                  )
+                                  .name,
+                      ),
                     ),
                   ),
+              },
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-            },
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                prefixText: '\$ ',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              maxLength: 255,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'What was this expense for?',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            pos_ui.ActionSurface(
-              onTap: _selectDate,
-              borderRadius: BorderRadius.circular(4),
-              child: InputDecorator(
                 decoration: const InputDecoration(
-                  labelText: 'Spent date',
+                  labelText: 'Amount',
+                  prefixText: '\$ ',
                   border: OutlineInputBorder(),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today_outlined),
-                    const SizedBox(width: 16),
-                    Text(DateFormat('MMM d, yyyy').format(_spentAt)),
-                  ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _descriptionController,
+                maxLength: 255,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'What was this expense for?',
+                  border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            pos_ui.PrimaryButton.icon(
-              onPressed: _isSaving ? null : _saveExpense,
-              isLoading: _isSaving,
-              icon: const Icon(Icons.save_outlined),
-              label: Text(
-                _isSaving
-                    ? 'Saving...'
-                    : (widget.expense == null
-                          ? 'Save Expense'
-                          : 'Update Expense'),
+              const SizedBox(height: 8),
+              pos_ui.ActionSurface(
+                onTap: _selectDate,
+                borderRadius: BorderRadius.circular(4),
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Spent date',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined),
+                      const SizedBox(width: 16),
+                      Text(DateFormat('MMM d, yyyy').format(_spentAt)),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              pos_ui.PrimaryButton.icon(
+                onPressed: _isSaving ? null : _saveExpense,
+                isLoading: _isSaving,
+                icon: const Icon(Icons.save_outlined),
+                label: Text(
+                  _isSaving
+                      ? 'Saving...'
+                      : (widget.expense == null
+                            ? 'Save Expense'
+                            : 'Update Expense'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

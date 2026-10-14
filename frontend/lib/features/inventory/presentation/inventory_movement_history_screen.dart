@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -167,66 +169,70 @@ class _InventoryMovementHistoryScreenState
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: DropdownButtonFormField<String?>(
-              initialValue: _selectedType,
-              decoration: const InputDecoration(
-                labelText: 'Movement Type',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('All movements'),
+      body: PageContent(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: DropdownButtonFormField<String?>(
+                initialValue: _selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Movement Type',
+                  border: OutlineInputBorder(),
                 ),
-                DropdownMenuItem<String?>(
-                  value: 'purchase',
-                  child: Text('Stock In / Purchase'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'adjustment',
-                  child: Text('Adjustment'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'wastage',
-                  child: Text('Wastage'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'sale_deduction',
-                  child: Text('Sale Deduction'),
-                ),
-              ],
-              onChanged: _isLoading || _isLoadingMore
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _selectedType = value;
-                      });
-                      _loadMovements();
-                    },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Card(
-              elevation: 1,
-              child: ListTile(
-                leading: const Icon(Icons.inventory_2_outlined),
-                title: const Text('Current Stock'),
-                trailing: Text(
-                  '${widget.ingredient.currentStock.toStringAsFixed(3)} '
-                  '${widget.ingredient.unit.abbreviation}',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
+                items: const [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All movements'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'purchase',
+                    child: Text('Stock In / Purchase'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'adjustment',
+                    child: Text('Adjustment'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'wastage',
+                    child: Text('Wastage'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'sale_deduction',
+                    child: Text('Sale Deduction'),
+                  ),
+                ],
+                onChanged: _isLoading || _isLoadingMore
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedType = value;
+                        });
+                        _loadMovements();
+                      },
               ),
             ),
-          ),
-          Expanded(child: _buildBody()),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Card(
+                elevation: 1,
+                child: ListTile(
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: const Text('Current Stock'),
+                  trailing: Text(
+                    '${widget.ingredient.currentStock.toStringAsFixed(3)} '
+                    '${widget.ingredient.unit.abbreviation}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
     );
   }

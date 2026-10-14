@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -148,14 +150,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       ),
     ),
   );
-  Widget _value(String label, Object? value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      spacing: 16,
-      children: [Text(label), Text('$value')],
-    ),
-  );
+  Widget _value(String label, Object? value) =>
+      DetailValue(label: label, value: '$value');
   String _cash(dynamic value) => _money.format(num.tryParse('$value') ?? 0);
 
   Widget _shifts(AuthAuthenticated auth) {
@@ -491,17 +487,25 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       if (old?.id != next?.id) _load();
     });
     if (auth is! AuthAuthenticated) {
-      return const Scaffold(body: Center(child: Text('Sign in to continue.')));
+      return const Scaffold(
+        body: PageContent(
+          maxWidth: 1000,
+          child: Center(child: Text('Sign in to continue.')),
+        ),
+      );
     }
     if (ref.watch(currentBranchProvider) == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Daily Operations')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Select a branch to view Daily Operations.',
-              textAlign: TextAlign.center,
+        body: PageContent(
+          maxWidth: 1000,
+          child: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Select a branch to view Daily Operations.',
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ),
@@ -531,117 +535,120 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            ref.watch(currentBranchProvider)?.name ?? 'Select a branch',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: sections
-                .map(
-                  (s) => ChoiceChip(
-                    label: Text(s),
-                    selected: _section == s,
-                    onSelected: (_) {
-                      setState(() => _section = s);
-                      _load();
-                    },
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 16),
-          if (_section == 'Owner report') ...[
+      body: PageContent(
+        maxWidth: 1000,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              ref.watch(currentBranchProvider)?.name ?? 'Select a branch',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                for (final days in [1, 7, 30])
-                  ChoiceChip(
-                    label: Text(days == 1 ? 'Today' : '$days days'),
-                    selected: _days == days,
-                    onSelected: (_) {
-                      setState(() => _days = days);
-                      _load();
-                    },
-                  ),
-              ],
+              children: sections
+                  .map(
+                    (s) => ChoiceChip(
+                      label: Text(s),
+                      selected: _section == s,
+                      onSelected: (_) {
+                        setState(() => _section = s);
+                        _load();
+                      },
+                    ),
+                  )
+                  .toList(),
             ),
-            if (auth.user.branches.length > 1)
-              SwitchListTile(
-                title: const Text('Compare accessible branches'),
-                value: _compare,
-                onChanged: (v) {
-                  setState(() => _compare = v);
-                  _load();
-                },
+            const SizedBox(height: 16),
+            if (_section == 'Owner report') ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final days in [1, 7, 30])
+                    ChoiceChip(
+                      label: Text(days == 1 ? 'Today' : '$days days'),
+                      selected: _days == days,
+                      onSelected: (_) {
+                        setState(() => _days = days);
+                        _load();
+                      },
+                    ),
+                ],
               ),
-          ],
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
-          else if (_error != null)
-            _card('Could not load operations', [
-              Text(_error!),
-              TextButton(onPressed: _load, child: const Text('Retry')),
-            ])
-          else if (_data != null)
-            switch (_section) {
-              'Stock counts' => _stock(auth),
-              'Availability' => _availability(),
-              'Owner report' => _report(),
-              _ => _shifts(auth),
-            },
-          if (!_loading && _section == 'Owner report')
-            for (final branch in _comparisons)
-              _card('${branch['branch']}', [
-                _value('Gross receipts', _cash(branch['gross_sales'])),
-                _value('Net receipts', _cash(branch['net_sales'])),
-                _value('Cash difference', _cash(branch['cash_difference'])),
-                _value('Cost incomplete items', branch['unknown_cost_items']),
-              ]),
-          for (final operation in _pending)
-            _card('Saved operation · ${operation['path']}', [
-              Text(
-                operation['rejected'] == true
-                    ? 'Server rejected this request.'
-                    : 'Confirmation pending. Retry the original request.',
-              ),
-              if (operation['error'] != null) Text('${operation['error']}'),
-              Text('Reference: ${operation['uuid']}'),
-              TextButton(
-                onPressed: () async {
-                  try {
-                    await ref
-                        .read(operationsRepositoryProvider)
-                        .retry(operation);
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('$e')));
-                    }
-                  }
-                  if (mounted) _load();
-                },
-                child: const Text('Retry original request'),
-              ),
-              if (operation['rejected'] == true)
+              if (auth.user.branches.length > 1)
+                SwitchListTile(
+                  title: const Text('Compare accessible branches'),
+                  value: _compare,
+                  onChanged: (v) {
+                    setState(() => _compare = v);
+                    _load();
+                  },
+                ),
+            ],
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              _card('Could not load operations', [
+                Text(_error!),
+                TextButton(onPressed: _load, child: const Text('Retry')),
+              ])
+            else if (_data != null)
+              switch (_section) {
+                'Stock counts' => _stock(auth),
+                'Availability' => _availability(),
+                'Owner report' => _report(),
+                _ => _shifts(auth),
+              },
+            if (!_loading && _section == 'Owner report')
+              for (final branch in _comparisons)
+                _card('${branch['branch']}', [
+                  _value('Gross receipts', _cash(branch['gross_sales'])),
+                  _value('Net receipts', _cash(branch['net_sales'])),
+                  _value('Cash difference', _cash(branch['cash_difference'])),
+                  _value('Cost incomplete items', branch['unknown_cost_items']),
+                ]),
+            for (final operation in _pending)
+              _card('Saved operation · ${operation['path']}', [
+                Text(
+                  operation['rejected'] == true
+                      ? 'Server rejected this request.'
+                      : 'Confirmation pending. Retry the original request.',
+                ),
+                if (operation['error'] != null) Text('${operation['error']}'),
+                Text('Reference: ${operation['uuid']}'),
                 TextButton(
                   onPressed: () async {
-                    await ref
-                        .read(operationsRepositoryProvider)
-                        .dismissRejected(operation);
+                    try {
+                      await ref
+                          .read(operationsRepositoryProvider)
+                          .retry(operation);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    }
                     if (mounted) _load();
                   },
-                  child: const Text('Dismiss rejected request'),
+                  child: const Text('Retry original request'),
                 ),
-            ]),
-        ],
+                if (operation['rejected'] == true)
+                  TextButton(
+                    onPressed: () async {
+                      await ref
+                          .read(operationsRepositoryProvider)
+                          .dismissRejected(operation);
+                      if (mounted) _load();
+                    },
+                    child: const Text('Dismiss rejected request'),
+                  ),
+              ]),
+          ],
+        ),
       ),
     );
   }

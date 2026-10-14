@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
@@ -33,16 +35,18 @@ class _CategoryManagementScreenState
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Enter a category name')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a category name')));
       return;
     }
 
     final branch = ref.read(currentBranchProvider);
 
     if (branch == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No branch is selected')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No branch is selected')));
       return;
     }
 
@@ -61,8 +65,9 @@ class _CategoryManagementScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('"$name" created')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('"$name" created')));
     } catch (e) {
       if (!mounted) return;
 
@@ -70,8 +75,9 @@ class _CategoryManagementScreenState
           ? e.message
           : 'Could not create category';
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -168,8 +174,9 @@ class _CategoryManagementScreenState
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('"${result.name}" updated')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('"${result.name}" updated')));
       } catch (e) {
         if (!mounted) return;
 
@@ -177,8 +184,9 @@ class _CategoryManagementScreenState
             ? e.message
             : 'Could not update category';
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       } finally {
         if (mounted) {
           setState(() => _isSaving = false);
@@ -239,8 +247,9 @@ class _CategoryManagementScreenState
           ? e.message
           : 'Could not deactivate category';
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -256,100 +265,110 @@ class _CategoryManagementScreenState
 
     return Scaffold(
       appBar: AppBar(title: const Text('Manage Categories')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              if (branch != null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Branch: ${branch.name}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _nameController,
-                      enabled: !_isSaving && canModify,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: canModify ? (_) => _createCategory() : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Category name',
-                        border: OutlineInputBorder(),
-                      ),
+      body: PageContent(
+        maxWidth: 1000,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                if (branch != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Branch: ${branch.name}',
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  pos_ui.PrimaryButton(
-                    onPressed: _isSaving || !canModify ? null : _createCategory,
-                    isLoading: _isSaving,
-                    child: const Text('Add'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: switch (state) {
-                  ProductsLoading() => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  ProductsError(:final message) => Center(child: Text(message)),
-                  ProductsLoaded(:final categories) =>
-                    categories.isEmpty
-                        ? const Center(child: Text('No categories yet'))
-                        : ListView.separated(
-                            itemCount: categories.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final category = categories[index];
-                              final isGlobal = category.branchId == null;
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nameController,
+                        enabled: !_isSaving && canModify,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: canModify
+                            ? (_) => _createCategory()
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Category name',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    pos_ui.PrimaryButton(
+                      onPressed: _isSaving || !canModify
+                          ? null
+                          : _createCategory,
+                      isLoading: _isSaving,
+                      child: const Text('Add'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: switch (state) {
+                    ProductsLoading() => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    ProductsError(:final message) => Center(
+                      child: Text(message),
+                    ),
+                    ProductsLoaded(:final categories) =>
+                      categories.isEmpty
+                          ? const Center(child: Text('No categories yet'))
+                          : ListView.separated(
+                              itemCount: categories.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final category = categories[index];
+                                final isGlobal = category.branchId == null;
 
-                              return ListTile(
-                                leading: const Icon(Icons.category_outlined),
-                                title: Text(category.name),
-                                subtitle: Text(
-                                  'Sort order: ${category.sortOrder}'
-                                  '${isGlobal ? ' • Global' : ''}',
-                                ),
-                                trailing: isGlobal
-                                    ? const Chip(label: Text('Global'))
-                                    : Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          pos_ui.IconButton(
-                                            tooltip: 'Edit',
-                                            onPressed: _isSaving || !canModify
-                                                ? null
-                                                : () => _editCategory(category),
-                                            icon: const Icon(
-                                              Icons.edit_outlined,
+                                return ListTile(
+                                  leading: const Icon(Icons.category_outlined),
+                                  title: Text(category.name),
+                                  subtitle: Text(
+                                    'Sort order: ${category.sortOrder}'
+                                    '${isGlobal ? ' • Global' : ''}',
+                                  ),
+                                  trailing: isGlobal
+                                      ? const Chip(label: Text('Global'))
+                                      : Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            pos_ui.IconButton(
+                                              tooltip: 'Edit',
+                                              onPressed: _isSaving || !canModify
+                                                  ? null
+                                                  : () =>
+                                                        _editCategory(category),
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                              ),
                                             ),
-                                          ),
-                                          pos_ui.IconButton(
-                                            tooltip: 'Deactivate',
-                                            onPressed: _isSaving || !canModify
-                                                ? null
-                                                : () => _deactivateCategory(
-                                                    category,
-                                                  ),
-                                            icon: const Icon(
-                                              Icons.delete_outline,
+                                            pos_ui.IconButton(
+                                              tooltip: 'Deactivate',
+                                              onPressed: _isSaving || !canModify
+                                                  ? null
+                                                  : () => _deactivateCategory(
+                                                      category,
+                                                    ),
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                              );
-                            },
-                          ),
-                },
-              ),
-            ],
+                                          ],
+                                        ),
+                                );
+                              },
+                            ),
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

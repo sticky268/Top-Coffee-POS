@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -159,33 +161,38 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
               : 'Receipt Settings · ${currentBranch.name}',
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 900;
+      body: PageContent(
+        maxWidth: 1200,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide =
+                constraints.maxWidth >= 900 &&
+                MediaQuery.textScalerOf(context).scale(14) <= 20;
 
-          if (isWide) {
-            return SingleChildScrollView(
+            if (isWide) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: _buildSettingsPanel()),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 2, child: _buildPreviewPanel()),
+                  ],
+                ),
+              );
+            }
+
+            return ListView(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: _buildSettingsPanel()),
-                  const SizedBox(width: 16),
-                  Expanded(flex: 2, child: _buildPreviewPanel()),
-                ],
-              ),
+              children: [
+                _buildSettingsPanel(),
+                const SizedBox(height: 24),
+                _buildPreviewPanel(),
+              ],
             );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildSettingsPanel(),
-              const SizedBox(height: 24),
-              _buildPreviewPanel(),
-            ],
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -866,9 +873,9 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
   String _logoFileName() {
     final branchKey = ref.read(currentBranchProvider)?.code;
     final scope = branchKey?.trim().toLowerCase().replaceAll(
-          RegExp(r'[^a-z0-9_-]+'),
-          '_',
-        );
+      RegExp(r'[^a-z0-9_-]+'),
+      '_',
+    );
     return scope == null || scope.isEmpty
         ? 'receipt_logo.png'
         : 'receipt_logo_$scope.png';

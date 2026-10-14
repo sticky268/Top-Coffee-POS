@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -81,21 +83,26 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ),
         ],
       ),
-      body: switch (state) {
-        OrdersListLoading() => const Center(child: CircularProgressIndicator()),
-        OrdersListError(:final message) => _OrdersErrorView(
-          message: message,
-          onRetry: () =>
-              ref.read(ordersListControllerProvider.notifier).refresh(),
-        ),
-        OrdersListLoaded loaded => _OrdersContent(
-          state: loaded,
-          searchController: _searchController,
-          onSearch: _search,
-          onOpenFilters: () => _openFilters(loaded.filters),
-          onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
-        ),
-      },
+      body: PageContent(
+        maxWidth: 1000,
+        child: switch (state) {
+          OrdersListLoading() => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          OrdersListError(:final message) => _OrdersErrorView(
+            message: message,
+            onRetry: () =>
+                ref.read(ordersListControllerProvider.notifier).refresh(),
+          ),
+          OrdersListLoaded loaded => _OrdersContent(
+            state: loaded,
+            searchController: _searchController,
+            onSearch: _search,
+            onOpenFilters: () => _openFilters(loaded.filters),
+            onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
+          ),
+        },
+      ),
     );
   }
 }
@@ -157,10 +164,12 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
               Expanded(
                 child: TextField(
                   controller: widget.searchController,
+                  onChanged: (_) => setState(() {}),
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => widget.onSearch(),
                   decoration: InputDecoration(
-                    hintText: 'Search order number...',
+                    hintText: 'Search receipt number',
+                    helperText: 'Use the number printed on the receipt.',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: widget.searchController.text.isNotEmpty
                         ? pos_ui.IconButton(

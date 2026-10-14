@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -119,7 +121,7 @@ class _PaymentOperationsScreenState
           ),
         ],
       ),
-      body: _error != null
+      body: PageContent(maxWidth: 1000, child: _error != null
           ? Center(child: Text(_error!))
           : _data == null
           ? const Center(child: CircularProgressIndicator())
@@ -180,7 +182,7 @@ class _PaymentOperationsScreenState
                   'Pending corrections are retained in Daily Operations if confirmation is interrupted.',
                 ),
               ],
-            ),
+            )),
     );
   }
 }

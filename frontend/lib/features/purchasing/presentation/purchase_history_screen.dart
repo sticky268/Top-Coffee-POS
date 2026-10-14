@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -73,19 +75,22 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
           ),
         ],
       ),
-      body: purchaseState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _ErrorState(
-          message: error.toString(),
-          onRetry: () =>
-              ref.read(purchaseHistoryControllerProvider.notifier).refresh(),
-        ),
-        data: (data) => RefreshIndicator(
-          onRefresh: () =>
-              ref.read(purchaseHistoryControllerProvider.notifier).refresh(),
-          child: _PurchaseHistoryList(
-            data: data,
-            scrollController: _scrollController,
+      body: PageContent(
+        maxWidth: 1000,
+        child: purchaseState.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _ErrorState(
+            message: error.toString(),
+            onRetry: () =>
+                ref.read(purchaseHistoryControllerProvider.notifier).refresh(),
+          ),
+          data: (data) => RefreshIndicator(
+            onRefresh: () =>
+                ref.read(purchaseHistoryControllerProvider.notifier).refresh(),
+            child: _PurchaseHistoryList(
+              data: data,
+              scrollController: _scrollController,
+            ),
           ),
         ),
       ),

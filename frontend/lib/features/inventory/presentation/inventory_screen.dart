@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -64,69 +66,72 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ),
         ],
       ),
-      body: inventoryState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _ErrorState(
-          message: error.toString(),
-          onRetry: () =>
-              ref.read(inventoryListControllerProvider.notifier).refresh(),
-        ),
-        data: (data) {
-          final ingredients = _filteredIngredients(data.ingredients);
-
-          return RefreshIndicator(
-            onRefresh: () =>
+      body: PageContent(
+        maxWidth: 1000,
+        child: inventoryState.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _ErrorState(
+            message: error.toString(),
+            onRetry: () =>
                 ref.read(inventoryListControllerProvider.notifier).refresh(),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _InventoryHeader(
-                  searchController: _searchController,
-                  onSearchChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  onAddIngredient: canModify
-                      ? () {
-                          context.push('/inventory/add');
-                        }
-                      : null,
-                ),
-                const SizedBox(height: 24),
-                if (data.ingredients.isEmpty)
-                  const _EmptyState()
-                else if (ingredients.isEmpty)
-                  const _NoSearchResults()
-                else
-                  ...ingredients.map(
-                    (ingredient) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _IngredientCard(
-                        ingredient: ingredient,
-                        onEdit: canModify
-                            ? () => context.push(
-                                '/inventory/edit',
-                                extra: ingredient,
-                              )
-                            : null,
-                        onStockAction: canModify
-                            ? () => _showStockActionDialog(ingredient)
-                            : null,
-                        onDelete: canModify
-                            ? () => _deleteIngredient(ingredient)
-                            : null,
-                        onHistory: () => context.push(
-                          '/inventory/history',
-                          extra: ingredient,
+          ),
+          data: (data) {
+            final ingredients = _filteredIngredients(data.ingredients);
+
+            return RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(inventoryListControllerProvider.notifier).refresh(),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _InventoryHeader(
+                    searchController: _searchController,
+                    onSearchChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    onAddIngredient: canModify
+                        ? () {
+                            context.push('/inventory/add');
+                          }
+                        : null,
+                  ),
+                  const SizedBox(height: 24),
+                  if (data.ingredients.isEmpty)
+                    const _EmptyState()
+                  else if (ingredients.isEmpty)
+                    const _NoSearchResults()
+                  else
+                    ...ingredients.map(
+                      (ingredient) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _IngredientCard(
+                          ingredient: ingredient,
+                          onEdit: canModify
+                              ? () => context.push(
+                                  '/inventory/edit',
+                                  extra: ingredient,
+                                )
+                              : null,
+                          onStockAction: canModify
+                              ? () => _showStockActionDialog(ingredient)
+                              : null,
+                          onDelete: canModify
+                              ? () => _deleteIngredient(ingredient)
+                              : null,
+                          onHistory: () => context.push(
+                            '/inventory/history',
+                            extra: ingredient,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -373,14 +378,13 @@ class _InventoryHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 12,
           children: [
-            Expanded(
-              child: Text(
-                'Stock',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-            ),
+            Text('Stock', style: Theme.of(context).textTheme.headlineSmall),
             pos_ui.PrimaryButton.icon(
               onPressed: onAddIngredient,
               icon: const Icon(Icons.add),

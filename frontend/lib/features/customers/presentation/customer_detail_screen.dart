@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -136,20 +138,23 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
           ],
         ],
       ),
-      body: switch (detailState) {
-        CustomerDetailLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        CustomerDetailError(:final message) => _ErrorView(message: message),
-        CustomerDetailLoaded(:final customer) => RefreshIndicator(
-          onRefresh: _refresh,
-          child: _CustomerDetailContent(
-            customer: customer,
-            ordersState: ordersState,
-            loyaltyState: loyaltyState,
+      body: PageContent(
+        maxWidth: 800,
+        child: switch (detailState) {
+          CustomerDetailLoading() => const Center(
+            child: CircularProgressIndicator(),
           ),
-        ),
-      },
+          CustomerDetailError(:final message) => _ErrorView(message: message),
+          CustomerDetailLoaded(:final customer) => RefreshIndicator(
+            onRefresh: _refresh,
+            child: _CustomerDetailContent(
+              customer: customer,
+              ordersState: ordersState,
+              loyaltyState: loyaltyState,
+            ),
+          ),
+        },
+      ),
     );
   }
 }

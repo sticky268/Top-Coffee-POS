@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -30,18 +32,21 @@ class EditOrderScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: switch (orderState) {
-        OrderDetailLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        OrderDetailError(:final message) => _ErrorView(
-          message: message,
-          onRetry: () => ref
-              .read(orderDetailControllerProvider(orderId).notifier)
-              .refresh(),
-        ),
-        OrderDetailLoaded(:final order) => _EditOrderBody(order: order),
-      },
+      body: PageContent(
+        maxWidth: 800,
+        child: switch (orderState) {
+          OrderDetailLoading() => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          OrderDetailError(:final message) => _ErrorView(
+            message: message,
+            onRetry: () => ref
+                .read(orderDetailControllerProvider(orderId).notifier)
+                .refresh(),
+          ),
+          OrderDetailLoaded(:final order) => _EditOrderBody(order: order),
+        },
+      ),
     );
   }
 }

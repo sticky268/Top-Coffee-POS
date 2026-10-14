@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -60,37 +62,41 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _search(),
-              decoration: InputDecoration(
-                hintText: 'Search name, phone or email',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isEmpty
-                    ? null
-                    : pos_ui.IconButton(
-                        onPressed: () {
-                          _searchController.clear();
-                          ref
-                              .read(customersListControllerProvider.notifier)
-                              .clearSearch();
-                          setState(() {});
-                        },
-                        icon: const Icon(Icons.clear),
-                      ),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(14)),
+      body: PageContent(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: TextField(
+                controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _search(),
+                decoration: InputDecoration(
+                  hintText: 'Search name, phone or email',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isEmpty
+                      ? null
+                      : pos_ui.IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            ref
+                                .read(customersListControllerProvider.notifier)
+                                .clearSearch();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.clear),
+                        ),
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(child: _buildBody(state)),
-        ],
+            Expanded(child: _buildBody(state)),
+          ],
+        ),
       ),
     );
   }
@@ -190,34 +196,23 @@ class _CustomerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
+      child: RecordTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          child: Text(
-            customer.name.isEmpty
-                ? '?'
-                : customer.name.substring(0, 1).toUpperCase(),
-          ),
-        ),
-        title: Text(
-          customer.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          customer.phone?.isNotEmpty == true
-              ? customer.phone!
-              : customer.email ?? 'No contact information',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+        title: customer.name,
+        subtitle: customer.phone?.isNotEmpty == true
+            ? customer.phone!
+            : customer.email ?? 'No contact information',
+        trailing: const Icon(Icons.chevron_right),
+        details: Wrap(
+          spacing: 16,
+          runSpacing: 8,
           children: [
             Text('${customer.completedOrdersCount} orders'),
-            const SizedBox(height: 4),
-            Text('\$${customer.completedOrdersTotal.toStringAsFixed(2)}'),
+            Text(
+              '\$${customer.completedOrdersTotal.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ],
         ),
       ),

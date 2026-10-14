@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -81,7 +83,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final authState = ref.watch(authControllerProvider);
 
     if (authState is! AuthAuthenticated) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: PageContent(
+          maxWidth: 1000,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
 
     final user = authState.user;
@@ -89,12 +96,15 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     if (!user.hasPermission('users.manage')) {
       return Scaffold(
         appBar: AppBar(title: const Text('Staff & Permissions')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'You do not have permission to manage staff.',
-              textAlign: TextAlign.center,
+        body: PageContent(
+          maxWidth: 1000,
+          child: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'You do not have permission to manage staff.',
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ),
@@ -125,12 +135,15 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildSearch(),
-          _buildFilters(user),
-          Expanded(child: _buildBody(state)),
-        ],
+      body: PageContent(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            _buildSearch(),
+            _buildFilters(user),
+            Expanded(child: _buildBody(state)),
+          ],
+        ),
       ),
     );
   }
@@ -351,39 +364,24 @@ class _StaffCard extends StatelessWidget {
     final primaryBranch = staff.primaryBranch;
 
     return Card(
-      child: ListTile(
+      child: RecordTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          child: Text(
-            staff.name.isEmpty ? '?' : staff.name.substring(0, 1).toUpperCase(),
-          ),
-        ),
-        title: Text(staff.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(staff.email, maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (primaryBranch != null)
-                Text(
-                  '${primaryBranch.name} � ${primaryBranch.code}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-            ],
-          ),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        leading: const CircleAvatar(child: Icon(Icons.badge_outlined)),
+        title: staff.name,
+        subtitle: [
+          staff.email,
+          if (primaryBranch != null)
+            '${primaryBranch.name} · ${primaryBranch.code}',
+        ].join('\n'),
+        trailing: const Icon(Icons.chevron_right),
+        details: Wrap(
+          spacing: 16,
+          runSpacing: 8,
           children: [
             Text(
               _roleLabel(staff.primaryRole),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.labelLarge,
             ),
-            const SizedBox(height: 8),
             Text(staff.isActive ? 'Active' : 'Inactive'),
           ],
         ),

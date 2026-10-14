@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
@@ -92,8 +94,9 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
       );
 
       if (state is CustomerDetailError) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(state.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(state.message)));
       }
 
       return;
@@ -106,60 +109,63 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Customer')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextFormField(
-            controller: _nameController,
-            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              border: OutlineInputBorder(),
+      body: PageContent(
+        maxWidth: 800,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextFormField(
+              controller: _nameController,
+              enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _phoneController,
-            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Phone',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _phoneController,
+              enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _emailController,
-            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _emailController,
+              enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _notesController,
-            enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _notesController,
+              enabled: !_isSaving && SubscriptionActionGuard.canModify(ref),
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          pos_ui.PrimaryButton(
-            onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
-                ? null
-                : _save,
-            isLoading: _isSaving,
-            child: const Text('Save Changes'),
-          ),
-        ],
+            const SizedBox(height: 24),
+            pos_ui.PrimaryButton(
+              onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
+                  ? null
+                  : _save,
+              isLoading: _isSaving,
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
       ),
     );
   }

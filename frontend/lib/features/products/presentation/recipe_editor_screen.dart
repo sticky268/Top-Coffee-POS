@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
@@ -222,7 +224,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('${widget.product.name} Recipe')),
-      body: _buildBody(),
+      body: PageContent(maxWidth: 800, child: _buildBody()),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.all(16),
         child: pos_ui.PrimaryButton.icon(
