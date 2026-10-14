@@ -83,6 +83,8 @@ class CartLineTile extends ConsumerWidget {
               );
               final total = Text(
                 currency.format(item.lineTotal),
+                maxLines: 1,
+                softWrap: false,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -90,7 +92,18 @@ class CartLineTile extends ConsumerWidget {
               if (MediaQuery.textScalerOf(context).scale(14) > 20) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [quantity, const SizedBox(height: 8), total],
+                  children: [
+                    quantity,
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: total,
+                      ),
+                    ),
+                  ],
                 );
               }
               return Row(
@@ -98,7 +111,8 @@ class CartLineTile extends ConsumerWidget {
                   quantity,
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Align(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
                       alignment: Alignment.centerRight,
                       child: total,
                     ),

@@ -24,6 +24,8 @@ class CheckoutAmountRow extends StatelessWidget {
     );
     final valueText = Text(
       value,
+      maxLines: 1,
+      softWrap: false,
       style:
           (emphasized
                   ? theme.textTheme.headlineSmall
@@ -36,11 +38,23 @@ class CheckoutAmountRow extends StatelessWidget {
         builder: (context, constraints) {
           final stacked =
               MediaQuery.textScalerOf(context).scale(14) > 20 ||
-              constraints.maxWidth < 240;
+              constraints.maxWidth < 240 ||
+              (value.length > 10 && constraints.maxWidth < 420);
           if (stacked) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [labelText, const SizedBox(height: 4), valueText],
+              children: [
+                labelText,
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: valueText,
+                  ),
+                ),
+              ],
             );
           }
           return Row(
@@ -48,7 +62,13 @@ class CheckoutAmountRow extends StatelessWidget {
             children: [
               Expanded(child: labelText),
               const SizedBox(width: 12),
-              Flexible(child: valueText),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: valueText,
+                ),
+              ),
             ],
           );
         },
