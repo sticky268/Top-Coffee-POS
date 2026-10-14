@@ -84,7 +84,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
 
     if (authState is! AuthAuthenticated) {
       return const Scaffold(
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 1000,
           child: Center(child: CircularProgressIndicator()),
         ),
@@ -96,9 +96,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     if (!user.hasPermission('users.manage')) {
       return Scaffold(
         appBar: AppBar(title: const Text('Staff & Permissions')),
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 1000,
-          child: const Center(
+          child: Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(

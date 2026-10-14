@@ -488,7 +488,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     });
     if (auth is! AuthAuthenticated) {
       return const Scaffold(
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 1000,
           child: Center(child: Text('Sign in to continue.')),
         ),
@@ -497,9 +497,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     if (ref.watch(currentBranchProvider) == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Daily Operations')),
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 1000,
-          child: const Center(
+          child: Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(

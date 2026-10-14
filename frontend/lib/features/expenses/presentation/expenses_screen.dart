@@ -601,7 +601,9 @@ class _DashboardPeriodCards extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 600;
+        final compact =
+            constraints.maxWidth < 600 ||
+            MediaQuery.textScalerOf(context).scale(14) > 20;
 
         final cards = [
           _PeriodCard(

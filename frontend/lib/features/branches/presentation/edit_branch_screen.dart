@@ -180,9 +180,9 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit Branch')),
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 800,
-          child: const Center(child: CircularProgressIndicator()),
+          child: Center(child: CircularProgressIndicator()),
         ),
       );
     }

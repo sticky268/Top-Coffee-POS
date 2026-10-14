@@ -63,7 +63,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
 
     if (authState is! AuthAuthenticated) {
       return const Scaffold(
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 1000,
           child: Center(child: CircularProgressIndicator()),
         ),
@@ -75,9 +75,9 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
     if (!user.hasPermission('branches.manage')) {
       return Scaffold(
         appBar: AppBar(title: const Text('Branches')),
-        body: PageContent(
+        body: const PageContent(
           maxWidth: 1000,
-          child: const Center(
+          child: Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(

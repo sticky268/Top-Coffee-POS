@@ -19,6 +19,9 @@ import 'package:top_coffee_pos/features/orders/presentation/widgets/order_list_t
 import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
 import 'package:top_coffee_pos/features/products/presentation/widgets/product_list_tile.dart';
 import 'package:top_coffee_pos/features/settings/presentation/settings_screen.dart';
+import 'package:top_coffee_pos/features/reports/presentation/reports_screen.dart';
+import 'package:top_coffee_pos/features/reports/domain/reports_models.dart';
+import 'package:top_coffee_pos/features/reports/data/reports_repository.dart';
 
 import 'ui_polish_test.dart' show savePreview;
 
@@ -27,6 +30,8 @@ class MockAuthRepository extends Mock implements AuthRepository {}
 class MockOrdersRepository extends Mock implements OrdersRepository {}
 
 class MockOperationsRepository extends Mock implements OperationsRepository {}
+
+class MockReportsRepository extends Mock implements ReportsRepository {}
 
 const branch = BranchSummary(
   id: 21,
@@ -110,6 +115,7 @@ void main() {
     GlobalKey? preview,
     MockOrdersRepository? orders,
     MockOperationsRepository? operations,
+    MockReportsRepository? reports,
   }) async {
     final auth = MockAuthRepository();
     when(
@@ -136,6 +142,8 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
+          if (reports != null)
+            reportsRepositoryProvider.overrideWithValue(reports),
           if (operations != null)
             operationsRepositoryProvider.overrideWithValue(operations),
           pendingOrdersProvider.overrideWith((ref) => Stream.value([])),
@@ -237,6 +245,71 @@ void main() {
       }
     }
   }
+
+  testWidgets(
+    'reports keep range choices and long totals readable at 200 percent',
+    (tester) async {
+      final reports = MockReportsRepository();
+      when(
+        () => reports.getReport(
+          dateFrom: any(named: 'dateFrom'),
+          dateTo: any(named: 'dateTo'),
+        ),
+      ).thenAnswer(
+        (_) async => ReportsData(
+          summary: ReportSummary(
+            dateFrom: DateTime(2026, 10, 14),
+            dateTo: DateTime(2026, 10, 14),
+            totalSales: 1234567.89,
+            totalOrders: 246,
+            averageOrderValue: 5018.57,
+          ),
+          salesOverview: const [],
+          hourlySales: const [],
+          paymentMethods: const [
+            ReportPaymentMethod(method: 'cash', total: 1234567.89, count: 246),
+          ],
+          orderTypes: const [
+            ReportOrderType(type: 'takeaway', count: 246, total: 1234567.89),
+          ],
+          topProducts: const [
+            ReportTopProduct(
+              productId: 6,
+              productName: 'Iced Caramel Coffee with Oat Milk',
+              quantitySold: 246,
+              salesTotal: 1234567.89,
+            ),
+          ],
+        ),
+      );
+      final preview = GlobalKey();
+      await pump(
+        tester,
+        const ReportsScreen(),
+        const Size(360, 800),
+        2,
+        false,
+        reports: reports,
+        preview: preview,
+      );
+      await tester.tap(find.widgetWithText(ChoiceChip, '7 Days'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Total Sales'), 300);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await savePreview(tester, preview, 'reports-large-text');
+      await tester.scrollUntilVisible(find.text('Top-Selling Products'), 300);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Iced Caramel Coffee with Oat Milk'), findsOneWidget);
+      verify(
+        () => reports.getReport(
+          dateFrom: any(named: 'dateFrom'),
+          dateTo: any(named: 'dateTo'),
+        ),
+      ).called(2);
+    },
+  );
 
   testWidgets('Daily Operations sections and retry fit phone large text', (
     tester,

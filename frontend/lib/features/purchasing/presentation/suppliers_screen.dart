@@ -269,48 +269,21 @@ class _SupplierCard extends StatelessWidget {
     final email = supplier.email?.trim();
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              child: Text(
-                supplier.name.isEmpty
-                    ? '?'
-                    : supplier.name.substring(0, 1).toUpperCase(),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    supplier.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (contact != null && contact.isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Text(contact, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                  if (phone != null && phone.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(phone, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                  if (email != null && email.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(email, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                  const SizedBox(height: 8),
-                  _BranchLabel(supplier: supplier),
-                ],
-              ),
-            ),
-            if (canManage)
-              PopupMenuButton<String>(
+      child: RecordTile(
+        leading: const CircleAvatar(child: Icon(Icons.local_shipping_outlined)),
+        title: supplier.name,
+        subtitle: [
+          if (contact?.isNotEmpty == true) contact!,
+          if (phone?.isNotEmpty == true) phone!,
+          if (email?.isNotEmpty == true) email!,
+        ].join('\n'),
+        details: Align(
+          alignment: Alignment.centerLeft,
+          child: _BranchLabel(supplier: supplier),
+        ),
+        trailing: canManage
+            ? PopupMenuButton<String>(
+                tooltip: 'Supplier actions',
                 onSelected: (value) {
                   if (value == 'edit') {
                     onEdit();
@@ -322,9 +295,8 @@ class _SupplierCard extends StatelessWidget {
                   PopupMenuItem(value: 'edit', child: Text('Edit')),
                   PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
-              ),
-          ],
-        ),
+              )
+            : null,
       ),
     );
   }
