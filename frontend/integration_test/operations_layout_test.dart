@@ -34,10 +34,7 @@ void main() {
       isEmpty,
       reason: 'Refusing to change a pre-existing cart.',
     );
-    addTearDown(() async {
-      container.read(cartControllerProvider.notifier).clear();
-      await binding.setSurfaceSize(null);
-    });
+    addTearDown(() => binding.setSurfaceSize(null));
     for (final size in [
       const Size(360, 800),
       const Size(800, 1280),
