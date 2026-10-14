@@ -9,6 +9,7 @@ use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
@@ -61,18 +62,22 @@ class ReportsController extends Controller
             }
         }
 
+        // Selected-branch dates are business-local; cross-branch reports use UTC.
+        $timezone = $branchId === null ? 'UTC'
+            : (Branch::withTrashed()->findOrFail($branchId)->timezone ?: 'UTC');
         $dateFrom = $request->query('date_from')
-            ? Carbon::parse($request->query('date_from'))->startOfDay()
-            : Carbon::today()->startOfDay();
-
+            ? Carbon::parse($request->query('date_from'), $timezone)->startOfDay()
+            : Carbon::today($timezone);
         $dateTo = $request->query('date_to')
-            ? Carbon::parse($request->query('date_to'))->endOfDay()
-            : Carbon::today()->endOfDay();
+            ? Carbon::parse($request->query('date_to'), $timezone)->endOfDay()
+            : Carbon::today($timezone)->endOfDay();
+        abort_if($dateTo->lt($dateFrom) || $dateFrom->diffInDays($dateTo) >= 366,
+            422, 'Choose an ordered date range of at most 366 days.');
 
         $orders = Order::query()
             ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
             ->where('status', 'completed')
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereBetween(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), [$dateFrom->copy()->utc(), $dateTo->copy()->utc()])
             ->when($branchId !== null, function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             });
@@ -84,46 +89,34 @@ class ReportsController extends Controller
             ? round($totalSales / $totalOrders, 2)
             : 0;
 
-        $salesOverview = collect();
-        $currentDate = $dateFrom->copy()->startOfDay();
-
-        while ($currentDate->lte($dateTo)) {
-            $nextDate = $currentDate->copy()->addDay();
-
-            $dailySales = (float) (clone $orders)
-                ->where('created_at', '>=', $currentDate)
-                ->where('created_at', '<', $nextDate)
-                ->sum('total');
-
-            $salesOverview->push([
-                'date' => $currentDate->toDateString(),
-                'total' => $dailySales,
-            ]);
-
-            $currentDate->addDay();
+        $days = [];
+        for ($day = $dateFrom->copy(); $day->lte($dateTo); $day->addDay()) {
+            $days[] = [$day->copy(), $day->copy()->addDay(), $day->toDateString()];
         }
+        $dailyTotals = $this->bucketTotals($orders, $days);
+        $salesOverview = collect($days)->map(fn ($bucket, $i) => [
+            'date' => $bucket[2], 'total' => $dailyTotals[$i],
+        ]);
 
-        $hourlySales = collect();
-
+        $hours = [];
         if ($dateFrom->toDateString() === $dateTo->toDateString()) {
-            $currentHour = $dateFrom->copy()->startOfHour();
-
-            for ($hour = 0; $hour < 24; $hour++) {
-                $nextHour = $currentHour->copy()->addHour();
-
-                $hourlyTotal = (float) (clone $orders)
-                    ->where('created_at', '>=', $currentHour)
-                    ->where('created_at', '<', $nextHour)
-                    ->sum('total');
-
-                $hourlySales->push([
-                    'hour' => $currentHour->format('H:00'),
-                    'total' => $hourlyTotal,
-                ]);
-
-                $currentHour->addHour();
+            // Advance real UTC hours so DST transitions produce 23 or 25 buckets.
+            for ($hour = $dateFrom->copy()->utc(); $hour->lte($dateTo->copy()->utc()); $hour->addHour()) {
+                $local = $hour->copy()->setTimezone($timezone);
+                $hours[] = [$hour->copy(), $hour->copy()->addHour(), $local->format('H:00')];
             }
         }
+        $labels = array_count_values(array_column($hours, 2));
+        foreach ($hours as &$bucket) {
+            if ($labels[$bucket[2]] > 1) {
+                $bucket[2] .= ' '.$bucket[0]->copy()->setTimezone($timezone)->format('P');
+            }
+        }
+        unset($bucket);
+        $hourlyTotals = $this->bucketTotals($orders, $hours);
+        $hourlySales = collect($hours)->map(fn ($bucket, $i) => [
+            'hour' => $bucket[2], 'total' => $hourlyTotals[$i],
+        ]);
 
         $orderTypes = (clone $orders)
             ->selectRaw('order_type, COUNT(*) as count, SUM(total) as total')
@@ -143,7 +136,7 @@ class ReportsController extends Controller
             ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
                 $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
-                    ->whereBetween('created_at', [$dateFrom, $dateTo])
+                    ->whereBetween(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), [$dateFrom->copy()->utc(), $dateTo->copy()->utc()])
                     ->when($branchId !== null, function ($query) use ($branchId) {
                         $query->where('branch_id', $branchId);
                     });
@@ -176,7 +169,7 @@ class ReportsController extends Controller
             ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
                 $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
-                    ->whereBetween('created_at', [$dateFrom, $dateTo])
+                    ->whereBetween(DB::raw('COALESCE(orders.completed_at, orders.created_at)'), [$dateFrom->copy()->utc(), $dateTo->copy()->utc()])
                     ->when($branchId !== null, function ($query) use ($branchId) {
                         $query->where('branch_id', $branchId);
                     });
@@ -199,6 +192,8 @@ class ReportsController extends Controller
             'data' => [
                 'summary' => [
                     'date_from' => $dateFrom->toDateString(),
+                    'timezone' => $timezone,
+                    'date_basis' => 'completion',
                     'date_to' => $dateTo->toDateString(),
                     'total_sales' => $totalSales,
                     'total_orders' => $totalOrders,
@@ -212,4 +207,19 @@ class ReportsController extends Controller
             ],
         ]);
     }
+    /** One aggregate query per chart, independent of the number of buckets. */
+    private function bucketTotals($orders, array $buckets): array
+    {
+        if ($buckets === []) return [];
+        $selects = [];
+        $bindings = [];
+        foreach ($buckets as $i => [$from, $to]) {
+            $selects[] = "COALESCE(SUM(CASE WHEN COALESCE(orders.completed_at, orders.created_at) >= ? AND COALESCE(orders.completed_at, orders.created_at) < ? THEN total ELSE 0 END), 0) AS bucket_$i";
+            $bindings[] = $from->copy()->utc()->toDateTimeString();
+            $bindings[] = $to->copy()->utc()->toDateTimeString();
+        }
+        $row = (clone $orders)->selectRaw(implode(', ', $selects), $bindings)->first();
+        return array_map(fn ($i) => (float) ($row->{"bucket_$i"} ?? 0), array_keys($buckets));
+    }
+
 }

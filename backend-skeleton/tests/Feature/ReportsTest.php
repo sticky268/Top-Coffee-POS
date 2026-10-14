@@ -118,6 +118,37 @@ class ReportsTest extends TestCase
         return $order;
     }
 
+    public function test_held_sales_are_reported_on_completion_day_in_branch_timezone(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id,
+            'timezone' => 'America/Denver']);
+        $user = $this->makeUserForBranch($branch);
+        $this->makeOrder($branch, $user, ['created_at' => '2026-10-12 10:00:00',
+            'completed_at' => '2026-10-14 01:00:00']);
+        // 01:00 UTC on the 14th is still the 13th in Denver.
+        $this->actingAs($user)->getJson('/api/v1/reports?branch_id='.$branch->id.'&date_from=2026-10-13&date_to=2026-10-13')
+            ->assertOk()->assertJsonPath('data.summary.total_orders', 1)
+            ->assertJsonPath('data.summary.timezone', 'America/Denver');
+        $this->getJson('/api/v1/reports?branch_id='.$branch->id.'&date_from=2026-10-12&date_to=2026-10-12')
+            ->assertOk()->assertJsonPath('data.summary.total_orders', 0);
+    }
+
+    public function test_report_chart_query_count_does_not_grow_per_day(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $user = $this->makeUserForBranch($branch);
+        $this->actingAs($user);
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+        $this->getJson('/api/v1/reports?date_from=2026-01-01&date_to=2026-12-31')->assertOk();
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+        $chartQueries = array_filter($queries, fn ($q) => str_contains($q['query'], 'bucket_0'));
+        $this->assertCount(1, $chartQueries);
+        $this->getJson('/api/v1/reports?date_from=2020-01-01&date_to=2026-12-31')->assertUnprocessable();
+    }
+
     public function test_unauthenticated_request_is_rejected(): void
     {
         $this->getJson('/api/v1/reports')
