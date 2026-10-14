@@ -45,7 +45,10 @@ void main() {
         ),
       );
       await tester.tap(find.text('Reprint COPY'));
-      await tester.pumpAndSettle();
+      // The background print button is busy while confirmation is open.
+      // Pump the dialog transition without waiting for its spinner to stop.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Print a COPY?'), findsOneWidget);
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
       await tester.pumpAndSettle();
