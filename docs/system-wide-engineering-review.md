@@ -129,6 +129,7 @@ On the cashier device verify real printer failure/retry, paper width/cutting and
 - `frontend/lib/features/staff/application/staff_list_controller.dart`
 - `frontend/lib/features/subscription/application/subscription_controller.dart`
 - `frontend/pubspec.yaml`
+- `frontend/pubspec.lock`
 - `frontend/test/core/config/env_test.dart`
 - `frontend/test/core/offline/order_sync_test.dart`
 - `frontend/test/core/receipt/receipt_action_failure_test.dart`
