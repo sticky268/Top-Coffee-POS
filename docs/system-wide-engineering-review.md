@@ -2,7 +2,7 @@
 
 ## Scope and owner decisions
 
-This pass reviews the GitHub candidate on `codex/checkout-ui-polish`, following the [checkout review](pos-checkout-engineering-review.md). Active server code is `backend-skeleton`. Exact changes for this pass: [compare c631a889 to 3e5f49a](https://github.com/sticky268/Top-Coffee-POS/compare/c631a8898a108bc7c09d44529be2a5cb58763edd...3e5f49ab1668da1aee33e41e137e83e06159f5b9). Each linked commit contains the actual fixes and regression tests.
+This pass reviews the GitHub candidate on `codex/checkout-ui-polish`, following the [checkout review](pos-checkout-engineering-review.md). Active server code is `backend-skeleton`. Exact changes for this pass: [compare the checkout review baseline to the current candidate](https://github.com/sticky268/Top-Coffee-POS/compare/c631a8898a108bc7c09d44529be2a5cb58763edd...codex/checkout-ui-polish). Each linked commit contains the actual fixes and regression tests.
 
 The owner explicitly chose to **preserve the earlier kitchen-display removal**. KDS restoration is excluded despite the older generic checklist. PR #11 remains draft and unmerged. No deployment, production database access, credential provisioning or payment-provider setup is included.
 
