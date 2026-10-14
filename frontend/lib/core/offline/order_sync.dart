@@ -19,9 +19,16 @@ class OrderSync {
   final ApiClient api;
   final OrderScope? Function() scope;
   Future<void>? _running;
+  final Stopwatch _retryClock = Stopwatch();
+  Duration _retryDelay = Duration.zero;
+  int _failures = 0;
 
-  Future<void> sync() =>
-      _running ??= _sync().whenComplete(() => _running = null);
+  Future<void> sync({bool force = true}) {
+    if (!force && _retryClock.isRunning && _retryClock.elapsed < _retryDelay) {
+      return Future.value();
+    }
+    return _running ??= _sync().whenComplete(() => _running = null);
+  }
 
   Future<void> _sync() async {
     final selected = scope();
@@ -51,7 +58,15 @@ class OrderSync {
           final confirmation = OrderConfirmation.fromJson(
               response.data['data'] as Map<String, dynamic>);
           await outbox.finish(order, orderId: confirmation.orderId);
+          _failures = 0;
+          _retryDelay = Duration.zero;
+          _retryClock.stop();
         } catch (error) {
+          if (error is NetworkException || error is ServerException) {
+            _failures = (_failures + 1).clamp(1, 5);
+            _retryDelay = Duration(seconds: 15 * (1 << _failures));
+            _retryClock..reset()..start();
+          }
           await outbox.finish(order, error: error);
           stop = error is NetworkException ||
               error is ServerException ||
@@ -104,7 +119,7 @@ final orderSyncWorkerProvider = Provider<void>((ref) {
   if (scope == null) return;
   final sync = ref.watch(orderSyncProvider);
   void run() {
-    unawaited(sync.sync().catchError((Object _) {}));
+    unawaited(sync.sync(force: false).catchError((Object _) {}));
   }
 
   run();

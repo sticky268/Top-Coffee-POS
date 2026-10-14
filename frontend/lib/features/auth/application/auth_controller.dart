@@ -23,6 +23,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   final AuthRepository _repository;
+  int _generation = 0;
   late Future<void> _initialization;
 
   /// Completes once startup session restoration has finished — successfully
@@ -44,12 +45,13 @@ class AuthController extends StateNotifier<AuthState> {
   /// secure-storage/platform error) falls back to unauthenticated rather
   /// than an indefinite spinner.
   Future<void> _restoreSession() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
     state = const AuthLoading();
 
     try {
       final hasToken = await _repository.hasStoredToken();
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       if (!hasToken) {
         state = const AuthUnauthenticated();
@@ -57,9 +59,10 @@ class AuthController extends StateNotifier<AuthState> {
       }
 
       final user = await _repository.getCurrentUser();
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = AuthAuthenticated(user);
     } catch (error) {
+      if (!mounted || generation != _generation) return;
       // Covers: expired/invalid token (ApiException from getCurrentUser),
       // network/server failure during restoration, and any unexpected
       // error reading the stored token itself. In every case the safe,
@@ -70,7 +73,7 @@ class AuthController extends StateNotifier<AuthState> {
         // Best-effort — if even clearing the token fails, still proceed
         // to Unauthenticated below rather than staying stuck.
       }
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = const AuthUnauthenticated();
     }
   }
@@ -80,7 +83,8 @@ class AuthController extends StateNotifier<AuthState> {
     required String password,
     required String deviceName,
   }) async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
     state = const AuthLoading();
     try {
       final result = await _repository.login(
@@ -88,13 +92,13 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
         deviceName: deviceName,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = AuthAuthenticated(result.user);
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = AuthError(_messageFor(e));
     } catch (_) {
-      if (mounted) {
+      if (mounted && generation == _generation) {
         state = const AuthError(
             'Could not sign in on this device. Please try again.');
       }
@@ -102,6 +106,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    final generation = ++_generation;
     try {
       await _repository.logout();
     } catch (_) {
@@ -111,7 +116,7 @@ class AuthController extends StateNotifier<AuthState> {
       // We swallow the error here rather than surfacing it, since the
       // local state below is what actually matters to the UI.
     } finally {
-      if (mounted) state = const AuthUnauthenticated();
+      if (mounted && generation == _generation) state = const AuthUnauthenticated();
     }
   }
 

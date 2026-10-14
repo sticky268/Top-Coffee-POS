@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -14,6 +15,26 @@ void main() {
   setUp(() {
     apiClient = MockApiClient();
     repository = AuthRepository(apiClient);
+    when(() => apiClient.readToken()).thenAnswer((_) async => 'stored-token');
+  });
+
+  test('a delayed login cannot restore credentials after logout', () async {
+    final response = Completer<Response<dynamic>>();
+    var calls = 0;
+    when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((_) {
+      if (calls++ == 0) return response.future;
+      return Future.value(Response(data: {'success': true},
+          requestOptions: RequestOptions(path: '/auth/logout')));
+    });
+    when(() => apiClient.clearToken()).thenAnswer((_) async {});
+    final signingIn = repository.login(email: 'a@b.test', password: 'password', deviceName: 'test');
+    await repository.logout();
+    response.complete(Response(requestOptions: RequestOptions(path: '/auth/login'), data: {
+      'data': {'token': 'late-token', 'user': {'id': 1, 'name': 'Old user',
+        'email': 'a@b.test', 'roles': ['cashier'], 'permissions': [], 'branches': []}}
+    }));
+    await expectLater(signingIn, throwsA(isA<AuthException>()));
+    verifyNever(() => apiClient.saveToken(any()));
   });
 
   group('login', () {

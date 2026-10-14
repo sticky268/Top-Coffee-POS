@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -48,7 +49,20 @@ void main() {
   }
 
   group('session restoration (constructor)', () {
-    test('goes to Unauthenticated when no token is stored', () async {
+    test('late restoration cannot sign the user back in after logout', () async {
+    final user = Completer<AuthenticatedUser>();
+    when(() => repository.hasStoredToken()).thenAnswer((_) async => true);
+    when(() => repository.getCurrentUser()).thenAnswer((_) => user.future);
+    when(() => repository.logout()).thenAnswer((_) async {});
+    final built = buildAndStart();
+    await Future<void>.delayed(Duration.zero);
+    await built.controller.logout();
+    user.complete(_testUser);
+    await built.controller.initialization;
+    expect(built.container.read(authControllerProvider), isA<AuthUnauthenticated>());
+  });
+
+  test('goes to Unauthenticated when no token is stored', () async {
       when(() => repository.hasStoredToken()).thenAnswer((_) async => false);
 
       final built = buildAndStart();
