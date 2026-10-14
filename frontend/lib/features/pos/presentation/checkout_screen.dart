@@ -352,6 +352,32 @@ class _CheckoutForm extends StatelessWidget {
         }) &&
         (splitTotal - cart.total).abs() < 0.01;
 
+    // Read-only preview: allocated amounts are not cash received.
+    final cashPortions = splitPayments
+        .where((payment) => payment.method == 'cash')
+        .toList();
+    final cashChangeReady =
+        cashPortions.isNotEmpty &&
+        cashPortions.every((payment) {
+          final amount = double.tryParse(payment.amountController.text);
+          final received = double.tryParse(payment.tenderedController.text);
+          return amount != null &&
+              amount.isFinite &&
+              amount > 0 &&
+              received != null &&
+              received.isFinite &&
+              received >= amount;
+        });
+    final splitCashChange = cashChangeReady
+        ? cashPortions.fold<double>(
+            0,
+            (sum, payment) =>
+                sum +
+                double.parse(payment.tenderedController.text) -
+                double.parse(payment.amountController.text),
+          )
+        : null;
+
     final canConfirm =
         !isSubmitting &&
         cart.items.isNotEmpty &&
@@ -858,12 +884,12 @@ class _CheckoutForm extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         _SummaryRow(
-                          label: 'Paid',
+                          label: 'Allocated',
                           value: currency.format(splitTotal),
                         ),
                         _SummaryRow(
-                          label: splitTotal >= cart.total
-                              ? 'Change'
+                          label: splitTotal > cart.total
+                              ? 'Overallocated'
                               : 'Remaining',
                           value: currency.format(
                             splitTotal >= cart.total
@@ -871,6 +897,13 @@ class _CheckoutForm extends StatelessWidget {
                                 : cart.total - splitTotal,
                           ),
                         ),
+                        if (cashPortions.isNotEmpty)
+                          _SummaryRow(
+                            label: 'Cash change',
+                            value: splitCashChange == null
+                                ? '—'
+                                : currency.format(splitCashChange),
+                          ),
                       ],
                     ),
                   ),

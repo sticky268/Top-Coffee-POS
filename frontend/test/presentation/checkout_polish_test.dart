@@ -14,6 +14,7 @@ import 'package:top_coffee_pos/features/pos/data/pos_repository.dart';
 import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
 import 'package:top_coffee_pos/features/pos/presentation/checkout_screen.dart';
 import 'package:top_coffee_pos/features/pos/presentation/widgets/cart_panel.dart';
+import 'package:top_coffee_pos/features/pos/presentation/widgets/checkout_summary.dart';
 
 import 'ui_polish_test.dart' show savePreview;
 
@@ -217,6 +218,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, 'Amount'), findsWidgets);
     expect(find.text('Split payment'), findsOneWidget);
+    final amounts = find.widgetWithText(TextField, 'Amount');
+    await tester.enterText(amounts.first, '2.00');
+    await tester.pumpAndSettle();
+    final received = find.widgetWithText(TextField, 'Cash received');
+    await tester.ensureVisible(received);
+    await tester.pumpAndSettle();
+    await tester.enterText(received, '5.00');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(amounts.last);
+    await tester.pumpAndSettle();
+    await tester.enterText(amounts.last, '1.50');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Cash change'));
+    await tester.pumpAndSettle();
+    final cashChange = find.ancestor(
+      of: find.text('Cash change'),
+      matching: find.byType(CheckoutAmountRow),
+    );
+    expect(
+      find.descendant(of: cashChange, matching: find.text('\$3.00')),
+      findsOneWidget,
+    );
+    expect(find.text('Allocated'), findsOneWidget);
     expect(tester.takeException(), isNull);
     verifyZeroInteractions(built.repository);
   });
