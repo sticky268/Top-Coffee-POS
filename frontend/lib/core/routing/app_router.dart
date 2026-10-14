@@ -1,3 +1,4 @@
+import '../printer/print_queue_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -109,6 +110,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) =>
             AppShell(selectedRoute: state.uri.path, child: child),
         routes: [
+          GoRoute(
+            path: '/print-queue',
+            builder: (context, state) => const PrintQueueScreen(),
+          ),
           GoRoute(
             path: '/operations',
             builder: (context, state) => const OperationsScreen(),

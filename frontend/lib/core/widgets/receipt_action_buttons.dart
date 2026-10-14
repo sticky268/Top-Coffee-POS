@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../receipt/customer_bill.dart';
 import '../receipt/receipt_action_service.dart';
@@ -34,7 +36,15 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
       await ref.read(receiptActionServiceProvider).printReceipt(widget.orderId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt printed successfully.')),
+        SnackBar(
+          content: const Text(
+            'Receipt saved in Print Queue. Check its status.',
+          ),
+          action: SnackBarAction(
+            label: 'Queue',
+            onPressed: () => context.go('/print-queue'),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -81,9 +91,9 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
         if (widget.showHeading) ...[
           Text(
             'Receipt',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
@@ -133,6 +143,7 @@ class BillActionButtons extends ConsumerStatefulWidget {
 }
 
 class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
+  final _draftPrintId = const Uuid().v4();
   bool _isPrinting = false;
   bool _isSharing = false;
 
@@ -141,10 +152,18 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
 
     setState(() => _isPrinting = true);
     try {
-      await ref.read(receiptActionServiceProvider).printBill(widget.bill);
+      await ref
+          .read(receiptActionServiceProvider)
+          .printBill(widget.bill, draftId: _draftPrintId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bill printed successfully.')),
+        SnackBar(
+          content: const Text('Bill saved in Print Queue. Check its status.'),
+          action: SnackBarAction(
+            label: 'Queue',
+            onPressed: () => context.go('/print-queue'),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -165,10 +184,7 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
     try {
       await ref
           .read(receiptActionServiceProvider)
-          .shareElectronicBill(
-            widget.bill,
-            sharePositionOrigin: shareOrigin,
-          );
+          .shareElectronicBill(widget.bill, sharePositionOrigin: shareOrigin);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,9 +205,9 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
         if (widget.showHeading) ...[
           Text(
             'Customer Bill',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
@@ -229,10 +245,7 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
 }
 
 class _DocumentButtonLayout extends StatelessWidget {
-  const _DocumentButtonLayout({
-    required this.primary,
-    required this.secondary,
-  });
+  const _DocumentButtonLayout({required this.primary, required this.secondary});
 
   final Widget primary;
   final Widget secondary;
@@ -244,11 +257,7 @@ class _DocumentButtonLayout extends StatelessWidget {
         if (constraints.maxWidth < 420) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              primary,
-              const SizedBox(height: 10),
-              secondary,
-            ],
+            children: [primary, const SizedBox(height: 10), secondary],
           );
         }
 
@@ -330,10 +339,7 @@ Future<void> showLastReceiptDialog({
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Order $orderReference',
-              textAlign: TextAlign.center,
-            ),
+            Text('Order $orderReference', textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ReceiptActionButtons(orderId: orderId),
           ],

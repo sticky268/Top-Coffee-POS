@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,14 +13,28 @@ import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/domain/pos_models.dart';
 import '../../features/settings/data/receipt_settings.dart';
 import '../printer/printer_service.dart';
+import '../printer/print_queue.dart';
+import '../printer/print_queue_providers.dart';
+import '../branch/current_branch_provider.dart';
 import 'customer_bill.dart';
 
 class ReceiptActionService {
-  ReceiptActionService(this._repository, {PrinterService? printerService})
-    : _printerService = printerService ?? PrinterService();
+  ReceiptActionService(
+    this._repository, {
+    PrinterService? printerService,
+    PrintQueue? printQueue,
+    PrintScope? Function()? printScope,
+    String? Function()? branchCode,
+  }) : _printerService = printerService ?? PrinterService(),
+       _printQueue = printQueue,
+       _printScope = printScope,
+       _branchCode = branchCode;
 
   final PosRepository _repository;
   final PrinterService _printerService;
+  final PrintQueue? _printQueue;
+  final PrintScope? Function()? _printScope;
+  final String? Function()? _branchCode;
 
   Future<OrderReceipt> loadReceipt(int orderId) {
     return _repository.getOrderReceipt(orderId: orderId);
@@ -31,6 +46,20 @@ class ReceiptActionService {
       throw StateError('Only completed orders can print a receipt.');
     }
 
+    if (_printQueue != null) {
+      final selected = _selectedScope(receipt.branchId, receipt.branchCode);
+      final payload = await _printerService.prepareReceipt(receipt);
+      final job = await _printQueue.enqueue(
+        selected: selected,
+        documentId: 'receipt:${receipt.orderId}',
+        reference: receipt.displayOrderReference,
+        payload: payload,
+        branchCode: receipt.branchCode,
+        branchName: receipt.branchName,
+      );
+      await _printQueue.send(job.id, selected);
+      return receipt;
+    }
     await _withPrinter(
       branchKey: receipt.branchCode,
       branchNameFallback: receipt.branchName,
@@ -39,7 +68,33 @@ class ReceiptActionService {
     return receipt;
   }
 
-  Future<void> printBill(CustomerBill bill) async {
+  PrintScope _selectedScope(int? branchId, String? branchCode) {
+    final selected = _printScope?.call();
+    if (selected == null ||
+        (branchId != null && branchId != selected.branchId) ||
+        (branchCode != null && branchCode != _branchCode?.call())) {
+      throw StateError('Select the document’s branch before printing.');
+    }
+    return selected;
+  }
+
+  Future<void> printBill(CustomerBill bill, {String? draftId}) async {
+    if (_printQueue != null) {
+      final selected = _selectedScope(bill.branchId, bill.branchCode);
+      final payload = await _printerService.prepareBill(bill);
+      final job = await _printQueue.enqueue(
+        selected: selected,
+        documentId: bill.isDraft
+            ? 'bill:draft:${draftId ?? const Uuid().v4()}'
+            : 'bill:${bill.displayReference}',
+        reference: bill.displayReference,
+        payload: payload,
+        branchCode: bill.branchCode ?? _branchCode?.call(),
+        branchName: bill.branchName,
+      );
+      await _printQueue.send(job.id, selected);
+      return;
+    }
     await _withPrinter(
       branchKey: bill.branchCode,
       branchNameFallback: bill.branchName,
@@ -527,5 +582,11 @@ class _PdfLine {
 }
 
 final receiptActionServiceProvider = Provider<ReceiptActionService>((ref) {
-  return ReceiptActionService(ref.watch(posRepositoryProvider));
+  return ReceiptActionService(
+    ref.watch(posRepositoryProvider),
+    printerService: ref.watch(printerServiceProvider),
+    printQueue: ref.watch(printQueueProvider),
+    printScope: () => ref.read(printScopeProvider),
+    branchCode: () => ref.read(currentBranchProvider)?.code,
+  );
 });

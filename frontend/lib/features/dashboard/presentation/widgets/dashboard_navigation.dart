@@ -68,6 +68,14 @@ class DashboardNavigation extends StatelessWidget {
                     selectedRoute: selectedRoute,
                     onTap: () => _navigate(context, '/operations'),
                   ),
+                  _NavigationItem(
+                    icon: Icons.print_outlined,
+                    selectedIcon: Icons.print,
+                    label: 'Print Queue',
+                    route: '/print-queue',
+                    selectedRoute: selectedRoute,
+                    onTap: () => _navigate(context, '/print-queue'),
+                  ),
                   _NavigationSection(
                     title: 'MAIN',
                     children: [

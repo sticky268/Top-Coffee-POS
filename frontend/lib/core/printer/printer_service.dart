@@ -65,6 +65,13 @@ class PrinterService {
   }
 
   Future<void> printReceipt(OrderReceipt receipt) async {
+    await sendPayload(await prepareReceipt(receipt));
+  }
+
+  Future<void> sendPayload(Map<String, dynamic> payload) =>
+      _invoke('printReceipt', payload);
+
+  Future<Map<String, dynamic>> prepareReceipt(OrderReceipt receipt) async {
     final settings = await ReceiptSettings.load(
       branchKey: receipt.branchCode,
       branchNameFallback: receipt.branchName,
@@ -114,7 +121,7 @@ class PrinterService {
       };
     }).toList();
 
-    await _invoke('printReceipt', <String, dynamic>{
+    return <String, dynamic>{
       'logoBytes': logoBytes,
       'logoPosition': settings.logoPosition,
       'logoSize': settings.logoSize,
@@ -153,10 +160,14 @@ class PrinterService {
           .toList(),
       'footer': settings.footer,
       'items': items,
-    });
+    };
   }
 
   Future<void> printBill(CustomerBill bill) async {
+    await sendPayload(await prepareBill(bill));
+  }
+
+  Future<Map<String, dynamic>> prepareBill(CustomerBill bill) async {
     final settings = await ReceiptSettings.load(
       branchKey: bill.branchCode,
       branchNameFallback: bill.branchName,
@@ -176,7 +187,7 @@ class PrinterService {
       };
     }).toList();
 
-    await _invoke('printReceipt', <String, dynamic>{
+    return <String, dynamic>{
       'logoBytes': logoBytes,
       'logoPosition': settings.logoPosition,
       'logoSize': settings.logoSize,
@@ -186,7 +197,7 @@ class PrinterService {
       'boldBusinessName': settings.boldBusinessName,
       'boldTotal': settings.boldTotal,
       'boldFooter': settings.boldFooter,
-      'documentTitle': '',
+      'documentTitle': 'BILL · UNPAID',
       'orderNumber': settings.showOrderNumber ? bill.displayReference : '',
       'businessName': settings.businessName,
       'branchName': settings.branchName,
@@ -203,7 +214,7 @@ class PrinterService {
       'payments': const <Map<String, dynamic>>[],
       'footer': settings.footer,
       'items': items,
-    });
+    };
   }
 
   Future<void> printReceiptBitmapTest(OrderReceipt receipt) async {

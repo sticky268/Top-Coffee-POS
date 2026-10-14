@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/offline/order_sync.dart';
+import 'core/printer/print_queue_providers.dart';
 import 'features/auth/application/auth_controller.dart';
 import 'features/auth/application/auth_state.dart';
 import 'features/subscription/application/subscription_controller.dart';
@@ -21,6 +22,7 @@ class TopCoffeeApp extends ConsumerWidget {
     if (auth is AuthAuthenticated) {
       ref.watch(subscriptionControllerProvider);
       ref.watch(orderSyncWorkerProvider);
+      ref.watch(printQueueWorkerProvider);
     }
 
     return MaterialApp.router(
