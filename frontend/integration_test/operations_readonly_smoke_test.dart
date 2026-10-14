@@ -556,7 +556,7 @@ Future<void> rehearseRefund(WidgetTester tester) async {
       find.descendant(of: openCard, matching: find.byType(Text)))
       .map((t) => t.data ?? '')
       .singleWhere((t) => t.startsWith('Shift #') && t.endsWith(' · open'));
-  final shiftId = int.parse(title.split(' ')[1]);
+  final shiftId = int.parse(title.split(' ')[1].substring(1));
   debugPrint('STEP: Refund rehearsal opened shift #$shiftId with 20.00.');
   router.go('/orders/124/financials');
   await tester.pump();
