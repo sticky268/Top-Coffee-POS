@@ -4,6 +4,9 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+
+import '../config/env.dart';
 
 import 'tables.dart';
 
@@ -18,6 +21,7 @@ part 'app_database.g.dart';
 @DriftDatabase(tables: [CachedProducts, CachedCategories, PendingOrders])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
+  AppDatabase.forTesting(super.e);
 
   @override
   int get schemaVersion => 1;
@@ -25,7 +29,8 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {
       final dbFolder = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dbFolder.path, 'top_coffee_pos.sqlite'));
+      final scope = const Uuid().v5(Namespace.url.value, Env.apiBaseUrl);
+      final file = File(p.join(dbFolder.path, 'top_coffee_pos_$scope.sqlite'));
       return NativeDatabase.createInBackground(file);
     });
   }

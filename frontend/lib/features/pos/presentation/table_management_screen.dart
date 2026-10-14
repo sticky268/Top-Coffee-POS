@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/pos_repository.dart';
@@ -18,23 +19,28 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
   List<PosTable> _tables = [];
   bool _isLoading = true;
   String? _error;
+  int? _branchId;
+  int _loadVersion = 0;
 
   @override
   void initState() {
     super.initState();
+    _branchId = ref.read(currentBranchProvider)?.id;
     _loadTables();
   }
 
   Future<void> _loadTables() async {
+    final loadVersion = ++_loadVersion;
+    final branchId = _branchId;
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final tables = await ref.read(posRepositoryProvider).getTables();
+      final tables = await ref.read(posRepositoryProvider).getTables(branchId: branchId);
 
-      if (!mounted) return;
+      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) return;
 
       final sortedTables = [...tables]
         ..sort((a, b) {
@@ -50,7 +56,7 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) return;
 
       setState(() {
         _error = 'Unable to load tables.';
@@ -83,6 +89,20 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(currentBranchProvider, (previous, next) {
+      if (previous?.id == next?.id) return;
+      _branchId = next?.id;
+      ++_loadVersion;
+      if (mounted) {
+        setState(() {
+          _tables = [];
+          _isLoading = true;
+          _error = null;
+        });
+      }
+      _loadTables();
+    });
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -173,6 +193,7 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
                   shape: shape,
                   color: color,
                   isActive: isActive,
+                  branchId: _branchId,
                 );
           },
         );
@@ -214,7 +235,7 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
     }
 
     try {
-      await ref.read(posRepositoryProvider).deleteTable(tableId: table.id);
+      await ref.read(posRepositoryProvider).deleteTable(tableId: table.id, branchId: _branchId);
 
       if (!mounted) return;
 
@@ -246,6 +267,7 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
                       shape: shape,
                       color: color,
                       isActive: isActive,
+                      branchId: _branchId,
                     );
               },
         );

@@ -24,8 +24,12 @@ class EditOrderScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final orderState = ref.watch(orderDetailControllerProvider(orderId));
 
+    final title = orderState is OrderDetailLoaded
+        ? 'Adjust ${orderState.order.displayOrderReference}'
+        : 'Adjust Completed Order';
+
     return Scaffold(
-      appBar: AppBar(title: Text('Edit Order #$orderId')),
+      appBar: AppBar(title: Text(title)),
       body: switch (orderState) {
         OrderDetailLoading() => const Center(
           child: CircularProgressIndicator(),

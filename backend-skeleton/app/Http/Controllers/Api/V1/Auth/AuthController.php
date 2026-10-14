@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -28,7 +28,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! Auth::attempt($request->only('email', 'password'))) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credentials',
@@ -42,6 +42,10 @@ class AuthController extends Controller
             ], 403);
         }
 
+        if (! $user->business || ! $user->business->is_active
+            || $user->branches()->where('business_id', '!=', $user->business_id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Your business or branch assignments require administrator review.'], 403);
+        }
         $token = $user->createToken($request->device_name)->plainTextToken;
 
         return response()->json([

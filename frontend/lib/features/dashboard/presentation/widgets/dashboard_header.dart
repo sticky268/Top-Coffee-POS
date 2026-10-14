@@ -90,6 +90,7 @@ class DashboardHeader extends ConsumerWidget {
                   child: DropdownButton<BranchSummary?>(
                     value: currentBranch,
                     isDense: true,
+                    isExpanded: true,
                     icon: const Icon(Icons.keyboard_arrow_down),
                     hint: const Text('Select branch'),
                     items: [

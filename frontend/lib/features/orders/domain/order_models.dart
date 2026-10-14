@@ -3,7 +3,11 @@
 library;
 
 class OrderBranchRef {
-  const OrderBranchRef({required this.id, required this.name, required this.code});
+  const OrderBranchRef({
+    required this.id,
+    required this.name,
+    required this.code,
+  });
 
   final int id;
   final String name;
@@ -38,7 +42,10 @@ class OrderPaymentSummary {
   final String status;
 
   factory OrderPaymentSummary.fromJson(Map<String, dynamic> json) {
-    return OrderPaymentSummary(method: json['method'] as String, status: json['status'] as String);
+    return OrderPaymentSummary(
+      method: json['method'] as String,
+      status: json['status'] as String,
+    );
   }
 }
 
@@ -125,6 +132,7 @@ class OrderLineItem {
 class OrderSummary {
   const OrderSummary({
     required this.id,
+    this.orderNumber,
     required this.uuid,
     required this.orderType,
     required this.status,
@@ -138,6 +146,7 @@ class OrderSummary {
   });
 
   final int id;
+  final int? orderNumber;
   final String uuid;
   final String orderType;
   final String status;
@@ -153,20 +162,42 @@ class OrderSummary {
   final OrderPaymentSummary? payment;
   final DateTime? createdAt;
 
+  int get effectiveOrderNumber => orderNumber ?? id;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
+
+  String get displayOrderReference {
+    final code = branch?.code.trim();
+    return code != null && code.isNotEmpty
+        ? '$code-$displayOrderNumber'
+        : displayOrderNumber;
+  }
+
   factory OrderSummary.fromJson(Map<String, dynamic> json) {
     return OrderSummary(
       id: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,
       orderType: json['order_type'] as String,
       status: json['status'] as String,
       subtotal: (json['subtotal'] as num).toDouble(),
       discountTotal: (json['discount_total'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
-      branch: json['branch'] != null ? OrderBranchRef.fromJson(json['branch'] as Map<String, dynamic>) : null,
-      cashier: json['cashier'] != null ? OrderCashierRef.fromJson(json['cashier'] as Map<String, dynamic>) : null,
-      payment:
-          json['payment'] != null ? OrderPaymentSummary.fromJson(json['payment'] as Map<String, dynamic>) : null,
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'] as String) : null,
+      branch: json['branch'] != null
+          ? OrderBranchRef.fromJson(json['branch'] as Map<String, dynamic>)
+          : null,
+      cashier: json['cashier'] != null
+          ? OrderCashierRef.fromJson(json['cashier'] as Map<String, dynamic>)
+          : null,
+      payment: json['payment'] != null
+          ? OrderPaymentSummary.fromJson(
+              json['payment'] as Map<String, dynamic>,
+            )
+          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
     );
   }
 }
@@ -199,6 +230,7 @@ class OrderTableRef {
 class OrderDetail {
   const OrderDetail({
     required this.id,
+    this.orderNumber,
     required this.uuid,
     required this.orderType,
     required this.status,
@@ -211,16 +243,21 @@ class OrderDetail {
     required this.items,
     required this.payment,
     this.payments = const [],
+    this.supplementalTotal = 0,
+    this.refundedTotal = 0,
     required this.createdAt,
   });
 
   final int id;
+  final int? orderNumber;
   final String uuid;
   final String orderType;
   final String status;
   final double subtotal;
   final double discountTotal;
   final double total;
+  final double supplementalTotal;
+  final double refundedTotal;
   final OrderBranchRef? branch;
   final OrderCashierRef? cashier;
   final OrderTableRef? table;
@@ -229,31 +266,54 @@ class OrderDetail {
   final List<OrderPaymentDetail> payments;
   final DateTime? createdAt;
 
+  int get effectiveOrderNumber => orderNumber ?? id;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
+
+  String get displayOrderReference {
+    final code = branch?.code.trim();
+    return code != null && code.isNotEmpty
+        ? '$code-$displayOrderNumber'
+        : displayOrderNumber;
+  }
+
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
     return OrderDetail(
       id: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,
       orderType: json['order_type'] as String,
       status: json['status'] as String,
       subtotal: (json['subtotal'] as num).toDouble(),
       discountTotal: (json['discount_total'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
-      branch: json['branch'] != null ? OrderBranchRef.fromJson(json['branch'] as Map<String, dynamic>) : null,
-      cashier: json['cashier'] != null ? OrderCashierRef.fromJson(json['cashier'] as Map<String, dynamic>) : null,
-      table: json['table'] != null ? OrderTableRef.fromJson(json['table'] as Map<String, dynamic>) : null,
+      supplementalTotal: (json['supplemental_total'] as num?)?.toDouble() ?? 0,
+      refundedTotal: (json['refunded_total'] as num?)?.toDouble() ?? 0,
+      branch: json['branch'] != null
+          ? OrderBranchRef.fromJson(json['branch'] as Map<String, dynamic>)
+          : null,
+      cashier: json['cashier'] != null
+          ? OrderCashierRef.fromJson(json['cashier'] as Map<String, dynamic>)
+          : null,
+      table: json['table'] != null
+          ? OrderTableRef.fromJson(json['table'] as Map<String, dynamic>)
+          : null,
       items: (json['items'] as List? ?? const [])
           .map((item) => OrderLineItem.fromJson(item as Map<String, dynamic>))
           .toList(),
-      payment:
-          json['payment'] != null ? OrderPaymentDetail.fromJson(json['payment'] as Map<String, dynamic>) : null,
+      payment: json['payment'] != null
+          ? OrderPaymentDetail.fromJson(json['payment'] as Map<String, dynamic>)
+          : null,
       payments: (json['payments'] as List? ?? const [])
           .map(
-            (payment) => OrderPaymentDetail.fromJson(
-              payment as Map<String, dynamic>,
-            ),
+            (payment) =>
+                OrderPaymentDetail.fromJson(payment as Map<String, dynamic>),
           )
           .toList(),
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'] as String) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
     );
   }
 }
@@ -276,4 +336,3 @@ class OrderListPage {
 
   bool get hasMore => currentPage < lastPage;
 }
-

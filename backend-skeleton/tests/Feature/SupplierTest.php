@@ -14,6 +14,14 @@ class SupplierTest extends TestCase
 {
     use RefreshDatabase;
 
+    private \App\Models\Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->business = \App\Models\Business::factory()->create();
+    }
+
     private function seedPermissions(): void
     {
         foreach ([
@@ -62,7 +70,7 @@ class SupplierTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
 
         $user->branches()->attach($branch->id, [
@@ -81,7 +89,7 @@ class SupplierTest extends TestCase
 
     public function test_user_without_inventory_view_permission_is_rejected(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $this->seedPermissions();
 
@@ -99,22 +107,22 @@ class SupplierTest extends TestCase
 
     public function test_user_can_list_suppliers_for_their_branch_and_global_suppliers(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
 
-        $globalSupplier = Supplier::create([
+        $globalSupplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Coffee Supplier',
         ]);
 
-        $branchSupplier = Supplier::create([
+        $branchSupplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Branch Coffee Supplier',
         ]);
 
-        Supplier::create([
+        Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Supplier',
         ]);
@@ -147,8 +155,8 @@ class SupplierTest extends TestCase
 
     public function test_user_cannot_list_another_branch_without_access(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
 
@@ -160,7 +168,7 @@ class SupplierTest extends TestCase
 
     public function test_manager_can_create_branch_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
 
         $response = $this->actingAs($user)
@@ -188,7 +196,7 @@ class SupplierTest extends TestCase
 
     public function test_regular_branch_user_cannot_create_global_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
 
         $response = $this->actingAs($user)
@@ -206,8 +214,8 @@ class SupplierTest extends TestCase
 
     public function test_manager_cannot_create_supplier_for_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
 
@@ -222,7 +230,7 @@ class SupplierTest extends TestCase
 
     public function test_admin_can_create_global_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch, 'admin');
 
         $response = $this->actingAs($user)
@@ -244,10 +252,10 @@ class SupplierTest extends TestCase
 
     public function test_manager_can_update_supplier_in_their_branch(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Old Supplier Name',
         ]);
@@ -273,12 +281,12 @@ class SupplierTest extends TestCase
 
     public function test_manager_cannot_update_supplier_from_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Supplier',
         ]);
@@ -299,10 +307,10 @@ class SupplierTest extends TestCase
 
     public function test_manager_cannot_update_global_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Supplier',
         ]);
@@ -323,10 +331,10 @@ class SupplierTest extends TestCase
 
     public function test_admin_can_update_global_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch, 'admin');
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Supplier',
         ]);
@@ -344,10 +352,10 @@ class SupplierTest extends TestCase
 
     public function test_manager_can_soft_delete_supplier_in_their_branch(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branch->id,
             'name' => 'Supplier To Delete',
         ]);
@@ -365,12 +373,12 @@ class SupplierTest extends TestCase
 
     public function test_manager_cannot_delete_supplier_from_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $otherBranch->id,
             'name' => 'Other Branch Supplier',
         ]);
@@ -388,10 +396,10 @@ class SupplierTest extends TestCase
 
     public function test_admin_can_delete_global_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch, 'admin');
 
-        $supplier = Supplier::create([
+        $supplier = Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Global Supplier',
         ]);
@@ -408,7 +416,7 @@ class SupplierTest extends TestCase
 
     public function test_validation_rejects_missing_supplier_name(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
 
         $response = $this->actingAs($user)

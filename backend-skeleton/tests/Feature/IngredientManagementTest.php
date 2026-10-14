@@ -18,6 +18,14 @@ class IngredientManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    private \App\Models\Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->business = \App\Models\Business::factory()->create();
+    }
+
     private function seedPermissions(): void
     {
         foreach ([
@@ -65,7 +73,7 @@ class IngredientManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('manager');
 
         $user->branches()->attach($branch->id, [
@@ -79,7 +87,7 @@ class IngredientManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
 
         $user->branches()->attach($branch->id, [
@@ -128,7 +136,7 @@ class IngredientManagementTest extends TestCase
 
     private function createProduct(): Product
     {
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
             'sort_order' => 1,
@@ -147,7 +155,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_update_ingredient_without_changing_current_stock(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -189,7 +197,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_cashier_cannot_update_ingredient(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $cashier = $this->makeCashier($branch);
 
         $unitId = $this->createUnit();
@@ -223,7 +231,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_change_unit_when_ingredient_has_not_been_used(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $gramUnitId = $this->createUnit('Gram', 'g');
@@ -256,7 +264,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_unit_change_is_rejected_after_stock_movement(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $gramUnitId = $this->createUnit('Gram', 'g');
@@ -300,7 +308,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_soft_delete_unused_ingredient(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -327,7 +335,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_soft_delete_ingredient_with_stock_movements_while_preserving_history(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -378,7 +386,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_ingredient_used_in_recipe_cannot_be_deleted(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -414,7 +422,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_cashier_cannot_delete_ingredient(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $cashier = $this->makeCashier($branch);
 
         $unitId = $this->createUnit();
@@ -440,7 +448,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_deleting_nonexistent_ingredient_returns_not_found(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $response = $this
@@ -454,7 +462,7 @@ class IngredientManagementTest extends TestCase
     }
     public function test_unit_change_is_rejected_after_recipe_usage(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $gramUnitId = $this->createUnit('Gram', 'g');
@@ -496,7 +504,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_deleted_ingredient_cannot_receive_manual_adjustment(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -533,7 +541,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_record_purchase_stock_movement(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -573,7 +581,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_record_wastage_stock_movement(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -614,7 +622,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_wastage_requires_reason(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -651,7 +659,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_wastage_cannot_reduce_stock_below_zero(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -691,7 +699,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_record_positive_adjustment(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -732,7 +740,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_manager_can_record_negative_adjustment(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -773,7 +781,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_adjustment_cannot_reduce_stock_below_zero(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -812,7 +820,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_purchase_quantity_must_be_positive(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -850,7 +858,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_stock_movement_quantity_cannot_be_zero(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -890,7 +898,7 @@ class IngredientManagementTest extends TestCase
 
     public function test_user_without_inventory_adjust_cannot_record_stock_movement(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $cashier = $this->makeCashier($branch);
 
         $unitId = $this->createUnit();
@@ -972,7 +980,7 @@ class IngredientManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         Permission::firstOrCreate([

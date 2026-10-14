@@ -32,6 +32,7 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
   late final TextEditingController _skuController;
   late final TextEditingController _priceDeltaController;
   late bool _isActive;
+  late final TextEditingController _multiplierController;
 
   @override
   void initState() {
@@ -43,10 +44,14 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
       text: initial != null ? initial.priceDelta.toStringAsFixed(2) : '0.00',
     );
     _isActive = initial?.isActive ?? true;
+    _multiplierController = TextEditingController(
+      text: '${initial?.recipeMultiplier ?? 1}',
+    );
   }
 
   @override
   void dispose() {
+    _multiplierController.dispose();
     _nameController.dispose();
     _skuController.dispose();
     _priceDeltaController.dispose();
@@ -66,6 +71,7 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
       clearSku: skuText.isEmpty,
       priceDelta: double.parse(_priceDeltaController.text.trim()),
       isActive: _isActive,
+      recipeMultiplier: double.parse(_multiplierController.text.trim()),
     );
 
     Navigator.of(context).pop(result);
@@ -111,6 +117,27 @@ class _VariantEditorDialogState extends State<_VariantEditorDialog> {
                     double.tryParse((value ?? '').trim()) == null
                     ? 'Enter a valid amount'
                     : null,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _multiplierController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Recipe quantity multiplier',
+                  helperText:
+                      '1 = base recipe, 1.5 = 50% more of each base ingredient',
+                ),
+                validator: (value) {
+                  final number = double.tryParse((value ?? '').trim());
+                  return number == null ||
+                          !number.isFinite ||
+                          number <= 0 ||
+                          number > 100
+                      ? 'Enter a multiplier above 0 and at most 100'
+                      : null;
+                },
               ),
               const SizedBox(height: 8),
               SwitchListTile(

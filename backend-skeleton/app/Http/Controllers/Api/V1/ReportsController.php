@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -41,6 +42,11 @@ class ReportsController extends Controller
 
         $user = $request->user();
         $branchId = $request->query('branch_id');
+        $businessId = $user->business_id;
+
+        if ($branchId !== null && ! Branch::withTrashed()->where('business_id', $businessId)->whereKey($branchId)->exists()) {
+            return response()->json(['success' => false, 'message' => 'You do not have access to that branch'], 403);
+        }
 
         if ($branchId !== null && ! $user->can('branches.view-all')) {
             $hasAccess = $user->branches()
@@ -64,6 +70,7 @@ class ReportsController extends Controller
             : Carbon::today()->endOfDay();
 
         $orders = Order::query()
+            ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
             ->where('status', 'completed')
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->when($branchId !== null, function ($query) use ($branchId) {
@@ -133,7 +140,8 @@ class ReportsController extends Controller
             ->values();
 
         $topProducts = \App\Models\OrderItem::query()
-            ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId) {
+            ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
+                $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
                     ->whereBetween('created_at', [$dateFrom, $dateTo])
                     ->when($branchId !== null, function ($query) use ($branchId) {
@@ -164,7 +172,9 @@ class ReportsController extends Controller
             ->values();
 
         $paymentMethods = Payment::query()
-            ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId) {
+            ->where('status', 'completed')
+            ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
+                $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
                     ->whereBetween('created_at', [$dateFrom, $dateTo])
                     ->when($branchId !== null, function ($query) use ($branchId) {

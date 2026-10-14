@@ -30,7 +30,7 @@ class OrderListTile extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: statusColor.withValues(alpha: 0.15),
         child: Text(
-          '#${order.id}',
+          '#${order.displayOrderNumber}',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -38,7 +38,7 @@ class OrderListTile extends StatelessWidget {
           ),
         ),
       ),
-      title: Text('Order #${order.id}'),
+      title: Text('Order ${order.displayOrderReference}'),
       subtitle: Text(
         subtitleParts.join(' · '),
         maxLines: 1,

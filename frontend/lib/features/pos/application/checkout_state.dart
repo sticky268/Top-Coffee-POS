@@ -1,4 +1,4 @@
-﻿import '../domain/pos_models.dart';
+import '../domain/pos_models.dart';
 
 sealed class CheckoutState {
   const CheckoutState();
@@ -23,6 +23,12 @@ class CheckoutHeld extends CheckoutState {
   final OrderConfirmation confirmation;
 }
 
+/// Durably saved locally, with no claim that the server accepted payment.
+class CheckoutQueued extends CheckoutState {
+  const CheckoutQueued(this.uuid);
+  final String uuid;
+}
+
 /// Distinct from Idle so the screen can show an error banner while still
 /// letting the cashier retry with the same cart â€” a failed checkout must
 /// never lose the cart contents.
@@ -30,4 +36,3 @@ class CheckoutError extends CheckoutState {
   const CheckoutError(this.message);
   final String message;
 }
-

@@ -18,6 +18,14 @@ class RecipeManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    private \App\Models\Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->business = \App\Models\Business::factory()->create();
+    }
+
     private function seedPermissions(): void
     {
         foreach (['products.manage', 'branches.view-all'] as $permission) {
@@ -52,7 +60,7 @@ class RecipeManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('manager');
         $user->branches()->attach($branch->id, [
             'is_primary' => true,
@@ -65,7 +73,7 @@ class RecipeManagementTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
         $user->branches()->attach($branch->id, [
             'is_primary' => true,
@@ -104,7 +112,7 @@ class RecipeManagementTest extends TestCase
 
     private function createProduct(string $name = 'Iced Latte'): Product
     {
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
             'sort_order' => 1,
@@ -123,7 +131,7 @@ class RecipeManagementTest extends TestCase
 
     public function test_manager_can_create_and_retrieve_product_recipe(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();
@@ -191,7 +199,7 @@ class RecipeManagementTest extends TestCase
 
     public function test_cashier_cannot_update_product_recipe(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $cashier = $this->makeCashier($branch);
 
         $unitId = $this->createUnit();
@@ -224,8 +232,8 @@ class RecipeManagementTest extends TestCase
 
     public function test_recipe_rejects_ingredient_from_another_branch(): void
     {
-        $branchOne = Branch::factory()->create();
-        $branchTwo = Branch::factory()->create();
+        $branchOne = Branch::factory()->create(['business_id' => $this->business->id]);
+        $branchTwo = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $manager = $this->makeManager($branchOne);
 
@@ -260,8 +268,8 @@ class RecipeManagementTest extends TestCase
 
     public function test_recipe_is_isolated_between_branches(): void
     {
-        $branchOne = Branch::factory()->create();
-        $branchTwo = Branch::factory()->create();
+        $branchOne = Branch::factory()->create(['business_id' => $this->business->id]);
+        $branchTwo = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $managerOne = $this->makeManager($branchOne);
         $managerTwo = $this->makeManager($branchTwo);
@@ -331,7 +339,7 @@ class RecipeManagementTest extends TestCase
 
     public function test_updating_recipe_replaces_existing_items(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $manager = $this->makeManager($branch);
 
         $unitId = $this->createUnit();

@@ -7,7 +7,6 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\ExpenseCategoryController;
 use App\Http\Controllers\Api\V1\IngredientController;
-use App\Http\Controllers\Api\V1\KitchenController;
 use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RestaurantTableController;
@@ -31,6 +30,18 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'subscription.active'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::get('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'index']);
+        Route::post('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'open']);
+        Route::post('/shifts/{id}/movements', [\App\Http\Controllers\Api\V1\ShiftController::class, 'movement'])->whereNumber('id');
+        Route::post('/shifts/{id}/close', [\App\Http\Controllers\Api\V1\ShiftController::class, 'close'])->whereNumber('id');
+        Route::post('/shifts/{id}/review', [\App\Http\Controllers\Api\V1\ShiftController::class, 'review'])->whereNumber('id');
+        Route::get('/orders/{id}/financials', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'show'])->whereNumber('id');
+        Route::post('/orders/{id}/refund', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'refund'])->whereNumber('id');
+        Route::post('/orders/{id}/additional-charge', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'charge'])->whereNumber('id');
+        Route::post('/stock/count', [\App\Http\Controllers\Api\V1\StockOperationsController::class, 'count']);
+        Route::post('/stock/transfer', [\App\Http\Controllers\Api\V1\StockOperationsController::class, 'transfer']);
+        Route::get('/products/availability', [\App\Http\Controllers\Api\V1\OperationsReportController::class, 'availability']);
+        Route::get('/reports/operations', [\App\Http\Controllers\Api\V1\OperationsReportController::class, 'report']);
         Route::get('/subscription', [SubscriptionController::class, 'show']);
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/reports', [ReportsController::class, 'index']);
@@ -88,14 +99,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/hold', [OrderController::class, 'hold']);
         Route::patch('/orders/{id}/hold', [OrderController::class, 'updateHeld'])->whereNumber('id');
         Route::post('/orders/{id}/pay', [OrderController::class, 'payHeld'])->whereNumber('id');
+        Route::post('/orders/{id}/cancel', [OrderController::class, 'cancelHeld'])->whereNumber('id');
         Route::post('/orders', [OrderController::class, 'store']);
         Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
-
-        Route::get('/kitchen/tickets', [KitchenController::class, 'index']);
-        Route::patch('/kitchen/tickets/{id}/status', [KitchenController::class, 'updateStatus'])->whereNumber('id');
-
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
         Route::patch('/ingredients/{id}', [IngredientController::class, 'update'])->whereNumber('id');

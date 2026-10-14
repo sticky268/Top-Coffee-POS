@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
+    use \App\Traits\BusinessOwned;
+
     protected $fillable = [
         'user_id', 'action', 'auditable_type', 'auditable_id',
         'old_values', 'new_values', 'ip_address',

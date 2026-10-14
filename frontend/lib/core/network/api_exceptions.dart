@@ -10,11 +10,12 @@ class NetworkException extends ApiException {
   const NetworkException([super.message = 'No internet connection']);
 }
 
+class UncertainOperationException extends ApiException {
+  const UncertainOperationException(super.message);
+}
+
 class ValidationException extends ApiException {
-  const ValidationException(
-    this.errors, [
-    super.message = 'Validation failed',
-  ]);
+  const ValidationException(this.errors, [super.message = 'Validation failed']);
 
   final Map<String, dynamic> errors;
 }
@@ -49,7 +50,9 @@ class UnknownApiException extends ApiException {
 class ApiExceptionMapper {
   static ApiException fromDioException(DioException e) {
     if (e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.connectionTimeout) {
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
       return const NetworkException();
     }
 

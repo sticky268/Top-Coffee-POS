@@ -59,13 +59,13 @@ class AuthController extends StateNotifier<AuthState> {
       final user = await _repository.getCurrentUser();
       if (!mounted) return;
       state = AuthAuthenticated(user);
-    } catch (_) {
+    } catch (error) {
       // Covers: expired/invalid token (ApiException from getCurrentUser),
       // network/server failure during restoration, and any unexpected
       // error reading the stored token itself. In every case the safe,
       // recoverable outcome is the login screen, not a stuck spinner.
       try {
-        await _repository.clearStoredToken();
+        if (error is! NetworkException) await _repository.clearStoredToken();
       } catch (_) {
         // Best-effort — if even clearing the token fails, still proceed
         // to Unauthenticated below rather than staying stuck.
@@ -93,6 +93,11 @@ class AuthController extends StateNotifier<AuthState> {
     } on ApiException catch (e) {
       if (!mounted) return;
       state = AuthError(_messageFor(e));
+    } catch (_) {
+      if (mounted) {
+        state = const AuthError(
+            'Could not sign in on this device. Please try again.');
+      }
     }
   }
 
@@ -121,6 +126,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
+final authControllerProvider =
+    StateNotifierProvider<AuthController, AuthState>((ref) {
   return AuthController(ref.watch(authRepositoryProvider));
 });

@@ -30,7 +30,7 @@ class ProductTest extends TestCase
     {
         Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -47,7 +47,7 @@ class ProductTest extends TestCase
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $otherBranch = Branch::create(['business_id' => $this->business->id, 'name' => 'BKK1', 'code' => 'PP-02']);
         $user = $this->makeUserForBranch($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $available = Product::create([
             'category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50,
@@ -83,7 +83,7 @@ class ProductTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true, 'price_override' => 3.00]);
@@ -98,7 +98,7 @@ class ProductTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
@@ -113,7 +113,7 @@ class ProductTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
 
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true, 'price_override' => 3.00]);
@@ -132,8 +132,8 @@ class ProductTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
-        $coffee = Category::create(['branch_id' => null, 'name' => 'Coffee']);
-        $tea = Category::create(['branch_id' => null, 'name' => 'Tea']);
+        $coffee = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
+        $tea = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Tea']);
 
         $latte = Product::create(['category_id' => $coffee->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $latte->branches()->attach($branch->id, ['is_available' => true]);
@@ -152,7 +152,7 @@ class ProductTest extends TestCase
     {
         $branch = Branch::create(['business_id' => $this->business->id, 'name' => 'Riverside', 'code' => 'PP-01']);
         $user = $this->makeUserForBranch($branch);
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
 
@@ -183,11 +183,11 @@ class ProductTest extends TestCase
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(['branches.view-all']);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $category = Category::create(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::forceCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']);
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.50]);
         $product->branches()->attach($otherBranch->id, ['is_available' => true]);
 

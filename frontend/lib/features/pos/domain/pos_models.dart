@@ -10,6 +10,7 @@ class PosTable {
     required this.capacity,
     required this.status,
     required this.activeOrderId,
+    this.branchId,
     this.section,
     this.shape = 'square',
     this.color,
@@ -21,6 +22,7 @@ class PosTable {
   final int capacity;
   final String status;
   final int? activeOrderId;
+  final int? branchId;
   final String? section;
   final String shape;
   final String? color;
@@ -33,6 +35,7 @@ class PosTable {
       capacity: json['capacity'] as int,
       status: json['status'] as String,
       activeOrderId: json['active_order_id'] as int?,
+      branchId: json['branch_id'] as int?,
       section: json['section'] as String?,
       shape: json['shape'] as String? ?? 'square',
       color: json['color'] as String?,
@@ -65,7 +68,12 @@ class PosCategory {
 }
 
 class PosProductVariant {
-  const PosProductVariant({required this.id, required this.name, required this.price});
+  const PosProductVariant({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.recipeMultiplier = 1,
+  });
 
   final int id;
   final String name;
@@ -74,12 +82,14 @@ class PosProductVariant {
   /// plus the variant's delta) â€” the backend already does this math, see
   /// ProductController::index(), so this is a display-ready number.
   final double price;
+  final double recipeMultiplier;
 
   factory PosProductVariant.fromJson(Map<String, dynamic> json) {
     return PosProductVariant(
       id: json['id'] as int,
       name: json['name'] as String,
       price: (json['price'] as num).toDouble(),
+      recipeMultiplier: (json['recipe_multiplier'] as num?)?.toDouble() ?? 1,
     );
   }
 }
@@ -107,7 +117,7 @@ class PosProduct {
     required this.category,
     required this.price,
     required this.variants,
-	this.imageUrl,
+    this.imageUrl,
   });
 
   final int id;
@@ -132,15 +142,18 @@ class PosProduct {
       sku: json['sku'] as String?,
       description: json['description'] as String?,
       category: json['category'] != null
-          ? PosProductCategoryRef.fromJson(json['category'] as Map<String, dynamic>)
+          ? PosProductCategoryRef.fromJson(
+              json['category'] as Map<String, dynamic>,
+            )
           : null,
-	price: (json['price'] as num).toDouble(),
-	variants: (json['variants'] as List? ?? const [])
-    	.map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
-    	.toList(),
-	imageUrl: (json['images'] as List? ?? const []).isNotEmpty
-    ? ((json['images'] as List).first as Map<String, dynamic>)['url'] as String?
-    : null,
+      price: (json['price'] as num).toDouble(),
+      variants: (json['variants'] as List? ?? const [])
+          .map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
+          .toList(),
+      imageUrl: (json['images'] as List? ?? const []).isNotEmpty
+          ? ((json['images'] as List).first as Map<String, dynamic>)['url']
+                as String?
+          : null,
     );
   }
 }
@@ -168,7 +181,11 @@ class CartItem {
   String get lineKey => '${product.id}:${variant?.id ?? 'base'}';
 
   CartItem copyWith({int? quantity}) {
-    return CartItem(product: product, variant: variant, quantity: quantity ?? this.quantity);
+    return CartItem(
+      product: product,
+      variant: variant,
+      quantity: quantity ?? this.quantity,
+    );
   }
 }
 
@@ -211,6 +228,7 @@ class PaymentConfirmation {
 class OrderConfirmation {
   const OrderConfirmation({
     required this.orderId,
+    this.orderNumber,
     required this.total,
     required this.paymentMethod,
     this.tendered,
@@ -219,11 +237,17 @@ class OrderConfirmation {
   });
 
   final int orderId;
+  final int? orderNumber;
   final double total;
   final String paymentMethod;
   final double? tendered;
   final double? changeDue;
   final List<PaymentConfirmation> payments;
+
+  int get effectiveOrderNumber => orderNumber ?? orderId;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
 
   factory OrderConfirmation.fromJson(Map<String, dynamic> json) {
     final payment = json['payment'] is Map<String, dynamic>
@@ -236,6 +260,7 @@ class OrderConfirmation {
 
     return OrderConfirmation(
       orderId: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       total: (json['total'] as num).toDouble(),
       paymentMethod: payment?['method'] as String? ?? 'unpaid',
       tendered: payment?['tendered'] != null
@@ -251,9 +276,11 @@ class OrderConfirmation {
     );
   }
 }
+
 class OrderReceipt {
   const OrderReceipt({
     required this.orderId,
+    this.orderNumber,
     required this.uuid,
     required this.orderType,
     required this.status,
@@ -268,15 +295,21 @@ class OrderReceipt {
     this.payment,
     this.payments = const [],
     this.createdAt,
+    this.supplementalTotal = 0,
+    this.refundedTotal = 0,
   });
 
   final int orderId;
+  final int? orderNumber;
   final String uuid;
   final String orderType;
   final String status;
   final double subtotal;
   final double discountTotal;
   final double total;
+  final double supplementalTotal;
+  final double refundedTotal;
+  double get netPaid => total - refundedTotal;
   final String? branchName;
   final String? branchCode;
   final String? cashierName;
@@ -285,6 +318,18 @@ class OrderReceipt {
   final PaymentConfirmation? payment;
   final List<PaymentConfirmation> payments;
   final DateTime? createdAt;
+
+  int get effectiveOrderNumber => orderNumber ?? orderId;
+
+  String get displayOrderNumber =>
+      effectiveOrderNumber.toString().padLeft(6, '0');
+
+  String get displayOrderReference {
+    final code = branchCode?.trim();
+    return code != null && code.isNotEmpty
+        ? '$code-$displayOrderNumber'
+        : displayOrderNumber;
+  }
 
   factory OrderReceipt.fromJson(Map<String, dynamic> json) {
     final branch = json['branch'] is Map<String, dynamic>
@@ -307,18 +352,19 @@ class OrderReceipt {
         ? json['payments'] as List
         : const [];
 
-    final itemsJson = json['items'] is List
-        ? json['items'] as List
-        : const [];
+    final itemsJson = json['items'] is List ? json['items'] as List : const [];
 
     return OrderReceipt(
       orderId: json['id'] as int,
+      orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,
       orderType: json['order_type'] as String,
       status: json['status'] as String,
       subtotal: (json['subtotal'] as num).toDouble(),
       discountTotal: (json['discount_total'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
+      supplementalTotal: (json['supplemental_total'] as num?)?.toDouble() ?? 0,
+      refundedTotal: (json['refunded_total'] as num?)?.toDouble() ?? 0,
       branchName: branch?['name'] as String?,
       branchCode: branch?['code'] as String?,
       cashierName: cashier?['name'] as String?,
@@ -337,18 +383,17 @@ class OrderReceipt {
               'status': paymentJson['status'],
             })
           : null,
-       payments: paymentsJson
-           .whereType<Map<String, dynamic>>()
-           .map(
-             (payment) => PaymentConfirmation.fromJson(payment),
-           )
-           .toList(),
+      payments: paymentsJson
+          .whereType<Map<String, dynamic>>()
+          .map((payment) => PaymentConfirmation.fromJson(payment))
+          .toList(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
     );
   }
 }
+
 class OpenOrderItem {
   const OpenOrderItem({
     required this.id,
@@ -409,11 +454,7 @@ class OpenOrder {
       discountTotal: (json['discount_total'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
       items: (json['items'] as List<dynamic>)
-          .map(
-            (item) => OpenOrderItem.fromJson(
-              item as Map<String, dynamic>,
-            ),
-          )
+          .map((item) => OpenOrderItem.fromJson(item as Map<String, dynamic>))
           .toList(),
     );
   }

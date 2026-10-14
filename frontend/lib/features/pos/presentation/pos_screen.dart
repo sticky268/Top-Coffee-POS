@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/receipt/last_receipt_provider.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
@@ -25,11 +28,17 @@ class PosScreen extends ConsumerStatefulWidget {
 
 class _PosScreenState extends ConsumerState<PosScreen> {
   PosTable? _selectedTable;
+  int? _selectedBranchId;
 
   @override
   void initState() {
     super.initState();
+    _selectedBranchId = ref.read(currentBranchProvider)?.id;
     _selectedTable = widget.initialTable;
+    if (_selectedTable?.branchId != null &&
+        _selectedTable!.branchId != _selectedBranchId) {
+      _selectedTable = null;
+    }
   }
 
   Future<void> _openTableSelector() async {
@@ -45,6 +54,16 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final catalogState = ref.watch(posCatalogControllerProvider);
+    final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
+    ref.listen(currentBranchProvider, (previous, next) {
+      if (previous?.id == next?.id) return;
+      _selectedBranchId = next?.id;
+      if (_selectedTable != null && mounted) {
+        setState(() {
+          _selectedTable = null;
+        });
+      }
+    });
 
     return PopScope(
       canPop: false,
@@ -61,6 +80,18 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             onPressed: () => context.go('/home'),
           ),
           actions: [
+            pos_ui.SecondaryButton.icon(
+              onPressed: lastReceipt == null
+                  ? null
+                  : () => showLastReceiptDialog(
+                        context: context,
+                        orderId: lastReceipt.id,
+                        orderReference: lastReceipt.displayOrderReference,
+                      ),
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Last Receipt'),
+            ),
+            const SizedBox(width: 8),
             pos_ui.SecondaryButton.icon(
               onPressed: _openTableSelector,
               icon: const Icon(Icons.table_restaurant),

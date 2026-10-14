@@ -1,0 +1,77 @@
+name: Daily operations integration
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend-skeleton/**'
+      - '.github/workflows/operations-integration.yml'
+permissions:
+  contents: read
+concurrency:
+  group: operations-integration-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  android-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ${{ github.workspace }}/backend-skeleton/database/ci.sqlite
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite, mbstring
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+        working-directory: backend-skeleton
+      - name: Create disposable API fixtures
+        working-directory: backend-skeleton
+        run: |
+          touch database/ci.sqlite
+          php artisan migrate --force
+          php artisan db:seed --class=IntegrationFixtureSeeder --force
+          php artisan serve --host=0.0.0.0 --port=8000 > /tmp/operations-api.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8000/up; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/operations-api.log
+          exit 1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - run: flutter pub get
+        working-directory: frontend
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            cd frontend && flutter test integration_test/daily_operations_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
+            cd frontend && flutter test integration_test/operations_readonly_smoke_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1 --dart-define=SMOKE_EXPECTED_API=http://10.0.2.2:8000/api/v1 --dart-define=SMOKE_CI_LOGIN=true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: operations-api-log
+          path: /tmp/operations-api.log

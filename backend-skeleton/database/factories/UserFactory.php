@@ -26,6 +26,7 @@ class UserFactory extends Factory
     {
         return [
             'business_id' => Business::factory(),
+            'is_active' => true,
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),

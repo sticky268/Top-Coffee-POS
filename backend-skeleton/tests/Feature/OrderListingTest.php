@@ -57,7 +57,7 @@ class OrderListingTest extends TestCase
     private function makeCashier(Branch $branch): User
     {
         $this->seedPermissions();
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole('cashier');
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -66,12 +66,13 @@ class OrderListingTest extends TestCase
 
     private function createOrder(Branch $branch, User $cashier, array $overrides = []): Order
     {
-        $category = Category::firstOrCreate(['branch_id' => null, 'name' => 'Coffee']);
+        $category = Category::unguarded(fn () => Category::firstOrCreate(['business_id' => $this->business->id, 'branch_id' => null, 'name' => 'Coffee']));
         $product = Product::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 3.00]);
 
         $order = Order::create(array_merge([
             'uuid' => (string) Str::uuid(),
             'branch_id' => $branch->id,
+            'order_number' => app(\App\Services\OrderNumberService::class)->nextForBranch($branch->id),
             'user_id' => $cashier->id,
             'order_type' => 'takeaway',
             'status' => 'completed',
@@ -114,7 +115,7 @@ class OrderListingTest extends TestCase
     {
         $this->seedPermissions();
         $branch = $this->createBranch('Riverside', 'PP-01');
-        $kitchenUser = User::factory()->create();
+        $kitchenUser = User::factory()->create(['business_id' => $this->business->id]);
         $kitchenUser->assignRole('kitchen_staff');
         $kitchenUser->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -159,11 +160,11 @@ class OrderListingTest extends TestCase
         $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $this->seedPermissions();
 
-        $cashier = User::factory()->create();
+        $cashier = User::factory()->create(['business_id' => $this->business->id]);
         $cashier->assignRole('cashier');
         $cashier->branches()->attach($branch->id, ['is_primary' => true]);
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -208,9 +209,11 @@ class OrderListingTest extends TestCase
         $target = $this->createOrder($branch, $cashier);
         $this->createOrder($branch, $cashier, ['status' => 'cancelled']);
 
-        $byId = $this->actingAs($cashier)->getJson("/api/v1/orders?order_number={$target->id}");
-        $this->assertCount(1, $byId->json('data'));
-        $this->assertEquals($target->id, $byId->json('data.0.id'));
+        $byOrderNumber = $this->actingAs($cashier)->getJson(
+            "/api/v1/orders?order_number={$target->order_number}"
+        );
+        $this->assertCount(1, $byOrderNumber->json('data'));
+        $this->assertEquals($target->id, $byOrderNumber->json('data.0.id'));
 
         $byUuid = $this->actingAs($cashier)->getJson('/api/v1/orders?order_number='.substr($target->uuid, 0, 8));
         $this->assertCount(1, $byUuid->json('data'));
@@ -293,7 +296,7 @@ class OrderListingTest extends TestCase
         $cashier = $this->makeCashier($branch);
         $order = $this->createOrder($branch, $cashier);
 
-        $kitchenUser = User::factory()->create();
+        $kitchenUser = User::factory()->create(['business_id' => $this->business->id]);
         $kitchenUser->assignRole('kitchen_staff');
         $kitchenUser->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -310,7 +313,7 @@ class OrderListingTest extends TestCase
         $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $this->seedPermissions();
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
         $admin->branches()->attach($otherBranch->id, []);
@@ -350,7 +353,7 @@ class OrderListingTest extends TestCase
         $otherBranch = $this->createBranch('BKK1', 'PP-02');
         $this->seedPermissions();
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['business_id' => $this->business->id]);
         $admin->assignRole('admin');
         $admin->branches()->attach($branch->id, ['is_primary' => true]);
 

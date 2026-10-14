@@ -490,6 +490,9 @@ class MainActivity : FlutterActivity() {
         val businessName =
             call.argument<String>("businessName")
                 ?: "TOP COFFEE"
+        val documentTitle =
+            call.argument<String>("documentTitle")
+                ?: "RECEIPT · PAID"
         val branchName =
             call.argument<String>("branchName") ?: ""
         val orderNumber =
@@ -539,6 +542,7 @@ class MainActivity : FlutterActivity() {
             boldTotal = boldTotal,
             boldFooter = boldFooter,
             businessName = businessName,
+            documentTitle = documentTitle,
             branchName = branchName,
             orderNumber = orderNumber,
             cashierName = cashierName,
@@ -554,6 +558,9 @@ class MainActivity : FlutterActivity() {
             showSplitPayments = showSplitPayments,
             items = items,
             payments = payments,
+            supplemental = call.argument<String>("supplemental") ?: "0.00",
+            refunded = call.argument<String>("refunded") ?: "0.00",
+            netPaid = call.argument<String>("netPaid"),
         )
 
         result.success(true)
@@ -597,6 +604,7 @@ class MainActivity : FlutterActivity() {
         boldTotal: Boolean,
         boldFooter: Boolean,
         businessName: String,
+        documentTitle: String,
         branchName: String,
         orderNumber: String,
         cashierName: String,
@@ -612,6 +620,9 @@ class MainActivity : FlutterActivity() {
         showSplitPayments: Boolean,
         items: List<*>,
         payments: List<*>,
+        supplemental: String = "0.00",
+        refunded: String = "0.00",
+        netPaid: String? = null,
     ) {
         val receiptWidth = 576
         val left = 24f
@@ -735,6 +746,10 @@ class MainActivity : FlutterActivity() {
             estimateText(branchName, bodySize, true)
         }
 
+        if (documentTitle.isNotBlank()) {
+            estimateText(documentTitle, bodySize, true)
+        }
+
         if (orderNumber.isNotBlank()) {
             estimateText("Order #$orderNumber", bodySize)
         }
@@ -781,6 +796,11 @@ class MainActivity : FlutterActivity() {
             estimateText("Discount: $discount", bodySize)
         }
 
+        if (supplemental != "0.00") estimateText("Additional charge: $supplemental", bodySize)
+        if (refunded != "0.00") {
+            estimateText("Refunded: $refunded", bodySize)
+            estimateText("NET PAID: ${netPaid ?: total}", bodySize, true)
+        }
         estimateText(
             "TOTAL:           $total",
             bodySize,
@@ -962,6 +982,15 @@ class MainActivity : FlutterActivity() {
                 )
             }
 
+            if (documentTitle.isNotBlank()) {
+                drawWrapped(
+                    documentTitle,
+                    bodySize,
+                    true,
+                    Paint.Align.CENTER,
+                )
+            }
+
             if (orderNumber.isNotBlank()) {
                 drawWrapped(
                     "Order #$orderNumber",
@@ -1111,6 +1140,11 @@ class MainActivity : FlutterActivity() {
                 boldTotal,
             )
 
+            if (supplemental != "0.00") drawWrapped("Additional charge: $supplemental", bodySize)
+            if (refunded != "0.00") {
+                drawWrapped("Refunded: $refunded", bodySize)
+                drawWrapped("NET PAID: ${netPaid ?: total}", bodySize, true)
+            }
             drawSeparator()
 
             if (paymentMethod.isNotBlank()) {

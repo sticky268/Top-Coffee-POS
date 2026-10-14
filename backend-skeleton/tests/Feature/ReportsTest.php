@@ -70,7 +70,7 @@ class ReportsTest extends TestCase
             'guard_name' => 'web',
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
         $user->branches()->attach($branch->id, ['is_primary' => true]);
 
@@ -195,7 +195,7 @@ class ReportsTest extends TestCase
 
         $user = $this->makeUserForBranch($branch);
 
-        $category = Category::create([
+        $category = Category::forceCreate(['business_id' => $this->business->id,
             'branch_id' => null,
             'name' => 'Coffee',
         ]);
@@ -329,6 +329,91 @@ class ReportsTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJsonPath('success', false);
+    }
+
+    public function test_payment_breakdown_counts_only_completed_collections(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $user = $this->makeUserForBranch($branch);
+        $order = $this->makeOrder($branch, $user);
+        foreach (['completed' => 10, 'pending' => 100, 'failed' => 1000, 'refunded' => 10000] as $status => $amount) {
+            Payment::create(['order_id' => $order->id, 'method' => 'cash', 'amount' => $amount,
+                'status' => $status, 'processed_by' => $user->id]);
+        }
+        $this->actingAs($user)->getJson('/api/v1/reports')
+            ->assertOk()->assertJsonPath('data.summary.total_sales', 10)
+            ->assertJsonPath('data.payment_methods.0.total', 10)
+            ->assertJsonPath('data.payment_methods.0.count', 1);
+    }
+
+    public function test_admin_report_and_dashboard_cannot_read_another_business(): void
+    {
+        $this->seedReportsPermissions();
+        Permission::firstOrCreate(['name' => 'orders.view', 'guard_name' => 'web']);
+        $own = Branch::factory()->create(['business_id' => $this->business->id]);
+        $foreign = Branch::factory()->create(['business_id' => Business::factory()->create()->id]);
+        $admin = $this->makeUserForBranch($own, 'admin');
+        $admin->givePermissionTo('orders.view');
+        $otherUser = $this->makeUserForBranch($foreign);
+        $ownOrder = $this->makeOrder($own, $admin);
+        $foreignOrder = $this->makeOrder($foreign, $otherUser, ['total' => 90, 'subtotal' => 90]);
+        Payment::create(['order_id' => $ownOrder->id, 'method' => 'cash', 'amount' => 10,
+            'status' => 'completed', 'processed_by' => $admin->id]);
+        Payment::create(['order_id' => $foreignOrder->id, 'method' => 'card', 'amount' => 90,
+            'status' => 'completed', 'processed_by' => $otherUser->id]);
+        foreach ([[$ownOrder, 'Own product', 10], [$foreignOrder, 'Foreign product', 90]] as [$order, $name, $price]) {
+            $category = Category::forceCreate(['business_id' => $order->branch->business_id, 'name' => 'Audit fixture', 'branch_id' => null]);
+            $product = $this->makeProduct($category, $name, $price);
+            OrderItem::create(['order_id' => $order->id, 'product_id' => $product->id,
+                'product_name' => $name, 'quantity' => 1, 'unit_price' => $price, 'line_total' => $price]);
+        }
+        $unitId = \Illuminate\Support\Facades\DB::table('units')->insertGetId([
+            'name' => 'Audit gram', 'abbreviation' => 'g', 'conversion_factor' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        foreach ([$own, $foreign] as $branch) {
+            \App\Models\Ingredient::create(['branch_id' => $branch->id, 'unit_id' => $unitId,
+                'name' => 'Low stock fixture', 'reorder_threshold' => 1, 'is_active' => true]);
+        }
+        $this->actingAs($admin)->getJson('/api/v1/reports')->assertOk()
+            ->assertJsonPath('data.summary.total_sales', 10)
+            ->assertJsonCount(1, 'data.payment_methods')
+            ->assertJsonPath('data.top_products.0.product_name', 'Own product');
+        $this->getJson('/api/v1/dashboard')->assertOk()
+            ->assertJsonPath('data.stats.todays_sales', 10)
+            ->assertJsonPath('data.stats.low_stock_item_count', 1)
+            ->assertJsonCount(1, 'data.recent_orders');
+        $this->getJson('/api/v1/reports?branch_id='.$foreign->id)->assertForbidden();
+        $this->getJson('/api/v1/dashboard?branch_id='.$foreign->id)->assertForbidden();
+    }
+
+    public function test_dashboard_uses_branch_order_number_and_completed_split_payments(): void
+    {
+        $this->seedReportsPermissions();
+        Permission::firstOrCreate(['name' => 'orders.view', 'guard_name' => 'web']);
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $user = $this->makeUserForBranch($branch, 'admin');
+        $user->givePermissionTo('orders.view');
+        $order = $this->makeOrder($branch, $user, ['order_number' => 42]);
+        foreach ([['card', 100, 'failed'], ['cash', 4, 'completed'], ['qr', 6, 'completed']] as [$method, $amount, $status]) {
+            Payment::create(['order_id' => $order->id, 'method' => $method, 'amount' => $amount,
+                'status' => $status, 'processed_by' => $user->id]);
+        }
+        $this->actingAs($user)->getJson('/api/v1/dashboard')->assertOk()
+            ->assertJsonPath('data.recent_orders.0.order_number', '42')
+            ->assertJsonPath('data.recent_orders.0.payment_method', 'split');
+    }
+
+    public function test_business_isolation_does_not_hide_archived_branch_sales_from_admin(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id'=>$this->business->id]);
+        $admin = $this->makeUserForBranch($branch,'admin');
+        $this->makeOrder($branch,$admin);
+        $branch->delete();
+        $this->actingAs($admin)->getJson('/api/v1/reports')->assertOk()->assertJsonPath('data.summary.total_sales',10);
+        $this->getJson('/api/v1/reports?branch_id='.$branch->id)->assertOk()->assertJsonPath('data.summary.total_sales',10);
     }
 
     public function test_admin_can_view_another_branch_report(): void

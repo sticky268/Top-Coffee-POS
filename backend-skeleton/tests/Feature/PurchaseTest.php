@@ -18,6 +18,14 @@ class PurchaseTest extends TestCase
 {
     use RefreshDatabase;
 
+    private \App\Models\Business $business;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->business = \App\Models\Business::factory()->create();
+    }
+
     private function seedPermissions(): void
     {
         foreach ([
@@ -68,7 +76,7 @@ class PurchaseTest extends TestCase
     {
         $this->seedPermissions();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['business_id' => $branch->business_id]);
         $user->assignRole($role);
 
         $user->branches()->attach($branch->id, [
@@ -122,7 +130,7 @@ class PurchaseTest extends TestCase
         ?int $branchId,
         string $name = 'Coffee Supplier',
     ): Supplier {
-        return Supplier::create([
+        return Supplier::forceCreate(['business_id' => $this->business->id,
             'branch_id' => $branchId,
             'name' => $name,
         ]);
@@ -137,7 +145,7 @@ class PurchaseTest extends TestCase
 
     public function test_user_without_inventory_manage_permission_is_rejected(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $this->seedPermissions();
 
@@ -155,7 +163,7 @@ class PurchaseTest extends TestCase
 
     public function test_manager_can_create_purchase_and_increase_stock(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
         $ingredient = $this->createIngredient($branch);
@@ -213,7 +221,7 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_defaults_to_users_primary_branch_when_branch_is_omitted(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
         $ingredient = $this->createIngredient($branch);
@@ -237,7 +245,7 @@ class PurchaseTest extends TestCase
 
     public function test_manager_can_use_global_supplier(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier(null, 'Global Supplier');
         $ingredient = $this->createIngredient($branch);
@@ -261,8 +269,8 @@ class PurchaseTest extends TestCase
 
     public function test_manager_cannot_create_purchase_for_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($otherBranch->id);
@@ -289,8 +297,8 @@ class PurchaseTest extends TestCase
 
     public function test_manager_cannot_use_supplier_from_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($otherBranch->id);
@@ -317,8 +325,8 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_rejects_ingredient_from_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
@@ -345,7 +353,7 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_total_is_calculated_from_all_items(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
         $ingredientOne = $this->createIngredient($branch, 'Coffee Beans');
@@ -377,7 +385,7 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_validation_rejects_empty_items(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
 
@@ -395,7 +403,7 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_validation_rejects_non_positive_quantity(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
         $ingredient = $this->createIngredient($branch);
@@ -420,7 +428,7 @@ class PurchaseTest extends TestCase
 
     public function test_manager_can_list_purchase_history_with_supplier_and_items(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
         $ingredient = $this->createIngredient($branch);
@@ -467,8 +475,8 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_history_defaults_to_users_primary_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
@@ -500,8 +508,8 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_history_rejects_another_branch(): void
     {
-        $branch = Branch::factory()->create();
-        $otherBranch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $otherBranch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($otherBranch->id);
@@ -522,7 +530,7 @@ class PurchaseTest extends TestCase
 
     public function test_purchase_history_supports_pagination(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
         $user = $this->makeUser($branch);
         $supplier = $this->createSupplier($branch->id);
 
@@ -556,7 +564,7 @@ class PurchaseTest extends TestCase
 
     public function test_user_without_inventory_view_permission_is_rejected(): void
     {
-        $branch = Branch::factory()->create();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
 
         $this->seedPermissions();
 
