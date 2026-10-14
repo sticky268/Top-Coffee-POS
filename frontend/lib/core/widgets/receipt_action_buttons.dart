@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../receipt/customer_bill.dart';
 import '../receipt/receipt_action_service.dart';
@@ -26,15 +28,27 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
   bool _isPrinting = false;
   bool _isSharing = false;
 
-  Future<void> _printReceipt() async {
+  Future<void> _printReceipt({bool asCopy = false}) async {
     if (_isPrinting || _isSharing) return;
 
     setState(() => _isPrinting = true);
     try {
-      await ref.read(receiptActionServiceProvider).printReceipt(widget.orderId);
+      if (asCopy && !await _confirmPrintCopy(context)) return;
+      if (!mounted) return;
+      await ref
+          .read(receiptActionServiceProvider)
+          .printReceipt(widget.orderId, asCopy: asCopy);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt printed successfully.')),
+        SnackBar(
+          content: const Text(
+            'Receipt saved in Print Queue. Check its status.',
+          ),
+          action: SnackBarAction(
+            label: 'Queue',
+            onPressed: () => context.go('/print-queue'),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -81,9 +95,9 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
         if (widget.showHeading) ...[
           Text(
             'Receipt',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
@@ -113,6 +127,11 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
             label: Text(_isSharing ? 'Preparing...' : 'E-Receipt'),
           ),
         ),
+        TextButton.icon(
+          onPressed: busy ? null : () => _printReceipt(asCopy: true),
+          icon: const Icon(Icons.copy_outlined),
+          label: const Text('Reprint COPY'),
+        ),
       ],
     );
   }
@@ -133,18 +152,29 @@ class BillActionButtons extends ConsumerStatefulWidget {
 }
 
 class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
+  final _draftPrintId = const Uuid().v4();
   bool _isPrinting = false;
   bool _isSharing = false;
 
-  Future<void> _printBill() async {
+  Future<void> _printBill({bool asCopy = false}) async {
     if (_isPrinting || _isSharing) return;
 
     setState(() => _isPrinting = true);
     try {
-      await ref.read(receiptActionServiceProvider).printBill(widget.bill);
+      if (asCopy && !await _confirmPrintCopy(context)) return;
+      if (!mounted) return;
+      await ref
+          .read(receiptActionServiceProvider)
+          .printBill(widget.bill, draftId: _draftPrintId, asCopy: asCopy);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bill printed successfully.')),
+        SnackBar(
+          content: const Text('Bill saved in Print Queue. Check its status.'),
+          action: SnackBarAction(
+            label: 'Queue',
+            onPressed: () => context.go('/print-queue'),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -165,10 +195,7 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
     try {
       await ref
           .read(receiptActionServiceProvider)
-          .shareElectronicBill(
-            widget.bill,
-            sharePositionOrigin: shareOrigin,
-          );
+          .shareElectronicBill(widget.bill, sharePositionOrigin: shareOrigin);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,9 +216,9 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
         if (widget.showHeading) ...[
           Text(
             'Customer Bill',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
@@ -223,16 +250,18 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
             label: Text(_isSharing ? 'Preparing...' : 'E-Bill'),
           ),
         ),
+        TextButton.icon(
+          onPressed: busy ? null : () => _printBill(asCopy: true),
+          icon: const Icon(Icons.copy_outlined),
+          label: const Text('Reprint COPY'),
+        ),
       ],
     );
   }
 }
 
 class _DocumentButtonLayout extends StatelessWidget {
-  const _DocumentButtonLayout({
-    required this.primary,
-    required this.secondary,
-  });
+  const _DocumentButtonLayout({required this.primary, required this.secondary});
 
   final Widget primary;
   final Widget secondary;
@@ -244,11 +273,7 @@ class _DocumentButtonLayout extends StatelessWidget {
         if (constraints.maxWidth < 420) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              primary,
-              const SizedBox(height: 10),
-              secondary,
-            ],
+            children: [primary, const SizedBox(height: 10), secondary],
           );
         }
 
@@ -330,10 +355,7 @@ Future<void> showLastReceiptDialog({
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Order $orderReference',
-              textAlign: TextAlign.center,
-            ),
+            Text('Order $orderReference', textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ReceiptActionButtons(orderId: orderId),
           ],
@@ -348,3 +370,25 @@ Future<void> showLastReceiptDialog({
     ),
   );
 }
+
+Future<bool> _confirmPrintCopy(BuildContext context) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Print a COPY?'),
+        content: const Text(
+          'Check existing paper first. This prints a labelled COPY and does not create another sale or payment.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    ) ??
+    false;

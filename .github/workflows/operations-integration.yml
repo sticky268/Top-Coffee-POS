@@ -10,7 +10,7 @@ permissions:
   contents: read
 concurrency:
   group: operations-integration-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   android-workflow:
     runs-on: ubuntu-latest
@@ -70,6 +70,7 @@ jobs:
           script: |
             cd frontend && flutter test integration_test/daily_operations_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
             cd frontend && flutter test integration_test/operations_readonly_smoke_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1 --dart-define=SMOKE_EXPECTED_API=http://10.0.2.2:8000/api/v1 --dart-define=SMOKE_CI_LOGIN=true
+            cd frontend && flutter test integration_test/printer_queue_recovery_test.dart
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

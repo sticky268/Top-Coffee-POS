@@ -287,6 +287,7 @@ class OrderReceipt {
     required this.subtotal,
     required this.discountTotal,
     required this.total,
+    this.branchId,
     this.branchName,
     this.branchCode,
     this.cashierName,
@@ -310,6 +311,7 @@ class OrderReceipt {
   final double supplementalTotal;
   final double refundedTotal;
   double get netPaid => total - refundedTotal;
+  final int? branchId;
   final String? branchName;
   final String? branchCode;
   final String? cashierName;
@@ -365,6 +367,7 @@ class OrderReceipt {
       total: (json['total'] as num).toDouble(),
       supplementalTotal: (json['supplemental_total'] as num?)?.toDouble() ?? 0,
       refundedTotal: (json['refunded_total'] as num?)?.toDouble() ?? 0,
+      branchId: (branch?['id'] as num?)?.toInt(),
       branchName: branch?['name'] as String?,
       branchCode: branch?['code'] as String?,
       cashierName: cashier?['name'] as String?,

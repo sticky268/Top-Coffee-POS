@@ -28,6 +28,7 @@ class CustomerBill {
   const CustomerBill({
     this.orderReference,
     required this.orderType,
+    this.branchId,
     this.branchName,
     this.branchCode,
     this.cashierName,
@@ -41,6 +42,7 @@ class CustomerBill {
 
   final String? orderReference;
   final String orderType;
+  final int? branchId;
   final String? branchName;
   final String? branchCode;
   final String? cashierName;
@@ -53,13 +55,13 @@ class CustomerBill {
 
   bool get isDraft => orderReference?.trim().isEmpty ?? true;
 
-  String get displayReference =>
-      isDraft ? 'Draft' : orderReference!.trim();
+  String get displayReference => isDraft ? 'Draft' : orderReference!.trim();
 
   factory CustomerBill.fromOrderDetail(OrderDetail order) {
     return CustomerBill(
       orderReference: order.displayOrderReference,
       orderType: order.orderType,
+      branchId: order.branch?.id,
       branchName: order.branch?.name,
       branchCode: order.branch?.code,
       cashierName: order.cashier?.name,
@@ -86,6 +88,7 @@ class CustomerBill {
     return CustomerBill(
       orderReference: receipt.displayOrderReference,
       orderType: receipt.orderType,
+      branchId: receipt.branchId,
       branchName: receipt.branchName,
       branchCode: receipt.branchCode,
       cashierName: receipt.cashierName,
