@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -46,6 +47,17 @@ void main() {
     final controller = container.read(productsControllerProvider.notifier);
     return (container: container, controller: controller);
   }
+
+  test('a fast product failure is handled while categories are still loading', () async {
+    final categories = Completer<List<PosCategory>>();
+    when(() => repository.getCategories()).thenAnswer((_) => categories.future);
+    when(() => repository.getProducts()).thenAnswer((_) => Future.error(Exception('products unavailable')));
+    final built = buildAndStart();
+    await Future<void>.delayed(Duration.zero);
+    categories.complete([_coffee]);
+    await built.controller.initialization;
+    expect(built.container.read(productsControllerProvider), isA<ProductsError>());
+  });
 
   test('loads successfully into ProductsLoaded', () async {
     when(() => repository.getCategories()).thenAnswer((_) async => [_coffee, _tea]);

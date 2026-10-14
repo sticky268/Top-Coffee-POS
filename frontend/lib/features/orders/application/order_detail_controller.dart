@@ -13,6 +13,7 @@ import 'order_detail_state.dart';
 /// viewed order's state doesn't linger in memory once its detail screen
 /// is popped.
 class OrderDetailController extends StateNotifier<OrderDetailState> {
+  int _generation = 0;
   OrderDetailController(this._repository, this._orderId) : super(const OrderDetailLoading()) {
     _initialization = _load();
   }
@@ -30,15 +31,16 @@ class OrderDetailController extends StateNotifier<OrderDetailState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
     state = const OrderDetailLoading();
 
     try {
       final order = await _repository.getOrder(_orderId);
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = OrderDetailLoaded(order);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = OrderDetailError(e is ApiException ? e.message : 'Something went wrong');
     }
   }

@@ -9,6 +9,7 @@ final staffListControllerProvider =
 });
 
 class StaffListController extends StateNotifier<StaffListState> {
+  int _generation = 0;
   StaffListController(this._repository)
       : super(const StaffListLoading()) {
     load();
@@ -22,6 +23,7 @@ class StaffListController extends StateNotifier<StaffListState> {
   bool? _isActive;
 
   Future<void> load() async {
+    final generation = ++_generation;
     state = const StaffListLoading();
 
     try {
@@ -33,7 +35,7 @@ class StaffListController extends StateNotifier<StaffListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = StaffListLoaded(
         staff: page.data,
@@ -42,12 +44,13 @@ class StaffListController extends StateNotifier<StaffListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = StaffListError(_messageFor(e));
     }
   }
 
   Future<void> refresh() async {
+    final generation = ++_generation;
     try {
       final page = await _repository.getStaff(
         search: _search.isEmpty ? null : _search,
@@ -57,7 +60,7 @@ class StaffListController extends StateNotifier<StaffListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = StaffListLoaded(
         staff: page.data,
@@ -66,7 +69,7 @@ class StaffListController extends StateNotifier<StaffListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = StaffListError(_messageFor(e));
     }
   }
@@ -100,6 +103,7 @@ class StaffListController extends StateNotifier<StaffListState> {
   }
 
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! StaffListLoaded ||
@@ -121,7 +125,7 @@ class StaffListController extends StateNotifier<StaffListState> {
         page: nextPage,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = current.copyWith(
         staff: [...current.staff, ...page.data],
@@ -131,7 +135,7 @@ class StaffListController extends StateNotifier<StaffListState> {
         isLoadingMore: false,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = current.copyWith(isLoadingMore: false);
     }
   }

@@ -8,6 +8,7 @@ import 'orders_list_state.dart';
 
 /// Loads and filters the order history list.
 class OrdersListController extends StateNotifier<OrdersListState> {
+  int _generation = 0;
   OrdersListController(this._repository, this._ref)
       : super(const OrdersListLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -58,7 +59,8 @@ class OrdersListController extends StateNotifier<OrdersListState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const OrdersListLoading();
 
@@ -69,7 +71,7 @@ class OrdersListController extends StateNotifier<OrdersListState> {
         filters: _filters,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = OrdersListLoaded(
         orders: page.orders,
@@ -78,7 +80,7 @@ class OrdersListController extends StateNotifier<OrdersListState> {
         filters: _filters,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = OrdersListError(
         e is ApiException ? e.message : 'Something went wrong',
@@ -88,6 +90,7 @@ class OrdersListController extends StateNotifier<OrdersListState> {
 
   /// Fetches the next page using the same active filters.
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! OrdersListLoaded) return;
@@ -102,7 +105,7 @@ class OrdersListController extends StateNotifier<OrdersListState> {
         filters: current.filters,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 
@@ -115,7 +118,7 @@ class OrdersListController extends StateNotifier<OrdersListState> {
         isLoadingMore: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 

@@ -14,6 +14,7 @@ enum ReportsDateRange {
 }
 
 class ReportsController extends StateNotifier<ReportsState> {
+  int _generation = 0;
   ReportsController(this._repository, this._ref)
       : super(const ReportsLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -65,7 +66,8 @@ class ReportsController extends StateNotifier<ReportsState> {
   }
 
   Future<void> _load(ReportsDateRange range) async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const ReportsLoading();
 
@@ -77,7 +79,7 @@ class ReportsController extends StateNotifier<ReportsState> {
         dateTo: _formatDate(dates.$2),
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = ReportsLoaded(
         report: report,
@@ -85,7 +87,7 @@ class ReportsController extends StateNotifier<ReportsState> {
         dateTo: dates.$2,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = ReportsError(
         e is ApiException ? e.message : 'Something went wrong',
@@ -105,7 +107,7 @@ class ReportsController extends StateNotifier<ReportsState> {
         );
 
       case ReportsDateRange.yesterday:
-        final yesterday = todayDate.subtract(const Duration(days: 1));
+        final yesterday = DateTime(todayDate.year, todayDate.month, todayDate.day - 1);
         return (
           yesterday,
           yesterday,
@@ -113,13 +115,13 @@ class ReportsController extends StateNotifier<ReportsState> {
 
       case ReportsDateRange.last7Days:
         return (
-          todayDate.subtract(const Duration(days: 6)),
+          DateTime(todayDate.year, todayDate.month, todayDate.day - 6),
           todayDate,
         );
 
       case ReportsDateRange.last30Days:
         return (
-          todayDate.subtract(const Duration(days: 29)),
+          DateTime(todayDate.year, todayDate.month, todayDate.day - 29),
           todayDate,
         );
     }

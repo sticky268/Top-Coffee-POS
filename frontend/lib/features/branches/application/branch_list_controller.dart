@@ -10,6 +10,7 @@ final branchListControllerProvider =
 });
 
 class BranchListController extends StateNotifier<BranchListState> {
+  int _generation = 0;
   BranchListController(this._repository)
       : super(const BranchListLoading()) {
     _initialization = _load();
@@ -36,7 +37,8 @@ class BranchListController extends StateNotifier<BranchListState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const BranchListLoading();
 
@@ -47,7 +49,7 @@ class BranchListController extends StateNotifier<BranchListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = BranchListLoaded(
         branches: page.data,
@@ -56,7 +58,7 @@ class BranchListController extends StateNotifier<BranchListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = BranchListError(
         e is ApiException ? e.message : 'Something went wrong',
@@ -81,6 +83,7 @@ class BranchListController extends StateNotifier<BranchListState> {
   }
 
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! BranchListLoaded) return;
@@ -95,7 +98,7 @@ class BranchListController extends StateNotifier<BranchListState> {
         page: current.currentPage + 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 
@@ -109,7 +112,7 @@ class BranchListController extends StateNotifier<BranchListState> {
         isLoadingMore: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 

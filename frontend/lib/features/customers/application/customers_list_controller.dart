@@ -7,6 +7,7 @@ import 'customers_list_state.dart';
 
 /// Loads and manages the customer list.
 class CustomersListController extends StateNotifier<CustomersListState> {
+  int _generation = 0;
   CustomersListController(this._repository, this._ref)
       : super(const CustomersListLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -58,7 +59,8 @@ class CustomersListController extends StateNotifier<CustomersListState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const CustomersListLoading();
 
@@ -69,7 +71,7 @@ class CustomersListController extends StateNotifier<CustomersListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = CustomersListLoaded(
         customers: page.data,
@@ -78,7 +80,7 @@ class CustomersListController extends StateNotifier<CustomersListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = CustomersListError(
         e is ApiException ? e.message : 'Something went wrong',
@@ -87,6 +89,7 @@ class CustomersListController extends StateNotifier<CustomersListState> {
   }
 
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! CustomersListLoaded) return;
@@ -101,7 +104,7 @@ class CustomersListController extends StateNotifier<CustomersListState> {
         page: current.currentPage + 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 
@@ -115,7 +118,7 @@ class CustomersListController extends StateNotifier<CustomersListState> {
         isLoadingMore: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 

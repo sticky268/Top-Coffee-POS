@@ -58,7 +58,10 @@ class ReceiptActionService {
         branchName: receipt.branchName,
         asCopy: asCopy,
       );
-      await _printQueue.send(job.id, selected);
+      final sent = await _printQueue.send(job.id, selected);
+      if (sent.status != PrintStatus.sent) {
+        throw StateError(sent.error ?? 'Printing is awaiting confirmation. Open the print queue.');
+      }
       return receipt;
     }
     await _withPrinter(
@@ -103,7 +106,10 @@ class ReceiptActionService {
         branchName: bill.branchName,
         asCopy: asCopy,
       );
-      await _printQueue.send(job.id, selected);
+      final sent = await _printQueue.send(job.id, selected);
+      if (sent.status != PrintStatus.sent) {
+        throw StateError(sent.error ?? 'Printing is awaiting confirmation. Open the print queue.');
+      }
       return;
     }
     await _withPrinter(

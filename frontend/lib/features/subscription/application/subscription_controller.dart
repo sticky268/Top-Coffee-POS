@@ -6,6 +6,7 @@ import 'subscription_state.dart';
 
 /// Loads and refreshes the authenticated business subscription.
 class SubscriptionController extends StateNotifier<SubscriptionState> {
+  int _generation = 0;
   SubscriptionController(this._repository)
       : super(const SubscriptionLoading()) {
     _initialization = _load();
@@ -25,20 +26,21 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const SubscriptionLoading();
 
     try {
       final subscription = await _repository.getSubscription();
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = SubscriptionLoaded(
         subscription: subscription,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = SubscriptionError(
         e is ApiException ? e.message : 'Something went wrong',
