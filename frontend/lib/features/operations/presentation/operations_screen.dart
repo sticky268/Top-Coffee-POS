@@ -46,6 +46,10 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         _comparisons = [];
       });
     }
+    if (ref.read(currentBranchProvider) == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     try {
       final repo = ref.read(operationsRepositoryProvider);
       final saved = await repo.pending();
@@ -488,6 +492,20 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     });
     if (auth is! AuthAuthenticated) {
       return const Scaffold(body: Center(child: Text('Sign in to continue.')));
+    }
+    if (ref.watch(currentBranchProvider) == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Daily Operations')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Select a branch to view Daily Operations.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
     }
     final sections = [
       'Shifts',
