@@ -34,7 +34,7 @@ try {
     }
     $deadline = (Get-Date).AddMinutes(12)
     while ($job.State -eq "Running") {
-        Receive-Job $job
+        Receive-Job $job -ErrorAction Continue
         if ((Get-Date) -gt $deadline) { throw "Timed out waiting for the emulator test." }
         if (-not $sent) {
             $ErrorActionPreference = "Continue"
@@ -53,7 +53,7 @@ try {
         }
         Start-Sleep -Milliseconds 500
     }
-    Receive-Job $job
+    Receive-Job $job -ErrorAction Continue
     if ($job.State -eq "Failed") { throw "The Flutter test process failed." }
 } finally {
     if ($job) {
