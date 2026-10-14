@@ -12,6 +12,9 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        if (config('app.env') === 'production') {
+            throw new \LogicException('Demo seeding is disabled in production. Use pos:onboard-business for real business setup.');
+        }
         $business = Business::where('slug', 'top-coffee-demo')->firstOrFail();
 
         $branch1 = Branch::where('code', 'PP-01')->first();

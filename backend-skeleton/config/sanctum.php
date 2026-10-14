@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION') === null || env('SANCTUM_TOKEN_EXPIRATION') === ''
+        ? null : max(1, (int) env('SANCTUM_TOKEN_EXPIRATION')),
 
     /*
     |--------------------------------------------------------------------------

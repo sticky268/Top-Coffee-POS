@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import tarfile
 from datetime import datetime, timezone
 
 
@@ -100,6 +101,26 @@ def backup(args):
             shutil.rmtree(staging)
 
 
+def restore_assets(archive_path, destination):
+    """Extract regular files only; never follow archive links or traversal."""
+    destination = destination.resolve()
+    with tarfile.open(archive_path, "r:gz") as archive:
+        members = archive.getmembers()
+        for member in members:
+            target = (destination / member.name).resolve()
+            if not target.is_relative_to(destination) or not (member.isfile() or member.isdir()):
+                raise ValueError("Unsafe asset archive member.")
+        destination.mkdir(parents=True, mode=0o700)
+        for member in members:
+            target = destination / member.name
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.extractfile(member) as source, target.open("xb") as output:
+                    shutil.copyfileobj(source, output)
+
+
 def restore(args):
     manifest = json.loads((args.backup / 'manifest.json').read_text())
     # Never overwrites a database. Dedicated empty rehearsal names only.
@@ -122,8 +143,7 @@ def restore(args):
     restored = counts(args, args.database)
     if restored != manifest['table_counts'] or data_hash(args, args.database) != manifest['data_hash']:
         raise RuntimeError('Restored table counts differ. Rehearsal is not accepted.')
-    args.assets.mkdir(parents=True)
-    subprocess.run(['tar', '-xzf', str(args.backup / 'assets.tar.gz'), '-C', str(args.assets.resolve())], check=True)
+    restore_assets(args.backup / 'assets.tar.gz', args.assets)
     if asset_hashes(args.assets) != manifest['asset_hashes']:
         raise RuntimeError('Restored assets differ. Rehearsal is not accepted.')
     print(json.dumps({'restored': True, 'database': args.database, 'tables': len(restored),

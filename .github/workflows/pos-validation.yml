@@ -20,6 +20,7 @@ jobs:
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit
+      - run: python3 -m unittest discover -s tools -p 'test_*.py'
   operations-mysql:
     runs-on: ubuntu-latest
     services:

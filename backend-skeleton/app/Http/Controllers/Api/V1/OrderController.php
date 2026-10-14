@@ -393,6 +393,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not create the order. Please try again.',
@@ -699,6 +700,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not save the order. Please try again.',
@@ -894,6 +896,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not update the order. Please try again.',
@@ -1002,6 +1005,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not cancel the order. Please try again.',
@@ -1200,6 +1204,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not complete the payment. Please try again.',
@@ -1554,6 +1559,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not update the order. Please try again.',

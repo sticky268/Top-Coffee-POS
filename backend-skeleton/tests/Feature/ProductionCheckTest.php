@@ -19,4 +19,11 @@ class ProductionCheckTest extends TestCase
         $this->assertFalse($report['checks']['debug_disabled']);
         $this->assertFalse($report['checks']['transactional_database']);
     }
+    public function test_demo_accounts_cannot_be_seeded_in_production(): void
+    {
+        config(['app.env' => 'production']);
+        $this->expectException(\LogicException::class);
+        (new \Database\Seeders\DatabaseSeeder())->run();
+    }
+
 }

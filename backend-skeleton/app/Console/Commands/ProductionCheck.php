@@ -23,6 +23,7 @@ class ProductionCheck extends Command
             'debug_disabled' => config('app.debug') === false,
             'application_key_valid' => Encrypter::supported($key, config('app.cipher')),
             'https_application_url' => parse_url(config('app.url'), PHP_URL_SCHEME) === 'https',
+            'bounded_token_lifetime' => is_numeric(config('sanctum.expiration')) && (int) config('sanctum.expiration') > 0,
             'persistent_cache' => ! in_array(config('cache.default'), ['array', 'null'], true),
         ];
         try {
