@@ -39,10 +39,11 @@ class _PrintQueueScreenState extends ConsumerState<PrintQueueScreen> {
     try {
       await action();
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('$error')));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -105,8 +106,9 @@ class _PrintQueueScreenState extends ConsumerState<PrintQueueScreen> {
                             if (!await _confirm(
                               'Print a COPY?',
                               'Check the paper first. The previous attempt may already have printed. This sends the saved document with a COPY label.',
-                            ))
+                            )) {
                               return;
+                            }
                             final copy = await queue.copy(job.id, scope);
                             await queue.send(copy.id, scope);
                           }),

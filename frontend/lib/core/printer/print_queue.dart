@@ -140,8 +140,9 @@ class PrintQueue {
   }
 
   void _guard(PrintScope selected) {
-    if (scope() != selected)
+    if (scope() != selected) {
       throw StateError('Sign in and select this job’s branch.');
+    }
   }
 
   Future<void> _save(PrintJob job) async {
@@ -171,8 +172,9 @@ class PrintQueue {
   Future<PrintJob> _read(String id, PrintScope selected) async {
     _guard(selected);
     final raw = await store.read('${_prefix(selected)}$id');
-    if (raw == null)
+    if (raw == null) {
       throw StateError('Print job is unavailable for this account and branch.');
+    }
     final job = PrintJob.fromJson(
       Map<String, dynamic>.from(jsonDecode(raw) as Map),
     );
@@ -250,15 +252,17 @@ class PrintQueue {
     PrintScope selected,
   ) => _serialized(() async {
     var job = await _read(id, selected);
-    if (job.status != PrintStatus.waiting && job.status != PrintStatus.failed)
+    if (job.status != PrintStatus.waiting && job.status != PrintStatus.failed) {
       return job;
+    }
     var invoked = false;
     try {
       final ip = (await destination(job)).trim();
-      if (ip.isEmpty)
+      if (ip.isEmpty) {
         throw StateError(
           'Configure and enable this branch’s printer, then retry.',
         );
+      }
       _guard(selected);
       job = job.change({
         'status': PrintStatus.sending.name,
@@ -315,8 +319,9 @@ class PrintQueue {
           );
         }
         for (final existing in await _list(selected)) {
-          if (existing.sourceId == original.id && existing.pending)
+          if (existing.sourceId == original.id && existing.pending) {
             return existing;
+          }
         }
         final job = PrintJob(
           id: _newId(),

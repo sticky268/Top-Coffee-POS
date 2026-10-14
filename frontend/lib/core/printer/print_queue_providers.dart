@@ -33,10 +33,11 @@ final printQueueProvider = Provider<PrintQueue>((ref) {
         branchKey: job.branchCode,
         branchNameFallback: job.branchName,
       );
-      if (!settings.printerEnabled)
+      if (!settings.printerEnabled) {
         throw StateError(
           'Printing is disabled. Enable this branch’s printer in Receipt Settings.',
         );
+      }
       return settings.printerIpAddress;
     },
   );
