@@ -73,6 +73,13 @@ class _PrintQueueScreenState extends ConsumerState<PrintQueueScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(_label(job)),
+            if (job.payload['total'] != null)
+              Text('Total: \$${job.payload['total']}'),
+            if (job.payload['refunded'] != null &&
+                job.payload['refunded'] != '0.00')
+              Text(
+                'Refunded: \$${job.payload['refunded']} · Net paid: \$${job.payload['netPaid']}',
+              ),
             Text(DateFormat('MMM d, h:mm a').format(job.createdAt.toLocal())),
             if (job.printerIp != null) Text('Last printer: ${job.printerIp}'),
             Text('Attempts: ${job.attempts}'),

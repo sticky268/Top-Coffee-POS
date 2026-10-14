@@ -189,6 +189,7 @@ class PrintQueue {
     required Map<String, dynamic> payload,
     String? branchCode,
     String? branchName,
+    bool asCopy = false,
   }) => _serialized(() async {
     _guard(selected);
     // Native byte buffers are persisted as base64 and restored only on send.
@@ -201,6 +202,7 @@ class PrintQueue {
     final snapshot = Map<String, dynamic>.from(
       jsonDecode(jsonEncode(saved)) as Map,
     );
+    if (asCopy) snapshot['documentTitle'] = _copyTitle(snapshot);
     final fingerprint = const Uuid().v5(
       Namespace.url.value,
       jsonEncode([documentId, snapshot]),
@@ -208,7 +210,8 @@ class PrintQueue {
     final history = await _list(selected);
     for (final job in history) {
       if (job.fingerprint == fingerprint &&
-          job.status != PrintStatus.cancelled) {
+          job.status != PrintStatus.cancelled &&
+          !(asCopy && job.status == PrintStatus.sent)) {
         return job; // Repeated taps cannot create duplicate original jobs.
       }
     }
@@ -219,7 +222,9 @@ class PrintQueue {
               j.status == PrintStatus.uncertain ||
               (j.status == PrintStatus.cancelled && j.attempts > 0)),
     );
-    if (priorAttempt) snapshot['documentTitle'] = _copyTitle(snapshot);
+    if (asCopy || priorAttempt) {
+      snapshot['documentTitle'] = _copyTitle(snapshot);
+    }
     final job = PrintJob(
       id: _newId(),
       userId: selected.userId,
@@ -231,7 +236,7 @@ class PrintQueue {
       branchCode: branchCode,
       branchName: branchName,
       createdAt: DateTime.now().toUtc(),
-      isCopy: priorAttempt,
+      isCopy: asCopy || priorAttempt,
     );
     _guard(selected);
     await _save(job); // Persist before any printer connection or transmission.

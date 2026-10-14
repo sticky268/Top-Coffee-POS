@@ -12,16 +12,14 @@ void main() {
     expect(canIssueReceiptForOrderStatus('pending'), isFalse);
   });
 
-  testWidgets('receipt action buttons expose print and electronic receipt',
-      (tester) async {
+  testWidgets('receipt action buttons expose print and electronic receipt', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
-            body: ReceiptActionButtons(
-              orderId: 42,
-              showHeading: true,
-            ),
+            body: ReceiptActionButtons(orderId: 42, showHeading: true),
           ),
         ),
       ),
@@ -36,8 +34,29 @@ void main() {
     );
   });
 
-  testWidgets('bill actions expose unpaid print and electronic bill',
-      (tester) async {
+  testWidgets(
+    'direct receipt copy requires confirmation before loading or printing',
+    (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(body: ReceiptActionButtons(orderId: 42)),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Reprint COPY'));
+      await tester.pumpAndSettle();
+      expect(find.text('Print a COPY?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Print Receipt'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('bill actions expose unpaid print and electronic bill', (
+    tester,
+  ) async {
     const bill = CustomerBill(
       orderType: 'takeaway',
       subtotal: 5,
@@ -57,10 +76,7 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
-            body: BillActionButtons(
-              bill: bill,
-              showHeading: true,
-            ),
+            body: BillActionButtons(bill: bill, showHeading: true),
           ),
         ),
       ),

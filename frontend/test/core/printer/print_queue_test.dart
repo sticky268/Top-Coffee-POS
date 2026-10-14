@@ -214,6 +214,32 @@ void main() {
     },
   );
 
+  test(
+    'legacy receipt can be explicitly reprinted as COPY without an original job',
+    () async {
+      final copies = await Future.wait([
+        queue.enqueue(
+          selected: selected,
+          documentId: 'receipt:legacy',
+          reference: '9',
+          payload: {'total': '5.00', 'documentTitle': ''},
+          asCopy: true,
+        ),
+        queue.enqueue(
+          selected: selected,
+          documentId: 'receipt:legacy',
+          reference: '9',
+          payload: {'total': '5.00', 'documentTitle': ''},
+          asCopy: true,
+        ),
+      ]);
+      expect(copies.first.id, copies.last.id);
+      expect(copies.first.isCopy, isTrue);
+      await queue.send(copies.first.id, selected);
+      expect(printer.sent.single['documentTitle'], 'COPY');
+    },
+  );
+
   test('storage failure prevents any printer transmission', () async {
     final failing = PrintQueue(
       FailingStore(),

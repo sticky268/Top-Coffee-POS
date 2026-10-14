@@ -20,7 +20,7 @@ job. They use the saved document rather than fetching a changed sale.
 - **Printed — confirmed by cashier:** a person inspected and confirmed the paper.
 - **Cancelled:** journal entry retained; cancelling never cancels/refunds a sale.
 
-Repeated Print Receipt taps reuse an existing matching job. A deliberate reprint
+Repeated Print Receipt taps reuse an existing matching job. Receipt and bill screens also offer Reprint COPY for older documents whose original print predates the journal. This asks for confirmation and saves a labelled copy before sending. A deliberate reprint
 uses **Reprint COPY**, asks for confirmation, and creates a labelled copy of the
 saved document. If a changed receipt is printed after an acknowledged/uncertain
 attempt, that new document is also labelled COPY. Bills keep their unpaid title.

@@ -40,7 +40,7 @@ class ReceiptActionService {
     return _repository.getOrderReceipt(orderId: orderId);
   }
 
-  Future<OrderReceipt> printReceipt(int orderId) async {
+  Future<OrderReceipt> printReceipt(int orderId, {bool asCopy = false}) async {
     final receipt = await loadReceipt(orderId);
     if (receipt.status != 'completed') {
       throw StateError('Only completed orders can print a receipt.');
@@ -56,6 +56,7 @@ class ReceiptActionService {
         payload: payload,
         branchCode: receipt.branchCode,
         branchName: receipt.branchName,
+        asCopy: asCopy,
       );
       await _printQueue.send(job.id, selected);
       return receipt;
@@ -63,7 +64,12 @@ class ReceiptActionService {
     await _withPrinter(
       branchKey: receipt.branchCode,
       branchNameFallback: receipt.branchName,
-      action: (_) => _printerService.printReceipt(receipt),
+      action: (_) async {
+        if (!asCopy) return _printerService.printReceipt(receipt);
+        final payload = await _printerService.prepareReceipt(receipt);
+        payload['documentTitle'] = 'COPY';
+        await _printerService.sendPayload(payload);
+      },
     );
     return receipt;
   }
@@ -78,7 +84,11 @@ class ReceiptActionService {
     return selected;
   }
 
-  Future<void> printBill(CustomerBill bill, {String? draftId}) async {
+  Future<void> printBill(
+    CustomerBill bill, {
+    String? draftId,
+    bool asCopy = false,
+  }) async {
     if (_printQueue != null) {
       final selected = _selectedScope(bill.branchId, bill.branchCode);
       final payload = await _printerService.prepareBill(bill);
@@ -91,6 +101,7 @@ class ReceiptActionService {
         payload: payload,
         branchCode: bill.branchCode ?? _branchCode?.call(),
         branchName: bill.branchName,
+        asCopy: asCopy,
       );
       await _printQueue.send(job.id, selected);
       return;
@@ -98,7 +109,12 @@ class ReceiptActionService {
     await _withPrinter(
       branchKey: bill.branchCode,
       branchNameFallback: bill.branchName,
-      action: (_) => _printerService.printBill(bill),
+      action: (_) async {
+        if (!asCopy) return _printerService.printBill(bill);
+        final payload = await _printerService.prepareBill(bill);
+        payload['documentTitle'] = 'COPY · BILL · UNPAID';
+        await _printerService.sendPayload(payload);
+      },
     );
   }
 

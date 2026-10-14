@@ -28,12 +28,16 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
   bool _isPrinting = false;
   bool _isSharing = false;
 
-  Future<void> _printReceipt() async {
+  Future<void> _printReceipt({bool asCopy = false}) async {
     if (_isPrinting || _isSharing) return;
 
     setState(() => _isPrinting = true);
     try {
-      await ref.read(receiptActionServiceProvider).printReceipt(widget.orderId);
+      if (asCopy && !await _confirmPrintCopy(context)) return;
+      if (!mounted) return;
+      await ref
+          .read(receiptActionServiceProvider)
+          .printReceipt(widget.orderId, asCopy: asCopy);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -123,6 +127,11 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
             label: Text(_isSharing ? 'Preparing...' : 'E-Receipt'),
           ),
         ),
+        TextButton.icon(
+          onPressed: busy ? null : () => _printReceipt(asCopy: true),
+          icon: const Icon(Icons.copy_outlined),
+          label: const Text('Reprint COPY'),
+        ),
       ],
     );
   }
@@ -147,14 +156,16 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
   bool _isPrinting = false;
   bool _isSharing = false;
 
-  Future<void> _printBill() async {
+  Future<void> _printBill({bool asCopy = false}) async {
     if (_isPrinting || _isSharing) return;
 
     setState(() => _isPrinting = true);
     try {
+      if (asCopy && !await _confirmPrintCopy(context)) return;
+      if (!mounted) return;
       await ref
           .read(receiptActionServiceProvider)
-          .printBill(widget.bill, draftId: _draftPrintId);
+          .printBill(widget.bill, draftId: _draftPrintId, asCopy: asCopy);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -238,6 +249,11 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
                 : const Icon(Icons.picture_as_pdf_outlined),
             label: Text(_isSharing ? 'Preparing...' : 'E-Bill'),
           ),
+        ),
+        TextButton.icon(
+          onPressed: busy ? null : () => _printBill(asCopy: true),
+          icon: const Icon(Icons.copy_outlined),
+          label: const Text('Reprint COPY'),
         ),
       ],
     );
@@ -354,3 +370,25 @@ Future<void> showLastReceiptDialog({
     ),
   );
 }
+
+Future<bool> _confirmPrintCopy(BuildContext context) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Print a COPY?'),
+        content: const Text(
+          'Check existing paper first. This prints a labelled COPY and does not create another sale or payment.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    ) ??
+    false;
