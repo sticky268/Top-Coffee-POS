@@ -168,6 +168,7 @@ void main() {
                 scrollable: scrollable,
                 maxScrolls: 50,
               );
+              await tester.pumpAndSettle();
               await savePreview(
                 tester,
                 preview,
@@ -260,6 +261,8 @@ void main() {
         150,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
+      expect(find.text('Review Order').hitTestable(), findsOneWidget);
       await savePreview(tester, preview, 'cart-total-360-large-text');
       verifyZeroInteractions(built.repository);
     },

@@ -126,6 +126,9 @@ class CheckoutChoiceSelector extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: enabled ? () => onChanged(choice.value) : null,
                     style: OutlinedButton.styleFrom(
+                      textStyle: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                       minimumSize: const Size.fromHeight(56),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
