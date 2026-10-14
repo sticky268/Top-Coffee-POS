@@ -84,7 +84,7 @@ class BranchController extends Controller
             'code' => 'required|string|max:50|unique:branches,code',
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
-            'timezone' => 'required|string|max:100',
+            'timezone' => 'required|string|timezone|max:100',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -175,7 +175,7 @@ class BranchController extends Controller
             'code' => 'sometimes|required|string|max:50|unique:branches,code,' . $branch->id,
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
-            'timezone' => 'sometimes|required|string|max:100',
+            'timezone' => 'sometimes|required|string|timezone|max:100',
             'is_active' => 'sometimes|boolean',
         ]);
 

@@ -70,6 +70,8 @@ class UserController extends Controller
 
             $query->whereHas('branches', function ($query) use ($branchIds) {
                 $query->whereIn('branches.id', $branchIds);
+            })->whereDoesntHave('branches', function ($query) use ($branchIds) {
+                $query->whereNotIn('branches.id', $branchIds);
             });
         }
 
@@ -339,6 +341,10 @@ class UserController extends Controller
             if ($update !== []) {
                 $user->update($update);
             }
+            // Password resets and deactivation must invalidate existing devices.
+            if (isset($update['password']) || ($update['is_active'] ?? true) === false) {
+                $user->tokens()->delete();
+            }
 
             if (isset($data['role'])) {
                 $user->syncRoles([$data['role']]);
@@ -399,7 +405,10 @@ class UserController extends Controller
             ], 422);
         }
 
-        $user->delete();
+        DB::transaction(function () use ($user) {
+            $user->tokens()->delete();
+            $user->delete();
+        });
 
         return response()->json([
             'success' => true,
@@ -450,9 +459,8 @@ class UserController extends Controller
 
         $actorBranchIds = $actor->branches()->pluck('branches.id');
 
-        return $target->branches()
-            ->whereIn('branches.id', $actorBranchIds)
-            ->exists();
+        return $target->branches()->whereIn('branches.id', $actorBranchIds)->exists()
+            && ! $target->branches()->whereNotIn('branches.id', $actorBranchIds)->exists();
     }
 
     private function canAccessBranch(User $user, int $branchId): bool

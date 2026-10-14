@@ -753,4 +753,31 @@ class UserTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+    public function test_password_reset_and_deactivation_revoke_all_device_tokens(): void
+    {
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $admin = $this->makeUser($branch, 'admin');
+        $cashier = $this->makeUser($branch, 'cashier', false);
+        $cashier->createToken('stolen-device');
+        $this->actingAs($admin)->patchJson('/api/v1/users/'.$cashier->id,
+            ['password' => 'new-secure-password'])->assertOk();
+        $this->assertSame(0, $cashier->tokens()->count());
+        $cashier->createToken('other-device');
+        $this->patchJson('/api/v1/users/'.$cashier->id, ['is_active' => false])->assertOk();
+        $this->assertSame(0, $cashier->tokens()->count());
+    }
+
+    public function test_branch_manager_cannot_reset_a_shared_cashiers_global_credentials(): void
+    {
+        $a = Branch::factory()->create(['business_id' => $this->business->id]);
+        $b = Branch::factory()->create(['business_id' => $this->business->id]);
+        $manager = $this->makeUser($a, 'manager');
+        $cashier = $this->makeUser($a, 'cashier', false);
+        $cashier->branches()->attach($b->id);
+        $this->actingAs($manager)->patchJson('/api/v1/users/'.$cashier->id,
+            ['password' => 'manager-reset-password'])->assertForbidden();
+        $this->deleteJson('/api/v1/users/'.$cashier->id)->assertForbidden();
+        $this->assertFalse($cashier->fresh()->trashed());
+    }
+
 }

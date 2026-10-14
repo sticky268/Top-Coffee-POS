@@ -13,9 +13,9 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required|string',
-            'device_name' => 'required|string', // for token identification/revocation
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|max:4096',
+            'device_name' => 'required|string|max:255', // for token identification/revocation
         ]);
 
         if ($validator->fails()) {
@@ -67,7 +67,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->currentAccessToken()?->delete();
 
         return response()->json(['success' => true, 'message' => 'Logged out']);
     }
