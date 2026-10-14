@@ -8,6 +8,7 @@ use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Supplier;
 use App\Services\StockMovementService;
+use App\Services\OperationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -104,6 +105,7 @@ class PurchaseController extends Controller
             $request->all(),
             [
                 'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+                'uuid' => ['nullable', 'uuid'],
                 'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
                 'purchased_at' => ['required', 'date'],
                 'items' => ['required', 'array', 'min:1'],
@@ -186,7 +188,7 @@ class PurchaseController extends Controller
         }
 
         try {
-            $purchase = DB::transaction(function () use (
+            $create = function () use (
                 $request,
                 $user,
                 $branchId,
@@ -233,8 +235,12 @@ class PurchaseController extends Controller
                     );
                 }
 
-                return $purchase;
-            });
+                return ['id' => $purchase->id];
+            };
+            $result = $request->filled('uuid')
+                ? app(OperationService::class)->run($request, (int) $branchId, 'purchase.create', $create)
+                : DB::transaction($create);
+            $purchase = Purchase::findOrFail($result['id']);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,

@@ -80,6 +80,22 @@ class SystemIntegrityReviewTest extends TestCase
             ->assertJsonPath('data.items.0.product_name', 'Coffee');
     }
 
+    public function test_purchase_retry_does_not_duplicate_stock_and_conflicting_reuse_is_rejected(): void
+    {
+        $supplier = Supplier::create(['branch_id' => $this->branch->id, 'name' => 'Supplier']);
+        $payload = ['uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'branch_id' => $this->branch->id, 'supplier_id' => $supplier->id,
+            'purchased_at' => '2026-10-14',
+            'items' => [['ingredient_id' => $this->ingredient->id, 'quantity' => 2, 'unit_cost' => 3]]];
+        $id = $this->postJson('/api/v1/purchases', $payload)->assertCreated()->json('data.id');
+        $this->postJson('/api/v1/purchases', $payload)->assertCreated()->assertJsonPath('data.id', $id);
+        $payload['items'][0]['quantity'] = 3;
+        $this->postJson('/api/v1/purchases', $payload)->assertConflict();
+        $this->assertDatabaseCount('purchases', 1);
+        $this->assertDatabaseCount('stock_movements', 1);
+        $this->assertEquals(2, $this->ingredient->fresh()->current_stock);
+    }
+
     public function test_invalid_branch_timezone_is_rejected(): void
     {
         $this->patchJson('/api/v1/branches/'.$this->branch->id,

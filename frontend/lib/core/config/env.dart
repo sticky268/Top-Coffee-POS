@@ -20,7 +20,15 @@ class Env {
         uri.scheme != 'https' ||
         uri.host.isEmpty ||
         ['localhost', '127.0.0.1', '10.0.2.2', '::1'].contains(uri.host) ||
-        uri.userInfo.isNotEmpty) {
+        uri.userInfo.isNotEmpty ||
+        !RegExp(r'/api/v1/? {
+      throw StateError(
+          'A production build requires an HTTPS API_BASE_URL for the production server.');
+    }
+  }
+}
+).hasMatch(uri.path) ||
+        uri.hasQuery || uri.hasFragment) {
       throw StateError(
           'A production build requires an HTTPS API_BASE_URL for the production server.');
     }

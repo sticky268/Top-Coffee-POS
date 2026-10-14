@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -44,6 +46,7 @@ class ApiPurchaseRepository implements PurchaseRepository {
   ApiPurchaseRepository(this._apiClient);
 
   final ApiClient _apiClient;
+  final Map<String, String> _pendingRequests = {};
 
   @override
   Future<PurchaseHistoryPage> getPurchaseHistory({
@@ -74,18 +77,22 @@ class ApiPurchaseRepository implements PurchaseRepository {
     required DateTime purchasedAt,
     required List<PurchaseCreateItem> items,
   }) async {
+    final payload = <String, dynamic>{
+      if (branchId != null) 'branch_id': branchId,
+      'supplier_id': supplierId,
+      'purchased_at': purchasedAt.toIso8601String().split('T').first,
+      'items': items.map((item) => item.toJson()).toList(),
+    };
+    final fingerprint = jsonEncode(payload);
+    final uuid = _pendingRequests.putIfAbsent(fingerprint, () => const Uuid().v4());
     final response = await _apiClient.request(
       (dio) => dio.post(
         '/purchases',
-        data: {
-          if (branchId != null) 'branch_id': branchId,
-          'supplier_id': supplierId,
-          'purchased_at': purchasedAt.toIso8601String().split('T').first,
-          'items': items.map((item) => item.toJson()).toList(),
-        },
+        data: {...payload, 'uuid': uuid},
       ),
     );
 
+    _pendingRequests.remove(fingerprint);
     return Purchase.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
