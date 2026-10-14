@@ -84,6 +84,11 @@ class ReportsController extends Controller
 
         $totalSales = (float) (clone $orders)->sum('total');
         $totalOrders = (int) (clone $orders)->count();
+        $supplementalSales = (float) (clone $orders)->sum('supplemental_total');
+        $refunds = (float) DB::table('payment_refunds')
+            ->join('payments', 'payments.id', '=', 'payment_refunds.payment_id')
+            ->whereIn('payments.order_id', (clone $orders)->select('orders.id'))
+            ->sum('payment_refunds.amount');
 
         $averageOrderValue = $totalOrders > 0
             ? round($totalSales / $totalOrders, 2)
@@ -165,7 +170,10 @@ class ReportsController extends Controller
             ->values();
 
         $paymentMethods = Payment::query()
-            ->where('status', 'completed')
+            ->where(function ($query) {
+                $query->where('status', 'completed')
+                    ->orWhere(fn ($query) => $query->whereIn('status', ['partially_refunded', 'refunded'])->whereHas('refunds'));
+            })
             ->whereHas('order', function ($query) use ($dateFrom, $dateTo, $branchId, $businessId) {
                 $query->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'));
                 $query->where('status', 'completed')
@@ -174,8 +182,9 @@ class ReportsController extends Controller
                         $query->where('branch_id', $branchId);
                     });
             })
-            ->selectRaw('method, SUM(amount) as total, COUNT(*) as count')
+            ->selectRaw('method, SUM(amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id), 0)) as total, COUNT(*) as count')
             ->groupBy('method')
+            ->havingRaw('SUM(amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id), 0)) > 0')
             ->orderBy('method')
             ->get()
             ->map(function ($payment) {
@@ -196,6 +205,9 @@ class ReportsController extends Controller
                     'date_basis' => 'completion',
                     'date_to' => $dateTo->toDateString(),
                     'total_sales' => $totalSales,
+                    'supplemental_sales' => $supplementalSales,
+                    'refunds' => $refunds,
+                    'net_sales' => round($totalSales + $supplementalSales - $refunds, 2),
                     'total_orders' => $totalOrders,
                     'average_order_value' => $averageOrderValue,
                 ],

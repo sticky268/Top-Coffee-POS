@@ -9,6 +9,8 @@ class ReportSummary {
     required this.totalOrders,
     required this.averageOrderValue,
     this.timezone = 'UTC',
+    this.supplementalSales = 0,
+    this.refunds = 0,
   });
 
   final DateTime dateFrom;
@@ -17,6 +19,9 @@ class ReportSummary {
   final int totalOrders;
   final double averageOrderValue;
   final String timezone;
+  final double supplementalSales;
+  final double refunds;
+  double get netSales => totalSales + supplementalSales - refunds;
 
   factory ReportSummary.fromJson(Map<String, dynamic> json) {
     return ReportSummary(
@@ -26,6 +31,8 @@ class ReportSummary {
       totalOrders: _toInt(json['total_orders']),
       averageOrderValue: _toDouble(json['average_order_value']),
       timezone: json['timezone'] as String? ?? 'UTC',
+      supplementalSales: _toDouble(json['supplemental_sales']),
+      refunds: _toDouble(json['refunds']),
     );
   }
 

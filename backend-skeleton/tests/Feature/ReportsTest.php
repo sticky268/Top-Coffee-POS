@@ -149,6 +149,32 @@ class ReportsTest extends TestCase
         $this->getJson('/api/v1/reports?date_from=2020-01-01&date_to=2026-12-31')->assertUnprocessable();
     }
 
+    public function test_report_reconciles_additional_charges_and_partial_refunds(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id, 'timezone' => 'UTC']);
+        $user = $this->makeUserForBranch($branch);
+        $user->givePermissionTo(Permission::findOrCreate('orders.refund'));
+        $this->actingAs($user);
+        $order = $this->makeOrder($branch, $user);
+        Payment::create(['order_id' => $order->id, 'method' => 'card', 'amount' => 10,
+            'status' => 'completed', 'processed_by' => $user->id]);
+        $this->postJson('/api/v1/orders/'.$order->id.'/additional-charge', [
+            'branch_id' => $branch->id, 'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'amount' => 2, 'method' => 'card', 'reason' => 'Correction',
+        ])->assertOk();
+        $this->postJson('/api/v1/orders/'.$order->id.'/refund', [
+            'branch_id' => $branch->id, 'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'amount' => 3, 'reason' => 'Partial correction', 'inventory_disposition' => 'consumed',
+        ])->assertOk();
+        $this->getJson('/api/v1/reports')->assertOk()
+            ->assertJsonPath('data.summary.total_sales', 10)
+            ->assertJsonPath('data.summary.supplemental_sales', 2)
+            ->assertJsonPath('data.summary.refunds', 3)
+            ->assertJsonPath('data.summary.net_sales', 9)
+            ->assertJsonPath('data.payment_methods.0.total', 9);
+    }
+
     public function test_unauthenticated_request_is_rejected(): void
     {
         $this->getJson('/api/v1/reports')
