@@ -102,7 +102,9 @@ class CashDrawerEventTest extends TestCase
         $unassigned = Branch::factory()->create(['business_id' => $this->cashier->business_id]);
         $foreign = Branch::factory()->create(['business_id' => Business::factory()->create()->id]);
         $this->postJson('/api/v1/cash-drawer-events', $this->event(['branch_id' => $unassigned->id]))->assertForbidden();
-        $this->postJson('/api/v1/cash-drawer-events', $this->event(['branch_id' => $foreign->id]))->assertNotFound();
+        // Shared tenant middleware denies foreign branches before controller lookup.
+        $this->postJson('/api/v1/cash-drawer-events', $this->event(['branch_id' => $foreign->id]))
+            ->assertForbidden()->assertJsonPath('message', 'You do not have access to that branch.');
         $this->postJson('/api/v1/cash-drawer-events', $this->event(['expected_user_id' => $this->cashier->id + 100]))->assertForbidden();
         $this->cashier->revokePermissionTo('orders.create');
         $this->postJson('/api/v1/cash-drawer-events', $this->event())->assertForbidden();

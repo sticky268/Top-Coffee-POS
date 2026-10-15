@@ -57,6 +57,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final compactToolbar = MediaQuery.sizeOf(context).width < 600;
     final catalogState = ref.watch(posCatalogControllerProvider);
     final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
     ref.listen(currentBranchProvider, (previous, next) {
@@ -91,6 +92,17 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             ),
           ),
           actions: [
+            if (compactToolbar)
+              pos_ui.IconButton(
+                tooltip: 'Last Receipt',
+                onPressed: lastReceipt == null ? null : () => showLastReceiptDialog(
+                  context: context,
+                  orderId: lastReceipt.id,
+                  orderReference: lastReceipt.displayOrderReference,
+                ),
+                icon: const Icon(Icons.receipt_long_outlined),
+              )
+            else
             pos_ui.SecondaryButton.icon(
               onPressed: lastReceipt == null
                   ? null
@@ -103,6 +115,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               label: const Text('Last Receipt'),
             ),
             const SizedBox(width: 8),
+            if (compactToolbar)
+              pos_ui.IconButton(
+                tooltip: 'Dine-in',
+                onPressed: _openTableSelector,
+                icon: const Icon(Icons.table_restaurant),
+              )
+            else
             pos_ui.SecondaryButton.icon(
               onPressed: _openTableSelector,
               icon: const Icon(Icons.table_restaurant),

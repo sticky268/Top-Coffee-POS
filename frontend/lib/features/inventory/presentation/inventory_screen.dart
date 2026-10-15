@@ -221,7 +221,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final currentAuth = ref.read(authControllerProvider);
     if (currentAuth is! AuthAuthenticated ||
         !currentAuth.user.hasPermission('inventory.manage') ||
-        !SubscriptionActionGuard.canModify(ref)) return;
+        !SubscriptionActionGuard.canModify(ref)) {
+      return;
+    }
 
     try {
       final repository = ref.read(inventoryRepositoryProvider);
@@ -257,7 +259,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     if (selected == null || ref.read(inventoryScopeProvider) != selected ||
         auth is! AuthAuthenticated ||
         !auth.user.hasPermission('inventory.adjust') ||
-        !SubscriptionActionGuard.canModify(ref)) return;
+        !SubscriptionActionGuard.canModify(ref)) {
+      return;
+    }
     String type = 'purchase';
     final quantityController = TextEditingController();
     final reasonController = TextEditingController();

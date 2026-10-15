@@ -11,6 +11,9 @@ use Tests\TestCase;
 class OperationsMigrationRehearsalTest extends TestCase
 {
     private bool $disposable = false;
+    // Cafe operations, checkout controls, completion index, receipt snapshots,
+    // and drawer telemetry are the five migrations in this release rehearsal.
+    private const RELEASE_MIGRATIONS = 5;
 
     protected function setUp(): void
     {
@@ -20,11 +23,12 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertSame('mysql', config('database.default'));
         $this->assertSame('operations_testing', config('database.connections.mysql.database'));
         $this->disposable = true;
-        // Rehearse daily operations, checkout controls, completion index and receipt
-        // snapshots together from the same populated pre-operations schema.
+        // Rehearse all five release migrations together from the populated
+        // pre-operations schema; the drawer table must not shift the baseline.
         $this->artisan('migrate:fresh', ['--force' => true])->assertExitCode(0);
-        $this->artisan('migrate:rollback', ['--step' => 4, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
         $this->assertFalse(Schema::hasTable('cashier_shifts'));
+        $this->assertFalse(Schema::hasTable('cash_drawer_events'));
         $this->assertFalse(Schema::hasColumn('ingredients', 'average_unit_cost'));
     }
 
@@ -56,7 +60,7 @@ class OperationsMigrationRehearsalTest extends TestCase
         $account = DB::table('customer_loyalty_accounts')->insertGetId($stamp + ['customer_id' => $customer->id, 'points_balance' => 7, 'lifetime_earned' => 9, 'lifetime_redeemed' => 2]);
         DB::table('loyalty_transactions')->insert($stamp + ['customer_loyalty_account_id' => $account, 'customer_id' => $customer->id, 'branch_id' => $branch->id, 'order_id' => $order, 'type' => 'earned', 'points' => 9, 'balance_after' => 9]);
         $snapshot = [];
-        foreach (['businesses', 'branches', 'users', 'customers', 'products', 'product_variants', 'orders', 'order_items', 'payments', 'payment_refunds', 'ingredients', 'stock_movements', 'customer_loyalty_accounts', 'loyalty_transactions'] as $table) {
+        foreach (['businesses', 'branches', 'users', 'customers', 'products', 'product_variants', 'orders', 'order_items', 'payments', 'payment_refunds', 'ingredients', 'stock_movements', 'customer_loyalty_accounts', 'loyalty_transactions', 'audit_logs'] as $table) {
             $columns = Schema::getColumnListing($table);
             $snapshot[$table] = ['columns' => $columns, 'rows' => DB::table($table)->select($columns)->orderBy('id')->get()->toJson()];
         }
@@ -67,6 +71,7 @@ class OperationsMigrationRehearsalTest extends TestCase
         };
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
+        $this->assertDrawerSchema();
         $this->assertTrue(Schema::hasIndex('orders', 'orders_branch_status_completed_index'));
         $this->assertNull(DB::table('order_items')->value('product_name'));
         $this->assertNull(DB::table('order_items')->value('variant_name'));
@@ -81,14 +86,17 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertEquals(0, DB::table('orders')->value('supplemental_total'));
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
+        $this->assertDrawerSchema();
         // Rollback rehearsal occurs before any new shift/correction data is written.
-        $this->artisan('migrate:rollback', ['--step' => 4, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
         $verify();
+        $this->assertFalse(Schema::hasTable('cash_drawer_events'));
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
         $verify();
+        $this->assertDrawerSchema();
 
         // Verify the local rehearsal command against a populated restored copy.
-        $this->artisan('migrate:rollback', ['--step' => 4, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
         $this->assertFalse(Schema::hasColumn('order_items', 'product_name'));
         $target = 'top_coffee_pos_pr7_rehearsal_20000101';
         DB::statement('CREATE DATABASE `'.$target.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
@@ -117,10 +125,26 @@ class OperationsMigrationRehearsalTest extends TestCase
             $this->assertFalse(Schema::connection('mysql')->hasColumn('ingredients', 'average_unit_cost'));
             $this->assertSame($migrationRows, DB::table('migrations')->orderBy('id')->get()->toJson());
             $this->assertTrue(Schema::connection('rehearsal_setup')->hasTable('cashier_shifts'));
+            $this->assertTrue(Schema::connection('rehearsal_setup')->hasTable('cash_drawer_events'));
+            $this->assertFalse(Schema::connection('mysql')->hasTable('cash_drawer_events'));
             $verify();
         } finally {
             DB::purge('rehearsal_setup');
             DB::statement('DROP DATABASE `'.$target.'`');
         }
+    }
+
+    private function assertDrawerSchema(): void
+    {
+        $this->assertTrue(Schema::hasTable('cash_drawer_events'));
+        $this->assertTrue(Schema::hasColumns('cash_drawer_events', [
+            'id', 'business_id', 'branch_id', 'user_id', 'event_uuid', 'source',
+            'order_id', 'reason', 'status', 'device_requested_at',
+            'device_finished_at', 'created_at', 'updated_at',
+        ]));
+        $this->assertTrue(Schema::hasIndex('cash_drawer_events', 'cash_drawer_events_user_id_event_uuid_unique'));
+        $this->assertTrue(Schema::hasIndex('cash_drawer_events', 'cash_drawer_events_business_id_branch_id_created_at_index'));
+        $this->assertTrue(Schema::hasIndex('cash_drawer_events', 'cash_drawer_events_order_id_source_index'));
+        $this->assertSame(0, DB::table('cash_drawer_events')->count());
     }
 }
