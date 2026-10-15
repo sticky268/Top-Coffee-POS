@@ -55,6 +55,7 @@ class OperationsReportController extends Controller
         // This is a read-only review; it does not claim manager approval.
         $stockDifferences = DB::table('stock_movements as movements')
             ->join('ingredients', 'ingredients.id', '=', 'movements.ingredient_id')
+            ->join('units', 'units.id', '=', 'ingredients.unit_id')
             ->whereColumn('ingredients.branch_id', 'movements.branch_id')
             ->where('movements.branch_id', $branch)->where('movements.type', 'adjustment')
             ->where('movements.reason', 'like', 'Stock count: %')
@@ -64,6 +65,8 @@ class OperationsReportController extends Controller
         $stockDifferenceRows = (clone $stockDifferences)->orderByDesc('movements.created_at')
             ->orderByDesc('movements.id')->limit(20)
             ->get(['movements.id', 'movements.ingredient_id', 'ingredients.name as ingredient_name',
+                'ingredients.current_stock', 'ingredients.reorder_threshold', 'ingredients.is_active',
+                'units.id as unit_id', 'units.name as unit_name', 'units.abbreviation as unit_abbreviation',
                 'movements.quantity', 'movements.balance_after', 'movements.reason', 'movements.created_at']);
         return ['success' => true, 'data' => [
             'gross_sales' => $gross, 'refunds' => (float) $refunds, 'net_sales' => round($gross - $refunds, 2),
