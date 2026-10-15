@@ -295,7 +295,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'history',
                 builder: (context, state) {
                   final ingredient = state.extra as InventoryIngredient;
-                  return InventoryMovementHistoryScreen(ingredient: ingredient);
+                  return InventoryMovementHistoryScreen(
+                    ingredient: ingredient,
+                    initialMovementId: int.tryParse(state.uri.queryParameters['movement_id'] ?? ''),
+                  );
                 },
               ),
             ],

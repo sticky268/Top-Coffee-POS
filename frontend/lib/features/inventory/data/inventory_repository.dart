@@ -42,6 +42,7 @@ abstract class InventoryRepository {
   Future<List<InventoryStockMovement>> getStockMovements({
     required int ingredientId,
     String? type,
+    int? movementId,
     int page = 1,
     int perPage = 20,
   });
@@ -123,6 +124,7 @@ class ApiInventoryRepository implements InventoryRepository {
   Future<List<InventoryStockMovement>> getStockMovements({
     required int ingredientId,
     String? type,
+    int? movementId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -131,6 +133,7 @@ class ApiInventoryRepository implements InventoryRepository {
         '/ingredients/$ingredientId/movements',
         queryParameters: {
           if (type != null) 'type': type,
+          if (movementId != null) 'movement_id': movementId,
           'page': page,
           'per_page': perPage,
         },

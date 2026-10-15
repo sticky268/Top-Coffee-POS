@@ -9,9 +9,11 @@ import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
 
 class InventoryMovementHistoryScreen extends ConsumerStatefulWidget {
-  const InventoryMovementHistoryScreen({super.key, required this.ingredient});
+  const InventoryMovementHistoryScreen({super.key, required this.ingredient,
+    this.initialMovementId});
 
   final InventoryIngredient ingredient;
+  final int? initialMovementId;
 
   @override
   ConsumerState<InventoryMovementHistoryScreen> createState() =>
@@ -46,7 +48,8 @@ class _InventoryMovementHistoryScreenState
           .read(inventoryRepositoryProvider)
           .getStockMovements(
             ingredientId: widget.ingredient.id,
-            type: _selectedType,
+            type: widget.initialMovementId == null ? _selectedType : null,
+            movementId: widget.initialMovementId,
             page: 1,
             perPage: _pageSize,
           );
@@ -56,7 +59,7 @@ class _InventoryMovementHistoryScreenState
       setState(() {
         _movements = movements;
         _currentPage = 1;
-        _hasMore = movements.length == _pageSize;
+        _hasMore = widget.initialMovementId == null && movements.length == _pageSize;
         _isLoading = false;
       });
     } catch (error) {
@@ -94,7 +97,7 @@ class _InventoryMovementHistoryScreenState
       setState(() {
         _movements.addAll(movements);
         _currentPage = nextPage;
-        _hasMore = movements.length == _pageSize;
+        _hasMore = widget.initialMovementId == null && movements.length == _pageSize;
       });
     } catch (error) {
       if (!mounted) return;
@@ -270,7 +273,9 @@ class _InventoryMovementHistoryScreenState
     }
 
     if (_movements.isEmpty) {
-      return const Center(child: Text('No stock movements found.'));
+      return Center(child: Text(widget.initialMovementId == null
+          ? 'No stock movements found.'
+          : 'The selected stock count was not found in this ingredient history.'));
     }
 
     return RefreshIndicator(
@@ -322,7 +327,10 @@ class _InventoryMovementHistoryScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _typeLabel(movement.type),
+                          movement.type == 'adjustment' &&
+                                  (movement.reason?.startsWith('Stock count: ') ?? false)
+                              ? 'Stock count discrepancy'
+                              : _typeLabel(movement.type),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
@@ -340,6 +348,16 @@ class _InventoryMovementHistoryScreenState
                           ),
                         ],
                         const SizedBox(height: 8),
+                        if (movement.type == 'adjustment' &&
+                            (movement.reason?.startsWith('Stock count: ') ?? false))
+                          Text(
+                            'Recorded before: '
+                            '${(movement.balanceAfter - movement.quantity).toStringAsFixed(3)} '
+                            '${widget.ingredient.unit.abbreviation} · '
+                            'Counted: ${movement.balanceAfter.toStringAsFixed(3)} '
+                            '${widget.ingredient.unit.abbreviation}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         Text(
                           'Balance after: '
                           '${movement.balanceAfter.toStringAsFixed(3)} '

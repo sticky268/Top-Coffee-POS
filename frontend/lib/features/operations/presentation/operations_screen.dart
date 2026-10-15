@@ -12,6 +12,7 @@ import '../../../core/offline/order_sync_summary.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/operations_repository.dart';
+import '../../inventory/domain/inventory_models.dart';
 import 'operation_form.dart';
 import 'operation_display.dart';
 
@@ -248,7 +249,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                   child: const Text('Confirm review'),
                 ),
             ],
-            _cashBreakdown(shift),
+            _cashBreakdown(shift, auth),
             if (shift['status'] == 'open' &&
                 shift['user_id'] == auth.user.id) ...[
               Wrap(
@@ -328,7 +329,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     );
   }
 
-  Widget _cashBreakdown(Map<String, dynamic> shift) => ExpansionTile(
+  Widget _cashBreakdown(Map<String, dynamic> shift, AuthAuthenticated auth) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
     title: const Text('How expected cash is calculated'),
     children: [
@@ -337,6 +338,21 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       _value('Minus cash refunds', _cash(shift['cash_refunds'])),
       _value('Plus cash added', _cash(shift['cash_in'])),
       _value('Minus cash removed', _cash(shift['cash_out'])),
+      if ((shift['cash_refund_orders'] as List?)?.isNotEmpty == true) ...[
+        const Divider(),
+        const Text('Cash refunds taken from this shift'),
+        for (final refund in shift['cash_refund_orders'] as List)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Order #${refund['order_id']} · ${_cash(refund['amount'])} cash refund'),
+            subtitle: Text('${refund['reason'] ?? 'Reason not recorded'} · '
+                '${operationDeviceTime(refund['created_at'])} (device time)'),
+            trailing: auth.user.hasPermission('orders.view')
+                ? const Icon(Icons.chevron_right) : null,
+            onTap: auth.user.hasPermission('orders.view')
+                ? () => context.push('/orders/${refund['order_id']}/financials') : null,
+          ),
+      ],
       if ((shift['movements'] as List?)?.isNotEmpty == true) ...[
         const Divider(),
         const Text('Recorded cash movements'),
@@ -355,11 +371,18 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       ],
       const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          'Review cash refunds in the affected order’s Payment History. '
-          'Saved orders and unconfirmed actions must be resolved before closing.',
-        ),
+        child: Text('Check cash refunds and cash movements above against the drawer count. '
+            'Saved orders on this device may still be unconfirmed and do not prove payment.'),
       ),
+      if (auth.user.hasPermission('orders.view') || auth.user.hasPermission('orders.create'))
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.cloud_upload_outlined),
+          title: const Text('Review saved and unresolved orders'),
+          subtitle: const Text('This account and branch on this device; not necessarily this shift.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/pending-orders'),
+        ),
     ],
   );
 
@@ -637,12 +660,36 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
             onTap: () => context.push('/operations?section=Shifts&shift_id=${raw['id']}'),
           ),
         _value('Stock count adjustments with a difference', report['stock_count_discrepancy_count']),
+        const Text('Read-only stock count history. Inspect the recorded quantity '
+            'before and counted quantity after; no approval or new adjustment is created.'),
         for (final raw in (report['stock_count_discrepancies'] as List? ?? []))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('${raw['ingredient_name']} · ${raw['quantity']} stock adjustment'),
-            subtitle: Text('${raw['reason']} · ${operationDeviceTime(raw['created_at'])}'),
-          ),
+          Builder(builder: (context) {
+            final delta = num.tryParse('${raw['quantity']}') ?? 0;
+            final counted = num.tryParse('${raw['balance_after']}') ?? 0;
+            final ingredient = InventoryIngredient(
+              id: raw['ingredient_id'] as int,
+              name: '${raw['ingredient_name']}',
+              unit: InventoryUnit(
+                id: raw['unit_id'] as int,
+                name: '${raw['unit_name']}',
+                abbreviation: '${raw['unit_abbreviation']}',
+              ),
+              currentStock: (num.tryParse('${raw['current_stock']}') ?? 0).toDouble(),
+              reorderThreshold: (num.tryParse('${raw['reorder_threshold']}') ?? 0).toDouble(),
+              isLowStock: false,
+              isActive: raw['is_active'] == true || raw['is_active'] == 1,
+            );
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('${raw['ingredient_name']} · ${delta > 0 ? '+' : ''}$delta ${ingredient.unit.abbreviation}'),
+              subtitle: Text('Recorded ${(counted - delta).toStringAsFixed(3)} → '
+                  'counted ${counted.toStringAsFixed(3)} ${ingredient.unit.abbreviation}\n'
+                  '${raw['reason']} · ${operationDeviceTime(raw['created_at'])} (device time)'),
+              isThreeLine: true,
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/inventory/history?movement_id=${raw['id']}', extra: ingredient),
+            );
+          }),
         _value(
           'Cash payments outside a shift',
           report['unassigned_cash_payments'],
