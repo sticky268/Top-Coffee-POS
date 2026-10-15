@@ -19,6 +19,9 @@ jobs:
           extensions: pdo_sqlite, pdo_mysql
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Create disposable testing environment file
+        run: |
+          printf 'APP_ENV=testing\nAPP_DEBUG=false\n' > .env
       - run: php artisan test
       - name: Install operational verification tools
         run: sudo apt-get update -qq && sudo apt-get install -y age nginx rclone
@@ -76,7 +79,7 @@ jobs:
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
-        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest'
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest|PilotOperationsTest'
       - name: Install age for encrypted MySQL recovery
         run: sudo apt-get update -qq && sudo apt-get install -y age
       - name: Verify private MySQL backup and isolated restore

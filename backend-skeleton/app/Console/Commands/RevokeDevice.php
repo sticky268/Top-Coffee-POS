@@ -23,7 +23,7 @@ class RevokeDevice extends Command
         }
         $count = DB::transaction(function () use ($id, $device, $reason) {
             $user = User::lockForUpdate()->findOrFail($id);
-            $count = $user->tokens()->where('name', 'device:'.$device)->delete();
+            $count = $user->tokens()->whereRaw('LOWER(name) = ?', ['device:'.$device])->delete();
             $event = new AuditLog(['user_id' => $user->id, 'action' => 'auth.device_revoked',
                 'auditable_type' => $user->getMorphClass(), 'auditable_id' => $user->id,
                 'new_values' => ['source' => 'console', 'incident' => $reason, 'device_id' => $device, 'revoked' => $count]]);

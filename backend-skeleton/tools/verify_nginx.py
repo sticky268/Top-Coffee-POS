@@ -56,6 +56,24 @@ def main():
             else:
                 raise RuntimeError('Loopback Nginx did not become ready.')
             assert request('/storage/logo.txt')[1] == b'public-product-image-fixture'
+            req = urllib.request.Request('https://127.0.0.1:18443/storage/logo.txt', headers={'Host': 'api.example.invalid'})
+            with urllib.request.urlopen(req, context=context, timeout=3) as response:
+                assert response.headers['Strict-Transport-Security'] == 'max-age=31536000'
+                assert response.headers['X-Content-Type-Options'] == 'nosniff'
+                assert response.headers['X-Frame-Options'] == 'DENY'
+                assert "frame-ancestors 'none'" in response.headers['Content-Security-Policy']
+                assert 'camera=()' in response.headers['Permissions-Policy']
+            class NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, *args):
+                    return None
+            redirect = urllib.request.Request('http://127.0.0.1:18080/probe?check=1', headers={'Host': 'api.example.invalid'})
+            try:
+                urllib.request.build_opener(NoRedirect()).open(redirect, timeout=3)
+                raise AssertionError('HTTP did not redirect')
+            except urllib.error.HTTPError as response:
+                assert response.code == 301
+                assert response.headers['Location'] == 'https://api.example.invalid/probe?check=1'
+
             for path in ['/.env', '/.git/HEAD', '/storage/blocked.php', '/storage/blocked.PHP', '/storage/blocked.php/extra']:
                 status, body = request(path)
                 assert status in [403, 404], (path, status)

@@ -4,6 +4,7 @@ log_format pos_minimal '$remote_addr [$time_local] "$request_method $uri $server
                        '$status $body_bytes_sent $request_time';
 server {
     listen 80;
+    access_log /var/log/nginx/top-coffee-access.log pos_minimal;
     server_name api.example.invalid;
     location ^~ /.well-known/acme-challenge/ { root /var/lib/letsencrypt; }
     location / { return 301 https://api.example.invalid$request_uri; }

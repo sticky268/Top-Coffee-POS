@@ -25,8 +25,9 @@ Reviewable preparation defaults, not silently applied settings or legal retentio
 one branch, cash-only settlement, USD accounting with the already approved 4,000
 riel display equivalent, manager-approved discounts/refunds, required shifts,
 shop-owned supported Android and two-minute OS idle lock. Do not infer change
-currency/rounding policy from equivalents. App PIN/step-up UX remains Should-have;
-no shared admin login or offline manager approval is introduced.
+currency/rounding policy from equivalents. The current pilot requirements make manager PIN for void/refund a Must-have;
+it remains absent and blocks the new settings/deployment gate. No shared admin
+login or offline manager approval is introduced.
 
 Propose 14 days of restricted operational logs and 30 days of encrypted backup
 versions for owner review. No automatic financial/audit/customer deletion or
