@@ -267,7 +267,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/inventory',
-            builder: (context, state) => const InventoryScreen(),
+            builder: (context, state) => InventoryScreen(
+              initialLowStockOnly: state.uri.queryParameters['filter'] == 'low-stock',
+            ),
             routes: [
               GoRoute(
                 path: 'add',

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../offline/local_store.dart';
 import 'printer_service.dart';
+import 'cash_drawer_journal.dart';
 
 typedef PrintScope = ({int userId, int branchId});
 
@@ -99,12 +100,18 @@ class PrintQueue {
     this.scope,
     this.destination, {
     String Function()? newId,
-  }) : _newId = newId ?? const Uuid().v4;
+    CashDrawerJournal? drawerJournal,
+  }) : _newId = newId ?? const Uuid().v4,
+       _drawerJournal = drawerJournal ?? CashDrawerJournal(store),
+       _ownsDrawerJournal = drawerJournal == null;
   final LocalStore store;
   final PrinterService printer;
   final PrintScope? Function() scope;
   final Future<String> Function(PrintJob job) destination;
   final String Function() _newId;
+  final CashDrawerJournal _drawerJournal;
+  final bool _ownsDrawerJournal;
+  CashDrawerJournal get drawerJournal => _drawerJournal;
   final _changes = StreamController<void>.broadcast();
   Stream<void> get changes => _changes.stream;
   Future<void> _tail = Future.value();
@@ -336,41 +343,63 @@ class PrintQueue {
     return job;
   });
 
-  /// An immediate manual command, never persisted or automatically replayed.
-  /// Uses the receipt serializer so connect/disconnect cannot interrupt a print.
+  /// An immediate command. Only its audit evidence is persisted and uploaded;
+  /// neither failed commands nor uncertain attempts are automatically replayed.
+  /// Shares the receipt serializer so connect/disconnect cannot interrupt a print.
   Future<void> openCashDrawer(
     PrintScope selected,
     Future<String> Function() destination,
     void Function() authorize, {
     int? completedSaleId,
+    String? reason,
   }) => _serialized(() async {
     _guard(selected);
     authorize();
-    if (completedSaleId != null) {
-      final key = 'cash-drawer:${selected.userId}:${selected.branchId}:order:$completedSaleId';
-      if (await store.read(key) != null) return;
-      _guard(selected);
-      authorize();
-      // Consume the automatic attempt before any connection or pulse. A crash,
-      // timeout or failure requires an explicit manual action, never a replay.
-      await store.write(key, DateTime.now().toUtc().toIso8601String());
-    }
-    final ip = (await destination()).trim();
-    if (ip.isEmpty) throw StateError('Configure this branch’s printer in Receipt Settings.');
+    final automaticKey = completedSaleId == null ? null
+        : 'cash-drawer:${selected.userId}:${selected.branchId}:order:$completedSaleId';
+    if (automaticKey != null && await store.read(automaticKey) != null) return;
     _guard(selected);
     authorize();
+    // A storage failure must prevent hardware access. This journal is telemetry,
+    // not a drawer-command queue, so a crash can never resume a pulse.
+    final event = await _drawerJournal.begin(
+      selected, orderId: completedSaleId, reason: reason,
+    );
+    Object? failure;
     try {
+      if (automaticKey != null) {
+        // Preserve existing device-local at-most-once sale markers across updates.
+        await store.write(automaticKey, event.requestedAt.toIso8601String());
+      }
+      final ip = (await destination()).trim();
+      if (ip.isEmpty) {
+        throw StateError('Configure this branch’s printer in Receipt Settings.');
+      }
+      _guard(selected);
+      authorize();
       await printer.connect(ip);
       _guard(selected);
       authorize();
       await printer.openCashDrawer();
+    } catch (error) {
+      failure = error;
     } finally {
       try {
         await printer.disconnect();
       } catch (_) {
-        // Disconnect must not hide the command result or trigger a second pulse.
+        // Disconnect cannot hide the send result or trigger another pulse.
       }
     }
+    try {
+      await _drawerJournal.save(event.finish(
+        failure == null ? 'command_sent' : 'unconfirmed',
+      ));
+    } catch (_) {
+      failure ??= StateError(
+        'The drawer request was saved, but its final command status could not be saved. Check the drawer before retrying.',
+      );
+    }
+    if (failure != null) throw failure;
   });
 
   Future<void> resumeWaiting(PrintScope selected) async {
@@ -436,5 +465,8 @@ class PrintQueue {
     }
     await _save(job.change({'status': PrintStatus.cancelled.name}));
   });
-  void dispose() => unawaited(_changes.close());
+  void dispose() {
+    unawaited(_changes.close());
+    if (_ownsDrawerJournal) _drawerJournal.dispose();
+  }
 }

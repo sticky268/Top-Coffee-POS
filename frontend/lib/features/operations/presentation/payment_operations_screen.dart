@@ -67,12 +67,18 @@ class _PaymentOperationsScreenState
             'inventory_disposition',
             'Ingredient handling',
             options: ['consumed', 'restock', 'wastage'],
+            optionLabels: {
+              'consumed': 'Keep stock unchanged',
+              'restock': 'Return ingredients to stock',
+              'wastage': 'Record ingredients as wasted',
+            },
           )
         else ...[
           const OperationField(
             'method',
             'Payment method',
             options: ['cash', 'card', 'qr'],
+            optionLabels: {'cash': 'Cash', 'card': 'Card', 'qr': 'QR'},
           ),
           const OperationField(
             'tendered',

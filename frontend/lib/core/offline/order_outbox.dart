@@ -24,6 +24,7 @@ class PendingOrder {
     this.status = 'pending',
     this.error,
     this.orderId,
+    this.confirmedAt,
   });
   final String uuid;
   final int userId;
@@ -35,6 +36,8 @@ class PendingOrder {
   final String status;
   final String? error;
   final int? orderId;
+  /// Device-recorded time of server acknowledgement; absent in legacy records.
+  final DateTime? confirmedAt;
 
   factory PendingOrder.fromJson(Map<String, dynamic> json) => PendingOrder(
     uuid: json['uuid'] as String,
@@ -47,6 +50,7 @@ class PendingOrder {
     status: json['status'] as String,
     error: json['error'] as String?,
     orderId: json['order_id'] as int?,
+    confirmedAt: DateTime.tryParse(json['confirmed_at'] as String? ?? ''),
   );
 
   Map<String, dynamic> toJson() => {
@@ -60,6 +64,7 @@ class PendingOrder {
     'status': status,
     'error': error,
     'order_id': orderId,
+    'confirmed_at': confirmedAt?.toIso8601String(),
   };
 }
 
@@ -172,6 +177,9 @@ class OrderOutbox {
             ? 'pending'
             : 'review';
         value['order_id'] = orderId;
+        if (error == null) {
+          value['confirmed_at'] = DateTime.now().toUtc().toIso8601String();
+        }
         value['error'] = error is ApiException
             ? error.message
             : error?.toString();

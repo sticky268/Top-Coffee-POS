@@ -8,10 +8,12 @@ import 'package:intl/intl.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/offline/order_sync.dart';
+import '../../../core/offline/order_sync_summary.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/operations_repository.dart';
 import 'operation_form.dart';
+import 'operation_display.dart';
 
 class OperationsScreen extends ConsumerStatefulWidget {
   const OperationsScreen({super.key});
@@ -28,6 +30,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   List<Map<String, dynamic>> _pending = [];
   String? _error;
   bool _loading = true;
+  bool _pendingBusy = false;
   int _generation = 0;
   final _money = NumberFormat.currency(symbol: '\$');
 
@@ -114,6 +117,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     List<OperationField> fields, {
     Map<String, dynamic> extra = const {},
     String? explanation,
+    num? expectedCash,
   }) async {
     final selected = ref.read(currentBranchProvider)?.id;
     await showOperationForm(
@@ -121,6 +125,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       title: title,
       fields: fields,
       explanation: explanation,
+      expectedCash: expectedCash,
       save: (values) async {
         if (ref.read(currentBranchProvider)?.id != selected) {
           throw const AuthException('Branch changed. Reopen this action.');
@@ -160,10 +165,11 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       (s) => s['user_id'] == auth.user.id && s['status'] == 'open',
     );
     final pendingOrders = ref.watch(pendingOrdersProvider).asData?.value;
+    final syncSummary = pendingOrders == null
+        ? null
+        : OrderSyncSummary.fromOrders(pendingOrders);
     final closeSafe =
-        pendingOrders != null &&
-        pendingOrders.every((o) => o.status == 'synced') &&
-        _pending.isEmpty;
+        syncSummary != null && !syncSummary.hasUnconfirmed && _pending.isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -184,15 +190,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
           ),
         for (final shift in list)
           _card('Shift #${shift['id']} · ${shift['status']}', [
-            _value('Cashier ID', shift['user_id']),
-            _value('Opened', shift['created_at']),
-            _value('Opening cash', _cash(shift['opening_cash'])),
-            _value('Cash sales', _cash(shift['cash_sales'])),
-            _value('Cash refunds', _cash(shift['cash_refunds'])),
-            _value(
-              'Cash added / removed',
-              '${_cash(shift['cash_in'])} / ${_cash(shift['cash_out'])}',
-            ),
+            _value('Cashier', shiftCashierName(shift, auth.user)),
+            _value('Opened (device time)', operationDeviceTime(shift['created_at'])),
             _value(
               'Expected drawer cash',
               _cash(shift['expected_cash'] ?? shift['live_expected_cash']),
@@ -200,6 +199,14 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
             if (shift['status'] == 'closed') ...[
               _value('Counted cash', _cash(shift['counted_cash'])),
               _value('Difference', _cash(shift['difference'])),
+              Text(
+                cashDifferenceDescription(shift['difference']),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              _value(
+                'Closed (device time)',
+                operationDeviceTime(shift['closed_at']),
+              ),
               if (shift['closing_reason'] != null)
                 _value('Closing note', shift['closing_reason']),
               _value(
@@ -216,11 +223,12 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                     '/shifts/${shift['id']}/review',
                     const [],
                     explanation:
-                        'Confirm you have checked the cash count and closing note.',
+                        'Check the expected cash breakdown, recorded cash movements and closing note before confirming review.',
                   ),
                   child: const Text('Confirm review'),
                 ),
             ],
+            _cashBreakdown(shift),
             if (shift['status'] == 'open' &&
                 shift['user_id'] == auth.user.id) ...[
               Wrap(
@@ -236,6 +244,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                           'type',
                           'Direction',
                           options: ['in', 'out'],
+                          optionLabels: {'in': 'Add cash', 'out': 'Remove cash'},
                         ),
                         OperationField('amount', 'Amount', number: true),
                         OperationField('reason', 'Reason'),
@@ -261,17 +270,31 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                                 optional: true,
                               ),
                             ],
+                            expectedCash: num.tryParse(
+                              '${shift['expected_cash'] ?? shift['live_expected_cash']}',
+                            ),
                             explanation:
-                                'Count the drawer before entering the amount. A difference needs a reason.',
+                                'Count the cash in the drawer. Compare it with the expected amount below; explain any shortage or overage. The server checks the final balance when you confirm.',
                           ),
                     child: const Text('Close shift'),
                   ),
                 ],
               ),
-              if (!closeSafe)
-                const Text(
-                  'Confirm all saved orders and pending operations before closing.',
+              if (!closeSafe) ...[
+                const SizedBox(height: 8),
+                Text(
+                  syncSummary == null
+                      ? 'Check saved orders before closing. Their status is not available yet.'
+                      : syncSummary.hasUnconfirmed
+                      ? '${syncSummary.description}. Resolve these before closing.'
+                      : 'Resolve the ${_pending.length} saved operations below before closing.',
                 ),
+                TextButton.icon(
+                  onPressed: () => context.go('/pending-orders'),
+                  icon: const Icon(Icons.cloud_upload_outlined),
+                  label: const Text('View saved orders'),
+                ),
+              ],
             ],
           ]),
         if (list.isEmpty)
@@ -282,6 +305,120 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       ],
     );
   }
+
+  Widget _cashBreakdown(Map<String, dynamic> shift) => ExpansionTile(
+    tilePadding: EdgeInsets.zero,
+    title: const Text('How expected cash is calculated'),
+    children: [
+      _value('Opening cash', _cash(shift['opening_cash'])),
+      _value('Plus cash sales', _cash(shift['cash_sales'])),
+      _value('Minus cash refunds', _cash(shift['cash_refunds'])),
+      _value('Plus cash added', _cash(shift['cash_in'])),
+      _value('Minus cash removed', _cash(shift['cash_out'])),
+      if ((shift['movements'] as List?)?.isNotEmpty == true) ...[
+        const Divider(),
+        const Text('Recorded cash movements'),
+        for (final movement in shift['movements'] as List)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              '${movement['type'] == 'in' ? 'Cash added' : 'Cash removed'} '
+              '· ${_cash(movement['amount'])}',
+            ),
+            subtitle: Text(
+              '${movement['reason'] ?? 'No reason recorded'}\n'
+              '${operationDeviceTime(movement['created_at'])} (device time)',
+            ),
+          ),
+      ],
+      const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Review cash refunds in the affected order’s Payment History. '
+          'Saved orders and unconfirmed actions must be resolved before closing.',
+        ),
+      ),
+    ],
+  );
+
+  Future<void> _retryOperation(Map<String, dynamic> operation) async {
+    if (_pendingBusy) return;
+    setState(() => _pendingBusy = true);
+    try {
+      await ref.read(operationsRepositoryProvider).retry(operation);
+      ref.invalidate(shiftsProvider);
+      if (mounted) await _load();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'Could not confirm this action. Keep it and try again.',
+            ),
+          ),
+        );
+        await _load();
+      }
+    } finally {
+      if (mounted) setState(() => _pendingBusy = false);
+    }
+  }
+
+  Future<void> _dismissOperation(Map<String, dynamic> operation) async {
+    if (_pendingBusy) return;
+    setState(() => _pendingBusy = true);
+    try {
+      await ref.read(operationsRepositoryProvider).dismissRejected(operation);
+      if (mounted) await _load();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'Could not dismiss this rejected action. Try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pendingBusy = false);
+    }
+  }
+
+  Widget _savedOperation(Map<String, dynamic> operation) => _card(
+    'Saved action · ${savedOperationTitle(operation)}',
+    [
+      Text(
+        operation['rejected'] == true
+            ? 'The server confirmed that this action was rejected. '
+                'Review the reason before retrying or dismissing it.'
+            : 'Saved on this device; the result is not confirmed. '
+                'Retry this original action to check its result safely.',
+      ),
+      if (operation['error'] != null) Text('${operation['error']}'),
+      TextButton(
+        onPressed: _pendingBusy ? null : () => _retryOperation(operation),
+        child: const Text('Retry original action'),
+      ),
+      if (operation['rejected'] == true)
+        TextButton(
+          onPressed: _pendingBusy ? null : () => _dismissOperation(operation),
+          child: const Text('Dismiss rejected action'),
+        ),
+      ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        title: const Text('Request details'),
+        children: [
+          SelectableText('Reference: ${operation['uuid']}'),
+          Text('Request: ${operation['path']}'),
+        ],
+      ),
+    ],
+  );
 
   Widget _stock(AuthAuthenticated auth) => Column(
     children: [
@@ -610,43 +747,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                   _value('Cash difference', _cash(branch['cash_difference'])),
                   _value('Cost incomplete items', branch['unknown_cost_items']),
                 ]),
-            for (final operation in _pending)
-              _card('Saved operation · ${operation['path']}', [
-                Text(
-                  operation['rejected'] == true
-                      ? 'Server rejected this request.'
-                      : 'Confirmation pending. Retry the original request.',
-                ),
-                if (operation['error'] != null) Text('${operation['error']}'),
-                Text('Reference: ${operation['uuid']}'),
-                TextButton(
-                  onPressed: () async {
-                    try {
-                      await ref
-                          .read(operationsRepositoryProvider)
-                          .retry(operation);
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text('$e')));
-                      }
-                    }
-                    if (mounted) _load();
-                  },
-                  child: const Text('Retry original request'),
-                ),
-                if (operation['rejected'] == true)
-                  TextButton(
-                    onPressed: () async {
-                      await ref
-                          .read(operationsRepositoryProvider)
-                          .dismissRejected(operation);
-                      if (mounted) _load();
-                    },
-                    child: const Text('Dismiss rejected request'),
-                  ),
-              ]),
+            for (final operation in _pending) _savedOperation(operation),
           ],
         ),
       ),

@@ -103,6 +103,33 @@ void main() {
     return (container: container, repository: repo);
   }
 
+  testWidgets('nonfinite cash is rejected without a build exception', (tester) async {
+    await setup(tester, child: const CheckoutScreen());
+    final amount = find.widgetWithText(TextField, 'Amount received');
+    await tester.scrollUntilVisible(amount, 220,
+      scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+    for (final value in ['Infinity', '1e309', 'NaN', 'abc']) {
+      await tester.enterText(amount, value);
+      await tester.pumpAndSettle();
+      expect(find.text('Enter a valid cash amount.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(
+        find.ancestor(of: find.text('Complete & Print'),
+          matching: find.byType(FilledButton)).first).onPressed, isNull);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('short checkout with open keyboard has no layout overflow', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 320));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await setup(tester, size: const Size(360, 320), child: const MediaQuery(
+      data: MediaQueryData(size: Size(360, 320),
+        viewInsets: EdgeInsets.only(bottom: 240)),
+      child: CheckoutScreen(),
+    ));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('riel shortcut fills exact USD equivalent and preserves change', (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -110,6 +137,10 @@ void main() {
     final riel = find.text('20,000៛ / \$5.00');
     await tester.scrollUntilVisible(riel, 220,
       scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(riel);
+    await tester.pumpAndSettle();
+    expect(riel.hitTestable(), findsOneWidget);
     await tester.tap(riel);
     await tester.pumpAndSettle();
     final amount = find.widgetWithText(TextField, 'Amount received');

@@ -65,18 +65,21 @@ void main() {
   });
   tearDown(() => queue.dispose());
 
-  test('drawer command is never journaled or automatically replayed', () async {
+  test('drawer evidence is journaled but commands are never automatically replayed', () async {
     printer.loseConfirmation = true;
-    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {}), throwsStateError);
+    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {}, reason: 'Make change'), throwsStateError);
     expect(printer.drawerPulses, 1);
     expect(await queue.list(selected), isEmpty);
+    final evidence = (await queue.drawerJournal.list(selected)).single;
+    expect(evidence.reason, 'Make change');
+    expect(evidence.status, 'unconfirmed');
     await queue.resumeWaiting(selected);
     expect(printer.drawerPulses, 1);
   });
 
   test('branch switch during drawer connection prevents the pulse', () async {
     printer.connecting = () async { current = (userId: 16, branchId: 22); };
-    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {}), throwsStateError);
+    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {}, reason: 'Make change'), throwsStateError);
     expect(printer.drawerPulses, 0);
   });
 
@@ -85,7 +88,7 @@ void main() {
     printer.connecting = () async { allowed = false; };
     await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {
       if (!allowed) throw StateError('Not permitted');
-    }), throwsStateError);
+    }, reason: 'Make change'), throwsStateError);
     expect(printer.drawerPulses, 0);
   });
 
@@ -93,7 +96,7 @@ void main() {
     final job = await enqueue();
     await Future.wait([
       queue.send(job.id, selected),
-      queue.openCashDrawer(selected, () async => 'ip', () {}),
+      queue.openCashDrawer(selected, () async => 'ip', () {}, reason: 'Make change'),
     ]);
     expect(printer.sent, hasLength(1));
     expect(printer.drawerPulses, 1);

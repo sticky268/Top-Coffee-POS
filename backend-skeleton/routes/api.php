@@ -30,6 +30,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'subscription.active'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::post('/cash-drawer-events', [\App\Http\Controllers\Api\V1\CashDrawerEventController::class, 'store'])->middleware('throttle:120,1');
         Route::get('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'index']);
         Route::post('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'open']);
         Route::post('/shifts/{id}/movements', [\App\Http\Controllers\Api\V1\ShiftController::class, 'movement'])->whereNumber('id');

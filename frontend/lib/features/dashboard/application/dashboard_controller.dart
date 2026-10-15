@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../domain/dashboard_models.dart';
 import '../data/dashboard_repository.dart';
@@ -9,15 +8,12 @@ import 'dashboard_state.dart';
 /// Loads dashboard data on construction and reloads automatically when the
 /// selected branch changes.
 class DashboardController extends StateNotifier<DashboardState> {
-  DashboardController(this._repository, this._ref)
+  DashboardController(this._repository)
     : super(const DashboardLoading()) {
-    _ref.listen(currentBranchProvider, (_, __) => refresh());
-
     _initialization = _load();
   }
 
   final DashboardRepository _repository;
-  final Ref _ref;
   late Future<void> _initialization;
   int _generation = 0;
 
@@ -61,5 +57,7 @@ class DashboardController extends StateNotifier<DashboardState> {
 
 final dashboardControllerProvider =
     StateNotifierProvider<DashboardController, DashboardState>((ref) {
-      return DashboardController(ref.watch(dashboardRepositoryProvider), ref);
+      // The repository watches the branch. Its replacement recreates this
+      // controller; a second branch listener would also refresh the old branch.
+      return DashboardController(ref.watch(dashboardRepositoryProvider));
     });

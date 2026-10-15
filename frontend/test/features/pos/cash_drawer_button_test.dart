@@ -30,6 +30,14 @@ class _Printer extends PrinterService {
 }
 
 void main() {
+  late PrintQueue lastQueue;
+  Future<void> request(WidgetTester tester) async {
+    await tester.tap(find.text('Open cash drawer'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Make change');
+    await tester.tap(find.text('Open drawer'));
+    await tester.pump();
+  }
   Future<_Printer> pump(WidgetTester tester, {bool allowed = true, bool enabled = true}) async {
     SharedPreferences.setMockInitialValues({'receipt_printer_enabled_branch_test': enabled});
     final auth = _Auth();
@@ -42,6 +50,7 @@ void main() {
     final printer = _Printer();
     final queue = PrintQueue(MemoryLocalStore(), printer,
       () => (userId: 1, branchId: 2), (_) async => 'ip');
+    lastQueue = queue;
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(auth),
       printQueueProvider.overrideWithValue(queue),
@@ -57,14 +66,16 @@ void main() {
 
   testWidgets('cashier can send one manual command despite repeated taps', (tester) async {
     final printer = await pump(tester);
-    await tester.tap(find.text('Open cash drawer'));
-    await tester.pump();
+    await request(tester);
     expect(find.text('Sending…'), findsOneWidget);
     await tester.tap(find.text('Sending…'));
     expect(printer.pulses, 0);
     printer.connected.complete();
     await tester.pumpAndSettle();
     expect(printer.pulses, 1);
+    final event = (await lastQueue.drawerJournal.list((userId: 1, branchId: 2))).single;
+    expect(event.reason, 'Make change');
+    expect(event.status, 'command_sent');
     expect(find.text('Drawer command sent. Check the drawer.'), findsOneWidget);
   });
 
@@ -75,7 +86,7 @@ void main() {
 
   testWidgets('disabled branch printer sends no pulse and explains the failure', (tester) async {
     final printer = await pump(tester, enabled: false);
-    await tester.tap(find.text('Open cash drawer'));
+    await request(tester);
     await tester.pumpAndSettle();
     expect(printer.pulses, 0);
     expect(find.textContaining('Enable this branch'), findsOneWidget);
@@ -85,9 +96,22 @@ void main() {
     final printer = await pump(tester);
     printer.fail = true;
     printer.connected.complete();
-    await tester.tap(find.text('Open cash drawer'));
+    await request(tester);
     await tester.pumpAndSettle();
     expect(printer.pulses, 1);
     expect(find.textContaining('Could not confirm drawer command.'), findsOneWidget);
   });
+  testWidgets('cancelled or blank reasons never send a drawer command', (tester) async {
+    final printer = await pump(tester);
+    await tester.tap(find.text('Open cash drawer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open drawer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a reason with at least 3 characters.'), findsOneWidget);
+    expect(printer.pulses, 0);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(await lastQueue.drawerJournal.list((userId: 1, branchId: 2)), isEmpty);
+  });
+
 }

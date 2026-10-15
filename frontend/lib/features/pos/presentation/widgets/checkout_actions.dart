@@ -9,6 +9,7 @@ class CheckoutActions extends StatelessWidget {
     super.key,
     required this.totalLabel,
     this.secondaryTotalLabel,
+    this.maxHeight,
     required this.enabled,
     required this.isSubmitting,
     required this.onComplete,
@@ -16,6 +17,7 @@ class CheckoutActions extends StatelessWidget {
 
   final String totalLabel;
   final String? secondaryTotalLabel;
+  final double? maxHeight;
   final bool enabled;
   final bool isSubmitting;
   final ValueChanged<bool> onComplete;
@@ -28,7 +30,7 @@ class CheckoutActions extends StatelessWidget {
         final height = MediaQuery.sizeOf(context).height -
             MediaQuery.viewInsetsOf(context).bottom;
         return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: height * 0.48),
+          constraints: BoxConstraints(maxHeight: maxHeight ?? height * 0.48),
           child: Material(
             color: theme.colorScheme.surface,
             elevation: 4,

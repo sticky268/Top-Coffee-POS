@@ -4,16 +4,22 @@ import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../../core/subscription/subscription_action_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/inventory_list_controller.dart';
+import '../application/inventory_attention.dart';
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
-  const InventoryScreen({super.key});
+  const InventoryScreen({super.key, this.initialLowStockOnly = false});
+
+  final bool initialLowStockOnly;
 
   @override
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
@@ -23,6 +29,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
 
   String _searchQuery = '';
+  late InventoryStockFilter _filter;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.initialLowStockOnly
+        ? InventoryStockFilter.needsRestock
+        : InventoryStockFilter.all;
+  }
 
   @override
   void dispose() {
@@ -30,26 +45,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     super.dispose();
   }
 
-  List<InventoryIngredient> _filteredIngredients(
-    List<InventoryIngredient> ingredients,
-  ) {
-    final query = _searchQuery.trim().toLowerCase();
-
-    if (query.isEmpty) {
-      return ingredients;
-    }
-
-    return ingredients.where((ingredient) {
-      return ingredient.name.toLowerCase().contains(query) ||
-          ingredient.unit.name.toLowerCase().contains(query) ||
-          ingredient.unit.abbreviation.toLowerCase().contains(query);
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final inventoryState = ref.watch(inventoryListControllerProvider);
     final canModify = SubscriptionActionGuard.canModify(ref);
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+    final selectedBranch = ref.watch(currentBranchProvider);
+    final scope = ref.watch(inventoryScopeProvider);
+    final canManage = canModify && scope != null &&
+        user?.hasPermission('inventory.manage') == true;
+    final canAdjust = canModify && scope != null &&
+        user?.hasPermission('inventory.adjust') == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -76,7 +83,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 ref.read(inventoryListControllerProvider.notifier).refresh(),
           ),
           data: (data) {
-            final ingredients = _filteredIngredients(data.ingredients);
+            final ingredients = inventoryAttentionList(
+              data.ingredients, query: _searchQuery, filter: _filter,
+            );
+            final summary = InventoryAttentionSummary(data.ingredients);
 
             return RefreshIndicator(
               onRefresh: () =>
@@ -91,34 +101,66 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         _searchQuery = value;
                       });
                     },
-                    onAddIngredient: canModify
+                    onAddIngredient: canManage
                         ? () {
                             context.push('/inventory/add');
                           }
                         : null,
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    selectedBranch == null ? 'Select a branch' : selectedBranch.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary.outOfStock} out of stock · '
+                    '${summary.needsRestock} need restocking. '
+                    'Stock changes are recorded in movement history.',
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8, runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: Text('All (${data.ingredients.length})'),
+                        selected: _filter == InventoryStockFilter.all,
+                        onSelected: (_) => setState(() => _filter = InventoryStockFilter.all),
+                      ),
+                      ChoiceChip(
+                        label: Text('Needs restock (${summary.needsRestock})'),
+                        selected: _filter == InventoryStockFilter.needsRestock,
+                        onSelected: (_) => setState(() => _filter = InventoryStockFilter.needsRestock),
+                      ),
+                      ChoiceChip(
+                        label: Text('Inactive (${summary.inactive})'),
+                        selected: _filter == InventoryStockFilter.inactive,
+                        onSelected: (_) => setState(() => _filter = InventoryStockFilter.inactive),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
                   if (data.ingredients.isEmpty)
                     const _EmptyState()
                   else if (ingredients.isEmpty)
-                    const _NoSearchResults()
+                    _NoSearchResults(filter: _filter, hasSearch: _searchQuery.trim().isNotEmpty)
                   else
                     ...ingredients.map(
                       (ingredient) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: _IngredientCard(
                           ingredient: ingredient,
-                          onEdit: canModify
+                          onEdit: canManage && data.scope == scope
                               ? () => context.push(
                                   '/inventory/edit',
                                   extra: ingredient,
                                 )
                               : null,
-                          onStockAction: canModify
-                              ? () => _showStockActionDialog(ingredient)
+                          onStockAction: canAdjust && data.scope == scope
+                              ? () => _showStockActionDialog(ingredient, data.scope)
                               : null,
-                          onDelete: canModify
-                              ? () => _deleteIngredient(ingredient)
+                          onDelete: canManage && data.scope == scope
+                              ? () => _deleteIngredient(ingredient, data.scope)
                               : null,
                           onHistory: () => context.push(
                             '/inventory/history',
@@ -136,8 +178,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  Future<void> _deleteIngredient(InventoryIngredient ingredient) async {
-    if (!SubscriptionActionGuard.canModify(ref)) {
+  Future<void> _deleteIngredient(
+    InventoryIngredient ingredient, InventoryScope? selected,
+  ) async {
+    final auth = ref.read(authControllerProvider);
+    if (selected == null || ref.read(inventoryScopeProvider) != selected ||
+        auth is! AuthAuthenticated ||
+        !auth.user.hasPermission('inventory.manage') ||
+        !SubscriptionActionGuard.canModify(ref)) {
       return;
     }
 
@@ -165,16 +213,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       },
     );
 
-    if (confirmed != true || !mounted) {
+    if (confirmed != true || !mounted ||
+        ref.read(inventoryScopeProvider) != selected) {
       return;
     }
+
+    final currentAuth = ref.read(authControllerProvider);
+    if (currentAuth is! AuthAuthenticated ||
+        !currentAuth.user.hasPermission('inventory.manage') ||
+        !SubscriptionActionGuard.canModify(ref)) return;
 
     try {
       final repository = ref.read(inventoryRepositoryProvider);
 
       await repository.deleteIngredient(ingredientId: ingredient.id);
 
-      if (!mounted) return;
+      if (!mounted || ref.read(inventoryScopeProvider) != selected) return;
 
       ref.invalidate(inventoryListControllerProvider);
 
@@ -196,7 +250,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     }
   }
 
-  Future<void> _showStockActionDialog(InventoryIngredient ingredient) async {
+  Future<void> _showStockActionDialog(
+    InventoryIngredient ingredient, InventoryScope? selected,
+  ) async {
+    final auth = ref.read(authControllerProvider);
+    if (selected == null || ref.read(inventoryScopeProvider) != selected ||
+        auth is! AuthAuthenticated ||
+        !auth.user.hasPermission('inventory.adjust') ||
+        !SubscriptionActionGuard.canModify(ref)) return;
     String type = 'purchase';
     final quantityController = TextEditingController();
     final reasonController = TextEditingController();
@@ -207,16 +268,27 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     try {
       await showDialog<void>(
         context: context,
-        barrierDismissible: !isSaving,
+        barrierDismissible: false,
         builder: (dialogContext) {
           return StatefulBuilder(
             builder: (context, setState) {
               Future<void> submit() async {
+                if (isSaving) return;
+                final currentAuth = ref.read(authControllerProvider);
+                if (ref.read(inventoryScopeProvider) != selected ||
+                    currentAuth is! AuthAuthenticated ||
+                    !currentAuth.user.hasPermission('inventory.adjust') ||
+                    !SubscriptionActionGuard.canModify(ref)) {
+                  setState(() => errorMessage =
+                      'Account or branch changed. Close this form and reopen it for the current branch.');
+                  return;
+                }
                 final quantity = double.tryParse(
                   quantityController.text.trim(),
                 );
 
                 if (quantity == null ||
+                    !quantity.isFinite ||
                     quantity == 0 ||
                     (type != 'adjustment' && quantity < 0)) {
                   setState(() {
@@ -227,11 +299,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   return;
                 }
 
+                final quantityText = quantityController.text.trim();
+                if (!RegExp(r'^-?\d+(\.\d{1,3})?$').hasMatch(quantityText)) {
+                  setState(() => errorMessage =
+                      'Use a quantity with no more than 3 decimal places.');
+                  return;
+                }
+
                 if ((type == 'adjustment' || type == 'wastage') &&
                     reasonController.text.trim().isEmpty) {
                   setState(() {
-                    errorMessage =
-                        'Please enter a reason for this stock action.';
+                    errorMessage = 'Please enter a reason for this stock action.';
                   });
                   return;
                 }
@@ -258,7 +336,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   if (!dialogContext.mounted) return;
                   Navigator.of(dialogContext).pop();
                 } catch (error) {
-                  if (!mounted) return;
+                  if (!mounted || !dialogContext.mounted) return;
 
                   setState(() {
                     isSaving = false;
@@ -267,8 +345,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 }
               }
 
-              return AlertDialog(
-                title: Text('Stock Action - ${ingredient.name}'),
+              return PopScope(
+                canPop: !isSaving,
+                child: AlertDialog(
+                title: Text('Record stock movement — ${ingredient.name}'),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -304,8 +384,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       TextField(
                         controller: quantityController,
                         enabled: !isSaving,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                        keyboardType: TextInputType.numberWithOptions(
+                          decimal: true, signed: type == 'adjustment',
                         ),
                         decoration: InputDecoration(
                           labelText: 'Quantity',
@@ -350,7 +430,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     child: const Text('Continue'),
                   ),
                 ],
-              );
+              ));
             },
           );
         },
@@ -440,13 +520,15 @@ class _IngredientCard extends StatelessWidget {
 
     final statusText = !ingredient.isActive
         ? 'Inactive'
+        : ingredient.currentStock <= 0
+        ? 'Out of Stock'
         : ingredient.isLowStock
         ? 'Low Stock'
         : 'In Stock';
 
     final statusColor = !ingredient.isActive
         ? theme.colorScheme.outline
-        : ingredient.isLowStock
+        : ingredient.isLowStock || ingredient.currentStock <= 0
         ? theme.colorScheme.error
         : AppColors.semantic(context, AppColors.success);
 
@@ -497,7 +579,10 @@ class _IngredientCard extends StatelessWidget {
             pos_ui.OutlinedButton.icon(
               onPressed: onStockAction,
               icon: const Icon(Icons.inventory_2_outlined, size: 18),
-              label: const Text('Stock Action'),
+              label: Text(ingredient.isActive &&
+                      (ingredient.isLowStock || ingredient.currentStock <= 0)
+                  ? 'Restock / adjust'
+                  : 'Record movement'),
             ),
             pos_ui.OutlinedButton.icon(
               onPressed: onHistory,
@@ -580,7 +665,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Add your first ingredient to start tracking stock.',
+              'Ingredients added for this branch appear here.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -592,13 +677,19 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _NoSearchResults extends StatelessWidget {
-  const _NoSearchResults();
+  const _NoSearchResults({required this.filter, required this.hasSearch});
+  final InventoryStockFilter filter;
+  final bool hasSearch;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 300,
-      child: Center(child: Text('No ingredients match your search.')),
+    return SizedBox(
+      height: 200,
+      child: Center(child: Text(hasSearch
+          ? 'No ingredients match this search and filter.'
+          : filter == InventoryStockFilter.needsRestock
+          ? 'No active ingredients need restocking.'
+          : 'No inactive ingredients.')),
     );
   }
 }

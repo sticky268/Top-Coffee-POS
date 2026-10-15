@@ -11,5 +11,7 @@ void main() {
     expect(TillCurrency.usdForRielNote(50000), 12.5);
     expect(() => TillCurrency.usdForRielNote(500), throwsArgumentError);
     expect(TillCurrency.rielQuickAmounts(double.nan), isEmpty);
+    expect(() => TillCurrency.rielForUsd(double.infinity), throwsArgumentError);
+    expect(() => TillCurrency.rielForUsd(-1), throwsArgumentError);
   });
 }

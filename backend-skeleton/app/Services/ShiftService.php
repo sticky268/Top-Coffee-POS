@@ -44,7 +44,9 @@ class ShiftService
         $cashRefunds = $refunds->where('method', 'cash')->sum(fn ($r) => OperationService::cents($r->amount));
         $in = $movements->where('type', 'in')->sum(fn ($m) => OperationService::cents($m->amount));
         $out = $movements->where('type', 'out')->sum(fn ($m) => OperationService::cents($m->amount));
-        return $shift->toArray() + [
+        $shift->loadMissing('cashier');
+        return $shift->attributesToArray() + [
+            'cashier_name' => $shift->cashier?->name,
             'cash_sales' => $cash / 100, 'cash_refunds' => $cashRefunds / 100,
             'cash_in' => $in / 100, 'cash_out' => $out / 100,
             'live_expected_cash' => (OperationService::cents($shift->opening_cash) + $cash - $cashRefunds + $in - $out) / 100,

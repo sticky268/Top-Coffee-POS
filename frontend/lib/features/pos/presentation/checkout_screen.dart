@@ -336,7 +336,7 @@ class _CheckoutForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
-    final change = (paymentMethod == 'cash' && tenderedAmount != null)
+    final change = (paymentMethod == 'cash' && tenderedAmount != null && tenderedAmount!.isFinite)
         ? tenderedAmount! - cart.total
         : null;
     final splitTotal = splitPayments.fold<double>(
@@ -349,15 +349,16 @@ class _CheckoutForm extends StatelessWidget {
         splitPayments.length >= 2 &&
         splitPayments.every((payment) {
           final amount = double.tryParse(payment.amountController.text) ?? 0;
-          if (amount <= 0) return false;
+          if (!amount.isFinite || amount <= 0) return false;
 
           if (payment.method == 'cash') {
             final tendered = double.tryParse(payment.tenderedController.text);
-            return tendered != null && tendered >= amount;
+            return tendered != null && tendered.isFinite && tendered >= amount;
           }
 
           return true;
         }) &&
+        splitTotal.isFinite &&
         (splitTotal - cart.total).abs() < 0.01;
 
     // Read-only preview: allocated amounts are not cash received.
@@ -393,8 +394,8 @@ class _CheckoutForm extends StatelessWidget {
         (paymentMethod == 'split'
             ? splitValid
             : paymentMethod != 'cash' ||
-                  tenderedAmount == null ||
-                  tenderedAmount! >= cart.total);
+                  tenderedController.text.trim().isEmpty ||
+                  (tenderedAmount != null && tenderedAmount!.isFinite && tenderedAmount! >= cart.total));
 
     final customerBill = CustomerBill(
       orderType: orderType,
@@ -424,7 +425,8 @@ class _CheckoutForm extends StatelessWidget {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
+          child: LayoutBuilder(
+            builder: (context, viewport) => Column(
             children: [
               Expanded(
                 child: ListView(
@@ -952,7 +954,10 @@ class _CheckoutForm extends StatelessWidget {
                             helperText:
                                 'Enter cash received to calculate change.',
                             helperMaxLines: 3,
-                            errorText: change != null && change < 0
+                            errorText: tenderedController.text.trim().isNotEmpty &&
+                                (tenderedAmount == null || !tenderedAmount!.isFinite)
+                                ? 'Enter a valid cash amount.'
+                                : change != null && change < 0
                                 ? 'Cash received is below the total.'
                                 : null,
                             errorMaxLines: 3,
@@ -1082,6 +1087,7 @@ class _CheckoutForm extends StatelessWidget {
                 ),
               ),
               CheckoutActions(
+                maxHeight: viewport.maxHeight * 0.5,
                 totalLabel: currency.format(cart.total),
                 secondaryTotalLabel: '${NumberFormat.decimalPattern('en').format(TillCurrency.rielForUsd(cart.total))}៛',
                 enabled: canConfirm,
@@ -1089,6 +1095,7 @@ class _CheckoutForm extends StatelessWidget {
                 onComplete: onConfirm,
               ),
             ],
+            ),
           ),
         ),
       ),

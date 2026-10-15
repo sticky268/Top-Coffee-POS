@@ -9,6 +9,7 @@ import '../application/dashboard_controller.dart';
 import '../application/dashboard_state.dart';
 import '../domain/dashboard_models.dart';
 import 'widgets/dashboard_header.dart';
+import 'widgets/dashboard_attention_panel.dart';
 import '../../operations/presentation/cashier_workspace.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/recent_orders_section.dart';
@@ -62,6 +63,11 @@ class DashboardScreen extends ConsumerWidget {
                                 .logout(),
                           ),
                         const SizedBox(height: 24),
+                        DashboardAttentionPanel(
+                          lowStockCount: dashboardState is DashboardLoaded
+                              ? dashboardState.stats.lowStockItemCount
+                              : null,
+                        ),
                         _DashboardBody(
                           state: dashboardState,
                           statColumns: statColumns,
@@ -172,7 +178,7 @@ class _DashboardErrorView extends StatelessWidget {
   }
 }
 
-class _DashboardContent extends StatelessWidget {
+class _DashboardContent extends ConsumerWidget {
   const _DashboardContent({
     required this.stats,
     required this.recentOrders,
@@ -188,41 +194,50 @@ class _DashboardContent extends StatelessWidget {
   final int actionColumns;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+    bool allowed(String permission) => user?.hasPermission(permission) ?? false;
 
     final actions = [
-      QuickAction(
+      if (allowed('orders.create') || allowed('orders.refund') ||
+          allowed('reports.view')) QuickAction(
+        label: 'Daily Operations',
+        icon: Icons.account_balance_wallet_outlined,
+        onTap: () => context.push('/operations'),
+      ),
+      if (allowed('orders.create')) QuickAction(
         label: 'New Order',
         icon: Icons.add_shopping_cart,
         onTap: () => context.push('/pos'),
       ),
-      QuickAction(
+      if (allowed('orders.view')) QuickAction(
         label: 'Orders',
         icon: Icons.receipt_long_outlined,
         onTap: () => context.push('/orders'),
       ),
-      QuickAction(
+      if (allowed('customers.view')) QuickAction(
         label: 'Customers',
         icon: Icons.people_outline,
         onTap: () => context.push('/customers'),
       ),
-      QuickAction(
+      if (allowed('products.view')) QuickAction(
         label: 'Products',
         icon: Icons.local_cafe_outlined,
         onTap: () => context.push('/products'),
       ),
-      QuickAction(
+      if (allowed('inventory.view')) QuickAction(
         label: 'Inventory',
         icon: Icons.inventory_2_outlined,
         onTap: () => context.push('/inventory'),
       ),
-      QuickAction(
+      if (allowed('reports.view')) QuickAction(
         label: 'Reports',
         icon: Icons.bar_chart_outlined,
         onTap: () => context.push('/reports'),
       ),
-      QuickAction(
+      if (allowed('orders.create')) QuickAction(
         label: 'Receipt Settings',
         icon: Icons.receipt_long_outlined,
         onTap: () => context.push('/settings/receipt'),

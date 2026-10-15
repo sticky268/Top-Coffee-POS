@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/features/dashboard/application/dashboard_controller.dart';
 import 'package:top_coffee_pos/core/network/api_exceptions.dart';
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
+import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/dashboard/application/dashboard_state.dart';
 import 'package:top_coffee_pos/features/dashboard/data/dashboard_repository.dart';
 import 'package:top_coffee_pos/features/dashboard/domain/dashboard_models.dart';
@@ -226,4 +228,35 @@ void main() {
       isA<DashboardLoaded>(),
     );
   });
+  test('branch replacement loads once and ignores a late previous branch response', () async {
+    final oldStats = Completer<DashboardStats>();
+    final nextRepository = MockDashboardRepository();
+    when(() => repository.getStats()).thenAnswer((_) => oldStats.future);
+    when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
+    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+    when(() => nextRepository.getStats()).thenAnswer((_) async => const DashboardStats(
+      todaysSales: 99, todaysOrders: 9, averageOrderValue: 11, lowStockItemCount: 0));
+    when(() => nextRepository.getRecentOrders()).thenAnswer((_) async => []);
+    when(() => nextRepository.getSalesOverview()).thenAnswer((_) async => []);
+    final container = ProviderContainer(overrides: [
+      currentBranchProvider.overrideWith((ref) => CurrentBranchNotifier(
+        ref, listenToAuth: false)..selectBranch(
+          const BranchSummary(id: 1, name: 'One', code: 'ONE'))),
+      dashboardRepositoryProvider.overrideWith((ref) =>
+        ref.watch(currentBranchProvider)?.id == 2 ? nextRepository : repository),
+    ]);
+    addTearDown(container.dispose);
+    container.listen(dashboardControllerProvider, (previous, next) {});
+    final oldController = container.read(dashboardControllerProvider.notifier);
+    container.read(currentBranchProvider.notifier).selectBranch(
+      const BranchSummary(id: 2, name: 'Two', code: 'TWO'));
+    await container.read(dashboardControllerProvider.notifier).initialization;
+    oldStats.complete(_stats);
+    await oldController.initialization;
+    final current = container.read(dashboardControllerProvider) as DashboardLoaded;
+    expect(current.stats.todaysOrders, 9);
+    verify(() => repository.getStats()).called(1);
+    verify(() => nextRepository.getStats()).called(1);
+  });
+
 }

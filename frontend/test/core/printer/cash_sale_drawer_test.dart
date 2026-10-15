@@ -48,6 +48,10 @@ void main() {
   test('one cash sale pulse survives duplicate callbacks and queue recreation', () async {
     await Future.wait([drawer.afterPayment(sale(), 1, 2), drawer.afterPayment(sale(), 1, 2)]);
     expect(printer.pulses, 1);
+    final event = (await queue.drawerJournal.list(selected)).single;
+    expect(event.orderId, 42);
+    expect(event.source, 'cash_sale');
+    expect(event.status, 'command_sent');
     final restarted = PrintQueue(store, printer, () => scope, (_) async => 'ip');
     addTearDown(restarted.dispose);
     await CashSaleDrawer(restarted, () => scope, (_) async => 'ip').afterPayment(sale(), 1, 2);
@@ -82,7 +86,7 @@ void main() {
     await drawer.afterPayment(sale(), 1, 2);
     await queue.resumeWaiting(selected);
     expect(printer.pulses, 0);
-    await queue.openCashDrawer(selected, () async => 'ip', () {});
+    await queue.openCashDrawer(selected, () async => 'ip', () {}, reason: 'Check drawer');
     expect(printer.pulses, 1); // An explicit manual opening remains available.
   });
   test('wrong cashier or branch and a switch during connection prevent the pulse', () async {
@@ -95,7 +99,7 @@ void main() {
     final full = PrintQueue(_FullStore(), printer, () => scope, (_) async => 'ip');
     addTearDown(full.dispose);
     expect(await CashSaleDrawer(full, () => scope, (_) async => 'ip')
-        .afterPayment(sale(), 1, 2), contains('Storage full'));
+        .afterPayment(sale(), 1, 2), cashDrawerFailureMessage);
     expect(printer.pulses, 0);
   });
   test('printing and making a receipt copy cannot repeat the drawer command', () async {

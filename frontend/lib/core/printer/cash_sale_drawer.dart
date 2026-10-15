@@ -9,7 +9,7 @@ import 'print_queue.dart';
 import 'print_queue_providers.dart';
 
 const cashDrawerFailureMessage =
-    'Payment completed. Cash drawer opening could not be confirmed. Check the drawer, then use Open cash drawer if needed.';
+    'Payment completed. Drawer command could not be confirmed. Check the drawer before using Open cash drawer.';
 
 /// Consumes one device-local automatic attempt for each confirmed cash sale.
 /// No receipt reads, reprints or background sync call this service.
@@ -32,8 +32,8 @@ class CashSaleDrawer {
         if (scope() != selected) throw StateError('Cashier, permission or branch changed.');
       }, completedSaleId: confirmation.orderId);
       return null;
-    } catch (error) {
-      return '$cashDrawerFailureMessage $error';
+    } catch (_) {
+      return cashDrawerFailureMessage;
     }
   }
 }

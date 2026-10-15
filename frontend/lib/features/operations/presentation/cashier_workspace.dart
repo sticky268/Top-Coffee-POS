@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/offline/order_sync.dart';
+import '../../../core/offline/order_sync_summary.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../dashboard/presentation/widgets/dashboard_header.dart';
@@ -84,7 +85,7 @@ class CashierWorkspace extends ConsumerWidget {
                 subtitle: Text(
                   pending.when(
                     data: (orders) =>
-                        '${orders.where((o) => o.status != 'synced').length} waiting for confirmation or review',
+                        OrderSyncSummary.fromOrders(orders).description,
                     loading: () => 'Checking saved orders…',
                     error: (_, __) => 'Could not check saved orders',
                   ),
