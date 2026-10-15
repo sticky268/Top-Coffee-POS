@@ -1,0 +1,18 @@
+[Unit]
+Description=Top Coffee Laravel scheduler
+After=network-online.target
+OnFailure=top-coffee-alert@%n.service
+
+[Service]
+Type=oneshot
+User=posapp
+Group=posapp
+WorkingDirectory=/srv/top-coffee/current/backend-skeleton
+ExecStart=/usr/bin/php artisan schedule:run --no-interaction
+TimeoutStartSec=300
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/top-coffee/shared/storage /srv/top-coffee/current/backend-skeleton/bootstrap/cache
+ProtectHome=true
+PrivateTmp=true
+UMask=0027

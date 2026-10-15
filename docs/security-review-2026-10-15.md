@@ -135,7 +135,7 @@ The production server must serve Laravel `public/`, disable PHP execution under 
 
 **Reviewed export path:** `frontend/lib/features/reports/data/report_exporter.dart` prefixes formula-like CSV text beginning with optional whitespace then `=`, `+`, `-` or `@`; quoting alone is not treated as protection. XLSX emits user text as escaped inline strings rather than formula elements. PDF uses Dart text/table widgets and a bundled font, not a server HTML renderer with remote-resource fetching. `report_exporter_test.dart` and independent workbook/PDF readers verify generated fixtures. Newly introduced exporters need the same review; this does not certify every spreadsheet application's re-save behavior.
 
-**Needs review (Must-have for launch):** deployed CORS origins and trusted-proxy settings; secret injection/config-cache permissions; queue/scheduler OS identities and private management endpoints; sensitive-data filtering in HTTP, queue and monitoring logs; and any use of `request()->all()`, `unguard()`, raw SQL or privileged field assignment outside the traced controllers. `config/cors.php` is absent from this checkout, so the effective framework/proxy response policy must be tested on staging. `User::$fillable` excludes role/permission fields but includes `business_id`; mass-assignment protection alone does not establish tenant authorization. Current controllers and middleware must remain the authority.
+**Needs review (Must-have for launch):** deployed CORS origins and trusted-proxy settings; secret injection/config-cache permissions; queue/scheduler OS identities and private management endpoints; sensitive-data filtering in HTTP, queue and monitoring logs; and any use of `request()->all()`, `unguard()`, raw SQL or privileged field assignment outside the traced controllers. The subsequent launch kit supplies an explicit empty-by-default browser-origin allowlist in `config/cors.php`; its effective framework/proxy response policy still needs staging verification. `User::$fillable` excludes role/permission fields but includes `business_id`; mass-assignment protection alone does not establish tenant authorization. Current controllers and middleware must remain the authority.
 
 Known initial advisories: `GHSA-jh5r-qr3c-85q8`, `GHSA-97jj-33gv-5xf9`, `GHSA-3q6v-r5mr-hxv8`, `CVE-2026-108082`, `CVE-2026-109413`. The upgraded CI audit returned an empty advisory list; the final frozen lockfile must pass again.
 
@@ -306,6 +306,13 @@ No files need to be pasted now: the repository was accessible. For future review
 9. `backend-skeleton/.env.example`, Composer/pub manifests and lockfiles, actual sanitized reverse-proxy/CORS/queue/scheduler configuration, DB grants, backup and alert configurations. Never paste actual passwords/tokens/keys.
 
 ## Sources checked for implementation guidance
+
+Subsequent preparation: see [launch work register](launch-work-register.md) and
+[deployment/recovery kit](../deploy/README.md). The new encrypted wrapper protects
+backup publication; `mysql_backup.py` remains a plaintext staging/legacy helper.
+The kit adds per-table runtime grants, explicit CORS and local health signals.
+Actual host grants, off-site keys/storage/restore, delivered alerts, privacy
+approval and signed physical-device acceptance remain external launch gates.
 
 - Laravel 12 Sanctum: https://laravel.com/docs/12.x/sanctum
 - Laravel deployment: https://laravel.com/docs/12.x/deployment

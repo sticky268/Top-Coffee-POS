@@ -60,7 +60,7 @@ def sha(path):
     return digest.hexdigest()
 
 
-def backup(args):
+def backup(args, report=True):
     # Writes must be drained: counts/assets and the SQL snapshot share a quiet window.
     if not args.writes_drained:
         raise ValueError('Stop cashier writes, then supply --writes-drained.')
@@ -95,7 +95,9 @@ def backup(args):
                     'sha256': {p.name: sha(p) for p in [dump, staging / 'assets.tar.gz']}}
         (staging / 'manifest.json').write_text(json.dumps(manifest, indent=2))
         staging.rename(target)
-        print(target)
+        if report:
+            print(target)
+        return target
     finally:
         if staging.exists():
             shutil.rmtree(staging)
@@ -121,14 +123,39 @@ def restore_assets(archive_path, destination):
                     shutil.copyfileobj(source, output)
 
 
+def validate_bundle(root):
+    required = {'manifest.json', 'database.sql.gz', 'assets.tar.gz'}
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError('Backup must be a regular directory.')
+    if any((root / name).is_symlink() or not (root / name).is_file() for name in required):
+        raise ValueError('Backup files must be regular files, not links.')
+    if (root / 'manifest.json').stat().st_size > 1024 * 1024:
+        raise ValueError('Backup manifest exceeds the supported limit.')
+    manifest = json.loads((root / 'manifest.json').read_text())
+    if not isinstance(manifest, dict):
+        raise ValueError('Backup manifest must be an object.')
+    hashes = manifest.get('sha256', {})
+    if not isinstance(hashes, dict) or set(hashes) != required - {'manifest.json'}:
+        raise ValueError('Backup manifest must checksum both payloads.')
+    if not isinstance(manifest.get('database'), str) or not re.fullmatch(r'[A-Za-z0-9_]+', manifest['database']):
+        raise ValueError('Invalid source database in backup manifest.')
+    if not isinstance(manifest.get('table_counts'), dict) or not isinstance(manifest.get('asset_hashes'), dict):
+        raise ValueError('Missing backup comparison evidence.')
+    if not isinstance(manifest.get('commit'), str) or not manifest['commit']:
+        raise ValueError('Missing backup source commit.')
+    if not re.fullmatch(r'[a-f0-9]{64}', str(manifest.get('data_hash', ''))):
+        raise ValueError('Missing backup data hash.')
+    for name, expected in hashes.items():
+        if not re.fullmatch(r'[a-f0-9]{64}', str(expected)) or sha(root / name) != expected:
+            raise ValueError('Backup checksum mismatch.')
+    return manifest
+
+
 def restore(args):
-    manifest = json.loads((args.backup / 'manifest.json').read_text())
+    manifest = validate_bundle(args.backup)
     # Never overwrites a database. Dedicated empty rehearsal names only.
     if args.database == manifest['database'] or not args.database.endswith('_restore'):
         raise ValueError('Use a different, empty database whose name ends with _restore.')
-    for name, expected in manifest['sha256'].items():
-        if name not in ('database.sql.gz', 'assets.tar.gz') or sha(args.backup / name) != expected:
-            raise ValueError('Backup checksum mismatch.')
     exists = client(args, f"SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='{args.database}'").strip()
     if exists != '1' or counts(args, args.database):
         raise ValueError('Create an empty rehearsal database first. Existing tables are never overwritten.')

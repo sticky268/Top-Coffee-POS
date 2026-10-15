@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Top Coffee Laravel schedule each minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Unit=top-coffee-scheduler.service
+
+[Install]
+WantedBy=timers.target

@@ -1,5 +1,13 @@
 # Production release and recovery
 
+## Subsequent remote preparation
+
+The [deployment/recovery kit](../deploy/README.md) provides Nginx/FPM/systemd
+references, encrypted backup/recovery, per-table runtime grants and local health
+signals. The [launch register](launch-work-register.md) tracks all ten ranked
+actions and the remaining host/operator/privacy/physical-device gates. These
+files do not deploy or certify a host. Exact final CI remains in draft PR #11.
+
 ## Current candidate status — 15 October 2026
 
 PR #11 remains draft and unmerged. The reviewed baseline `99f4563` passed

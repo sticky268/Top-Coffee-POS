@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Top Coffee operational health every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=top-coffee-health.service
+
+[Install]
+WantedBy=timers.target

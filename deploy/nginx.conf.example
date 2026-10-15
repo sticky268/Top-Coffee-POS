@@ -1,0 +1,40 @@
+# Install in the nginx http context only after editing domain/paths/certificates.
+# No request arguments, bodies, authorization headers or cookies in access logs.
+log_format pos_minimal '$remote_addr [$time_local] "$request_method $uri $server_protocol" '
+                       '$status $body_bytes_sent $request_time';
+server {
+    listen 80;
+    server_name api.example.invalid;
+    location ^~ /.well-known/acme-challenge/ { root /var/lib/letsencrypt; }
+    location / { return 301 https://api.example.invalid$request_uri; }
+}
+server {
+    listen 443 ssl;
+    server_name api.example.invalid;
+    root /srv/top-coffee/current/backend-skeleton/public;
+    if ($host != api.example.invalid) { return 444; }
+    index index.php;
+    server_tokens off;
+    ssl_certificate /etc/letsencrypt/live/api.example.invalid/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.invalid/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 6m;
+    access_log /var/log/nginx/top-coffee-access.log pos_minimal;
+    error_log /var/log/nginx/top-coffee-error.log warn;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy no-referrer always;
+    # Direct TLS termination: no forwarded-header trust is required.
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location = /index.php {
+        include /etc/nginx/fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        fastcgi_param HTTPS on;
+        fastcgi_pass unix:/run/php/top-coffee.sock;
+        fastcgi_hide_header X-Powered-By;
+    }
+    # Only the front controller may execute, including under public storage.
+    location ~* \.php(?:/|$) { return 404; }
+    location ~ /\. { deny all; }
+}

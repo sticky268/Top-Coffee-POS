@@ -1,0 +1,10 @@
+[Unit]
+Description=Record Top Coffee service failure locally
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger --priority daemon.crit --tag top-coffee "Operational check failed: %i; inspect journal and run the incident procedure."
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

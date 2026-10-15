@@ -20,7 +20,11 @@ jobs:
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit
+      - name: Install operational verification tools
+        run: sudo apt-get update -qq && sudo apt-get install -y age nginx
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Verify Nginx reference configuration and public-file boundaries
+        run: python3 tools/verify_nginx.py
       - name: Audit locked Composer dependencies
         if: always()
         run: |
@@ -70,9 +74,13 @@ jobs:
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
-        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest'
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest'
+      - name: Install age for encrypted MySQL recovery
+        run: sudo apt-get update -qq && sudo apt-get install -y age
       - name: Verify private MySQL backup and isolated restore
         run: bash tools/test_mysql_backup.sh
+      - name: Verify least-privilege runtime and append-only audit grants
+        run: bash tools/test_runtime_grants.sh
   flutter:
     runs-on: ubuntu-latest
     defaults:
