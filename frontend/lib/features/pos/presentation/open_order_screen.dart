@@ -104,14 +104,14 @@ class OpenOrderScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(appBarTitle)),
       body: switch (state) {
         OrderDetailLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
+            child: CircularProgressIndicator(),
+          ),
         OrderDetailError(:final message) => _ErrorView(
-          message: message,
-          onRetry: () => ref
-              .read(orderDetailControllerProvider(orderId).notifier)
-              .refresh(),
-        ),
+            message: message,
+            onRetry: () => ref
+                .read(orderDetailControllerProvider(orderId).notifier)
+                .refresh(),
+          ),
         OrderDetailLoaded(:final order) => _OpenOrderContent(order: order),
       },
     );
@@ -394,9 +394,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       if (result == null) return;
 
       isPaying = true;
-      final confirmation = await ref
-          .read(posRepositoryProvider)
-          .payHeldOrder(
+      final confirmation = await ref.read(posRepositoryProvider).payHeldOrder(
             orderId: saved.id,
             paymentMethod: result.method,
             tendered: result.tendered,
@@ -503,8 +501,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     final currency = NumberFormat.currency(symbol: '\$');
     final catalogState = ref.watch(posCatalogControllerProvider);
     final authState = ref.watch(authControllerProvider);
-    final canCancel =
-        authState is AuthAuthenticated &&
+    final canCancel = authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.cancel');
 
     return PopScope(
@@ -607,9 +604,8 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: pos_ui.PosActionButton(
-                                      onPressed: _lines.isEmpty
-                                          ? null
-                                          : _payOrder,
+                                      onPressed:
+                                          _lines.isEmpty ? null : _payOrder,
                                       child: const Text('Review & Pay'),
                                     ),
                                   ),
@@ -729,8 +725,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               Text(
                 _formatMoney(widget.total),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 24),
               SegmentedButton<String>(
@@ -797,15 +793,15 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                           _tenderedController.text.trim().isEmpty
                               ? 0
                               : (_canConfirm
-                                    ? _changeDue
-                                    : widget.total - (_tendered ?? 0)),
+                                  ? _changeDue
+                                  : widget.total - (_tendered ?? 0)),
                         ),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: _canConfirm
-                              ? null
-                              : Theme.of(context).colorScheme.error,
-                        ),
+                              fontWeight: FontWeight.bold,
+                              color: _canConfirm
+                                  ? null
+                                  : Theme.of(context).colorScheme.error,
+                            ),
                       ),
                     ],
                   ),
@@ -904,7 +900,9 @@ class _OrderPanel extends StatelessWidget {
                         children: [
                           Text(
                             line.productName,
-                            style: Theme.of(context).textTheme.titleMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           if (line.variantName != null) ...[
@@ -914,7 +912,9 @@ class _OrderPanel extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             currency.format(line.unitPrice),
-                            style: Theme.of(context).textTheme.bodyMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
                                 ?.copyWith(
                                   color: Theme.of(
                                     context,
@@ -950,7 +950,9 @@ class _OrderPanel extends StatelessWidget {
                             child: Text(
                               '${line.quantity}',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleMedium
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -969,7 +971,9 @@ class _OrderPanel extends StatelessWidget {
                       child: Text(
                         currency.format(line.lineTotal),
                         textAlign: TextAlign.end,
-                        style: Theme.of(context).textTheme.titleMedium
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -996,25 +1000,25 @@ class _ProductCatalogPanel extends StatelessWidget {
   final int crossAxisCount;
   final void Function(PosProduct product) onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)
-  onVariantSelected;
+      onVariantSelected;
 
   @override
   Widget build(BuildContext context) {
     return switch (state) {
       PosCatalogLoading() => const Center(child: CircularProgressIndicator()),
       PosCatalogError(:final message) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 42),
-              const SizedBox(height: 16),
-              Text(message, textAlign: TextAlign.center),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 42),
+                const SizedBox(height: 16),
+                Text(message, textAlign: TextAlign.center),
+              ],
+            ),
           ),
         ),
-      ),
       PosCatalogLoaded(
         :final categories,
         :final visibleProducts,

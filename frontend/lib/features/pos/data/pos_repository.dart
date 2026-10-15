@@ -100,12 +100,12 @@ class ApiPosRepository implements PosRepository {
     void Function()? onCachedCatalog,
     bool Function()? requireCashShift,
     Future<String?> Function(OrderConfirmation, int?, int?)? onCompleted,
-  }) : _localStore = localStore,
-       _outbox = outbox,
-       _userId = userId,
-       _onCachedCatalog = onCachedCatalog,
-       _requireCashShift = requireCashShift,
-       _onCompleted = onCompleted;
+  })  : _localStore = localStore,
+        _outbox = outbox,
+        _userId = userId,
+        _onCachedCatalog = onCachedCatalog,
+        _requireCashShift = requireCashShift,
+        _onCompleted = onCompleted;
 
   final Future<String?> Function(OrderConfirmation, int?, int?)? _onCompleted;
 
@@ -115,8 +115,9 @@ class ApiPosRepository implements PosRepository {
     int? branchId,
   ) {
     final callback = _onCompleted;
-    if (callback == null || !confirmation.hasCompletedCashPayment)
+    if (callback == null || !confirmation.hasCompletedCashPayment) {
       return confirmation;
+    }
     Future<String?> open() async {
       try {
         return await callback(confirmation, userId, branchId);
@@ -170,8 +171,8 @@ class ApiPosRepository implements PosRepository {
         if (stored != null) {
           final snapshot = jsonDecode(stored) as Map<String, dynamic>;
           final age = DateTime.now().toUtc().difference(
-            DateTime.parse(snapshot['saved_at'] as String),
-          );
+                DateTime.parse(snapshot['saved_at'] as String),
+              );
           if (!age.isNegative && age < const Duration(hours: 24)) {
             _onCachedCatalog?.call();
             return snapshot['data'] as List;
@@ -194,8 +195,7 @@ class ApiPosRepository implements PosRepository {
       payload = {...payload, 'shift_id': int.tryParse(shift ?? '')};
     }
     final payment = payload['payment'] as Map?;
-    final cash =
-        payment?['method'] == 'cash' ||
+    final cash = payment?['method'] == 'cash' ||
         (payment?['payments'] as List? ?? []).any(
           (part) => (part as Map)['method'] == 'cash',
         );
@@ -441,20 +441,20 @@ class ApiPosRepository implements PosRepository {
   }) async {
     final userId = _userId?.call();
     Future<Response<dynamic>> send() => _apiClient.request(
-      (dio) => dio.post(
-        '/orders/$orderId/pay',
-        data: {
-          if (branchId != null) 'branch_id': branchId,
-          if (expectedTotal != null) 'expected_total': expectedTotal,
-          'payment': {
-            'method': paymentMethod,
-            if (tendered != null) 'tendered': tendered,
-            if (paymentMethod == 'split' && splitPayments != null)
-              'payments': splitPayments,
-          },
-        },
-      ),
-    );
+          (dio) => dio.post(
+            '/orders/$orderId/pay',
+            data: {
+              if (branchId != null) 'branch_id': branchId,
+              if (expectedTotal != null) 'expected_total': expectedTotal,
+              'payment': {
+                'method': paymentMethod,
+                if (tendered != null) 'tendered': tendered,
+                if (paymentMethod == 'split' && splitPayments != null)
+                  'payments': splitPayments,
+              },
+            },
+          ),
+        );
 
     Response<dynamic> response;
     try {

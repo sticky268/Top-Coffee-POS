@@ -62,13 +62,13 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(360, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      MaterialApp(
+      const MaterialApp(
         home: MediaQuery(
-          data: const MediaQueryData(
+          data: MediaQueryData(
             size: Size(360, 640),
             textScaler: TextScaler.linear(2),
           ),
-          child: const Scaffold(
+          child: Scaffold(
             body: ManagerPinPrompt(
               action: 'Approve order cancellation',
               manager: 'Mara',

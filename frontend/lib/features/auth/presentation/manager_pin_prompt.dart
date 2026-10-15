@@ -71,50 +71,51 @@ class _ManagerPinPromptState extends State<ManagerPinPrompt> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.action),
-    content: SingleChildScrollView(
-      child: Form(
-        key: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${widget.manager}, enter your own manager PIN to approve.'),
-            const SizedBox(height: 12),
-            TextFormField(
-              key: const ValueKey('manager-pin-input'),
-              controller: _pin,
-              autofocus: true,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              autofillHints: null,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(12),
+        title: Text(widget.action),
+        content: SingleChildScrollView(
+          child: Form(
+            key: _form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    '${widget.manager}, enter your own manager PIN to approve.'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('manager-pin-input'),
+                  controller: _pin,
+                  autofocus: true,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autofillHints: null,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(12),
+                  ],
+                  decoration: const InputDecoration(labelText: 'Manager PIN'),
+                  validator: (value) =>
+                      RegExp(r'^[0-9]{6,12}$').hasMatch(value ?? '')
+                          ? null
+                          : 'Enter 6–12 digits.',
+                  onFieldSubmitted: (_) => _approve(),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Set or reset your PIN in Settings using your account password. Approval requires a connection.',
+                ),
               ],
-              decoration: const InputDecoration(labelText: 'Manager PIN'),
-              validator: (value) =>
-                  RegExp(r'^[0-9]{6,12}$').hasMatch(value ?? '')
-                  ? null
-                  : 'Enter 6–12 digits.',
-              onFieldSubmitted: (_) => _approve(),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Set or reset your PIN in Settings using your account password. Approval requires a connection.',
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(onPressed: _approve, child: const Text('Approve')),
-    ],
-  );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(onPressed: _approve, child: const Text('Approve')),
+        ],
+      );
 }

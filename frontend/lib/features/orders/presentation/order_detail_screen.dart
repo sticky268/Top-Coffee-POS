@@ -30,23 +30,20 @@ class OrderDetailScreen extends ConsumerWidget {
     final state = ref.watch(orderDetailControllerProvider(orderId));
     final authState = ref.watch(authControllerProvider);
 
-    final canEditHeld =
-        state is OrderDetailLoaded &&
+    final canEditHeld = state is OrderDetailLoaded &&
         state.order.status == 'held' &&
         state.order.orderType == 'dine_in' &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.create');
 
-    final canAdjustCompleted =
-        state is OrderDetailLoaded &&
+    final canAdjustCompleted = state is OrderDetailLoaded &&
         state.order.status == 'completed' &&
         state.order.supplementalTotal == 0 &&
         state.order.refundedTotal == 0 &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.edit');
 
-    final canCancel =
-        state is OrderDetailLoaded &&
+    final canCancel = state is OrderDetailLoaded &&
         state.order.status == 'held' &&
         state.order.orderType == 'dine_in' &&
         authState is AuthAuthenticated &&
@@ -150,54 +147,55 @@ class OrderDetailScreen extends ConsumerWidget {
         maxWidth: 800,
         child: switch (state) {
           OrderDetailLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+              child: CircularProgressIndicator(),
+            ),
           OrderDetailError(:final message) => _DetailErrorView(
-            message: message,
-            onRetry: () => ref
-                .read(orderDetailControllerProvider(orderId).notifier)
-                .refresh(),
-          ),
+              message: message,
+              onRetry: () => ref
+                  .read(orderDetailControllerProvider(orderId).notifier)
+                  .refresh(),
+            ),
           OrderDetailLoaded(:final order) => _OrderDetailBody(
-            order: order,
-            onAdjustCompleted: canAdjustCompleted
-                ? () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Adjust completed order?'),
-                        content: const Text(
-                          'This changes a completed historical sale and updates inventory. '
-                          'The final total must stay equal to the amount already paid. '
-                          'Use the refund or additional payment workflow for payment changes.',
+              order: order,
+              onAdjustCompleted: canAdjustCompleted
+                  ? () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Adjust completed order?'),
+                          content: const Text(
+                            'This changes a completed historical sale and updates inventory. '
+                            'The final total must stay equal to the amount already paid. '
+                            'Use the refund or additional payment workflow for payment changes.',
+                          ),
+                          actions: [
+                            pos_ui.SecondaryButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            pos_ui.PrimaryButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                              child: const Text('Adjust Order'),
+                            ),
+                          ],
                         ),
-                        actions: [
-                          pos_ui.SecondaryButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          pos_ui.PrimaryButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
-                            child: const Text('Adjust Order'),
-                          ),
-                        ],
-                      ),
-                    );
+                      );
 
-                    if (confirmed != true || !context.mounted) return;
-                    final changed = await context.push<bool>(
-                      '/orders/$orderId/edit',
-                    );
-                    if (context.mounted && changed == true) {
-                      await ref
-                          .read(orderDetailControllerProvider(orderId).notifier)
-                          .refresh();
+                      if (confirmed != true || !context.mounted) return;
+                      final changed = await context.push<bool>(
+                        '/orders/$orderId/edit',
+                      );
+                      if (context.mounted && changed == true) {
+                        await ref
+                            .read(
+                                orderDetailControllerProvider(orderId).notifier)
+                            .refresh();
+                      }
                     }
-                  }
-                : null,
-          ),
+                  : null,
+            ),
         },
       ),
     );
@@ -327,10 +325,9 @@ class _OrderDetailBody extends StatelessWidget {
                 children: [
                   Text('Payment', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  for (final payment
-                      in (order.payments.isNotEmpty
-                          ? order.payments
-                          : [order.payment!])) ...[
+                  for (final payment in (order.payments.isNotEmpty
+                      ? order.payments
+                      : [order.payment!])) ...[
                     _InfoRow(
                       label: 'Method',
                       value: paymentMethodLabel(payment.method),

@@ -48,9 +48,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection == 'Owner report'
-        ? 'Owner report'
-        : 'Shifts';
+    _section =
+        widget.initialSection == 'Owner report' ? 'Owner report' : 'Shifts';
     _differencesOnly = widget.initialDifferencesOnly;
     Future.microtask(_load);
   }
@@ -91,8 +90,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         query: _section == 'Owner report'
             ? {'date_from': start, 'date_to': now}
             : _section == 'Shifts' && widget.initialShiftId != null
-            ? {'shift_id': widget.initialShiftId}
-            : {},
+                ? {'shift_id': widget.initialShiftId}
+                : {},
       );
       final comparisons = <Map<String, dynamic>>[];
       final auth = ref.read(authControllerProvider);
@@ -160,18 +159,18 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   }
 
   Widget _card(String title, List<Widget> children) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    ),
-  );
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              ...children,
+            ],
+          ),
+        ),
+      );
   Widget _value(String label, Object? value) =>
       DetailValue(label: label, value: '$value');
   String _cash(dynamic value) => _money.format(num.tryParse('$value') ?? 0);
@@ -180,14 +179,13 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     final list = (_data as List).cast<Map<String, dynamic>>();
     final shown = _differencesOnly
         ? list
-              .where(
-                (s) =>
-                    s['status'] == 'closed' &&
-                    ((num.tryParse('${s['difference']}') ?? 0).abs() >=
-                        0.005) &&
-                    s['reviewed_at'] == null,
-              )
-              .toList()
+            .where(
+              (s) =>
+                  s['status'] == 'closed' &&
+                  ((num.tryParse('${s['difference']}') ?? 0).abs() >= 0.005) &&
+                  s['reviewed_at'] == null,
+            )
+            .toList()
         : list;
     final mine = list.where(
       (s) => s['user_id'] == auth.user.id && s['status'] == 'open',
@@ -296,26 +294,26 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                     onPressed: !closeSafe
                         ? null
                         : () => _form(
-                            'Close shift',
-                            '/shifts/${shift['id']}/close',
-                            const [
-                              OperationField(
-                                'counted_cash',
-                                'Counted cash',
-                                number: true,
+                              'Close shift',
+                              '/shifts/${shift['id']}/close',
+                              const [
+                                OperationField(
+                                  'counted_cash',
+                                  'Counted cash',
+                                  number: true,
+                                ),
+                                OperationField(
+                                  'reason',
+                                  'Explain any difference',
+                                  optional: true,
+                                ),
+                              ],
+                              expectedCash: num.tryParse(
+                                '${shift['expected_cash'] ?? shift['live_expected_cash']}',
                               ),
-                              OperationField(
-                                'reason',
-                                'Explain any difference',
-                                optional: true,
-                              ),
-                            ],
-                            expectedCash: num.tryParse(
-                              '${shift['expected_cash'] ?? shift['live_expected_cash']}',
+                              explanation:
+                                  'Count the cash in the drawer. Compare it with the expected amount below; explain any shortage or overage. The server checks the final balance when you confirm.',
                             ),
-                            explanation:
-                                'Count the cash in the drawer. Compare it with the expected amount below; explain any shortage or overage. The server checks the final balance when you confirm.',
-                          ),
                     child: const Text('Close shift'),
                   ),
                 ],
@@ -326,8 +324,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                   syncSummary == null
                       ? 'Check saved orders before closing. Their status is not available yet.'
                       : syncSummary.hasUnconfirmed
-                      ? '${syncSummary.description}. Resolve these before closing.'
-                      : 'Resolve the ${_pending.length} saved operations below before closing.',
+                          ? '${syncSummary.description}. Resolve these before closing.'
+                          : 'Resolve the ${_pending.length} saved operations below before closing.',
                 ),
                 TextButton.icon(
                   onPressed: () => context.go('/pending-orders'),
@@ -353,73 +351,75 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   Widget _cashBreakdown(
     Map<String, dynamic> shift,
     AuthAuthenticated auth,
-  ) => ExpansionTile(
-    tilePadding: EdgeInsets.zero,
-    title: const Text('How expected cash is calculated'),
-    children: [
-      _value('Opening cash', _cash(shift['opening_cash'])),
-      _value('Plus cash sales', _cash(shift['cash_sales'])),
-      _value('Minus cash refunds', _cash(shift['cash_refunds'])),
-      _value('Plus cash added', _cash(shift['cash_in'])),
-      _value('Minus cash removed', _cash(shift['cash_out'])),
-      if ((shift['cash_refund_orders'] as List?)?.isNotEmpty == true) ...[
-        const Divider(),
-        const Text('Cash refunds taken from this shift'),
-        for (final refund in shift['cash_refund_orders'] as List)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'Order #${refund['order_id']} · ${_cash(refund['amount'])} cash refund',
+  ) =>
+      ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        title: const Text('How expected cash is calculated'),
+        children: [
+          _value('Opening cash', _cash(shift['opening_cash'])),
+          _value('Plus cash sales', _cash(shift['cash_sales'])),
+          _value('Minus cash refunds', _cash(shift['cash_refunds'])),
+          _value('Plus cash added', _cash(shift['cash_in'])),
+          _value('Minus cash removed', _cash(shift['cash_out'])),
+          if ((shift['cash_refund_orders'] as List?)?.isNotEmpty == true) ...[
+            const Divider(),
+            const Text('Cash refunds taken from this shift'),
+            for (final refund in shift['cash_refund_orders'] as List)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Order #${refund['order_id']} · ${_cash(refund['amount'])} cash refund',
+                ),
+                subtitle: Text(
+                  '${refund['reason'] ?? 'Reason not recorded'} · '
+                  '${operationDeviceTime(refund['created_at'])} (device time)',
+                ),
+                trailing: auth.user.hasPermission('orders.view')
+                    ? const Icon(Icons.chevron_right)
+                    : null,
+                onTap: auth.user.hasPermission('orders.view')
+                    ? () =>
+                        context.push('/orders/${refund['order_id']}/financials')
+                    : null,
+              ),
+          ],
+          if ((shift['movements'] as List?)?.isNotEmpty == true) ...[
+            const Divider(),
+            const Text('Recorded cash movements'),
+            for (final movement in shift['movements'] as List)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  '${movement['type'] == 'in' ? 'Cash added' : 'Cash removed'} '
+                  '· ${_cash(movement['amount'])}',
+                ),
+                subtitle: Text(
+                  '${movement['reason'] ?? 'No reason recorded'}\n'
+                  '${operationDeviceTime(movement['created_at'])} (device time)',
+                ),
+              ),
+          ],
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Check cash refunds and cash movements above against the drawer count. '
+              'Saved orders on this device may still be unconfirmed and do not prove payment.',
             ),
-            subtitle: Text(
-              '${refund['reason'] ?? 'Reason not recorded'} · '
-              '${operationDeviceTime(refund['created_at'])} (device time)',
-            ),
-            trailing: auth.user.hasPermission('orders.view')
-                ? const Icon(Icons.chevron_right)
-                : null,
-            onTap: auth.user.hasPermission('orders.view')
-                ? () => context.push('/orders/${refund['order_id']}/financials')
-                : null,
           ),
-      ],
-      if ((shift['movements'] as List?)?.isNotEmpty == true) ...[
-        const Divider(),
-        const Text('Recorded cash movements'),
-        for (final movement in shift['movements'] as List)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${movement['type'] == 'in' ? 'Cash added' : 'Cash removed'} '
-              '· ${_cash(movement['amount'])}',
+          if (auth.user.hasPermission('orders.view') ||
+              auth.user.hasPermission('orders.create'))
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.cloud_upload_outlined),
+              title: const Text('Review saved and unresolved orders'),
+              subtitle: const Text(
+                'This account and branch on this device; not necessarily this shift.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/pending-orders'),
             ),
-            subtitle: Text(
-              '${movement['reason'] ?? 'No reason recorded'}\n'
-              '${operationDeviceTime(movement['created_at'])} (device time)',
-            ),
-          ),
-      ],
-      const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          'Check cash refunds and cash movements above against the drawer count. '
-          'Saved orders on this device may still be unconfirmed and do not prove payment.',
-        ),
-      ),
-      if (auth.user.hasPermission('orders.view') ||
-          auth.user.hasPermission('orders.create'))
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.cloud_upload_outlined),
-          title: const Text('Review saved and unresolved orders'),
-          subtitle: const Text(
-            'This account and branch on this device; not necessarily this shift.',
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.push('/pending-orders'),
-        ),
-    ],
-  );
+        ],
+      );
 
   Future<void> _retryOperation(Map<String, dynamic> operation) async {
     if (_pendingBusy) return;
@@ -490,9 +490,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         Text(
           operation['rejected'] == true
               ? 'The server confirmed that this action was rejected. '
-                    'Review the reason before retrying or dismissing it.'
+                  'Review the reason before retrying or dismissing it.'
               : 'Saved on this device; the result is not confirmed. '
-                    'Retry this original action to check its result safely.',
+                  'Retry this original action to check its result safely.',
         ),
         if (operation['error'] != null) Text('${operation['error']}'),
         TextButton(
@@ -515,67 +515,68 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       ]);
 
   Widget _stock(AuthAuthenticated auth) => Column(
-    children: [
-      for (final raw in _data as List)
-        Builder(
-          builder: (_) {
-            final ingredient = Map<String, dynamic>.from(raw as Map);
-            final unit = (ingredient['unit'] as Map?)?['abbreviation'] ?? '';
-            return _card('${ingredient['name']}', [
-              _value('Recorded stock', '${ingredient['current_stock']} $unit'),
-              if (auth.user.hasPermission('inventory.adjust'))
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => _form(
-                        'Count ${ingredient['name']}',
-                        '/stock/count',
-                        const [
-                          OperationField(
-                            'counted_stock',
-                            'Actual counted quantity',
-                            number: true,
+        children: [
+          for (final raw in _data as List)
+            Builder(
+              builder: (_) {
+                final ingredient = Map<String, dynamic>.from(raw as Map);
+                final unit =
+                    (ingredient['unit'] as Map?)?['abbreviation'] ?? '';
+                return _card('${ingredient['name']}', [
+                  _value(
+                      'Recorded stock', '${ingredient['current_stock']} $unit'),
+                  if (auth.user.hasPermission('inventory.adjust'))
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => _form(
+                            'Count ${ingredient['name']}',
+                            '/stock/count',
+                            const [
+                              OperationField(
+                                'counted_stock',
+                                'Actual counted quantity',
+                                number: true,
+                              ),
+                              OperationField('reason', 'Count note'),
+                              OperationField(
+                                'unit_cost',
+                                'Unit cost (optional stock valuation)',
+                                number: true,
+                                optional: true,
+                              ),
+                            ],
+                            extra: {
+                              'ingredient_id': ingredient['id'],
+                              'expected_stock': num.parse(
+                                '${ingredient['current_stock']}',
+                              ),
+                            },
+                            explanation:
+                                'Quantity is in $unit. If stock changes during counting, refresh and recount.',
                           ),
-                          OperationField('reason', 'Count note'),
-                          OperationField(
-                            'unit_cost',
-                            'Unit cost (optional stock valuation)',
-                            number: true,
-                            optional: true,
-                          ),
-                        ],
-                        extra: {
-                          'ingredient_id': ingredient['id'],
-                          'expected_stock': num.parse(
-                            '${ingredient['current_stock']}',
-                          ),
-                        },
-                        explanation:
-                            'Quantity is in $unit. If stock changes during counting, refresh and recount.',
-                      ),
-                      child: const Text('Record count'),
+                          child: const Text('Record count'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => _transfer(ingredient),
+                          child: const Text('Transfer to branch'),
+                        ),
+                      ],
                     ),
-                    OutlinedButton(
-                      onPressed: () => _transfer(ingredient),
-                      child: const Text('Transfer to branch'),
-                    ),
-                  ],
-                ),
-            ]);
-          },
-        ),
-    ],
-  );
+                ]);
+              },
+            ),
+        ],
+      );
 
   Future<void> _transfer(Map<String, dynamic> source) async {
     final auth = ref.read(authControllerProvider);
     if (auth is! AuthAuthenticated) return;
     final current = ref.read(currentBranchProvider)?.id;
-    final destinations = auth.user.branches
-        .where((b) => b.id != current)
-        .toList();
+    final destinations =
+        auth.user.branches.where((b) => b.id != current).toList();
     if (destinations.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -600,11 +601,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     );
     if (destination == null || !mounted) return;
     try {
-      final rows =
-          await ref
-                  .read(operationsRepositoryProvider)
-                  .get('/ingredients', branchId: destination)
-              as List;
+      final rows = await ref
+          .read(operationsRepositoryProvider)
+          .get('/ingredients', branchId: destination) as List;
       if (!mounted || ref.read(currentBranchProvider)?.id != current) return;
       final matches = rows
           .cast<Map<String, dynamic>>()
@@ -645,36 +644,37 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   }
 
   Widget _availability() => Column(
-    children: [
-      for (final raw in _data as List)
-        Builder(
-          builder: (_) {
-            final product = raw as Map<String, dynamic>;
-            return _card('${product['name']}', [
-              _value(
-                'Available base servings',
-                product['available_servings'] ?? 'Recipe not configured',
-              ),
-              _value(
-                'Ingredient cost per serving',
-                product['ingredient_cost'] == null
-                    ? 'Cost incomplete'
-                    : _cash(product['ingredient_cost']),
-              ),
-              for (final v in (product['variants'] as List? ?? []))
-                _value(
-                  '${v['variant_name']}',
-                  '${v['available_servings'] ?? 'Untracked'} servings · ${v['ingredient_cost'] == null ? 'Cost incomplete' : _cash(v['ingredient_cost'])}',
-                ),
-            ]);
-          },
-        ),
-    ],
-  );
+        children: [
+          for (final raw in _data as List)
+            Builder(
+              builder: (_) {
+                final product = raw as Map<String, dynamic>;
+                return _card('${product['name']}', [
+                  _value(
+                    'Available base servings',
+                    product['available_servings'] ?? 'Recipe not configured',
+                  ),
+                  _value(
+                    'Ingredient cost per serving',
+                    product['ingredient_cost'] == null
+                        ? 'Cost incomplete'
+                        : _cash(product['ingredient_cost']),
+                  ),
+                  for (final v in (product['variants'] as List? ?? []))
+                    _value(
+                      '${v['variant_name']}',
+                      '${v['available_servings'] ?? 'Untracked'} servings · ${v['ingredient_cost'] == null ? 'Cost incomplete' : _cash(v['ingredient_cost'])}',
+                    ),
+                ]);
+              },
+            ),
+        ],
+      );
 
   Widget _report() {
     final report = _data as Map<String, dynamic>;
-    return _card('${_days == 1 ? 'Today' : 'Last $_days days'} · selected branch', [
+    return _card(
+        '${_days == 1 ? 'Today' : 'Last $_days days'} · selected branch', [
       for (final entry in const {
         'gross_sales': 'Gross receipts',
         'refunds': 'Refunds issued',
@@ -730,8 +730,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                 name: '${raw['unit_name']}',
                 abbreviation: '${raw['unit_abbreviation']}',
               ),
-              currentStock: (num.tryParse('${raw['current_stock']}') ?? 0)
-                  .toDouble(),
+              currentStock:
+                  (num.tryParse('${raw['current_stock']}') ?? 0).toDouble(),
               reorderThreshold:
                   (num.tryParse('${raw['reorder_threshold']}') ?? 0).toDouble(),
               isLowStock: false,

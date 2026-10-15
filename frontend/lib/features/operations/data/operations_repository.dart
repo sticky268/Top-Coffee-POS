@@ -170,8 +170,7 @@ class OperationsRepository {
       // A received 4xx response confirms rejection. Timeouts and 5xx responses
       // remain uncertain and must retain their original request reference.
       final status = e.response?.statusCode;
-      operation['rejected'] =
-          !previouslyUncertain &&
+      operation['rejected'] = !previouslyUncertain &&
           status != null &&
           status >= 400 &&
           status < 500;

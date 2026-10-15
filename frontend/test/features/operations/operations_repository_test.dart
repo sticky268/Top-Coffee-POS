@@ -102,10 +102,13 @@ void main() {
     () async {
       adapter.timeout = true;
       await expectLater(
-        repo.write('/orders/7/refund', {
-          'amount': 2,
-          'reason': 'Correction',
-        }, managerPin: '836492'),
+        repo.write(
+            '/orders/7/refund',
+            {
+              'amount': 2,
+              'reason': 'Correction',
+            },
+            managerPin: '836492'),
         throwsA(isA<NetworkException>()),
       );
       expect(adapter.headers.single['X-Manager-Pin'], '836492');

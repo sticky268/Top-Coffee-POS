@@ -97,12 +97,14 @@ class _PaymentOperationsScreenState
         final pin = refund
             ? await requestManagerPin(context, ref, action: 'Approve refund')
             : '';
-        if (pin == null)
+        if (pin == null) {
           throw const AuthException(
             'Refund approval cancelled. No request was sent.',
           );
-        if (ref.read(currentBranchProvider)?.id != branch)
+        }
+        if (ref.read(currentBranchProvider)?.id != branch) {
           throw const AuthException('Branch changed.');
+        }
         final repo = ref.read(operationsRepositoryProvider);
         final path =
             '/orders/${widget.orderId}/${refund ? 'refund' : 'additional-charge'}';
@@ -125,8 +127,7 @@ class _PaymentOperationsScreenState
       if (old?.id != next?.id) _load();
     });
     final auth = ref.watch(authControllerProvider);
-    final canAdjust =
-        auth is AuthAuthenticated &&
+    final canAdjust = auth is AuthAuthenticated &&
         auth.user.hasPermission('orders.refund') &&
         (!auth.user.requireManagerPin || auth.user.canApproveCheckout);
     final money = NumberFormat.currency(symbol: '\$');
@@ -146,65 +147,67 @@ class _PaymentOperationsScreenState
         child: _error != null
             ? Center(child: Text(_error!))
             : _data == null
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('Paid: ${money.format(_data!['paid'])}'),
-                          Text('Refunded: ${money.format(_data!['refunded'])}'),
-                          Text('Net paid: ${money.format(_data!['net_paid'])}'),
-                          const SizedBox(height: 12),
-                          if (canAdjust)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => _action(true),
-                                  child: const Text('Refund'),
-                                ),
-                                FilledButton(
-                                  onPressed: () => _action(false),
-                                  child: const Text('Additional charge'),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  for (final payment in _data!['payments'] as List)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              '${payment['method']} · ${money.format(num.parse('${payment['amount']}'))} · ${payment['status']}',
-                            ),
-                            Text(
-                              'Verification: ${payment['verification'] ?? 'cashier_recorded'}',
-                            ),
-                            for (final refund in payment['refunds'] as List)
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text('Paid: ${money.format(_data!['paid'])}'),
                               Text(
-                                'Refund ${money.format(num.parse('${refund['amount']}'))} · ${refund['inventory_disposition']} · ${refund['reason']}',
-                              ),
-                          ],
+                                  'Refunded: ${money.format(_data!['refunded'])}'),
+                              Text(
+                                  'Net paid: ${money.format(_data!['net_paid'])}'),
+                              const SizedBox(height: 12),
+                              if (canAdjust)
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    OutlinedButton(
+                                      onPressed: () => _action(true),
+                                      child: const Text('Refund'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => _action(false),
+                                      child: const Text('Additional charge'),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  const Text(
-                    'A manager must sign in and use their own PIN for protected refunds. Pending corrections are retained in Daily Operations if confirmation is interrupted.',
+                      for (final payment in _data!['payments'] as List)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  '${payment['method']} · ${money.format(num.parse('${payment['amount']}'))} · ${payment['status']}',
+                                ),
+                                Text(
+                                  'Verification: ${payment['verification'] ?? 'cashier_recorded'}',
+                                ),
+                                for (final refund in payment['refunds'] as List)
+                                  Text(
+                                    'Refund ${money.format(num.parse('${refund['amount']}'))} · ${refund['inventory_disposition']} · ${refund['reason']}',
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const Text(
+                        'A manager must sign in and use their own PIN for protected refunds. Pending corrections are retained in Daily Operations if confirmation is interrupted.',
+                      ),
+                    ],
                   ),
-                ],
-              ),
       ),
     );
   }

@@ -68,14 +68,13 @@ class AuthenticatedUser {
           (json['checkout_controls'] as Map?)?['require_cash_shift'] == true,
       requireManagerControls:
           (json['checkout_controls'] as Map?)?['require_manager_controls'] ==
-          true,
+              true,
       requireManagerPin:
           ((json['checkout_controls'] as Map?)?['require_manager_pin'] ??
-              (json['checkout_controls']
-                  as Map?)?['require_manager_controls']) ==
-          true,
-      managerDiscountPercent:
-          double.tryParse(
+                  (json['checkout_controls']
+                      as Map?)?['require_manager_controls']) ==
+              true,
+      managerDiscountPercent: double.tryParse(
             '${(json['checkout_controls'] as Map?)?['manager_discount_percent']}',
           ) ??
           10,
