@@ -119,10 +119,12 @@ void main() {
       'cash-only server configuration hides electronic checkout methods',
       (tester) async {
     await setup(tester, child: const CheckoutScreen(), cashOnly: true);
-    final selectors = tester.widgetList<CheckoutChoiceSelector>(
-        find.byType(CheckoutChoiceSelector));
-    final payment = selectors.singleWhere(
-        (selector) => selector.choices.any((choice) => choice.value == 'cash'));
+    final paymentFinder = find.byWidgetPredicate((widget) =>
+        widget is CheckoutChoiceSelector &&
+        widget.choices.any((choice) => choice.value == 'cash'));
+    await tester.scrollUntilVisible(paymentFinder, 220,
+        scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+    final payment = tester.widget<CheckoutChoiceSelector>(paymentFinder);
     expect(payment.choices.map((choice) => choice.value).toList(), ['cash']);
     expect(tester.takeException(), isNull);
   });

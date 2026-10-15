@@ -245,7 +245,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               errorMessage:
                   checkoutState is CheckoutError ? checkoutState.message : null,
               onConfirm: (printReceipt) {
-                if (ref.read(checkoutControllerProvider) is CheckoutSubmitting) {
+                if (ref.read(checkoutControllerProvider)
+                    is CheckoutSubmitting) {
                   return;
                 }
                 _printAfterSale = printReceipt;

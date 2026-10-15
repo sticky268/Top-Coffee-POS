@@ -18,12 +18,6 @@ jobs:
           php-version: '8.2'
           extensions: pdo_sqlite, pdo_mysql
           coverage: none
-      - name: Resolve compatible dependency security updates for review
-        run: |
-          composer update laravel/framework league/commonmark symfony/http-foundation symfony/yaml --with-all-dependencies --no-interaction --no-progress
-          mkdir -p build/security
-          cp composer.lock build/security/composer.lock
-          git diff -- composer.lock > build/security/dependency-update.patch
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
