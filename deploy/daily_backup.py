@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 from alerts import deliver
 from common import atomic_json, config, private_file, run
 
@@ -25,8 +26,8 @@ def digest(path):
 
 def offsite(settings, source, runner=run):
     private_file(settings['rclone_config'])
-    if not re.fullmatch(r'[A-Za-z0-9_.-]+\.age', source.name):
-        raise ValueError('Use a plain .age snapshot filename without glob characters.')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+\.age(?:\.json)?', source.name):
+        raise ValueError('Use a plain .age snapshot or .age.json completion filename without glob characters.')
     destination = settings['remote'].rstrip('/') + '/' + source.name
     if not re.fullmatch(r'[A-Za-z0-9_-]+:[A-Za-z0-9_./-]+', settings['remote']) or '..' in settings['remote'].split('/'):
         raise ValueError('Use a configured named remote and fixed bucket/directory prefix.')
@@ -130,8 +131,15 @@ def backup(settings, runner=run, upload=offsite, now=None):
             if restart_errors:
                 raise RuntimeError('One or more writer services could not be restarted.')
         destination = upload(settings, output)
-        atomic_json(Path(str(output) + '.json'), {'offsite_verified': True, 'sha256': digest(output),
-                    'remote': destination, 'created_at': now.isoformat(), 'commit': settings['commit']})
+        receipt = {'offsite_verified': True, 'sha256': digest(output), 'bytes': output.stat().st_size,
+                   'remote': destination, 'created_at': now.isoformat(), 'commit': settings['commit']}
+        # A completion marker is published only after ciphertext read-back. The
+        # independent monitor needs neither the app host nor a recovery identity.
+        with tempfile.TemporaryDirectory(prefix='.receipt-', dir=spool) as temporary:
+            marker = Path(temporary) / (output.name + '.json')
+            atomic_json(marker, receipt)
+            upload(settings, marker)
+        atomic_json(Path(str(output) + '.json'), receipt)
         if settings.get('retention_approved') is True:
             prune(spool, settings.get('local_retention_days', 7), now)
     return output

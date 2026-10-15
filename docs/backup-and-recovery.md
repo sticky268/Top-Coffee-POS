@@ -69,8 +69,12 @@ During the approved UTC hour this locks against concurrent jobs, remembers activ
 writer units, stops them, runs the existing authenticated age-encrypted backup,
 and attempts **all** service restarts in finally. It restarts only units that
 were active. It then uploads the .age file using immutable, checksum-checked rclone directory copy (filtered to the one snapshot) and
-streams the remote ciphertext back through SHA-256 before recording a private
-success receipt. SQL/assets exist only in a private temporary staging directory;
+streams the remote ciphertext back through SHA-256. It then uploads a small
+immutable .age.json completion marker and verifies its remote read-back before
+recording local success. The marker records creation time, source commit, size,
+SHA-256 and the exact remote object, with no rows, secrets or recovery keys.
+If marker upload fails, the job alerts, retains ciphertext and publishes no local
+success receipt or pruning decision. SQL/assets exist only in a private temporary staging directory;
 the published spool holds ciphertext and nonsecret evidence. The embedded
 manifest records source commit, every table count, deterministic data hash and
 asset hashes. Temp files are cleaned on normal failure, not guaranteed secure
@@ -96,9 +100,15 @@ These load reviewed units, **schedule the real daily job**, then display its nex
 run. They are owner/operator steps; not executed by this PR. Persistent=false
 prevents catch-up pauses during trading; the independent backup-freshness monitor
 must page if a run was missed. The app-host failure job cannot detect a wholly
-dead host. Configure the external provider monitor for a verified receipt no
-older than 26 hours and independently monitor its own delivery. That provider
-configuration is still an owner task, not functionality claimed by this script.
+dead host. deploy/watch.py now reads the completion marker **directly from the
+off-site provider** using a separate read/list-only credential. It rejects missing,
+malformed, future-dated, mismatched or older-than-26-hour evidence and checks the
+ciphertext still exists at the recorded size. This tests independent arrival/age,
+not current full-object integrity, decryption or trustworthy producer identity;
+a compromised upload credential could forge metadata. Preserve provider version/
+object-lock provenance and perform trusted restore drills. Configure actual
+provider access and a separate dead-man check for the monitoring host; acceptance
+of their delivery remains an owner task. No recovery identity belongs on that host.
 
 ## Proposed retention (requires owner approval)
 
@@ -167,3 +177,9 @@ cover malformed archives, corruption/authentication, private keys and traversal.
 `deploy/tests/test_operations.py` covers service recovery, failed uploads,
 retention and real rclone copy/read-back on its **local backend**, not an actual
 off-site provider. Local CI keys are synthetic/disposable and never owner keys.
+
+The independent checks in deploy/tests/test_monitor_checks.py also exercise
+loopback TLS trust/hostname/expiry, missing/stale/corrupt/future completion records,
+bounded child output/deadlines, and real rclone local-backend marker publication,
+observation and immutable overwrite refusal. They send no real alerts and do not
+certify an external provider.

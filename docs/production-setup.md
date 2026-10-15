@@ -183,22 +183,44 @@ dead VPS cannot report its own outage. Create no-login `posmonitor`, its private
 mode-700 `/var/lib/top-coffee-monitor`, and mode-600 monitor/alert files owned by
 that service user. Its monitor config holds the real HTTPS URL and dedicated
 health token. Python's TLS verification stays enabled and redirects are refused.
+Install rclone on this independent host too. Create a **separate read/list-only**
+provider credential scoped to the exact backup prefix, with no write/delete
+permission, in mode-600 monitor-rclone.conf owned by posmonitor. Do not copy the
+VPS upload credential, MySQL password or recovery identity. Set backup_remote to
+the same named remote/prefix as the daily job, backup_rclone_config to that private
+file, backup_max_age_seconds=93600 (26 hours), and tls_min_days=14. These are
+reviewable daily-backup thresholds, not a promise of a 15-minute recovery point.
+Blank/missing settings do not produce a healthy monitor.
 
 ```sh
 python3 deploy/watch.py --config /etc/top-coffee/monitor.json
 ```
 
-This probes HTTPS and sends fixed health/login-spike alerts, with a persisted
-15-minute cooldown only after provider acknowledgement. A failed send is retried
-next invocation. The external timer runs every minute; use an independent
-provider check for failure of the monitor itself. Local `top-coffee-health.timer`
-is optional secondary telemetry. `top-coffee-alert@health_failed.service` now
-actually delivers; it no longer just writes a local logger line. Backup failures
-use `backup_failed`. Monitor planned closed-window downtime explicitly rather
-than silently suppressing unlimited outages. Track backup age externally and
-page the named operator if no verified receipt appears within 26 hours; the
-current job reports failures, not a timer that never fired. Do not claim the
-missing independent dead-man/freshness monitor is implemented by these scripts.
+This probes HTTPS, failed-login spikes, the externally served TLS certificate
+and **off-site completed-backup freshness**. Certificate extraction requires a
+trusted chain and matching hostname/SNI; expiry within 14 days warns. The backup
+check reads completion metadata and ciphertext size directly from independent
+storage, with bounded output/deadlines. It runs even when the API is unreachable.
+Missing, corrupt, future-dated or stale evidence alerts; an unmarked .age upload
+does not count. Metadata age is not proof of restore validity, current whole-file
+integrity or the producer's identity. Keep independent retention/provenance and
+recovery drills (see backup-and-recovery.md).
+
+Events use fixed text with no secrets or row data: health_failed,
+failed_login_spike, tls_expiring, tls_failed and backup_stale. A persisted
+15-minute cooldown starts only after provider acknowledgement. Failed sends retry
+next invocation; earlier acknowledgements survive a later failure. The external
+timer runs every minute, with a five-minute worst-case service deadline. Use an
+independent provider check for failure of the monitor itself; a process cannot
+report that its own host is dead. That dead-man provider and actual delivery
+acceptance remain owner tasks. Local top-coffee-health.timer is optional secondary
+telemetry. Backup job failures also use backup_failed.
+
+After upgrades, run one reviewed daily backup in the approved closed-shop window
+to create the first off-site completion marker; historical ciphertext without a
+marker deliberately does not pass. Do not manufacture a success receipt. Test
+missing/stale backup, bad TLS and delivery retry on isolated staging. Monitor
+planned closed-window downtime explicitly rather than suppressing unlimited outages.
 
 ## Staged activation and rollback
 

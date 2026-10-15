@@ -74,17 +74,17 @@ class OperationsTests(unittest.TestCase):
         report = lambda _: {'healthy': False, 'checks': {'failed_login_limit_not_reached': False}}
         events, state = [], {}
         send = lambda _, event: events.append(event)
-        self.assertFalse(watch.monitor(settings, state, fetch=report, send=send, now=1000))
+        self.assertFalse(watch.monitor(settings, state, fetch=report, send=send, inspect=lambda *_: [], now=1000))
         self.assertEqual(events, ['health_failed', 'failed_login_spike'])
-        watch.monitor(settings, state, fetch=report, send=send, now=1001)
+        watch.monitor(settings, state, fetch=report, send=send, inspect=lambda *_: [], now=1001)
         self.assertEqual(len(events), 2)
-        watch.monitor(settings, state, fetch=report, send=send, now=1900)
+        watch.monitor(settings, state, fetch=report, send=send, inspect=lambda *_: [], now=1900)
         self.assertEqual(len(events), 4)
         state = {}
         def fail(*_):
             raise RuntimeError('delivery failed')
         with self.assertRaises(RuntimeError):
-            watch.monitor(settings, state, fetch=report, send=fail, now=1000)
+            watch.monitor(settings, state, fetch=report, send=fail, inspect=lambda *_: [], now=1000)
         self.assertEqual(state, {})
 
     def test_monitor_persists_first_acknowledgement_when_second_alert_fails(self):
@@ -157,6 +157,7 @@ class OperationsTests(unittest.TestCase):
     def test_successful_backup_publishes_verified_receipt_after_restart(self):
         settings = self.backup_settings()
         started = []
+        uploaded = []
         def runner(argv, **_):
             if argv[0] == 'systemctl':
                 if argv[1] == 'start': started.append(argv[-1])
@@ -164,9 +165,29 @@ class OperationsTests(unittest.TestCase):
             Path(argv[-1]).write_bytes(b'ciphertext fixture')
         def upload(settings, output):
             self.assertEqual(len(started), len(settings['writer_units']))
+            uploaded.append(output.name)
+            if output.name.endswith('.json'):
+                self.assertEqual(json.loads(output.read_text())['bytes'], len(b'ciphertext fixture'))
             return 'offsite:bucket/' + output.name
         output = daily_backup.backup(settings, runner=runner, upload=upload, now=datetime(2026, 1, 1, 20, tzinfo=timezone.utc))
         self.assertTrue(common.config(str(output) + '.json')['offsite_verified'])
+        self.assertEqual(uploaded, [output.name, output.name + '.json'])
+
+    def test_completion_upload_failure_does_not_publish_local_success_or_prune(self):
+        settings = self.backup_settings()
+        settings['retention_approved'] = True
+        def runner(argv, **_):
+            if argv[0] == 'systemctl': return b'active\n'
+            Path(argv[-1]).write_bytes(b'ciphertext fixture')
+        def upload(settings, source):
+            if source.name.endswith('.json'): raise RuntimeError('marker upload failed')
+            return settings['remote'] + '/' + source.name
+        with patch.object(daily_backup, 'prune') as prune, self.assertRaises(RuntimeError):
+            daily_backup.backup(settings, runner=runner, upload=upload, now=datetime(2026, 1, 1, 20, tzinfo=timezone.utc))
+        prune.assert_not_called()
+        self.assertEqual(len(list(Path(settings['spool']).glob('*.age'))), 1)
+        self.assertEqual(list(Path(settings['spool']).glob('*.json')), [])
+        self.assertEqual(list(Path(settings['spool']).glob('.receipt-*')), [])
 
     @unittest.skipUnless(shutil.which('rclone'), 'rclone required for real local-backend upload/readback')
     def test_offsite_copy_readback_and_immutable_no_overwrite(self):

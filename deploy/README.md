@@ -146,9 +146,12 @@ Warnings trigger investigation, never automatic punishment or payment reversal.
 The alert service now delivers fixed Telegram events through deploy/alerts.py;
 it is no longer a local logger. Configure real private credentials and run the
 owner-only test send. deploy/watch.py is intended for a separate monitoring host
-and covers HTTPS failure and failed-login spikes. deploy/daily_backup.py handles
-backup failures. Actual provider delivery, dead-man/freshness monitoring and
-certificate-expiry alarms still require owner setup and acceptance. See
+and covers HTTPS failure, failed-login spikes, verified-certificate expiry and
+independent off-site completion freshness. deploy/daily_backup.py handles backup
+failures and publishes completion markers only after ciphertext read-back. The
+monitor needs a separate read/list-only rclone credential, no decryption key.
+Actual provider delivery/access and monitor-host dead-man checks still require
+owner setup and acceptance. See
 [production setup](../docs/production-setup.md) and
 [backup/recovery](../docs/backup-and-recovery.md).
 

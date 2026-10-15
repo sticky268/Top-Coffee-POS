@@ -27,7 +27,8 @@ No merge, deployment or live-server operation is authorized by this checklist.
 - [ ] PASS / [ ] FAIL — Real test, backup-failure, HTTPS-failure and failed-login-spike alerts
   arrive at the intended operator; cooldown/retry and external monitor outage detection tested.
 - [ ] PASS / [ ] FAIL — Independent backup freshness alarm fires after missing a scheduled run;
-  TLS expiration and monitor-host health alarms configured. These provider controls are manual.
+  TLS expiration alarms tested through deploy/watch.py with separate read-only off-site
+  credentials. Monitor-host dead-man provider configured manually; code is not delivery proof.
 - [ ] PASS / [ ] FAIL — Cash-only, active cash shifts, manager controls and zero cashier discount
   threshold verified for every active business by pos:business-settings-check.
 - [ ] PASS / [ ] FAIL — Lost-device command revokes token; captured old token immediately gets 401;

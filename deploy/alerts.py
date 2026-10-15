@@ -12,6 +12,9 @@ EVENTS = {
     'backup_failed': 'ACTION: Top Coffee backup or off-site verification failed. Check private backup logs and last verified recovery point.',
     'health_failed': 'ACTION: Top Coffee HTTPS health check failed. Check API, DB, cache, disk and recent failed jobs.',
     'failed_login_spike': 'ACTION: Top Coffee failed-login threshold reached. Investigate account and device security; do not assume fraud.',
+    'tls_expiring': 'ACTION: Top Coffee HTTPS certificate is nearing expiry. Check renewal and the certificate served externally.',
+    'tls_failed': 'ACTION: Top Coffee certificate verification failed. Check hostname, trust, expiry and connectivity.',
+    'backup_stale': 'ACTION: Top Coffee off-site completed backup is missing, stale or unverifiable. Check the independent backup store and last tested recovery point.',
 }
 
 

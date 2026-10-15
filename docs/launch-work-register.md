@@ -16,7 +16,7 @@ by preparing this kit.
 | 6 | Cash/shift/discount controls | Server/UI cash-only and readiness controls | Apply/verify intended business configuration on authorized staging/target |
 | 7 | Android/device controls | Backup exclusions, release network/screen code, signing guards | Permanent ID/key custody, signed device/OS-lock acceptance |
 | 8 | Host/runtime DB permissions | Nginx/FPM/systemd kit; per-table grant renderer and real MySQL denial tests | Chosen host, actual fresh-account grants/TLS/firewall verification |
-| 9 | Encrypted backups/monitoring | age backup/recovery, integrity tests, health signals/service templates | Real key custody, off-site storage, timed restore, backup freshness and alert delivery |
+| 9 | Encrypted backups/monitoring | age backup/recovery, integrity tests, external TLS-expiry/off-site-freshness monitor, health signals/service templates | Real key custody, off-site storage/access, timed restore, monitor-host dead-man and alert delivery |
 | 10 | Privacy/incident/pilot | Proposed operating defaults and procedures below | Named operator/contact, approved privacy/retention, pilot/deployment approval |
 
 ## Proposed defaults

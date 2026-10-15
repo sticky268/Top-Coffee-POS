@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External HTTPS monitor: health and failed-login spike alerts with durable cooldown."""
+"""Independent health, login, TLS-expiry and off-site freshness alerts."""
 import argparse
 import json
 import time
@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib import request, error, parse
 from alerts import NoRedirect, deliver
 from common import config, atomic_json
+from monitor_checks import infrastructure_events
 
 
 def probe(settings, opener=None):
@@ -38,7 +39,7 @@ def probe(settings, opener=None):
     return report
 
 
-def monitor(settings, state, fetch=probe, send=deliver, now=None):
+def monitor(settings, state, fetch=probe, send=deliver, now=None, inspect=infrastructure_events):
     now = int(time.time()) if now is None else now
     try:
         report = fetch(settings)
@@ -47,6 +48,9 @@ def monitor(settings, state, fetch=probe, send=deliver, now=None):
             events.append('failed_login_spike')
     except Exception:
         events = ['health_failed']
+    # Run even if the app is unreachable. Backup evidence is read directly from
+    # off-site storage using a separate read-only monitor credential.
+    events.extend(inspect(settings, now))
     cooldown = int(settings.get('cooldown_seconds', 900))
     if not 60 <= cooldown <= 86400:
         raise ValueError('Cooldown must be 60-86400 seconds.')
