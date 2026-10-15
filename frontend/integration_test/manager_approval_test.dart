@@ -244,6 +244,9 @@ void main() {
 
     Future<void> cancel(String pin, {bool editor = false}) async {
       final before = cancelStatuses.length;
+      if (editor) {
+        await _tap(tester, find.text('View / Edit'));
+      }
       final control =
           editor ? find.text('Cancel Order') : find.byTooltip('Cancel order');
       await waitFor(tester, control);
