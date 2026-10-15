@@ -95,8 +95,12 @@ void main() {
     );
   });
 
-  Future<void> pumpBill(WidgetTester tester, {bool fromList = false}) async {
-    tester.view.physicalSize = const Size(1200, 900);
+  Future<void> pumpBill(
+    WidgetTester tester, {
+    bool fromList = false,
+    Size viewport = const Size(1200, 900),
+  }) async {
+    tester.view.physicalSize = viewport;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -301,4 +305,73 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
   });
+  testWidgets('phone keeps order actions visible without vertical overflow',
+      (tester) async {
+    await pumpBill(tester, viewport: const Size(360, 640));
+    expect(find.text('View / Edit'), findsOneWidget);
+    expect(find.text('Review & Pay').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('View / Edit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Order Summary'), findsOneWidget);
+    expect(find.byTooltip('Increase quantity'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('phone editor changes held quantities and saves without paying',
+      (tester) async {
+    await pumpBill(
+      tester,
+      fromList: true,
+      viewport: const Size(390, 700),
+    );
+    await tester.tap(find.text('View / Edit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Increase quantity'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save'));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Bill'), findsOneWidget);
+    final items = verify(() => pos.updateHeldOrder(
+      orderId: 42,
+      items: captureAny(named: 'items'),
+      discountTotal: 0,
+      branchId: 11,
+    )).captured.single as List<Map<String, dynamic>>;
+    expect(items.single['quantity'], 2);
+    verifyNever(() => pos.payHeldOrder(
+      orderId: any(named: 'orderId'),
+      paymentMethod: any(named: 'paymentMethod'),
+      expectedTotal: any(named: 'expectedTotal'),
+      branchId: any(named: 'branchId'),
+    ));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('phone Review & Pay keeps the authoritative save-before-payment',
+      (tester) async {
+    await pumpBill(tester, viewport: const Size(390, 700));
+    await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Review Bill & Pay'), findsOneWidget);
+    verify(() => pos.updateHeldOrder(
+      orderId: 42,
+      items: any(named: 'items'),
+      discountTotal: 0,
+      branchId: 11,
+    )).called(1);
+    verifyNever(() => pos.payHeldOrder(
+      orderId: any(named: 'orderId'),
+      paymentMethod: any(named: 'paymentMethod'),
+      expectedTotal: any(named: 'expectedTotal'),
+      branchId: any(named: 'branchId'),
+    ));
+    expect(tester.takeException(), isNull);
+  });
+
 }
