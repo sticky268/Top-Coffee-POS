@@ -45,7 +45,9 @@ final cashSaleDrawerProvider = Provider<CashSaleDrawer>((ref) {
     if (auth is! AuthAuthenticated || branch == null ||
         !auth.user.hasPermission('orders.create') ||
         !(auth.user.hasPermission('branches.view-all') ||
-          auth.user.branches.any((b) => b.id == branch.id))) return null;
+          auth.user.branches.any((b) => b.id == branch.id))) {
+      return null;
+    }
     return (userId: auth.user.id, branchId: branch.id);
   }, (selected) async {
     final branch = ref.read(currentBranchProvider);

@@ -46,7 +46,7 @@ void main() {
   test('drawer exception preserves successful confirmation and gives a warning', () async {
     when(() => api.request<Response<dynamic>>(any())).thenAnswer((_) async => response());
     final repo = ApiPosRepository(api, userId: () => 1,
-      onCompleted: (_, _, _) async => throw StateError('Printer error'));
+      onCompleted: (confirmation, userId, branchId) async => throw StateError('Printer error'));
     final paid = await pay(repo);
     expect(paid.orderId, 42);
     expect(await paid.cashDrawerResult, contains('Payment completed.'));
@@ -57,7 +57,7 @@ void main() {
     final store = MemoryLocalStore();
     final outbox = OrderOutbox(store);
     final repo = ApiPosRepository(api, localStore: store, outbox: outbox, userId: () => 1,
-      onCompleted: (_, _, _) async { calls++; return null; });
+      onCompleted: (confirmation, userId, branchId) async { calls++; return null; });
     await expectLater(pay(repo), throwsA(isA<QueuedOrderException>()));
     expect(calls, 0);
   });
@@ -65,7 +65,7 @@ void main() {
     when(() => api.request<Response<dynamic>>(any())).thenAnswer((_) async => response());
     var calls = 0;
     final repo = ApiPosRepository(api, userId: () => 1,
-      onCompleted: (_, _, _) async { calls++; return null; });
+      onCompleted: (confirmation, userId, branchId) async { calls++; return null; });
     await repo.holdOrder(items: const [CartItem(product: product, quantity: 1)],
       orderType: 'dine_in', tableId: 3, branchId: 2);
     await repo.getOrderReceipt(orderId: 42);
@@ -79,7 +79,7 @@ void main() {
       .thenAnswer((_) async => response(method: 'qr'));
     var calls = 0;
     final repo = ApiPosRepository(api, userId: () => 1,
-      onCompleted: (_, _, _) async { calls++; return null; });
+      onCompleted: (confirmation, userId, branchId) async { calls++; return null; });
     final paid = await pay(repo);
     expect(paid.cashDrawerResult, isNull);
     expect(calls, 0);
