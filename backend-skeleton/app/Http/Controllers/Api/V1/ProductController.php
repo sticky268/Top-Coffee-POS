@@ -432,7 +432,8 @@ class ProductController extends Controller
         if (! $user->can('branches.view-all')) {
             $allowed = $user->branches()->pluck('branches.id')->all();
             abort_unless($product->branches()->whereIn('branches.id', $allowed)->exists()
-                || in_array((int) $product->category?->branch_id, $allowed, true), 403, 'Product branch access denied.');
+                || in_array((int) $product->category?->branch_id, $allowed, true)
+                || ($product->category?->branch_id === null && ! $product->branches()->exists()), 403, 'Product branch access denied.');
             $changed = clone $product;
             $changed->fill($request->only(['category_id', 'name', 'sku', 'description', 'base_price', 'is_active']));
             if ($product->branches()->whereNotIn('branches.id', $allowed)->exists()) {

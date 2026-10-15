@@ -191,6 +191,15 @@ class SecurityAttackPathsTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $this->product->id, 'base_price' => 10]);
     }
 
+    public function test_disabled_electronic_payment_cannot_create_a_paid_order(): void
+    {
+        config(['payments.allowed_methods' => ['cash']]);
+        $this->bearer()->postJson('/api/v1/orders', $this->sale())->assertUnprocessable();
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertDatabaseCount('stock_movements', 0);
+    }
+
     public function test_audit_model_rejects_updates_and_deletion(): void
     {
         $event = AuditLog::create(['user_id' => $this->cashier->id, 'action' => 'fixture']);

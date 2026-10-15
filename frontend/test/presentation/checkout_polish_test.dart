@@ -64,10 +64,17 @@ void main() {
     bool dark = false,
     CheckoutState state = const CheckoutIdle(),
     GlobalKey? preview,
+    bool cashOnly = false,
   }) async {
     final repo = MockPosRepository();
     final auth = MockAuthRepository();
-    when(() => auth.hasStoredToken()).thenAnswer((_) async => false);
+    when(() => auth.hasStoredToken()).thenAnswer((_) async => cashOnly);
+    if (cashOnly) {
+      when(() => auth.getCurrentUser()).thenAnswer((_) async => const AuthenticatedUser(
+        id: 1, name: 'Cashier', email: 'fixture@example.invalid', roles: ['cashier'],
+        permissions: ['orders.create'], branches: [branch], allowedPaymentMethods: ['cash'],
+      ));
+    }
     final container = ProviderContainer(
       overrides: [
         posRepositoryProvider.overrideWithValue(repo),
@@ -101,6 +108,14 @@ void main() {
     await tester.pumpAndSettle();
     return (container: container, repository: repo);
   }
+
+  testWidgets('cash-only server configuration hides electronic checkout methods', (tester) async {
+    await setup(tester, child: const CheckoutScreen(), cashOnly: true);
+    final selectors = tester.widgetList<CheckoutChoiceSelector>(find.byType(CheckoutChoiceSelector));
+    final payment = selectors.singleWhere((selector) => selector.choices.any((choice) => choice.value == 'cash'));
+    expect(payment.choices.map((choice) => choice.value).toList(), ['cash']);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('nonfinite cash is rejected without a build exception',
       (tester) async {

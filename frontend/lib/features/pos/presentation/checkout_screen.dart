@@ -215,6 +215,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             branchName: currentBranch?.name,
             branchCode: currentBranch?.code,
             cashierName: cashierName,
+            allowedPaymentMethods: authState is AuthAuthenticated
+                ? authState.user.allowedPaymentMethods : const ['cash', 'card', 'qr'],
             paymentMethod: _paymentMethod,
             selectedTable: _selectedTable,
             selectedCustomer: _selectedCustomer,
@@ -290,6 +292,7 @@ class _CheckoutForm extends StatelessWidget {
     required this.branchName,
     required this.branchCode,
     required this.cashierName,
+    this.allowedPaymentMethods = const ['cash', 'card', 'qr'],
     required this.paymentMethod,
     required this.selectedTable,
     required this.selectedCustomer,
@@ -314,6 +317,7 @@ class _CheckoutForm extends StatelessWidget {
   final String? branchName;
   final String? branchCode;
   final String? cashierName;
+  final List<String> allowedPaymentMethods;
   final String paymentMethod;
   final PosTable? selectedTable;
   final Customer? selectedCustomer;
@@ -389,6 +393,8 @@ class _CheckoutForm extends StatelessWidget {
 
     final canConfirm =
         !isSubmitting &&
+        (allowedPaymentMethods.contains(paymentMethod) ||
+            (paymentMethod == 'split' && allowedPaymentMethods.toSet().containsAll(['cash', 'card', 'qr']))) &&
         cart.items.isNotEmpty &&
         (orderType == 'takeaway' || selectedTable != null) &&
         (paymentMethod == 'split'
@@ -709,11 +715,15 @@ class _CheckoutForm extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               CheckoutChoiceSelector(
-                choices: const [
-                  CheckoutChoice('cash', 'Cash', Icons.payments_outlined),
-                  CheckoutChoice('card', 'Card', Icons.credit_card_outlined),
-                  CheckoutChoice('qr', 'QR', Icons.qr_code_2_outlined),
-                  CheckoutChoice('split', 'Split', Icons.call_split_outlined),
+                choices: [
+                  if (allowedPaymentMethods.contains('cash'))
+                  const CheckoutChoice('cash', 'Cash', Icons.payments_outlined),
+                  if (allowedPaymentMethods.contains('card'))
+                  const CheckoutChoice('card', 'Card', Icons.credit_card_outlined),
+                  if (allowedPaymentMethods.contains('qr'))
+                  const CheckoutChoice('qr', 'QR', Icons.qr_code_2_outlined),
+                  if (allowedPaymentMethods.toSet().containsAll(['cash', 'card', 'qr']))
+                  const CheckoutChoice('split', 'Split', Icons.call_split_outlined),
                 ],
                 selected: paymentMethod,
                 enabled: !isSubmitting,

@@ -22,6 +22,7 @@ jobs:
       - run: php vendor/bin/phpunit
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
       - name: Audit locked Composer dependencies
+        if: always()
         run: |
           mkdir -p build/security
           composer --no-interaction audit --locked --format=json > build/security/composer-audit.json
@@ -94,19 +95,19 @@ jobs:
           name: resolved-flutter-lock
           path: frontend/pubspec.lock
           retention-days: 7
+      - name: Prepare security source format review and dependency inventory
+        run: |
+          dart format test/presentation/checkout_polish_test.dart lib/features/pos/presentation/checkout_screen.dart lib/features/auth/domain/auth_models.dart lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
+          mkdir -p build/ui-polish build/security
+          git diff -- lib test > build/ui-polish/security-source-format.patch
+          dart pub outdated --json > build/security/pub-outdated.json
+          dart pub deps --json > build/security/pub-dependencies.json
       - name: Verify cashier source formatting
         run: |
           dart format --output=none --set-exit-if-changed lib/features/orders/presentation/orders_screen.dart lib/features/orders/presentation/widgets/order_list_tile.dart lib/features/pos/presentation/cash_drawer_button.dart lib/features/pos/presentation/pos_screen.dart lib/features/pos/presentation/widgets/cart_panel.dart lib/features/pos/presentation/widgets/category_selector.dart lib/features/pos/presentation/widgets/checkout_actions.dart lib/features/pos/presentation/widgets/phone_cart_bar.dart lib/features/pos/presentation/widgets/product_card.dart lib/features/pos/presentation/widgets/product_grid.dart lib/features/pos/presentation/widgets/product_search_field.dart test/presentation/checkout_polish_test.dart test/presentation/deep_cashier_polish_test.dart
       - name: Verify appearance source formatting
         run: |
           dart format --output=none --set-exit-if-changed lib/main.dart lib/app.dart lib/core/theme/theme_preference.dart lib/features/settings/presentation/settings_screen.dart lib/features/settings/presentation/appearance_settings_card.dart test/core/theme/theme_preference_test.dart test/presentation/appearance_settings_test.dart test/presentation/app_polish_test.dart
-      - name: Prepare security source format review and dependency inventory
-        run: |
-          dart format lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
-          mkdir -p build/ui-polish build/security
-          git diff -- lib test > build/ui-polish/security-source-format.patch
-          dart pub outdated --json > build/security/pub-outdated.json
-          dart pub deps --json > build/security/pub-dependencies.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

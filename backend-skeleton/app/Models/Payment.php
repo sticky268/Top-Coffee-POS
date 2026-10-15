@@ -20,6 +20,8 @@ class Payment extends Model
     protected static function booted(): void
     {
         static::creating(function (Payment $payment) {
+            abort_unless(in_array($payment->method, config('payments.allowed_methods', ['cash']), true),
+                422, 'This payment method is not enabled on this server.');
             if ($payment->shift_id !== null || ! auth()->check()) return;
             $order = $payment->order;
             if ($order) {

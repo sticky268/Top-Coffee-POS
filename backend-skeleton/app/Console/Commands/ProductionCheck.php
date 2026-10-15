@@ -28,6 +28,7 @@ class ProductionCheck extends Command
             'bounded_token_lifetime' => is_numeric(config('sanctum.expiration')) && (int) config('sanctum.expiration') > 0 && (int) config('sanctum.expiration') <= 720,
             'dedicated_database_user' => ! in_array(strtolower((string) config('database.connections.'.config('database.default').'.username')), ['', 'root'], true),
             'database_password_configured' => filled(config('database.connections.'.config('database.default').'.password')),
+            'cash_only_pilot' => config('payments.allowed_methods') === ['cash'],
             'persistent_cache' => ! in_array(config('cache.default'), ['array', 'null'], true),
         ];
         try {
