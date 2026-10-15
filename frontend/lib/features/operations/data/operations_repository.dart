@@ -75,8 +75,22 @@ class OperationsRepository {
     await store.delete('${_prefix(selected)}${operation['uuid']}');
   }
 
-  Future<dynamic> write(String path, Map<String, dynamic> values, {String? managerPin}) {
-    if (values.keys.any((key) => const ['pin', 'manager_pin', 'current_password', 'pin_confirmation', 'password', 'authorization', 'x-manager-pin'].contains(key.toLowerCase()))) {
+  Future<dynamic> write(
+    String path,
+    Map<String, dynamic> values, {
+    String? managerPin,
+  }) {
+    if (values.keys.any(
+      (key) => const [
+        'pin',
+        'manager_pin',
+        'current_password',
+        'pin_confirmation',
+        'password',
+        'authorization',
+        'x-manager-pin',
+      ].contains(key.toLowerCase()),
+    )) {
       throw ArgumentError('Credentials must never enter a saved operation.');
     }
     final selected = scope();
@@ -118,7 +132,9 @@ class OperationsRepository {
         selected.branchId != operation['branch_id']) {
       throw const AuthException('Request belongs to a different session.');
     }
-    final next = _tail.then((_) => _send(operation, selected, managerPin: managerPin));
+    final next = _tail.then(
+      (_) => _send(operation, selected, managerPin: managerPin),
+    );
     _tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return next;
   }
@@ -137,7 +153,12 @@ class OperationsRepository {
     try {
       final response = await api.dio.post(
         operation['path'] as String,
-        options: Options(headers: {if (managerPin != null && managerPin.isNotEmpty) 'X-Manager-Pin': managerPin}),
+        options: Options(
+          headers: {
+            if (managerPin != null && managerPin.isNotEmpty)
+              'X-Manager-Pin': managerPin,
+          },
+        ),
         data: {
           ...Map<String, dynamic>.from(operation['payload'] as Map),
           'uuid': operation['uuid'],

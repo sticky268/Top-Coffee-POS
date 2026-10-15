@@ -29,13 +29,16 @@ class SettingsScreen extends ConsumerWidget {
             Text(
               'Personalize appearance, manage receipts, and review your account.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             const AppearanceSettingsCard(),
             if (auth is AuthAuthenticated && auth.user.canApproveCheckout)
-              ManagerPinSettingsCard(key: ValueKey(auth.user.id), userId: auth.user.id),
+              ManagerPinSettingsCard(
+                key: ValueKey(auth.user.id),
+                userId: auth.user.id,
+              ),
             const SizedBox(height: 16),
             Card(
               child: RecordTile(

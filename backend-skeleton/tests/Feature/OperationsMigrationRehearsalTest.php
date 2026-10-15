@@ -12,8 +12,8 @@ class OperationsMigrationRehearsalTest extends TestCase
 {
     private bool $disposable = false;
     // Cafe operations, checkout controls, completion index, receipt snapshots,
-    // and drawer telemetry are the five migrations in this release rehearsal.
-    private const RELEASE_MIGRATIONS = 5;
+    // drawer telemetry and manager PIN credentials are rehearsed together.
+    private const RELEASE_MIGRATIONS = 6;
 
     protected function setUp(): void
     {
@@ -23,11 +23,12 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertSame('mysql', config('database.default'));
         $this->assertSame('operations_testing', config('database.connections.mysql.database'));
         $this->disposable = true;
-        // Rehearse all five release migrations together from the populated
+        // Rehearse all six release migrations together from the populated
         // pre-operations schema; the drawer table must not shift the baseline.
         $this->artisan('migrate:fresh', ['--force' => true])->assertExitCode(0);
         $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
         $this->assertFalse(Schema::hasTable('cashier_shifts'));
+        $this->assertFalse(Schema::hasColumn('users', 'manager_pin_hash'));
         $this->assertFalse(Schema::hasTable('cash_drawer_events'));
         $this->assertFalse(Schema::hasColumn('ingredients', 'average_unit_cost'));
     }
@@ -137,6 +138,8 @@ class OperationsMigrationRehearsalTest extends TestCase
     private function assertDrawerSchema(): void
     {
         $this->assertTrue(Schema::hasTable('cash_drawer_events'));
+        $this->assertTrue(Schema::hasColumns('users', ['manager_pin_hash', 'manager_pin_failures', 'manager_pin_locked_until']));
+        $this->assertFalse(DB::table('users')->whereNotNull('manager_pin_hash')->exists());
         $this->assertTrue(Schema::hasColumns('cash_drawer_events', [
             'id', 'business_id', 'branch_id', 'user_id', 'event_uuid', 'source',
             'order_id', 'reason', 'status', 'device_requested_at',

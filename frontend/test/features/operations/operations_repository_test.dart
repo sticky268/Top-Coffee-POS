@@ -54,11 +54,18 @@ class _Adapter implements HttpClientAdapter {
       jsonEncode(
         status == 200
             ? {
-                'data': options.path == '/purchases' ? {
-                  'id': 5, 'branch_id': 2, 'supplier_id': 3, 'created_by': 1,
-                  'total_cost': 6, 'purchased_at': '2026-10-14',
-                  'supplier': {'id': 3, 'name': 'Supplier'}, 'items': [],
-                } : {'id': 5, 'status': 'closed'},
+                'data': options.path == '/purchases'
+                    ? {
+                        'id': 5,
+                        'branch_id': 2,
+                        'supplier_id': 3,
+                        'created_by': 1,
+                        'total_cost': 6,
+                        'purchased_at': '2026-10-14',
+                        'supplier': {'id': 3, 'name': 'Supplier'},
+                        'items': [],
+                      }
+                    : {'id': 5, 'status': 'closed'},
               }
             : {'message': 'Rejected'},
       ),
@@ -90,27 +97,45 @@ void main() {
     repo = OperationsRepository(api, store, () => scope);
   });
 
-  test('refund PIN stays in the transient header and retry needs a fresh PIN', () async {
-    adapter.timeout = true;
-    await expectLater(repo.write('/orders/7/refund', {'amount': 2, 'reason': 'Correction'}, managerPin: '836492'), throwsA(isA<NetworkException>()));
-    expect(adapter.headers.single['X-Manager-Pin'], '836492');
-    expect(jsonEncode(store.values), isNot(contains('836492')));
-    final saved = (await repo.pending()).single;
-    final uuid = saved['uuid'];
-    final restarted = OperationsRepository(api, store, () => scope);
-    adapter.status = 422;
-    adapter.timeout = false;
-    await expectLater(restarted.retry(saved), throwsA(isA<UncertainOperationException>()));
-    expect(adapter.headers.last.containsKey('X-Manager-Pin'), isFalse);
-    adapter.status = 200;
-    await restarted.retry((await restarted.pending()).single, managerPin: '749281');
-    expect(adapter.headers.last['X-Manager-Pin'], '749281');
-    expect(adapter.requests.map((p) => p['uuid']), everyElement(uuid));
-    expect(await restarted.pending(), isEmpty);
-  });
+  test(
+    'refund PIN stays in the transient header and retry needs a fresh PIN',
+    () async {
+      adapter.timeout = true;
+      await expectLater(
+        repo.write('/orders/7/refund', {
+          'amount': 2,
+          'reason': 'Correction',
+        }, managerPin: '836492'),
+        throwsA(isA<NetworkException>()),
+      );
+      expect(adapter.headers.single['X-Manager-Pin'], '836492');
+      expect(jsonEncode(store.values), isNot(contains('836492')));
+      final saved = (await repo.pending()).single;
+      final uuid = saved['uuid'];
+      final restarted = OperationsRepository(api, store, () => scope);
+      adapter.status = 422;
+      adapter.timeout = false;
+      await expectLater(
+        restarted.retry(saved),
+        throwsA(isA<UncertainOperationException>()),
+      );
+      expect(adapter.headers.last.containsKey('X-Manager-Pin'), isFalse);
+      adapter.status = 200;
+      await restarted.retry(
+        (await restarted.pending()).single,
+        managerPin: '749281',
+      );
+      expect(adapter.headers.last['X-Manager-Pin'], '749281');
+      expect(adapter.requests.map((p) => p['uuid']), everyElement(uuid));
+      expect(await restarted.pending(), isEmpty);
+    },
+  );
 
   test('credentials cannot enter the saved operation payload', () {
-    expect(() => repo.write('/orders/7/refund', {'amount': 2, 'pin': '836492'}), throwsArgumentError);
+    expect(
+      () => repo.write('/orders/7/refund', {'amount': 2, 'pin': '836492'}),
+      throwsArgumentError,
+    );
     expect(store.values, isEmpty);
     expect(adapter.requests, isEmpty);
   });
@@ -171,25 +196,37 @@ void main() {
     },
   );
 
-  test('purchase timeout survives restart and a new confirmed purchase gets a new UUID', () async {
-    Future<void> create(ApiPurchaseRepository purchases) async {
-      await purchases.createPurchase(branchId: 2, supplierId: 3,
-        purchasedAt: DateTime(2026, 10, 14),
-        items: [const PurchaseCreateItem(ingredientId: 4, quantity: 2, unitCost: 3)]);
-    }
-    adapter.timeout = true;
-    await expectLater(create(ApiPurchaseRepository(api, repo)), throwsA(isA<NetworkException>()));
-    final original = (await repo.pending()).single['uuid'];
-    adapter.timeout = false;
-    final restarted = OperationsRepository(api, store, () => scope);
-    final purchases = ApiPurchaseRepository(api, restarted);
-    await create(purchases);
-    expect(adapter.requests[1]['uuid'], original);
-    expect(await restarted.pending(), isEmpty);
-    await create(purchases);
-    expect(adapter.requests[2]['uuid'], isNot(original));
-    expect(adapter.requests[2]['expected_user_id'], 1);
-  });
+  test(
+    'purchase timeout survives restart and a new confirmed purchase gets a new UUID',
+    () async {
+      Future<void> create(ApiPurchaseRepository purchases) async {
+        await purchases.createPurchase(
+          branchId: 2,
+          supplierId: 3,
+          purchasedAt: DateTime(2026, 10, 14),
+          items: [
+            const PurchaseCreateItem(ingredientId: 4, quantity: 2, unitCost: 3),
+          ],
+        );
+      }
+
+      adapter.timeout = true;
+      await expectLater(
+        create(ApiPurchaseRepository(api, repo)),
+        throwsA(isA<NetworkException>()),
+      );
+      final original = (await repo.pending()).single['uuid'];
+      adapter.timeout = false;
+      final restarted = OperationsRepository(api, store, () => scope);
+      final purchases = ApiPurchaseRepository(api, restarted);
+      await create(purchases);
+      expect(adapter.requests[1]['uuid'], original);
+      expect(await restarted.pending(), isEmpty);
+      await create(purchases);
+      expect(adapter.requests[2]['uuid'], isNot(original));
+      expect(adapter.requests[2]['expected_user_id'], 1);
+    },
+  );
 
   test('pending requests are isolated by user and branch', () async {
     adapter.timeout = true;

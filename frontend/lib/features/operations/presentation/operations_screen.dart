@@ -18,8 +18,12 @@ import 'operation_form.dart';
 import 'operation_display.dart';
 
 class OperationsScreen extends ConsumerStatefulWidget {
-  const OperationsScreen({super.key, this.initialSection, this.initialShiftId,
-    this.initialDifferencesOnly = false});
+  const OperationsScreen({
+    super.key,
+    this.initialSection,
+    this.initialShiftId,
+    this.initialDifferencesOnly = false,
+  });
   final String? initialSection;
   final int? initialShiftId;
   final bool initialDifferencesOnly;
@@ -44,7 +48,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection == 'Owner report' ? 'Owner report' : 'Shifts';
+    _section = widget.initialSection == 'Owner report'
+        ? 'Owner report'
+        : 'Shifts';
     _differencesOnly = widget.initialDifferencesOnly;
     Future.microtask(_load);
   }
@@ -85,8 +91,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         query: _section == 'Owner report'
             ? {'date_from': start, 'date_to': now}
             : _section == 'Shifts' && widget.initialShiftId != null
-                ? {'shift_id': widget.initialShiftId}
-                : {},
+            ? {'shift_id': widget.initialShiftId}
+            : {},
       );
       final comparisons = <Map<String, dynamic>>[];
       final auth = ref.read(authControllerProvider);
@@ -173,9 +179,15 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   Widget _shifts(AuthAuthenticated auth) {
     final list = (_data as List).cast<Map<String, dynamic>>();
     final shown = _differencesOnly
-        ? list.where((s) => s['status'] == 'closed' &&
-            ((num.tryParse('${s['difference']}') ?? 0).abs() >= 0.005) &&
-            s['reviewed_at'] == null).toList()
+        ? list
+              .where(
+                (s) =>
+                    s['status'] == 'closed' &&
+                    ((num.tryParse('${s['difference']}') ?? 0).abs() >=
+                        0.005) &&
+                    s['reviewed_at'] == null,
+              )
+              .toList()
         : list;
     final mine = list.where(
       (s) => s['user_id'] == auth.user.id && s['status'] == 'open',
@@ -213,7 +225,10 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         for (final shift in shown)
           _card('Shift #${shift['id']} · ${shift['status']}', [
             _value('Cashier', shiftCashierName(shift, auth.user)),
-            _value('Opened (device time)', operationDeviceTime(shift['created_at'])),
+            _value(
+              'Opened (device time)',
+              operationDeviceTime(shift['created_at']),
+            ),
             _value(
               'Expected drawer cash',
               _cash(shift['expected_cash'] ?? shift['live_expected_cash']),
@@ -266,7 +281,10 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                           'type',
                           'Direction',
                           options: ['in', 'out'],
-                          optionLabels: {'in': 'Add cash', 'out': 'Remove cash'},
+                          optionLabels: {
+                            'in': 'Add cash',
+                            'out': 'Remove cash',
+                          },
                         ),
                         OperationField('amount', 'Amount', number: true),
                         OperationField('reason', 'Reason'),
@@ -322,15 +340,20 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         if (shown.isEmpty)
           Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(_differencesOnly
-                ? 'No unreviewed cash differences in these shifts.'
-                : 'No shifts for this branch yet.'),
+            child: Text(
+              _differencesOnly
+                  ? 'No unreviewed cash differences in these shifts.'
+                  : 'No shifts for this branch yet.',
+            ),
           ),
       ],
     );
   }
 
-  Widget _cashBreakdown(Map<String, dynamic> shift, AuthAuthenticated auth) => ExpansionTile(
+  Widget _cashBreakdown(
+    Map<String, dynamic> shift,
+    AuthAuthenticated auth,
+  ) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
     title: const Text('How expected cash is calculated'),
     children: [
@@ -345,13 +368,19 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         for (final refund in shift['cash_refund_orders'] as List)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Order #${refund['order_id']} · ${_cash(refund['amount'])} cash refund'),
-            subtitle: Text('${refund['reason'] ?? 'Reason not recorded'} · '
-                '${operationDeviceTime(refund['created_at'])} (device time)'),
+            title: Text(
+              'Order #${refund['order_id']} · ${_cash(refund['amount'])} cash refund',
+            ),
+            subtitle: Text(
+              '${refund['reason'] ?? 'Reason not recorded'} · '
+              '${operationDeviceTime(refund['created_at'])} (device time)',
+            ),
             trailing: auth.user.hasPermission('orders.view')
-                ? const Icon(Icons.chevron_right) : null,
+                ? const Icon(Icons.chevron_right)
+                : null,
             onTap: auth.user.hasPermission('orders.view')
-                ? () => context.push('/orders/${refund['order_id']}/financials') : null,
+                ? () => context.push('/orders/${refund['order_id']}/financials')
+                : null,
           ),
       ],
       if ((shift['movements'] as List?)?.isNotEmpty == true) ...[
@@ -372,15 +401,20 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       ],
       const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('Check cash refunds and cash movements above against the drawer count. '
-            'Saved orders on this device may still be unconfirmed and do not prove payment.'),
+        child: Text(
+          'Check cash refunds and cash movements above against the drawer count. '
+          'Saved orders on this device may still be unconfirmed and do not prove payment.',
+        ),
       ),
-      if (auth.user.hasPermission('orders.view') || auth.user.hasPermission('orders.create'))
+      if (auth.user.hasPermission('orders.view') ||
+          auth.user.hasPermission('orders.create'))
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.cloud_upload_outlined),
           title: const Text('Review saved and unresolved orders'),
-          subtitle: const Text('This account and branch on this device; not necessarily this shift.'),
+          subtitle: const Text(
+            'This account and branch on this device; not necessarily this shift.',
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('/pending-orders'),
         ),
@@ -391,12 +425,23 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     if (_pendingBusy) return;
     setState(() => _pendingBusy = true);
     try {
-      final needsPin = RegExp(r'^/orders/\d+/refund$').hasMatch('${operation['path']}');
-      final pin = needsPin ? await requestManagerPin(context, ref, action: 'Confirm saved refund') : '';
+      final needsPin = RegExp(
+        r'^/orders/\d+/refund$',
+      ).hasMatch('${operation['path']}');
+      final pin = needsPin
+          ? await requestManagerPin(
+              context,
+              ref,
+              action: 'Confirm saved refund',
+            )
+          : '';
       if (pin == null || !mounted) return;
       final repo = ref.read(operationsRepositoryProvider);
-      if (pin.isEmpty) { await repo.retry(operation); }
-      else { await repo.retry(operation, managerPin: pin); }
+      if (pin.isEmpty) {
+        await repo.retry(operation);
+      } else {
+        await repo.retry(operation, managerPin: pin);
+      }
       ref.invalidate(shiftsProvider);
       if (mounted) await _load();
     } catch (error) {
@@ -440,36 +485,34 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     }
   }
 
-  Widget _savedOperation(Map<String, dynamic> operation) => _card(
-    'Saved action · ${savedOperationTitle(operation)}',
-    [
-      Text(
-        operation['rejected'] == true
-            ? 'The server confirmed that this action was rejected. '
-                'Review the reason before retrying or dismissing it.'
-            : 'Saved on this device; the result is not confirmed. '
-                'Retry this original action to check its result safely.',
-      ),
-      if (operation['error'] != null) Text('${operation['error']}'),
-      TextButton(
-        onPressed: _pendingBusy ? null : () => _retryOperation(operation),
-        child: const Text('Retry original action'),
-      ),
-      if (operation['rejected'] == true)
-        TextButton(
-          onPressed: _pendingBusy ? null : () => _dismissOperation(operation),
-          child: const Text('Dismiss rejected action'),
+  Widget _savedOperation(Map<String, dynamic> operation) =>
+      _card('Saved action · ${savedOperationTitle(operation)}', [
+        Text(
+          operation['rejected'] == true
+              ? 'The server confirmed that this action was rejected. '
+                    'Review the reason before retrying or dismissing it.'
+              : 'Saved on this device; the result is not confirmed. '
+                    'Retry this original action to check its result safely.',
         ),
-      ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        title: const Text('Request details'),
-        children: [
-          SelectableText('Reference: ${operation['uuid']}'),
-          Text('Request: ${operation['path']}'),
-        ],
-      ),
-    ],
-  );
+        if (operation['error'] != null) Text('${operation['error']}'),
+        TextButton(
+          onPressed: _pendingBusy ? null : () => _retryOperation(operation),
+          child: const Text('Retry original action'),
+        ),
+        if (operation['rejected'] == true)
+          TextButton(
+            onPressed: _pendingBusy ? null : () => _dismissOperation(operation),
+            child: const Text('Dismiss rejected action'),
+          ),
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: const Text('Request details'),
+          children: [
+            SelectableText('Reference: ${operation['uuid']}'),
+            Text('Request: ${operation['path']}'),
+          ],
+        ),
+      ]);
 
   Widget _stock(AuthAuthenticated auth) => Column(
     children: [
@@ -631,45 +674,52 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
 
   Widget _report() {
     final report = _data as Map<String, dynamic>;
-    return _card(
-      '${_days == 1 ? 'Today' : 'Last $_days days'} · selected branch',
-      [
-        for (final entry in const {
-          'gross_sales': 'Gross receipts',
-          'refunds': 'Refunds issued',
-          'net_sales': 'Net receipts',
-          'discounts': 'Discounts',
-          'known_ingredient_cost': 'Known ingredient cost',
-          'ingredient_margin': 'Ingredient margin',
-          'wastage_cost': 'Known wastage cost',
-          'cash_difference': 'Cash count difference',
-        }.entries)
-          _value(
-            entry.value,
-            report[entry.key] == null
-                ? 'Incomplete costing'
-                : _cash(report[entry.key]),
-          ),
-        _value('Items without cost snapshots', report['unknown_cost_items']),
+    return _card('${_days == 1 ? 'Today' : 'Last $_days days'} · selected branch', [
+      for (final entry in const {
+        'gross_sales': 'Gross receipts',
+        'refunds': 'Refunds issued',
+        'net_sales': 'Net receipts',
+        'discounts': 'Discounts',
+        'known_ingredient_cost': 'Known ingredient cost',
+        'ingredient_margin': 'Ingredient margin',
+        'wastage_cost': 'Known wastage cost',
+        'cash_difference': 'Cash count difference',
+      }.entries)
         _value(
-          'Unpriced wastage entries',
-          report['unpriced_wastage_movements'],
+          entry.value,
+          report[entry.key] == null
+              ? 'Incomplete costing'
+              : _cash(report[entry.key]),
         ),
-        _value('Shifts awaiting review', report['unreviewed_shifts']),
-        _value('Shifts with cash differences', report['cash_difference_shift_count']),
-        for (final raw in (report['cash_difference_shifts'] as List? ?? []))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('Shift #${raw['id']} · ${cashDifferenceDescription(raw['difference'])}'),
-            subtitle: Text(operationDeviceTime(raw['closed_at'])),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/operations?section=Shifts&shift_id=${raw['id']}'),
+      _value('Items without cost snapshots', report['unknown_cost_items']),
+      _value('Unpriced wastage entries', report['unpriced_wastage_movements']),
+      _value('Shifts awaiting review', report['unreviewed_shifts']),
+      _value(
+        'Shifts with cash differences',
+        report['cash_difference_shift_count'],
+      ),
+      for (final raw in (report['cash_difference_shifts'] as List? ?? []))
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            'Shift #${raw['id']} · ${cashDifferenceDescription(raw['difference'])}',
           ),
-        _value('Stock count adjustments with a difference', report['stock_count_discrepancy_count']),
-        const Text('Read-only stock count history. Inspect the recorded quantity '
-            'before and counted quantity after; no approval or new adjustment is created.'),
-        for (final raw in (report['stock_count_discrepancies'] as List? ?? []))
-          Builder(builder: (context) {
+          subtitle: Text(operationDeviceTime(raw['closed_at'])),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () =>
+              context.push('/operations?section=Shifts&shift_id=${raw['id']}'),
+        ),
+      _value(
+        'Stock count adjustments with a difference',
+        report['stock_count_discrepancy_count'],
+      ),
+      const Text(
+        'Read-only stock count history. Inspect the recorded quantity '
+        'before and counted quantity after; no approval or new adjustment is created.',
+      ),
+      for (final raw in (report['stock_count_discrepancies'] as List? ?? []))
+        Builder(
+          builder: (context) {
             final delta = num.tryParse('${raw['quantity']}') ?? 0;
             final counted = num.tryParse('${raw['balance_after']}') ?? 0;
             final ingredient = InventoryIngredient(
@@ -680,32 +730,41 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                 name: '${raw['unit_name']}',
                 abbreviation: '${raw['unit_abbreviation']}',
               ),
-              currentStock: (num.tryParse('${raw['current_stock']}') ?? 0).toDouble(),
-              reorderThreshold: (num.tryParse('${raw['reorder_threshold']}') ?? 0).toDouble(),
+              currentStock: (num.tryParse('${raw['current_stock']}') ?? 0)
+                  .toDouble(),
+              reorderThreshold:
+                  (num.tryParse('${raw['reorder_threshold']}') ?? 0).toDouble(),
               isLowStock: false,
               isActive: raw['is_active'] == true || raw['is_active'] == 1,
             );
             return ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('${raw['ingredient_name']} · ${delta > 0 ? '+' : ''}$delta ${ingredient.unit.abbreviation}'),
-              subtitle: Text('Recorded ${(counted - delta).toStringAsFixed(3)} → '
-                  'counted ${counted.toStringAsFixed(3)} ${ingredient.unit.abbreviation}\n'
-                  '${raw['reason']} · ${operationDeviceTime(raw['created_at'])} (device time)'),
+              title: Text(
+                '${raw['ingredient_name']} · ${delta > 0 ? '+' : ''}$delta ${ingredient.unit.abbreviation}',
+              ),
+              subtitle: Text(
+                'Recorded ${(counted - delta).toStringAsFixed(3)} → '
+                'counted ${counted.toStringAsFixed(3)} ${ingredient.unit.abbreviation}\n'
+                '${raw['reason']} · ${operationDeviceTime(raw['created_at'])} (device time)',
+              ),
               isThreeLine: true,
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/inventory/history?movement_id=${raw['id']}', extra: ingredient),
+              onTap: () => context.push(
+                '/inventory/history?movement_id=${raw['id']}',
+                extra: ingredient,
+              ),
             );
-          }),
-        _value(
-          'Cash payments outside a shift',
-          report['unassigned_cash_payments'],
+          },
         ),
-        const SizedBox(height: 12),
-        const Text(
-          'Ingredient margin uses receipt and consumption dates; it excludes wastage, rent, salaries and other operating costs. Refunds are reported on the date issued.',
-        ),
-      ],
-    );
+      _value(
+        'Cash payments outside a shift',
+        report['unassigned_cash_payments'],
+      ),
+      const SizedBox(height: 12),
+      const Text(
+        'Ingredient margin uses receipt and consumption dates; it excludes wastage, rent, salaries and other operating costs. Refunds are reported on the date issued.',
+      ),
+    ]);
   }
 
   @override

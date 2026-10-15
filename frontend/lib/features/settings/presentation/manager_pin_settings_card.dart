@@ -12,10 +12,12 @@ class ManagerPinSettingsCard extends ConsumerStatefulWidget {
   final int userId;
 
   @override
-  ConsumerState<ManagerPinSettingsCard> createState() => _ManagerPinSettingsCardState();
+  ConsumerState<ManagerPinSettingsCard> createState() =>
+      _ManagerPinSettingsCardState();
 }
 
-class _ManagerPinSettingsCardState extends ConsumerState<ManagerPinSettingsCard> {
+class _ManagerPinSettingsCardState
+    extends ConsumerState<ManagerPinSettingsCard> {
   final _password = TextEditingController();
   final _pin = TextEditingController();
   final _confirmation = TextEditingController();
@@ -35,27 +37,55 @@ class _ManagerPinSettingsCardState extends ConsumerState<ManagerPinSettingsCard>
   Future<void> _save() async {
     if (_busy || !_form.currentState!.validate()) return;
     final auth = ref.read(authControllerProvider);
-    if (auth is! AuthAuthenticated || auth.user.id != widget.userId || !auth.user.canApproveCheckout) return;
-    setState(() { _busy = true; _message = null; });
+    if (auth is! AuthAuthenticated ||
+        auth.user.id != widget.userId ||
+        !auth.user.canApproveCheckout)
+      return;
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
     try {
-      await ref.read(apiClientProvider).request((dio) => dio.post('/auth/manager-pin', data: {
-        'expected_user_id': widget.userId,
-        'current_password': _password.text,
-        'pin': _pin.text,
-        'pin_confirmation': _confirmation.text,
-      }));
-      if (mounted) setState(() => _message = 'Manager PIN saved. Use it only with your own signed-in account.');
+      await ref
+          .read(apiClientProvider)
+          .request(
+            (dio) => dio.post(
+              '/auth/manager-pin',
+              data: {
+                'expected_user_id': widget.userId,
+                'current_password': _password.text,
+                'pin': _pin.text,
+                'pin_confirmation': _confirmation.text,
+              },
+            ),
+          );
+      if (mounted)
+        setState(
+          () => _message =
+              'Manager PIN saved. Use it only with your own signed-in account.',
+        );
     } catch (error) {
-      if (mounted) setState(() => _message = error is ApiException ? error.message : 'Could not save PIN. Try again when connected.');
+      if (mounted)
+        setState(
+          () => _message = error is ApiException
+              ? error.message
+              : 'Could not save PIN. Try again when connected.',
+        );
     } finally {
       if (mounted) {
-        for (final controller in [_password, _pin, _confirmation]) { controller.clear(); }
+        for (final controller in [_password, _pin, _confirmation]) {
+          controller.clear();
+        }
         setState(() => _busy = false);
       }
     }
   }
 
-  Widget _field(String label, TextEditingController controller, {bool numeric = false}) => Padding(
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    bool numeric = false,
+  }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
       controller: controller,
@@ -64,13 +94,22 @@ class _ManagerPinSettingsCardState extends ConsumerState<ManagerPinSettingsCard>
       autocorrect: false,
       enableSuggestions: false,
       autofillHints: null,
-      keyboardType: numeric ? TextInputType.number : TextInputType.visiblePassword,
-      inputFormatters: numeric ? [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)] : null,
+      keyboardType: numeric
+          ? TextInputType.number
+          : TextInputType.visiblePassword,
+      inputFormatters: numeric
+          ? [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(12),
+            ]
+          : null,
       decoration: InputDecoration(labelText: label),
       validator: (value) {
         if ((value ?? '').isEmpty) return 'Required';
-        if (numeric && !RegExp(r'^[0-9]{6,12}$').hasMatch(value!)) return 'Use 6–12 digits.';
-        if (controller == _confirmation && value != _pin.text) return 'PINs must match.';
+        if (numeric && !RegExp(r'^[0-9]{6,12}$').hasMatch(value!))
+          return 'Use 6–12 digits.';
+        if (controller == _confirmation && value != _pin.text)
+          return 'PINs must match.';
         return null;
       },
     ),
@@ -87,13 +126,22 @@ class _ManagerPinSettingsCardState extends ConsumerState<ManagerPinSettingsCard>
           children: [
             Text('Manager PIN', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            const Text('Set or reset your own PIN for voids and refunds. Confirm your account password. Do not share it. Five failed checks lock approval for 15 minutes; resetting the PIN cannot bypass that wait.'),
+            const Text(
+              'Set or reset your own PIN for voids and refunds. Confirm your account password. Do not share it. Five failed checks lock approval for 15 minutes; resetting the PIN cannot bypass that wait.',
+            ),
             _field('Current account password', _password),
             _field('New manager PIN', _pin, numeric: true),
             _field('Confirm manager PIN', _confirmation, numeric: true),
-            if (_message != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_message!)),
+            if (_message != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_message!),
+              ),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Saving…' : 'Save manager PIN')),
+            FilledButton(
+              onPressed: _busy ? null : _save,
+              child: Text(_busy ? 'Saving…' : 'Save manager PIN'),
+            ),
           ],
         ),
       ),

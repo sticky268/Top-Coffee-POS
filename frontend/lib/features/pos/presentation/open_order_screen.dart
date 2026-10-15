@@ -1,3 +1,4 @@
+import '../../../core/branch/current_branch_provider.dart';
 import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -342,20 +343,31 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     if (confirmed != true || !mounted) return;
     setState(() => _isBusy = true);
     try {
-      final pin = await requestManagerPin(context, ref, action: 'Approve order cancellation');
+      final pin = await requestManagerPin(
+        context,
+        ref,
+        action: 'Approve order cancellation',
+      );
       if (pin == null || !mounted) return;
       final repo = ref.read(posRepositoryProvider);
-      if (pin.isEmpty) { await repo.cancelHeldOrder(orderId: _order.id); }
-      else { await repo.cancelHeldOrder(orderId: _order.id, managerPin: pin); }
+      if (pin.isEmpty) {
+        await repo.cancelHeldOrder(orderId: _order.id);
+      } else {
+        await repo.cancelHeldOrder(
+          orderId: _order.id,
+          managerPin: pin,
+          branchId: ref.read(currentBranchProvider)?.id,
+        );
+      }
       if (!mounted) return;
       ref.read(ordersListControllerProvider.notifier).refresh();
       setState(() => _isBusy = false);
       context.go('/pos/select-table');
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not cancel order: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not cancel order: $error')));
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -375,10 +387,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       setState(() => _isShowingPayment = true);
       final result = await showDialog<_PaymentResult>(
         context: context,
-        builder: (_) => _PaymentDialog(
-          total: saved.total,
-          bill: customerBill,
-        ),
+        builder: (_) => _PaymentDialog(total: saved.total, bill: customerBill),
       );
       if (!mounted) return;
       setState(() => _isShowingPayment = false);
@@ -436,8 +445,8 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   Future<void> _showOrderSummary() async {
     final currency = NumberFormat.currency(symbol: r'$');
     final auth = ref.read(authControllerProvider);
-    final canCancel = auth is AuthAuthenticated &&
-        auth.user.hasPermission('orders.cancel');
+    final canCancel =
+        auth is AuthAuthenticated && auth.user.hasPermission('orders.cancel');
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -494,7 +503,8 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     final currency = NumberFormat.currency(symbol: '\$');
     final catalogState = ref.watch(posCatalogControllerProvider);
     final authState = ref.watch(authControllerProvider);
-    final canCancel = authState is AuthAuthenticated &&
+    final canCancel =
+        authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.cancel');
 
     return PopScope(
@@ -545,7 +555,8 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                 }
 
                 final itemCount = _lines.fold<int>(
-                  0, (count, line) => count + line.quantity,
+                  0,
+                  (count, line) => count + line.quantity,
                 );
                 return Column(
                   children: [
@@ -554,7 +565,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                     SafeArea(
                       top: false,
                       child: Material(
-                        color: Theme.of(context).colorScheme.surfaceContainerLow,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLow,
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                           child: Column(
@@ -567,13 +580,17 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                                       'Order Summary · $itemCount items',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.titleMedium,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     currency.format(_total),
-                                    style: Theme.of(context).textTheme.titleLarge
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
                                         ?.copyWith(fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -590,7 +607,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: pos_ui.PosActionButton(
-                                      onPressed: _lines.isEmpty ? null : _payOrder,
+                                      onPressed: _lines.isEmpty
+                                          ? null
+                                          : _payOrder,
                                       child: const Text('Review & Pay'),
                                     ),
                                   ),
@@ -696,105 +715,103 @@ class _PaymentDialogState extends State<_PaymentDialog> {
         width: 480,
         child: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Review or give the customer the unpaid bill before collecting payment.',
-            ),
-            const SizedBox(height: 16),
-            BillActionButtons(
-              bill: widget.bill,
-              showHeading: true,
-            ),
-            const SizedBox(height: 24),
-            Text('Total', style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 4),
-            Text(
-              _formatMoney(widget.total),
-              style: Theme.of(context).textTheme.headlineMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment<String>(
-                  value: 'cash',
-                  label: Text('Cash'),
-                  icon: Icon(Icons.payments_outlined),
-                ),
-                ButtonSegment<String>(
-                  value: 'card',
-                  label: Text('Card'),
-                  icon: Icon(Icons.credit_card),
-                ),
-                ButtonSegment<String>(
-                  value: 'qr',
-                  label: Text('QR'),
-                  icon: Icon(Icons.qr_code_2),
-                ),
-              ],
-              selected: {_method},
-              onSelectionChanged: (selection) {
-                setState(() {
-                  _method = selection.first;
-                });
-              },
-            ),
-            if (isCash) ...[
-              const SizedBox(height: 24),
-              TextField(
-                controller: _tenderedController,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Cash received',
-                  prefixText: '\$ ',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() {}),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Review or give the customer the unpaid bill before collecting payment.',
               ),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: _canConfirm
-                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                      : Theme.of(context).colorScheme.errorContainer,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _canConfirm ? 'Change' : 'Remaining',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      _formatMoney(
-                        _tenderedController.text.trim().isEmpty
-                            ? 0
-                            : (_canConfirm
-                                  ? _changeDue
-                                  : widget.total - (_tendered ?? 0)),
-                      ),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: _canConfirm
-                            ? null
-                            : Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
+              BillActionButtons(bill: widget.bill, showHeading: true),
+              const SizedBox(height: 24),
+              Text('Total', style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 4),
+              Text(
+                _formatMoney(widget.total),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 24),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment<String>(
+                    value: 'cash',
+                    label: Text('Cash'),
+                    icon: Icon(Icons.payments_outlined),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'card',
+                    label: Text('Card'),
+                    icon: Icon(Icons.credit_card),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'qr',
+                    label: Text('QR'),
+                    icon: Icon(Icons.qr_code_2),
+                  ),
+                ],
+                selected: {_method},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _method = selection.first;
+                  });
+                },
+              ),
+              if (isCash) ...[
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _tenderedController,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Cash received',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _canConfirm
+                        ? Theme.of(context).colorScheme.surfaceContainerHighest
+                        : Theme.of(context).colorScheme.errorContainer,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _canConfirm ? 'Change' : 'Remaining',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        _formatMoney(
+                          _tenderedController.text.trim().isEmpty
+                              ? 0
+                              : (_canConfirm
+                                    ? _changeDue
+                                    : widget.total - (_tendered ?? 0)),
+                        ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: _canConfirm
+                              ? null
+                              : Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-          ],
           ),
         ),
       ),
@@ -877,98 +894,88 @@ class _OrderPanel extends StatelessWidget {
                 );
               }
               final line = lines[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    line.productName,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-                                  if (line.variantName != null) ...[
-                                    const SizedBox(height: 3),
-                                    Text(line.variantName!),
-                                  ],
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    currency.format(line.unitPrice),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            pos_ui.IconButton(
-                              tooltip: 'Remove item',
-                              onPressed: () => onRemove(line.lineKey),
-                              icon: const Icon(Icons.delete_outline),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .outlineVariant,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  pos_ui.IconButton(
-                                    tooltip: 'Decrease quantity',
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () => onDecrement(line.lineKey),
-                                    icon: const Icon(Icons.remove),
-                                  ),
-                                  SizedBox(
-                                    width: 28,
-                                    child: Text(
-                                      '${line.quantity}',
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                  ),
-                                  pos_ui.IconButton(
-                                    tooltip: 'Increase quantity',
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () => onIncrement(line.lineKey),
-                                    icon: const Icon(Icons.add),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 78,
-                              child: Text(
-                                currency.format(line.lineTotal),
-                                textAlign: TextAlign.end,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            line.productName,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          if (line.variantName != null) ...[
+                            const SizedBox(height: 3),
+                            Text(line.variantName!),
                           ],
+                          const SizedBox(height: 4),
+                          Text(
+                            currency.format(line.unitPrice),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    pos_ui.IconButton(
+                      tooltip: 'Remove item',
+                      onPressed: () => onRemove(line.lineKey),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
-                    );
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          pos_ui.IconButton(
+                            tooltip: 'Decrease quantity',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => onDecrement(line.lineKey),
+                            icon: const Icon(Icons.remove),
+                          ),
+                          SizedBox(
+                            width: 28,
+                            child: Text(
+                              '${line.quantity}',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          pos_ui.IconButton(
+                            tooltip: 'Increase quantity',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => onIncrement(line.lineKey),
+                            icon: const Icon(Icons.add),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 78,
+                      child: Text(
+                        currency.format(line.lineTotal),
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
         ),
@@ -1014,34 +1021,34 @@ class _ProductCatalogPanel extends StatelessWidget {
         :final selectedCategoryId,
       ) =>
         Column(
-              children: [
-                const SizedBox(height: 16),
-                ProductSearchField(
-                    onChanged: (query) => context
-                        .findAncestorStateOfType<_OpenOrderContentState>()
-                        ?._updateCatalogSearch(query),
-                  ),
-                const SizedBox(height: 8),
-                CategorySelector(
-                  categories: categories,
-                  selectedCategoryId: selectedCategoryId,
-                  onSelected: (id) => context
-                      .findAncestorStateOfType<_OpenOrderContentState>()
-                      ?._updateCatalogCategory(id),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: visibleProducts.isEmpty
-                      ? const Center(child: Text('No products found.'))
-                      : ProductGrid(
-                          products: visibleProducts,
-                          crossAxisCount: crossAxisCount,
-                          onProductSelected: onProductSelected,
-                          onVariantSelected: onVariantSelected,
-                        ),
-                ),
-              ],
+          children: [
+            const SizedBox(height: 16),
+            ProductSearchField(
+              onChanged: (query) => context
+                  .findAncestorStateOfType<_OpenOrderContentState>()
+                  ?._updateCatalogSearch(query),
             ),
+            const SizedBox(height: 8),
+            CategorySelector(
+              categories: categories,
+              selectedCategoryId: selectedCategoryId,
+              onSelected: (id) => context
+                  .findAncestorStateOfType<_OpenOrderContentState>()
+                  ?._updateCatalogCategory(id),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: visibleProducts.isEmpty
+                  ? const Center(child: Text('No products found.'))
+                  : ProductGrid(
+                      products: visibleProducts,
+                      crossAxisCount: crossAxisCount,
+                      onProductSelected: onProductSelected,
+                      onVariantSelected: onVariantSelected,
+                    ),
+            ),
+          ],
+        ),
     };
   }
 }
@@ -1191,8 +1198,9 @@ class _TotalRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = emphasized
-        ? Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w700)
+        ? Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)
         : Theme.of(context).textTheme.bodyLarge;
 
     return Padding(

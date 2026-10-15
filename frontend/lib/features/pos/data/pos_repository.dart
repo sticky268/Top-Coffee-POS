@@ -60,7 +60,11 @@ abstract class PosRepository {
     int? branchId,
   });
 
-  Future<void> cancelHeldOrder({required int orderId, String? managerPin});
+  Future<void> cancelHeldOrder({
+    required int orderId,
+    String? managerPin,
+    int? branchId,
+  });
 
   Future<OrderConfirmation> payHeldOrder({
     required int orderId,
@@ -105,9 +109,14 @@ class ApiPosRepository implements PosRepository {
 
   final Future<String?> Function(OrderConfirmation, int?, int?)? _onCompleted;
 
-  OrderConfirmation _afterPayment(OrderConfirmation confirmation, int? userId, int? branchId) {
+  OrderConfirmation _afterPayment(
+    OrderConfirmation confirmation,
+    int? userId,
+    int? branchId,
+  ) {
     final callback = _onCompleted;
-    if (callback == null || !confirmation.hasCompletedCashPayment) return confirmation;
+    if (callback == null || !confirmation.hasCompletedCashPayment)
+      return confirmation;
     Future<String?> open() async {
       try {
         return await callback(confirmation, userId, branchId);
@@ -115,6 +124,7 @@ class ApiPosRepository implements PosRepository {
         return cashDrawerFailureMessage;
       }
     }
+
     // Start after server confirmation without holding the paid-order UI hostage
     // to printer connectivity. The result is displayed by the success views.
     return confirmation.withCashDrawerResult(open());
@@ -222,7 +232,9 @@ class ApiPosRepository implements PosRepository {
         if (pending != null) {
           await _outbox!.finish(pending, orderId: confirmation.orderId);
         }
-        return endpoint == '/orders' ? _afterPayment(confirmation, userId, branchId) : confirmation;
+        return endpoint == '/orders'
+            ? _afterPayment(confirmation, userId, branchId)
+            : confirmation;
       } catch (error) {
         if (pending != null) {
           await _outbox!.finish(pending, error: error);
@@ -395,12 +407,27 @@ class ApiPosRepository implements PosRepository {
   }
 
   @override
-  Future<void> cancelHeldOrder({required int orderId, String? managerPin}) async {
+  Future<void> cancelHeldOrder({
+    required int orderId,
+    String? managerPin,
+    int? branchId,
+  }) async {
     final userId = _userId?.call();
-    await _apiClient.request((dio) => dio.post('/orders/$orderId/cancel',
-      data: {if (userId != null) 'expected_user_id': userId},
-      options: Options(headers: {if (managerPin != null && managerPin.isNotEmpty) 'X-Manager-Pin': managerPin}),
-    ));
+    await _apiClient.request(
+      (dio) => dio.post(
+        '/orders/$orderId/cancel',
+        data: {
+          if (userId != null) 'expected_user_id': userId,
+          if (branchId != null) 'branch_id': branchId,
+        },
+        options: Options(
+          headers: {
+            if (managerPin != null && managerPin.isNotEmpty)
+              'X-Manager-Pin': managerPin,
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -438,9 +465,11 @@ class ApiPosRepository implements PosRepository {
     } on ServerException {
       response = await send();
     }
-    return _afterPayment(OrderConfirmation.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    ), userId, branchId);
+    return _afterPayment(
+      OrderConfirmation.fromJson(response.data['data'] as Map<String, dynamic>),
+      userId,
+      branchId,
+    );
   }
 
   @override

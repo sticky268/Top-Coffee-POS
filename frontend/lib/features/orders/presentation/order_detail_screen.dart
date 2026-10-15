@@ -1,3 +1,4 @@
+import '../../../core/branch/current_branch_provider.dart';
 import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
 
@@ -99,11 +100,22 @@ class OrderDetailScreen extends ConsumerWidget {
                 );
                 if (confirmed != true || !context.mounted) return;
                 try {
-                  final pin = await requestManagerPin(context, ref, action: 'Approve order cancellation');
+                  final pin = await requestManagerPin(
+                    context,
+                    ref,
+                    action: 'Approve order cancellation',
+                  );
                   if (pin == null || !context.mounted) return;
                   final repo = ref.read(posRepositoryProvider);
-                  if (pin.isEmpty) { await repo.cancelHeldOrder(orderId: orderId); }
-                  else { await repo.cancelHeldOrder(orderId: orderId, managerPin: pin); }
+                  if (pin.isEmpty) {
+                    await repo.cancelHeldOrder(orderId: orderId);
+                  } else {
+                    await repo.cancelHeldOrder(
+                      orderId: orderId,
+                      managerPin: pin,
+                      branchId: ref.read(currentBranchProvider)?.id,
+                    );
+                  }
                   await ref
                       .read(ordersListControllerProvider.notifier)
                       .refresh();
