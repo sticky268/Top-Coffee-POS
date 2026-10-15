@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
 import 'package:go_router/go_router.dart';
+import 'appearance_settings_card.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -21,12 +22,14 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Manage receipts and review your account.',
+              'Personalize appearance, manage receipts, and review your account.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 24),
+            const AppearanceSettingsCard(),
+            const SizedBox(height: 16),
             Card(
               child: RecordTile(
                 leading: const Icon(Icons.receipt_long_outlined),

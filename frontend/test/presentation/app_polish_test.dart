@@ -229,7 +229,9 @@ void main() {
               );
             }
             await pump(tester, const SettingsScreen(), size, scale, dark);
-            expect(find.text('Receipt Settings'), findsOneWidget);
+            await tester.scrollUntilVisible(find.text('Receipt Settings'), 250);
+            await tester.pumpAndSettle();
+            expect(find.text('Receipt Settings').hitTestable(), findsOneWidget);
             expect(tester.takeException(), isNull);
             await pump(tester, const LoginScreen(), size, scale, dark);
             final signIn = find.text('Sign in');
