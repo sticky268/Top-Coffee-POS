@@ -47,8 +47,10 @@ class CheckoutActions extends StatelessWidget {
                     runSpacing: 4,
                     children: [
                       Text('Total due', style: theme.textTheme.titleMedium),
-                      Text(totalLabel, style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                      Text(totalLabel,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5)),
                     ],
                   ),
                   if (secondaryTotalLabel != null)
@@ -56,7 +58,8 @@ class CheckoutActions extends StatelessWidget {
                   const SizedBox(height: 8),
                   pos_ui.PosActionButton.icon(
                     onPressed: enabled && !isSubmitting
-                        ? () => onComplete(true) : null,
+                        ? () => onComplete(true)
+                        : null,
                     isLoading: isSubmitting,
                     icon: const Icon(Icons.receipt_long_outlined, size: 20),
                     label: const Text('Complete & Print'),
@@ -64,8 +67,10 @@ class CheckoutActions extends StatelessWidget {
                   const SizedBox(height: 8),
                   pos_ui.OutlinedButton.icon(
                     onPressed: enabled && !isSubmitting
-                        ? () => onComplete(false) : null,
-                    icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                        ? () => onComplete(false)
+                        : null,
+                    icon: const Icon(Icons.check_circle_outline_rounded,
+                        size: 20),
                     label: const Text('Complete Sale'),
                   ),
                 ],

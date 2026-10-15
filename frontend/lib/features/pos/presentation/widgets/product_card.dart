@@ -5,8 +5,11 @@ import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/pos_models.dart';
 
 class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, required this.product, required this.onTap,
-    this.quantityInCart = 0});
+  const ProductCard(
+      {super.key,
+      required this.product,
+      required this.onTap,
+      this.quantityInCart = 0});
 
   final PosProduct product;
   final VoidCallback onTap;
@@ -31,7 +34,8 @@ class ProductCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: quantityInCart > 0 ? theme.colorScheme.primary
+            color: quantityInCart > 0
+                ? theme.colorScheme.primary
                 : theme.colorScheme.outlineVariant,
             width: quantityInCart > 0 ? 2 : 1,
           ),
@@ -62,29 +66,41 @@ class ProductCard extends StatelessWidget {
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: [theme.colorScheme.primaryContainer,
-                                    theme.colorScheme.surfaceContainerLow],
+                                  colors: [
+                                    theme.colorScheme.primaryContainer,
+                                    theme.colorScheme.surfaceContainerLow
+                                  ],
                                 ),
                               ),
                               child: product.imageUrl?.isNotEmpty == true
-                                  ? Image.network(product.imageUrl!, fit: BoxFit.cover,
-                                      cacheWidth: (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(1, 1024),
-                                      errorBuilder: (_, __, ___) => _ProductPlaceholder())
+                                  ? Image.network(product.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      cacheWidth: (constraints.maxWidth *
+                                              MediaQuery.devicePixelRatioOf(
+                                                  context))
+                                          .ceil()
+                                          .clamp(1, 1024),
+                                      errorBuilder: (_, __, ___) =>
+                                          _ProductPlaceholder())
                                   : _ProductPlaceholder(),
                             ),
                             if (quantityInCart > 0)
                               Positioned(
-                                top: 6, right: 6,
+                                top: 6,
+                                right: 6,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text('$quantityInCart in cart',
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: theme.colorScheme.onPrimary,
-                                      fontWeight: FontWeight.w700)),
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                              color:
+                                                  theme.colorScheme.onPrimary,
+                                              fontWeight: FontWeight.w700)),
                                 ),
                               ),
                           ],
@@ -139,7 +155,11 @@ class ProductCard extends StatelessWidget {
 class _ProductPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
-    child: Icon(Icons.local_cafe_rounded, size: 36,
-      color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.65)),
-  );
+        child: Icon(Icons.local_cafe_rounded,
+            size: 36,
+            color: Theme.of(context)
+                .colorScheme
+                .onPrimaryContainer
+                .withValues(alpha: 0.65)),
+      );
 }

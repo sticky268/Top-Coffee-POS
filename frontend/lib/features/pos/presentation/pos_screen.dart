@@ -80,7 +80,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('New Order', maxLines: 1, overflow: TextOverflow.ellipsis),
+          title: const Text('New Order',
+              maxLines: 1, overflow: TextOverflow.ellipsis),
           leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
@@ -88,23 +89,34 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           ),
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(
-              (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16).clamp(56, 110)),
+                (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16)
+                    .clamp(56, 110)),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
-                  Icon(_selectedTable == null ? Icons.shopping_bag_outlined
-                      : Icons.table_restaurant_outlined, size: 20,
-                    color: Theme.of(context).colorScheme.primary),
+                  Icon(
+                      _selectedTable == null
+                          ? Icons.shopping_bag_outlined
+                          : Icons.table_restaurant_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
-                  Expanded(child: Tooltip(
-                    message: _selectedTable == null ? 'Takeaway'
+                  Expanded(
+                      child: Tooltip(
+                    message: _selectedTable == null
+                        ? 'Takeaway'
                         : 'Dine-in · ${_selectedTable!.name}',
-                    child: Text(_selectedTable == null ? 'Takeaway'
-                        : 'Dine-in · ${_selectedTable!.name}',
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600)),
+                    child: Text(
+                        _selectedTable == null
+                            ? 'Takeaway'
+                            : 'Dine-in · ${_selectedTable!.name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
                   )),
                   CashDrawerButton(compact: compactToolbar),
                 ],
@@ -121,25 +133,27 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             if (compactToolbar)
               pos_ui.IconButton(
                 tooltip: 'Last Receipt',
-                onPressed: lastReceipt == null ? null : () => showLastReceiptDialog(
-                  context: context,
-                  orderId: lastReceipt.id,
-                  orderReference: lastReceipt.displayOrderReference,
-                ),
+                onPressed: lastReceipt == null
+                    ? null
+                    : () => showLastReceiptDialog(
+                          context: context,
+                          orderId: lastReceipt.id,
+                          orderReference: lastReceipt.displayOrderReference,
+                        ),
                 icon: const Icon(Icons.receipt_long_outlined),
               )
             else
-            pos_ui.SecondaryButton.icon(
-              onPressed: lastReceipt == null
-                  ? null
-                  : () => showLastReceiptDialog(
-                        context: context,
-                        orderId: lastReceipt.id,
-                        orderReference: lastReceipt.displayOrderReference,
-                      ),
-              icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Last Receipt'),
-            ),
+              pos_ui.SecondaryButton.icon(
+                onPressed: lastReceipt == null
+                    ? null
+                    : () => showLastReceiptDialog(
+                          context: context,
+                          orderId: lastReceipt.id,
+                          orderReference: lastReceipt.displayOrderReference,
+                        ),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Last Receipt'),
+              ),
             const SizedBox(width: 8),
             if (compactToolbar)
               pos_ui.IconButton(
@@ -148,11 +162,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.table_restaurant),
               )
             else
-            pos_ui.SecondaryButton.icon(
-              onPressed: _openTableSelector,
-              icon: const Icon(Icons.table_restaurant),
-              label: const Text('Dine-in'),
-            ),
+              pos_ui.SecondaryButton.icon(
+                onPressed: _openTableSelector,
+                icon: const Icon(Icons.table_restaurant),
+                label: const Text('Dine-in'),
+              ),
             const SizedBox(width: 8),
           ],
         ),
@@ -167,10 +181,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               return switch (catalogState) {
                 PosCatalogLoading() => const _CatalogLoading(),
                 PosCatalogError(:final message) => _CatalogErrorView(
-                  message: message,
-                  onRetry: () =>
-                      ref.read(posCatalogControllerProvider.notifier).refresh(),
-                ),
+                    message: message,
+                    onRetry: () => ref
+                        .read(posCatalogControllerProvider.notifier)
+                        .refresh(),
+                  ),
                 PosCatalogLoaded(
                   :final categories,
                   :final selectedCategoryId,
@@ -217,7 +232,8 @@ class _PhoneLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
+    return LayoutBuilder(
+      builder: (context, viewport) => Column(
       children: [
         const SizedBox(height: 16),
         ProductSearchField(
@@ -242,9 +258,13 @@ class _PhoneLayout extends ConsumerWidget {
           ),
         ),
         const Divider(height: 1),
-        PhoneCartBar(selectedTable: selectedTable),
+        PhoneCartBar(
+          selectedTable: selectedTable,
+          compact: viewport.maxHeight < 420 ||
+              MediaQuery.viewInsetsOf(context).bottom > 0,
+        ),
       ],
-    );
+    ));
   }
 }
 
@@ -274,7 +294,7 @@ class _TabletLayout extends ConsumerWidget {
             children: [
               const SizedBox(height: 16),
               ProductSearchField(
-          onSubmitted: (code) => _scanProduct(context, ref, code),
+                onSubmitted: (code) => _scanProduct(context, ref, code),
                 onChanged: (query) => ref
                     .read(posCatalogControllerProvider.notifier)
                     .updateSearchQuery(query),
@@ -298,8 +318,9 @@ class _TabletLayout extends ConsumerWidget {
           ),
         ),
         const VerticalDivider(width: 1),
-        SizedBox(width: MediaQuery.sizeOf(context).width >= 1200 ? 380 : 340,
-          child: CartPanel(selectedTable: selectedTable)),
+        SizedBox(
+            width: MediaQuery.sizeOf(context).width >= 1200 ? 380 : 340,
+            child: CartPanel(selectedTable: selectedTable)),
       ],
     );
   }
@@ -357,11 +378,13 @@ class _CatalogErrorView extends StatelessWidget {
 void _scanProduct(BuildContext context, WidgetRef ref, String code) {
   final catalog = ref.read(posCatalogControllerProvider);
   if (catalog is! PosCatalogLoaded) return;
-  final matches = catalog.products.where((product) =>
-      product.sku?.trim().toLowerCase() == code.trim().toLowerCase()).toList();
+  final matches = catalog.products
+      .where((product) =>
+          product.sku?.trim().toLowerCase() == code.trim().toLowerCase())
+      .toList();
   if (matches.length != 1) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('SKU not found. Search by product name.')));
+        content: Text('SKU not found. Search by product name.')));
     return;
   }
   final product = matches.single;

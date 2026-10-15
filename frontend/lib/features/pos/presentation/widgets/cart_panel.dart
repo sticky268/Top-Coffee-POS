@@ -22,104 +22,105 @@ class CartPanel extends ConsumerWidget {
     final currency = NumberFormat.currency(symbol: '\$');
 
     return Material(
-      color: theme.colorScheme.surface,
-      child: LayoutBuilder(
-      builder: (context, constraints) {
-        final compact =
-            constraints.maxHeight < 380 ||
-            MediaQuery.textScalerOf(context).scale(14) > 20;
-        final lines = cart.isEmpty
-            ? const _EmptyCart()
-            : ListView.separated(
-                shrinkWrap: compact,
-                physics: compact ? const NeverScrollableScrollPhysics() : null,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: cart.items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) =>
-                    CartLineTile(item: cart.items[index]),
-              );
-        final children = <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        color: theme.colorScheme.surface,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 380 ||
+                MediaQuery.textScalerOf(context).scale(14) > 20;
+            final lines = cart.isEmpty
+                ? const _EmptyCart()
+                : ListView.separated(
+                    shrinkWrap: compact,
+                    physics:
+                        compact ? const NeverScrollableScrollPhysics() : null,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: cart.items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) =>
+                        CartLineTile(item: cart.items[index]),
+                  );
+            final children = <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Order Summary',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                        '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
-                        '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Order Summary',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
+                        Text(
+                          '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
+                          '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!cart.isEmpty)
+                      pos_ui.DangerButton.outlinedIcon(
+                        onPressed: () =>
+                            _confirmClearCart(context, cartNotifier),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('Clear Cart'),
                       ),
                   ],
                 ),
-                if (!cart.isEmpty)
-                  pos_ui.DangerButton.outlinedIcon(
-                    onPressed: () => _confirmClearCart(context, cartNotifier),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Clear Cart'),
-                  ),
-              ],
-            ),
-          ),
-          if (compact) lines else Expanded(child: lines),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _SummaryLine(
-                  label: 'Subtotal',
-                  value: currency.format(cart.subtotal),
+              ),
+              if (compact) lines else Expanded(child: lines),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SummaryLine(
+                      label: 'Subtotal',
+                      value: currency.format(cart.subtotal),
+                    ),
+                    _DiscountRow(
+                      discountTotal: cart.discountTotal,
+                      onChanged: cartNotifier.setDiscount,
+                      currency: currency,
+                    ),
+                    const Divider(height: 16),
+                    CheckoutTotalCard(value: currency.format(cart.total)),
+                    const SizedBox(height: 16),
+                    pos_ui.PosActionButton(
+                      onPressed: cart.isEmpty
+                          ? null
+                          : () => context.push('/pos/checkout',
+                              extra: selectedTable),
+                      child: const Text('Review Order'),
+                    ),
+                  ],
                 ),
-                _DiscountRow(
-                  discountTotal: cart.discountTotal,
-                  onChanged: cartNotifier.setDiscount,
-                  currency: currency,
+              ),
+            ];
+            if (compact) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
                 ),
-                const Divider(height: 16),
-                CheckoutTotalCard(value: currency.format(cart.total)),
-                const SizedBox(height: 16),
-                pos_ui.PosActionButton(
-                  onPressed: cart.isEmpty
-                      ? null
-                      : () =>
-                            context.push('/pos/checkout', extra: selectedTable),
-                  child: const Text('Review Order'),
-                ),
-              ],
-            ),
-          ),
-        ];
-        if (compact) {
-          return SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+              );
+            }
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: children,
-            ),
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        );
-      },
-    ));
+            );
+          },
+        ));
   }
 
   Future<void> _confirmClearCart(
@@ -183,9 +184,8 @@ class _DiscountRow extends StatefulWidget {
 class _DiscountRowState extends State<_DiscountRow> {
   bool _editing = false;
   late final TextEditingController _controller = TextEditingController(
-    text: widget.discountTotal > 0
-        ? widget.discountTotal.toStringAsFixed(2)
-        : '',
+    text:
+        widget.discountTotal > 0 ? widget.discountTotal.toStringAsFixed(2) : '',
   );
 
   @override
@@ -281,7 +281,7 @@ class _EmptyCart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -299,9 +299,10 @@ class _EmptyCart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text('Tap a product to start this order.', textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant)),
+            Text('Tap a product to start this order.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       ),

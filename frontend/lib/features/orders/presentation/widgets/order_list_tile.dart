@@ -34,62 +34,85 @@ class OrderListTile extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(statusIcon, size: 16, color: statusColor),
         const SizedBox(width: 6),
-        Flexible(child: Text(orderStatusLabel(order.status),
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: statusColor, fontWeight: FontWeight.w700))),
+        Flexible(
+            child: Text(orderStatusLabel(order.status),
+                style: theme.textTheme.labelMedium?.copyWith(
+                    color: statusColor, fontWeight: FontWeight.w700))),
       ]),
     );
     final amount = Text(NumberFormat.currency(symbol: '\$').format(order.total),
-      maxLines: 1, softWrap: false,
-      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700));
+        maxLines: 1,
+        softWrap: false,
+        style:
+            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700));
     return Material(
       color: scheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant)),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant)),
       child: pos_ui.ActionSurface(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12)),
-                child: Icon(Icons.receipt_long_outlined, size: 22,
-                  color: scheme.onPrimaryContainer)),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.receipt_long_outlined,
+                      size: 22, color: scheme.onPrimaryContainer)),
               const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Order ${order.displayOrderReference}',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text('$dateLabel · ${orderTypeLabel(order.orderType)}',
-                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-                ])),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('Order ${order.displayOrderReference}',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text('$dateLabel · ${orderTypeLabel(order.orderType)}',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant)),
+                  ])),
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, size: 20, color: scheme.onSurfaceVariant),
+              Icon(Icons.chevron_right_rounded,
+                  size: 20, color: scheme.onSurfaceVariant),
             ]),
             if (order.cashier != null) ...[
               const SizedBox(height: 12),
               Text(order.cashier!.name,
-                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
             ],
             const SizedBox(height: 14),
             LayoutBuilder(builder: (context, constraints) {
               if (MediaQuery.textScalerOf(context).scale(14) > 20) {
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  badge,
-                  const SizedBox(height: 10),
-                  SizedBox(width: double.infinity, child: FittedBox(
-                    fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: amount)),
-                ]);
+                return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      badge,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                          width: double.infinity,
+                          child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: amount)),
+                    ]);
               }
-              return Row(children: [badge, const SizedBox(width: 12),
-                Expanded(child: FittedBox(fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight, child: amount))]);
+              return Row(children: [
+                badge,
+                const SizedBox(width: 12),
+                Expanded(
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: amount))
+              ]);
             }),
           ]),
         ),

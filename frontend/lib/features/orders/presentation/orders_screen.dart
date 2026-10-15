@@ -87,20 +87,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         maxWidth: 1000,
         child: switch (state) {
           OrdersListLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+              child: CircularProgressIndicator(),
+            ),
           OrdersListError(:final message) => _OrdersErrorView(
-            message: message,
-            onRetry: () =>
-                ref.read(ordersListControllerProvider.notifier).refresh(),
-          ),
+              message: message,
+              onRetry: () =>
+                  ref.read(ordersListControllerProvider.notifier).refresh(),
+            ),
           OrdersListLoaded loaded => _OrdersContent(
-            state: loaded,
-            searchController: _searchController,
-            onSearch: _search,
-            onOpenFilters: () => _openFilters(loaded.filters),
-            onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
-          ),
+              state: loaded,
+              searchController: _searchController,
+              onSearch: _search,
+              onOpenFilters: () => _openFilters(loaded.filters),
+              onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
+            ),
         },
       ),
     );
@@ -254,8 +254,7 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount:
-                        widget.state.orders.length +
+                    itemCount: widget.state.orders.length +
                         (widget.state.hasMore ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {

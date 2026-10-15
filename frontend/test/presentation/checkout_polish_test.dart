@@ -73,9 +73,8 @@ void main() {
         posRepositoryProvider.overrideWithValue(repo),
         authRepositoryProvider.overrideWithValue(auth),
         currentBranchProvider.overrideWith(
-          (ref) =>
-              CurrentBranchNotifier(ref, listenToAuth: false)
-                ..selectBranch(branch),
+          (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
+            ..selectBranch(branch),
         ),
         checkoutControllerProvider.overrideWith(
           (ref) => FixtureCheckoutController(repo, ref, state),
@@ -103,40 +102,51 @@ void main() {
     return (container: container, repository: repo);
   }
 
-  testWidgets('nonfinite cash is rejected without a build exception', (tester) async {
+  testWidgets('nonfinite cash is rejected without a build exception',
+      (tester) async {
     await setup(tester, child: const CheckoutScreen());
     final amount = find.widgetWithText(TextField, 'Amount received');
     await tester.scrollUntilVisible(amount, 220,
-      scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+        scrollable: find.byType(Scrollable).first, maxScrolls: 50);
     for (final value in ['Infinity', '1e309', 'NaN', 'abc']) {
       await tester.enterText(amount, value);
       await tester.pumpAndSettle();
       expect(find.text('Enter a valid cash amount.'), findsOneWidget);
-      expect(tester.widget<FilledButton>(
-        find.ancestor(of: find.text('Complete & Print'),
-          matching: find.byType(FilledButton)).first).onPressed, isNull);
+      expect(
+          tester
+              .widget<FilledButton>(find
+                  .ancestor(
+                      of: find.text('Complete & Print'),
+                      matching: find.byType(FilledButton))
+                  .first)
+              .onPressed,
+          isNull);
       expect(tester.takeException(), isNull);
     }
   });
 
-  testWidgets('short checkout with open keyboard has no layout overflow', (tester) async {
+  testWidgets('short checkout with open keyboard has no layout overflow',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 320));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await setup(tester, size: const Size(360, 320), child: const MediaQuery(
-      data: MediaQueryData(size: Size(360, 320),
-        viewInsets: EdgeInsets.only(bottom: 240)),
-      child: CheckoutScreen(),
-    ));
+    await setup(tester,
+        size: const Size(360, 320),
+        child: const MediaQuery(
+          data: MediaQueryData(
+              size: Size(360, 320), viewInsets: EdgeInsets.only(bottom: 240)),
+          child: CheckoutScreen(),
+        ));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('riel shortcut fills exact USD equivalent and preserves change', (tester) async {
+  testWidgets('riel shortcut fills exact USD equivalent and preserves change',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final built = await setup(tester, child: const CheckoutScreen());
     final riel = find.text('20,000៛ / \$5.00');
     await tester.scrollUntilVisible(riel, 220,
-      scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+        scrollable: find.byType(Scrollable).first, maxScrolls: 50);
     await tester.pumpAndSettle();
     await tester.ensureVisible(riel);
     await tester.pumpAndSettle();
@@ -149,12 +159,14 @@ void main() {
     verifyZeroInteractions(built.repository);
   });
 
-  testWidgets('phone cart expands for edits and returns to compact summary', (tester) async {
+  testWidgets('phone cart expands for edits and returns to compact summary',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final built = await setup(tester, child: const Scaffold(
-      body: Column(children: [Expanded(child: SizedBox()), PhoneCartBar()]),
-    ));
+    final built = await setup(tester,
+        child: const Scaffold(
+          body: Column(children: [Expanded(child: SizedBox()), PhoneCartBar()]),
+        ));
     expect(find.byKey(const ValueKey('phone-cart-summary')), findsOneWidget);
     expect(find.text('Order Summary'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('phone-cart-summary')));
@@ -162,7 +174,8 @@ void main() {
     expect(find.text('Order Summary'), findsOneWidget);
     await tester.tap(find.byTooltip('Increase quantity'));
     await tester.pumpAndSettle();
-    expect(built.container.read(cartControllerProvider).items.single.quantity, 2);
+    expect(
+        built.container.read(cartControllerProvider).items.single.quantity, 2);
     await tester.tap(find.byTooltip('Close cart'));
     await tester.pumpAndSettle();
     expect(find.text('View cart · 2 items'), findsOneWidget);
@@ -218,7 +231,8 @@ void main() {
               find.ancestor(of: pay, matching: find.byType(FilledButton)).first,
             );
             expect(button.onPressed, isNull);
-            final noPrint = find.widgetWithText(OutlinedButton, 'Complete Sale');
+            final noPrint =
+                find.widgetWithText(OutlinedButton, 'Complete Sale');
             expect(tester.widget<OutlinedButton>(noPrint).onPressed, isNull);
             await tester.scrollUntilVisible(
               find.text('Exact \$3.50'),
@@ -391,7 +405,8 @@ void main() {
       ),
     ),
   ]) {
-    testWidgets('confirmation state ${state.runtimeType} fits large phone text', (
+    testWidgets('confirmation state ${state.runtimeType} fits large phone text',
+        (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(360, 800));

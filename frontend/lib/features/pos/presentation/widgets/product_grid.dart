@@ -19,7 +19,7 @@ class ProductGrid extends ConsumerWidget {
   final int crossAxisCount;
   final void Function(PosProduct product)? onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)?
-  onVariantSelected;
+      onVariantSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,7 +28,8 @@ class ProductGrid extends ConsumerWidget {
     }
 
     final quantities = <int, int>{};
-    for (final item in ref.watch(cartControllerProvider.select((cart) => cart.items))) {
+    for (final item
+        in ref.watch(cartControllerProvider.select((cart) => cart.items))) {
       quantities.update(item.product.id, (value) => value + item.quantity,
           ifAbsent: () => item.quantity);
     }
@@ -42,9 +43,10 @@ class ProductGrid extends ConsumerWidget {
                 .clamp(1, crossAxisCount);
         final tileWidth =
             (constraints.maxWidth - 32 - 16 * (columns - 1)) / columns;
-        final tileHeight =
-            (tileWidth / 1.05).clamp(180.0, 280.0) +
-            (scale - 1).clamp(0.0, 3.0) * 80;
+        // Large type needs room for names rather than a taller photo.
+        final tileHeight = scale > 1.4
+            ? 132 + scale * 68
+            : (tileWidth / 1.05).clamp(180.0, 280.0);
         return GridView.builder(
           padding: const EdgeInsets.all(16),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

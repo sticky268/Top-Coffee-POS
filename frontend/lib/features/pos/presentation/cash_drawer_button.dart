@@ -43,7 +43,8 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
     );
     if (!mounted) return;
     setState(() => _prompting = false);
-    if (reason == null || !_allowed() ||
+    if (reason == null ||
+        !_allowed() ||
         ref.read(printScopeProvider) != selected) {
       return;
     }
@@ -53,24 +54,28 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
     try {
       await queue.openCashDrawer(selected, () async {
         final settings = await ReceiptSettings.load(
-          branchKey: branch.code, branchNameFallback: branch.name);
+            branchKey: branch.code, branchNameFallback: branch.name);
         if (!settings.printerEnabled) {
           throw StateError('Enable this branch’s printer in Receipt Settings.');
         }
         return settings.printerIpAddress;
       }, () {
-        if (!mounted || !_allowed() ||
+        if (!mounted ||
+            !_allowed() ||
             ref.read(printScopeProvider) != selected) {
-          throw StateError('Sign in and select the original branch before opening the drawer.');
+          throw StateError(
+              'Sign in and select the original branch before opening the drawer.');
         }
       }, reason: reason);
     } catch (error) {
-      message = 'Could not confirm drawer command. Check the drawer before retrying. $error';
+      message =
+          'Could not confirm drawer command. Check the drawer before retrying. $error';
     } finally {
       if (mounted) setState(() => _busy = false);
     }
     if (!mounted || ref.read(printScopeProvider) != selected) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -89,7 +94,9 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
     return pos_ui.SecondaryButton.icon(
       onPressed: _busy || _prompting ? null : _open,
       icon: _busy
-          ? const SizedBox(width: 20, height: 20,
+          ? const SizedBox(
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(strokeWidth: 2))
           : const Icon(Icons.point_of_sale),
       label: Text(_busy ? 'Sending…' : 'Open cash drawer'),
@@ -124,37 +131,42 @@ class _DrawerReasonDialogState extends State<_DrawerReasonDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    scrollable: true,
-    title: const Text('Why are you opening the drawer?'),
-    content: SizedBox(
-      width: 360,
-      child: Form(
-        key: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('The request is recorded with your name and branch. Opening the drawer does not change cash totals.'),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _reason,
-              autofocus: true,
-              maxLength: 255,
-              decoration: const InputDecoration(
-                labelText: 'Reason', hintText: 'For example, make change',
-              ),
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _confirm(),
-              validator: (value) => (value?.trim().length ?? 0) < 3
-                  ? 'Enter a reason with at least 3 characters.' : null,
+        scrollable: true,
+        title: const Text('Why are you opening the drawer?'),
+        content: SizedBox(
+          width: 360,
+          child: Form(
+            key: _form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                    'The request is recorded with your name and branch. Opening the drawer does not change cash totals.'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _reason,
+                  autofocus: true,
+                  maxLength: 255,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    hintText: 'For example, make change',
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _confirm(),
+                  validator: (value) => (value?.trim().length ?? 0) < 3
+                      ? 'Enter a reason with at least 3 characters.'
+                      : null,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
-    actions: [
-      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-      FilledButton(onPressed: _confirm, child: const Text('Open drawer')),
-    ],
-  );
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel')),
+          FilledButton(onPressed: _confirm, child: const Text('Open drawer')),
+        ],
+      );
 }
