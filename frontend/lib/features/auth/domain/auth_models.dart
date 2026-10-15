@@ -42,6 +42,7 @@ class AuthenticatedUser {
     this.allowedPaymentMethods = const ['cash', 'card', 'qr'],
     this.requireCashShift = false,
     this.requireManagerControls = false,
+    this.requireManagerPin = false,
     this.managerDiscountPercent = 10,
   });
 
@@ -52,7 +53,7 @@ class AuthenticatedUser {
   final List<String> permissions;
   final List<BranchSummary> branches;
   final List<String> allowedPaymentMethods;
-  final bool requireCashShift, requireManagerControls;
+  final bool requireCashShift, requireManagerControls, requireManagerPin;
   final double managerDiscountPercent;
 
   bool get canApproveCheckout => hasRole('admin') || hasRole('manager');
@@ -67,6 +68,7 @@ class AuthenticatedUser {
       requireManagerControls:
           (json['checkout_controls'] as Map?)?['require_manager_controls'] ==
               true,
+      requireManagerPin: ((json['checkout_controls'] as Map?)?['require_manager_pin'] ?? (json['checkout_controls'] as Map?)?['require_manager_controls']) == true,
       managerDiscountPercent: double.tryParse(
             '${(json['checkout_controls'] as Map?)?['manager_discount_percent']}',
           ) ??

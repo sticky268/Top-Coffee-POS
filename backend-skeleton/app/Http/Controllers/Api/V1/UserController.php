@@ -348,6 +348,7 @@ class UserController extends Controller
             // Password resets and deactivation must invalidate existing devices.
             if (isset($update['password']) || ($update['is_active'] ?? true) === false) {
                 $user->tokens()->delete();
+                $user->forceFill(['manager_pin_hash' => null, 'manager_pin_failures' => 0, 'manager_pin_locked_until' => null])->save();
             }
 
             if (isset($data['role'])) {

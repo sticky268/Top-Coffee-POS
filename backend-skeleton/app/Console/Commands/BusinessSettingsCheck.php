@@ -21,20 +21,15 @@ class BusinessSettingsCheck extends Command
             $checks['manager_controls_required'] = $businesses->isNotEmpty() && $businesses->every(fn ($b) => $b->require_manager_controls === true);
             // Strict pilot policy: all non-zero discounts require a manager session.
             $checks['cashier_discount_limit_zero'] = $businesses->isNotEmpty() && $businesses->every(fn ($b) => is_numeric($b->manager_discount_percent) && (float) $b->manager_discount_percent === 0.0);
+            $checks += app(\App\Services\ManagerPinReadiness::class)->checks($businesses->modelKeys());
         } catch (Throwable) {
             $checks['business_settings_readable'] = false;
         }
-        // This is a code capability, deliberately NOT an environment switch.
-        // Refunds use a manager session; held-order voids have no PIN challenge.
-        // Replace only alongside real enrollment, rate-limited step-up, both
-        // endpoint enforcement paths, and positive/negative feature tests.
-        $checks['manager_pin_enforced_for_void_and_refund'] = false;
-        $report = ['ready' => ! in_array(false, $checks, true), 'checks' => $checks,
-            'blocker' => 'Manager PIN step-up for void/refund is not implemented. Manager-session approval is not PIN verification.'];
+        $report = ['ready' => ! in_array(false, $checks, true), 'checks' => $checks];
         if ($this->option('json')) $this->line(json_encode($report, JSON_THROW_ON_ERROR));
         else {
             $this->table(['Check', 'Result'], array_map(fn ($k, $v) => [$k, $v ? 'PASS' : 'FAIL'], array_keys($checks), $checks));
-            $this->error($report['blocker']);
+            if (! $report['ready']) $this->error('Resolve failed business settings or enroll an authorized manager PIN for every active branch.');
         }
         return $report['ready'] ? self::SUCCESS : self::FAILURE;
     }

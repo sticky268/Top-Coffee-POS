@@ -26,7 +26,8 @@ one branch, cash-only settlement, USD accounting with the already approved 4,000
 riel display equivalent, manager-approved discounts/refunds, required shifts,
 shop-owned supported Android and two-minute OS idle lock. Do not infer change
 currency/rounding policy from equivalents. The current pilot requirements make manager PIN for void/refund a Must-have;
-it remains absent and blocks the new settings/deployment gate. No shared admin
+it is now implemented with own-account enrollment, persistent lockout and
+per-action prompts; real per-branch enrollment still gates deployment. No shared admin
 login or offline manager approval is introduced.
 
 Propose 14 days of restricted operational logs and 30 days of encrypted backup
@@ -101,6 +102,6 @@ Do not describe all ten launch items as closed while this evidence is missing.
 Production setup, encrypted daily/off-site orchestration, isolated restore proof,
 Telegram/HTTPS monitoring, device-revocation drill and signing instructions are
 prepared in docs/production-setup.md and docs/pre-pilot-checklist.md. These are
-files/tests, not evidence of real provider or hardware acceptance. Real manager
-PIN void/refund step-up remains an engineering blocker; the business-settings
-command and release script deliberately fail closed until it is implemented.
+files/tests, not evidence of real provider or hardware acceptance. Manager PIN void/refund step-up is now implemented; see manager-pin-approval.md.
+The business-settings command and release script require actual migrated,
+privately enrolled branch approvers before readiness can pass.

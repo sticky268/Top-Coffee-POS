@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->dontFlash(['current_password', 'pin', 'pin_confirmation']);
         $exceptions->shouldRenderJsonWhen(function ($request, $input) {
             return $request->is('api/*') || $request->expectsJson();
         });

@@ -1,3 +1,4 @@
+import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -341,7 +342,11 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     if (confirmed != true || !mounted) return;
     setState(() => _isBusy = true);
     try {
-      await ref.read(posRepositoryProvider).cancelHeldOrder(orderId: _order.id);
+      final pin = await requestManagerPin(context, ref, action: 'Approve order cancellation');
+      if (pin == null || !mounted) return;
+      final repo = ref.read(posRepositoryProvider);
+      if (pin.isEmpty) { await repo.cancelHeldOrder(orderId: _order.id); }
+      else { await repo.cancelHeldOrder(orderId: _order.id, managerPin: pin); }
       if (!mounted) return;
       ref.read(ordersListControllerProvider.notifier).refresh();
       setState(() => _isBusy = false);

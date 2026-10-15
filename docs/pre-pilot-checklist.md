@@ -4,12 +4,13 @@ Record exact commit, evidence links, operator, date and reviewer. **Empty boxes
 mean unverified, not pass.** CI cannot sign off external or owner-only gates.
 No merge, deployment or live-server operation is authorized by this checklist.
 
-## Remaining engineering blocker
+## Manager-PIN implementation and owner acceptance
 
 - [ ] PASS / [ ] FAIL — Real manager-PIN enrollment, secure storage, throttled step-up,
-  void/refund enforcement and positive/negative tests implemented. **Currently
-  absent.** pos:business-settings-check deliberately fails and release.py refuses
-  activation. Do not override it with a config flag or treat manager login as PIN.
+  void/refund enforcement and positive/negative tests implemented (see
+  manager-pin-approval.md). Record CI and staging evidence; real manager enrollment
+  and hardware acceptance remain pending. pos:business-settings-check must pass
+  actual per-branch enrollment coverage. Do not override it with a config flag.
 
 ## Automated/staging evidence
 

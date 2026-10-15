@@ -174,7 +174,8 @@ Primary references: [age manual](https://github.com/FiloSottile/age/blob/main/do
 The detailed operator commands and explanations are in
 [production-setup.md](../docs/production-setup.md), with owner-only acceptance in
 [pre-pilot-checklist.md](../docs/pre-pilot-checklist.md). The deployment script
-currently refuses activation because real manager-PIN void/refund step-up is
-missing; the new business-settings verifier records this as a code blocker.
+requires actual manager-PIN enrollment and authorized coverage of every active
+branch. See ../docs/manager-pin-approval.md for implemented enforcement and
+remaining staging/owner acceptance.
 Daily scheduling/retention are explicit opt-in, and all keys/config examples are
 blank and fail closed. No live action is authorized by these reference files.

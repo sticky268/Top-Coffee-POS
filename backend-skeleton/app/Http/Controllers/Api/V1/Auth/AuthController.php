@@ -78,7 +78,7 @@ class AuthController extends Controller
                     'permissions' => $user->getAllPermissions()->pluck('name'),
                     'session_expires_at' => $token['expires_at'],
                     'allowed_payment_methods' => config('payments.allowed_methods'),
-                    'checkout_controls' => $user->business->only(['require_cash_shift', 'require_manager_controls', 'manager_discount_percent']),
+                    'checkout_controls' => $user->business->only(['require_cash_shift', 'require_manager_controls', 'manager_discount_percent']) + ['require_manager_pin' => app(\App\Services\ManagerPin::class)->required($user)],
                     'branches' => $user->branches()->select('branches.id', 'branches.name', 'branches.code')->get(),
                 ],
             ],
@@ -140,7 +140,7 @@ class AuthController extends Controller
                 'session_expires_at' => $accessToken instanceof \Laravel\Sanctum\PersonalAccessToken
                     ? $accessToken->expires_at?->toIso8601String() : null,
                     'allowed_payment_methods' => config('payments.allowed_methods'),
-                    'checkout_controls' => $user->business->only(['require_cash_shift', 'require_manager_controls', 'manager_discount_percent']),
+                    'checkout_controls' => $user->business->only(['require_cash_shift', 'require_manager_controls', 'manager_discount_percent']) + ['require_manager_pin' => app(\App\Services\ManagerPin::class)->required($user)],
                 'branches' => $user->branches()->select('branches.id', 'branches.name', 'branches.code')->get(),
             ],
         ]);

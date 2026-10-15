@@ -10,6 +10,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/operations_repository.dart';
 import 'operation_form.dart';
+import '../../auth/presentation/manager_pin_prompt.dart';
 
 class PaymentOperationsScreen extends ConsumerStatefulWidget {
   const PaymentOperationsScreen({super.key, required this.orderId});
@@ -93,12 +94,13 @@ class _PaymentOperationsScreenState
         if (ref.read(currentBranchProvider)?.id != branch) {
           throw const AuthException('Branch changed.');
         }
-        await ref
-            .read(operationsRepositoryProvider)
-            .write(
-              '/orders/${widget.orderId}/${refund ? 'refund' : 'additional-charge'}',
-              values,
-            );
+        final pin = refund ? await requestManagerPin(context, ref, action: 'Approve refund') : '';
+        if (pin == null) throw const AuthException('Refund approval cancelled. No request was sent.');
+        if (ref.read(currentBranchProvider)?.id != branch) throw const AuthException('Branch changed.');
+        final repo = ref.read(operationsRepositoryProvider);
+        final path = '/orders/${widget.orderId}/${refund ? 'refund' : 'additional-charge'}';
+        if (pin.isEmpty) { await repo.write(path, values); }
+        else { await repo.write(path, values, managerPin: pin); }
       },
     );
     if (mounted) {
@@ -114,7 +116,8 @@ class _PaymentOperationsScreenState
     });
     final auth = ref.watch(authControllerProvider);
     final canAdjust =
-        auth is AuthAuthenticated && auth.user.hasPermission('orders.refund');
+        auth is AuthAuthenticated && auth.user.hasPermission('orders.refund') &&
+        (!auth.user.requireManagerPin || auth.user.canApproveCheckout);
     final money = NumberFormat.currency(symbol: '\$');
     return Scaffold(
       appBar: AppBar(
@@ -185,7 +188,7 @@ class _PaymentOperationsScreenState
                     ),
                   ),
                 const Text(
-                  'Pending corrections are retained in Daily Operations if confirmation is interrupted.',
+                  'A manager must sign in and use their own PIN for protected refunds. Pending corrections are retained in Daily Operations if confirmation is interrupted.',
                 ),
               ],
             )),

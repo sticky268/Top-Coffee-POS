@@ -30,6 +30,8 @@ Route::prefix('v1')->group(function () {
 
     // Losing subscription write access must never prevent session revocation.
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/manager-pin', [\App\Http\Controllers\Api\V1\Auth\ManagerPinController::class, 'show']);
+        Route::post('/auth/manager-pin', [\App\Http\Controllers\Api\V1\Auth\ManagerPinController::class, 'store'])->middleware('throttle:manager-pin');
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/sessions', [AuthController::class, 'sessions']);
         Route::delete('/auth/sessions/{session}', [AuthController::class, 'revokeSession'])->whereNumber('session');
@@ -45,7 +47,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/shifts/{id}/close', [\App\Http\Controllers\Api\V1\ShiftController::class, 'close'])->whereNumber('id');
         Route::post('/shifts/{id}/review', [\App\Http\Controllers\Api\V1\ShiftController::class, 'review'])->whereNumber('id');
         Route::get('/orders/{id}/financials', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'show'])->whereNumber('id');
-        Route::post('/orders/{id}/refund', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'refund'])->whereNumber('id');
+        Route::post('/orders/{id}/refund', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'refund'])->whereNumber('id')->middleware(['throttle:manager-pin', \App\Http\Middleware\RequireManagerPin::class.':refund']);
         Route::post('/orders/{id}/additional-charge', [\App\Http\Controllers\Api\V1\PaymentAdjustmentController::class, 'charge'])->whereNumber('id');
         Route::post('/stock/count', [\App\Http\Controllers\Api\V1\StockOperationsController::class, 'count']);
         Route::post('/stock/transfer', [\App\Http\Controllers\Api\V1\StockOperationsController::class, 'transfer']);
@@ -109,7 +111,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/hold', [OrderController::class, 'hold']);
         Route::patch('/orders/{id}/hold', [OrderController::class, 'updateHeld'])->whereNumber('id');
         Route::post('/orders/{id}/pay', [OrderController::class, 'payHeld'])->whereNumber('id');
-        Route::post('/orders/{id}/cancel', [OrderController::class, 'cancelHeld'])->whereNumber('id');
+        Route::post('/orders/{id}/cancel', [OrderController::class, 'cancelHeld'])->whereNumber('id')->middleware(['throttle:manager-pin', \App\Http\Middleware\RequireManagerPin::class.':void']);
         Route::post('/orders', [OrderController::class, 'store']);
         Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
         Route::get('/orders', [OrderController::class, 'index']);

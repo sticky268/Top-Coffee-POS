@@ -42,7 +42,7 @@ class PilotOperationsTest extends TestCase
         $this->withToken(str_repeat('h', 40))->getJson('/api/v1/operations/health')->assertOk();
     }
 
-    public function test_settings_gate_reports_missing_pin_even_with_safe_cash_and_discount_settings(): void
+    public function test_settings_gate_requires_enrolled_approver_even_with_safe_cash_and_discount_settings(): void
     {
         $business = Business::factory()->create(['is_active' => true]);
         // The ownership migration also creates a legacy active business.
@@ -52,7 +52,8 @@ class PilotOperationsTest extends TestCase
         $report = json_decode(Artisan::output(), true);
         $this->assertTrue($report['checks']['cashier_discount_limit_zero']);
         $this->assertTrue($report['checks']['manager_controls_required']);
-        $this->assertFalse($report['checks']['manager_pin_enforced_for_void_and_refund']);
+        $this->assertTrue($report['checks']['manager_pin_enforced_for_void_and_refund']);
+        $this->assertFalse($report['checks']['manager_pin_approver_for_every_active_branch']);
         $this->assertFalse($report['ready']);
         $this->assertDatabaseCount('audit_logs', 0);
     }

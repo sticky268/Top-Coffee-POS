@@ -31,7 +31,7 @@ class OperationsHealthReport
             $checks['audit_schema_available'] = Schema::hasTable('audit_logs');
             if ($checks['audit_schema_available'] && $valid) {
                 foreach (['auth.login_failed' => 'failed_login_limit', 'order.refunded' => 'refund_limit', 'order.cancelled' => 'cancel_limit'] as $action => $limit) {
-                    $checks[$limit.'_not_reached'] = DB::table('audit_logs')->where('action', $action)
+                    $checks[$limit.'_not_reached'] = DB::table('audit_logs')->whereIn('action', $action === 'auth.login_failed' ? ['auth.login_failed', 'auth.manager_pin_failed'] : [$action])
                         ->where('created_at', '>=', $since)->count() < config('operations.'.$limit);
                 }
             }

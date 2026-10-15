@@ -93,8 +93,9 @@ class CheckoutControlsTest extends TestCase
         $this->postJson('/api/v1/orders/'.$id.'/refund', $refund)->assertForbidden();
         $this->assertDatabaseCount('payment_refunds', 0);
         $this->actor->syncRoles(['manager']);
-        $this->postJson('/api/v1/orders/'.$id.'/refund', $refund)->assertOk();
-        $this->postJson('/api/v1/orders/'.$id.'/refund', $refund)->assertOk();
+        $this->postJson('/api/v1/auth/manager-pin', ['expected_user_id' => $this->actor->id, 'current_password' => 'password', 'pin' => '836492', 'pin_confirmation' => '836492'])->assertOk();
+        $this->withHeader('X-Manager-Pin', '836492')->postJson('/api/v1/orders/'.$id.'/refund', $refund)->assertOk();
+        $this->withHeader('X-Manager-Pin', '836492')->postJson('/api/v1/orders/'.$id.'/refund', $refund)->assertOk();
         $this->assertDatabaseCount('payment_refunds', 1);
     }
 

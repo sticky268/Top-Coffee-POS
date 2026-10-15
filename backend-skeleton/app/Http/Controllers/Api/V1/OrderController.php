@@ -960,7 +960,8 @@ class OrderController extends Controller
         $user = $request->user();
 
         try {
-            $order = DB::transaction(function () use ($user, $id) {
+            $order = DB::transaction(function () use ($request, $user, $id) {
+                \App\Models\User::whereKey($user->id)->lockForUpdate()->firstOrFail();
                 $order = Order::query()
                     ->whereKey($id)
                     ->lockForUpdate()
@@ -989,7 +990,11 @@ class OrderController extends Controller
                     ->lockForUpdate()
                     ->first();
 
+                app(\App\Services\ManagerPin::class)->assertApproval($request, $order, 'void');
                 $order->update(['status' => 'cancelled']);
+                app(AuditLogService::class)->record($request, 'order.cancelled', $order,
+                    ['status' => 'held', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
+                    ['status' => 'cancelled', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id]);
 
                 if ($table) {
                     $otherHeldOrders = Order::query()
@@ -1017,14 +1022,6 @@ class OrderController extends Controller
                 'message' => 'Could not cancel the order. Please try again.',
             ], 500);
         }
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.cancelled',
-            $order,
-            ['status' => 'held', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
-            ['status' => 'cancelled', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
-        );
 
         return response()->json([
             'success' => true,

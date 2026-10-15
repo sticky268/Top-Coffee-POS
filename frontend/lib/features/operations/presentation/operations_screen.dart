@@ -1,3 +1,4 @@
+import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -390,7 +391,12 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     if (_pendingBusy) return;
     setState(() => _pendingBusy = true);
     try {
-      await ref.read(operationsRepositoryProvider).retry(operation);
+      final needsPin = RegExp(r'^/orders/\d+/refund$').hasMatch('${operation['path']}');
+      final pin = needsPin ? await requestManagerPin(context, ref, action: 'Confirm saved refund') : '';
+      if (pin == null || !mounted) return;
+      final repo = ref.read(operationsRepositoryProvider);
+      if (pin.isEmpty) { await repo.retry(operation); }
+      else { await repo.retry(operation, managerPin: pin); }
       ref.invalidate(shiftsProvider);
       if (mounted) await _load();
     } catch (error) {

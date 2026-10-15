@@ -6,13 +6,12 @@ MySQL 8/InnoDB, Redis, Nginx terminating TLS directly, no public phpMyAdmin, and
 separate monitoring/recovery machine. XAMPP remains local development only.
 Adapt service names and retest on the chosen staging host if this changes.
 
-**Launch blocker:** `php artisan pos:business-settings-check --json` deliberately
-returns exit 1 because manager-PIN step-up for void/refund is absent. Refunds use
-a manager session; held-order cancellation has no PIN challenge. A configuration
-flag cannot fix this. Implement enrollment, secure hashed PIN storage, throttled
-step-up, both endpoint checks and tests before removing this code-capability
-failure. This is remaining engineering, not an owner-only checkbox. The deploy
-script obeys this gate and currently refuses activation.
+Manager-PIN enforcement is now implemented; see
+[manager-pin-approval.md](manager-pin-approval.md). The read-only business check
+requires migrated PIN fields, actual route enforcement and an enrolled,
+unlocked authorized manager for every active branch. It still fails on
+unconfigured staging/production data. Enroll real managers privately through
+Settings using their own password; never manufacture hashes or disable the gate.
 
 ## Host, identity and TLS
 
@@ -224,7 +223,7 @@ sudo python3 deploy/release.py deploy --root /srv/top-coffee --release "$REVIEWE
 Only the authorized operator later runs this. It validates backup evidence and
 both production/business gates, stops scheduler/queue, enters shared maintenance,
 switches current atomically, reloads FPM, checks health, resumes and records
-previous. Gate failure (including missing PIN) occurs before maintenance. A
+previous. Gate failure (including missing manager enrollment) occurs before maintenance. A
 post-switch failure attempts code rollback and resumes old code; restart failures
 remain errors requiring inspection. OS kill/power loss cannot be handled by
 finally: inspect current/previous, maintenance state and services via provider

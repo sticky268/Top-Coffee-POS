@@ -79,7 +79,7 @@ jobs:
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
-        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest|PilotOperationsTest'
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest|PilotOperationsTest|ManagerPinTest'
       - name: Install age for encrypted MySQL recovery
         run: sudo apt-get update -qq && sudo apt-get install -y age
       - name: Verify private MySQL backup and isolated restore
@@ -88,6 +88,41 @@ jobs:
         env:
           MYSQL_TEST_CONTAINER: ${{ job.services.mysql.id }}
         run: bash tools/test_runtime_grants.sh
+  manager-pin-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - name: Format manager PIN source for review
+        id: format
+        continue-on-error: true
+        run: |
+          dart format frontend/lib/features/auth/domain/auth_models.dart frontend/lib/features/auth/presentation/manager_pin_prompt.dart frontend/lib/features/settings/presentation/manager_pin_settings_card.dart frontend/lib/features/settings/presentation/settings_screen.dart frontend/lib/features/operations/data/operations_repository.dart frontend/lib/features/operations/presentation/payment_operations_screen.dart frontend/lib/features/operations/presentation/operations_screen.dart frontend/lib/features/pos/data/pos_repository.dart frontend/lib/features/pos/presentation/open_order_screen.dart frontend/lib/features/orders/presentation/order_detail_screen.dart frontend/test/features/auth/manager_pin_prompt_test.dart frontend/test/features/operations/operations_repository_test.dart
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manager-pin-formatted-source
+          path: |
+            frontend/lib/features/auth/domain/auth_models.dart
+            frontend/lib/features/auth/presentation/manager_pin_prompt.dart
+            frontend/lib/features/settings/presentation/manager_pin_settings_card.dart
+            frontend/lib/features/settings/presentation/settings_screen.dart
+            frontend/lib/features/operations/data/operations_repository.dart
+            frontend/lib/features/operations/presentation/payment_operations_screen.dart
+            frontend/lib/features/operations/presentation/operations_screen.dart
+            frontend/lib/features/pos/data/pos_repository.dart
+            frontend/lib/features/pos/presentation/open_order_screen.dart
+            frontend/lib/features/orders/presentation/order_detail_screen.dart
+            frontend/test/features/auth/manager_pin_prompt_test.dart
+            frontend/test/features/operations/operations_repository_test.dart
+          retention-days: 7
+      - if: steps.format.outcome == 'failure'
+        run: exit 1
   flutter:
     runs-on: ubuntu-latest
     defaults:

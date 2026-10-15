@@ -75,7 +75,10 @@ class OperationsRepository {
     await store.delete('${_prefix(selected)}${operation['uuid']}');
   }
 
-  Future<dynamic> write(String path, Map<String, dynamic> values) {
+  Future<dynamic> write(String path, Map<String, dynamic> values, {String? managerPin}) {
+    if (values.keys.any((key) => const ['pin', 'manager_pin', 'current_password', 'pin_confirmation', 'password', 'authorization', 'x-manager-pin'].contains(key.toLowerCase()))) {
+      throw ArgumentError('Credentials must never enter a saved operation.');
+    }
     final selected = scope();
     if (selected == null) throw const AuthException('Select a branch first.');
     final next = _tail.then((_) async {
@@ -102,28 +105,29 @@ class OperationsRepository {
               'fingerprint': fingerprint,
               'rejected': false,
             };
-      return _send(operation, selected);
+      return _send(operation, selected, managerPin: managerPin);
     });
     _tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return next;
   }
 
-  Future<dynamic> retry(Map<String, dynamic> operation) {
+  Future<dynamic> retry(Map<String, dynamic> operation, {String? managerPin}) {
     final selected = scope();
     if (selected == null ||
         selected.userId != operation['user_id'] ||
         selected.branchId != operation['branch_id']) {
       throw const AuthException('Request belongs to a different session.');
     }
-    final next = _tail.then((_) => _send(operation, selected));
+    final next = _tail.then((_) => _send(operation, selected, managerPin: managerPin));
     _tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return next;
   }
 
   Future<dynamic> _send(
     Map<String, dynamic> operation,
-    OperationsScope selected,
-  ) async {
+    OperationsScope selected, {
+    String? managerPin,
+  }) async {
     if (scope() != selected) throw const AuthException('Branch changed.');
     final key = '${_prefix(selected)}${operation['uuid']}';
     final previouslyUncertain =
@@ -133,6 +137,7 @@ class OperationsRepository {
     try {
       final response = await api.dio.post(
         operation['path'] as String,
+        options: Options(headers: {if (managerPin != null && managerPin.isNotEmpty) 'X-Manager-Pin': managerPin}),
         data: {
           ...Map<String, dynamic>.from(operation['payload'] as Map),
           'uuid': operation['uuid'],

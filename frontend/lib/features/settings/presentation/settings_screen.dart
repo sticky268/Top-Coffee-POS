@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/page_content.dart';
 import 'package:go_router/go_router.dart';
 import 'appearance_settings_card.dart';
+import 'manager_pin_settings_card.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: PageContent(
@@ -29,6 +34,8 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             const AppearanceSettingsCard(),
+            if (auth is AuthAuthenticated && auth.user.canApproveCheckout)
+              ManagerPinSettingsCard(key: ValueKey(auth.user.id), userId: auth.user.id),
             const SizedBox(height: 16),
             Card(
               child: RecordTile(

@@ -15,12 +15,13 @@ class User extends Authenticatable
 
     protected $fillable = ['business_id', 'name', 'email', 'phone', 'password', 'is_active'];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'manager_pin_hash', 'manager_pin_failures', 'manager_pin_locked_until'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
         'password' => 'hashed',
+        'manager_pin_locked_until' => 'datetime',
     ];
 
     public function business() {

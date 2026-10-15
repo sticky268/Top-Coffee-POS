@@ -60,7 +60,7 @@ abstract class PosRepository {
     int? branchId,
   });
 
-  Future<void> cancelHeldOrder({required int orderId});
+  Future<void> cancelHeldOrder({required int orderId, String? managerPin});
 
   Future<OrderConfirmation> payHeldOrder({
     required int orderId,
@@ -395,8 +395,12 @@ class ApiPosRepository implements PosRepository {
   }
 
   @override
-  Future<void> cancelHeldOrder({required int orderId}) async {
-    await _apiClient.request((dio) => dio.post('/orders/$orderId/cancel'));
+  Future<void> cancelHeldOrder({required int orderId, String? managerPin}) async {
+    final userId = _userId?.call();
+    await _apiClient.request((dio) => dio.post('/orders/$orderId/cancel',
+      data: {if (userId != null) 'expected_user_id': userId},
+      options: Options(headers: {if (managerPin != null && managerPin.isNotEmpty) 'X-Manager-Pin': managerPin}),
+    ));
   }
 
   @override

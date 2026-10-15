@@ -33,6 +33,7 @@ class _Memory extends LocalStore {
 
 class _Adapter implements HttpClientAdapter {
   final List<Map<String, dynamic>> requests = [];
+  final List<Map<String, dynamic>> headers = [];
   int status = 200;
   bool timeout = false;
   @override
@@ -42,6 +43,7 @@ class _Adapter implements HttpClientAdapter {
     Future<void>? cancel,
   ) async {
     requests.add(Map<String, dynamic>.from(options.data as Map));
+    headers.add(Map<String, dynamic>.from(options.headers));
     if (timeout) {
       throw DioException(
         requestOptions: options,
@@ -86,6 +88,31 @@ void main() {
     dio.httpClientAdapter = adapter;
     when(() => api.dio).thenReturn(dio);
     repo = OperationsRepository(api, store, () => scope);
+  });
+
+  test('refund PIN stays in the transient header and retry needs a fresh PIN', () async {
+    adapter.timeout = true;
+    await expectLater(repo.write('/orders/7/refund', {'amount': 2, 'reason': 'Correction'}, managerPin: '836492'), throwsA(isA<NetworkException>()));
+    expect(adapter.headers.single['X-Manager-Pin'], '836492');
+    expect(jsonEncode(store.values), isNot(contains('836492')));
+    final saved = (await repo.pending()).single;
+    final uuid = saved['uuid'];
+    final restarted = OperationsRepository(api, store, () => scope);
+    adapter.status = 422;
+    adapter.timeout = false;
+    await expectLater(restarted.retry(saved), throwsA(isA<UncertainOperationException>()));
+    expect(adapter.headers.last.containsKey('X-Manager-Pin'), isFalse);
+    adapter.status = 200;
+    await restarted.retry((await restarted.pending()).single, managerPin: '749281');
+    expect(adapter.headers.last['X-Manager-Pin'], '749281');
+    expect(adapter.requests.map((p) => p['uuid']), everyElement(uuid));
+    expect(await restarted.pending(), isEmpty);
+  });
+
+  test('credentials cannot enter the saved operation payload', () {
+    expect(() => repo.write('/orders/7/refund', {'amount': 2, 'pin': '836492'}), throwsArgumentError);
+    expect(store.values, isEmpty);
+    expect(adapter.requests, isEmpty);
   });
 
   test(
