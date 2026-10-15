@@ -244,16 +244,13 @@ void main() {
 
     Future<void> cancel(String pin, {bool editor = false}) async {
       final before = cancelStatuses.length;
-      final anchor = editor
-          ? find.text('Cancel Order').last
+      final control = editor
+          ? find.text('Cancel Order')
           : find.byTooltip('Cancel order');
-      await waitFor(tester, anchor);
+      await waitFor(tester, control);
+      final anchor = control.last;
       ScaffoldMessenger.of(tester.element(anchor)).clearSnackBars();
-      await _tap(
-          tester,
-          editor
-              ? find.text('Cancel Order').last
-              : find.byTooltip('Cancel order'));
+      await _tap(tester, anchor);
       await waitFor(tester, find.text('Cancel Order?'));
       await _tap(tester, find.text('Cancel Order').last);
       await _approve(tester, pin);
