@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -140,4 +141,109 @@ void main() {
       });
     },
   );
+  testWidgets('native Android receipt reaches a simulated TCP printer intact', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      // Loopback is deliberate: this test cannot contact a shop printer.
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 9100);
+      final received = BytesBuilder(copy: false);
+      final finished = Completer<void>();
+      Socket? peer;
+      var connections = 0;
+      final accepting = server.listen((socket) {
+        connections++;
+        peer = socket;
+        socket.listen(
+          received.add,
+          onDone: () {
+            if (!finished.isCompleted) finished.complete();
+          },
+          onError: (Object error, StackTrace stack) {
+            if (!finished.isCompleted) finished.completeError(error, stack);
+          },
+        );
+      });
+      final printer = PrinterService();
+      try {
+        await printer.connect('127.0.0.1');
+        await printer.sendPayload({
+          'businessName': 'SYNTHETIC PRINTER TEST',
+          'documentTitle': 'COPY - TEST ONLY',
+          'branchName': 'Emulator loopback',
+          'orderNumber': 'FIXTURE-ONLY',
+          'cashierName': 'Automated test',
+          'orderType': 'takeaway',
+          'subtotal': '140.00',
+          'discount': '0.00',
+          'total': '140.00',
+          'paymentMethod': 'cash',
+          'tendered': '150.00',
+          'changeDue': '10.00',
+          'footer': 'END OF SYNTHETIC RECEIPT',
+          'items': List.generate(40, (index) => {
+            'name': 'Coffee ${index + 1} កាហ្វេ',
+            'quantity': 1,
+            'unitPrice': '3.50',
+            'lineTotal': '3.50',
+          }),
+        });
+        await printer.disconnect();
+        await finished.future.timeout(const Duration(seconds: 10));
+        expect(connections, 1);
+        final bytes = received.takeBytes();
+        expect(bytes.take(2), [27, 64]);
+        var cursor = 2;
+        var rows = 0;
+        var bands = 0;
+        var cuts = 0;
+        final ink = <int>[];
+        while (cursor < bytes.length) {
+          if (bytes[cursor] == 27 &&
+              cursor + 3 <= bytes.length &&
+              bytes[cursor + 1] == 97 && bytes[cursor + 2] == 0) {
+            cursor += 3; // SDK alignment before/after each raster band.
+          } else if (bytes[cursor] == 29 &&
+              cursor + 8 <= bytes.length &&
+              bytes[cursor + 1] == 118 && bytes[cursor + 2] == 48) {
+            expect(bytes[cursor + 3], 0);
+            final width = bytes[cursor + 4] + 256 * bytes[cursor + 5];
+            final height = bytes[cursor + 6] + 256 * bytes[cursor + 7];
+            expect(width, 72, reason: 'Receipt must retain its 576-dot width');
+            expect(height, inInclusiveRange(1, 24));
+            final end = cursor + 8 + width * height;
+            expect(end, lessThanOrEqualTo(bytes.length),
+                reason: 'Truncated raster payload');
+            ink.add(bytes.sublist(cursor + 8, end).where((b) => b != 0).length);
+            rows += height;
+            bands++;
+            cursor = end;
+          } else if (bytes[cursor] == 29 &&
+              cursor + 4 <= bytes.length &&
+              bytes[cursor + 1] == 86 && bytes[cursor + 2] == 66 &&
+              bytes[cursor + 3] == 1) {
+            cursor += 4;
+            cuts++;
+            expect(cursor, bytes.length, reason: 'Cut must be the final command');
+          } else {
+            fail('Unexpected or corrupt ESC/POS command at byte $cursor');
+          }
+        }
+        expect(rows, greaterThan(1600));
+        expect(bands, greaterThan(66));
+        expect(cuts, 1);
+        expect(ink.take(ink.length ~/ 2).any((count) => count > 0), isTrue);
+        expect(ink.skip(ink.length ~/ 2).any((count) => count > 0), isTrue);
+        debugPrint('PASS: native Android receipt: ${bytes.length} bytes, '
+            '$rows rows, $bands intact raster bands, one final cut; '
+            'no shop printer, payment or drawer command.');
+      } finally {
+        await printer.disconnect();
+        peer?.destroy();
+        await accepting.cancel();
+        await server.close();
+      }
+    });
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
 }

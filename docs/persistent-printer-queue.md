@@ -67,8 +67,13 @@ uncertain and cannot automatically replay the receipt or cut command.
 writer without hardware: exact byte ordering, chunk boundaries, short/failed
 writes, no replay or cut after failure, stalled-write cancellation and thread
 interruption. Android JVM tests additionally exercise the real bundled SDK's
-single/list dispatch through the checked subclass. Existing Flutter queue tests
-cover the resulting failed-before-send versus uncertain states.
+single/list dispatch through the checked subclass. The Android emulator also
+opens a synthetic TCP printer on its own loopback address, sends a long receipt
+through the real Dart/native bridge and SDK, and parses every raster header and
+payload through the final cut. It rejects truncated bands, unexpected commands,
+wrong widths and early/duplicate cuts. It cannot contact a shop printer or
+submit a payment. Existing Flutter queue tests cover the resulting
+failed-before-send versus uncertain states.
 
 Physical acceptance is still pending. The later Android-to-printer connection
 timeout can also be caused by the local network or printer connection limits;
