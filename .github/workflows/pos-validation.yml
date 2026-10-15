@@ -86,11 +86,9 @@ jobs:
       - name: Verify cashier source formatting
         run: |
           dart format --output=none --set-exit-if-changed lib/features/orders/presentation/orders_screen.dart lib/features/orders/presentation/widgets/order_list_tile.dart lib/features/pos/presentation/cash_drawer_button.dart lib/features/pos/presentation/pos_screen.dart lib/features/pos/presentation/widgets/cart_panel.dart lib/features/pos/presentation/widgets/category_selector.dart lib/features/pos/presentation/widgets/checkout_actions.dart lib/features/pos/presentation/widgets/phone_cart_bar.dart lib/features/pos/presentation/widgets/product_card.dart lib/features/pos/presentation/widgets/product_grid.dart lib/features/pos/presentation/widgets/product_search_field.dart test/presentation/checkout_polish_test.dart test/presentation/deep_cashier_polish_test.dart
-      - name: Prepare appearance source format review
+      - name: Verify appearance source formatting
         run: |
-          dart format lib/main.dart lib/app.dart lib/core/theme/theme_preference.dart lib/features/settings/presentation/settings_screen.dart lib/features/settings/presentation/appearance_settings_card.dart test/core/theme/theme_preference_test.dart test/presentation/appearance_settings_test.dart test/presentation/app_polish_test.dart
-          mkdir -p build/ui-polish
-          git diff -- lib test > build/ui-polish/appearance-source-format.patch
+          dart format --output=none --set-exit-if-changed lib/main.dart lib/app.dart lib/core/theme/theme_preference.dart lib/features/settings/presentation/settings_screen.dart lib/features/settings/presentation/appearance_settings_card.dart test/core/theme/theme_preference_test.dart test/presentation/appearance_settings_test.dart test/presentation/app_polish_test.dart
       - run: flutter analyze
       - run: flutter test
       - name: Verify checked native printer transport

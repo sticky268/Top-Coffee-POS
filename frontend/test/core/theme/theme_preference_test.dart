@@ -27,18 +27,25 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('saved appearance restores in a fresh store without clearing other preferences', () async {
+  test(
+      'saved appearance restores in a fresh store without clearing other preferences',
+      () async {
     SharedPreferences.setMockInitialValues({'receipt.setting': 'unchanged'});
     for (final mode in ThemeMode.values) {
       await ThemePreferenceStore().save(mode);
       expect(await ThemePreferenceStore().load(), mode);
-      expect((await SharedPreferences.getInstance()).getString('receipt.setting'), 'unchanged');
+      expect(
+          (await SharedPreferences.getInstance()).getString('receipt.setting'),
+          'unchanged');
     }
   });
 
   test('new and unrecognized preferences follow the device', () async {
     expect(await ThemePreferenceStore().load(), ThemeMode.system);
-    SharedPreferences.setMockInitialValues({ThemePreferenceStore.key: 'invalid'});
+    SharedPreferences.setMockInitialValues(
+        {ThemePreferenceStore.key: 'invalid'});
+    expect(await ThemePreferenceStore().load(), ThemeMode.system);
+    SharedPreferences.setMockInitialValues({ThemePreferenceStore.key: 42});
     expect(await ThemePreferenceStore().load(), ThemeMode.system);
   });
 
@@ -57,7 +64,8 @@ void main() {
     expect(controller.state.error, isNull);
   });
 
-  test('storage failure restores the previous choice with a retryable error', () async {
+  test('storage failure restores the previous choice with a retryable error',
+      () async {
     final store = ControlledThemeStore();
     final controller = ThemePreferenceController(store, ThemeMode.light);
     addTearDown(controller.dispose);
@@ -69,7 +77,9 @@ void main() {
     expect(controller.state.error, contains('try again'));
   });
 
-  testWidgets('app starts in the saved theme and switching preserves router and form state', (tester) async {
+  testWidgets(
+      'app starts in the saved theme and switching preserves router and form state',
+      (tester) async {
     final auth = AppearanceAuthRepository();
     when(() => auth.hasStoredToken()).thenAnswer((_) async => false);
     final container = ProviderContainer(overrides: [
@@ -78,35 +88,50 @@ void main() {
     ]);
     addTearDown(container.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
-      container: container, child: const TopCoffeeApp()));
-    expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode, ThemeMode.dark);
+        container: container, child: const TopCoffeeApp()));
+    expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+        ThemeMode.dark);
     await tester.pumpAndSettle();
-    expect(Theme.of(tester.element(find.byType(TextFormField).first)).brightness, Brightness.dark);
-    await tester.enterText(find.byType(TextFormField).first, 'cashier@example.invalid');
+    expect(
+        Theme.of(tester.element(find.byType(TextFormField).first)).brightness,
+        Brightness.dark);
+    await tester.enterText(
+        find.byType(TextFormField).first, 'cashier@example.invalid');
     final router = container.read(appRouterProvider);
-    await container.read(themePreferenceProvider.notifier).select(ThemeMode.light);
+    await container
+        .read(themePreferenceProvider.notifier)
+        .select(ThemeMode.light);
     await tester.pumpAndSettle();
-    expect(Theme.of(tester.element(find.byType(TextFormField).first)).brightness, Brightness.light);
+    expect(
+        Theme.of(tester.element(find.byType(TextFormField).first)).brightness,
+        Brightness.light);
     expect(find.text('cashier@example.invalid'), findsOneWidget);
     expect(identical(router, container.read(appRouterProvider)), isTrue);
     verify(() => auth.hasStoredToken()).called(1);
   });
 
-  testWidgets('system mode tracks device brightness while explicit mode stays fixed', (tester) async {
+  testWidgets(
+      'system mode tracks device brightness while explicit mode stays fixed',
+      (tester) async {
     final auth = AppearanceAuthRepository();
     when(() => auth.hasStoredToken()).thenAnswer((_) async => false);
-    final container = ProviderContainer(overrides: [authRepositoryProvider.overrideWithValue(auth)]);
+    final container = ProviderContainer(
+        overrides: [authRepositoryProvider.overrideWithValue(auth)]);
     addTearDown(container.dispose);
     addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
-    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const TopCoffeeApp()));
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container, child: const TopCoffeeApp()));
     await tester.pumpAndSettle();
-    Brightness current() => Theme.of(tester.element(find.byType(TextFormField).first)).brightness;
+    Brightness current() =>
+        Theme.of(tester.element(find.byType(TextFormField).first)).brightness;
     expect(current(), Brightness.light);
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     await tester.pumpAndSettle();
     expect(current(), Brightness.dark);
-    await container.read(themePreferenceProvider.notifier).select(ThemeMode.light);
+    await container
+        .read(themePreferenceProvider.notifier)
+        .select(ThemeMode.light);
     await tester.pumpAndSettle();
     expect(current(), Brightness.light);
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
@@ -114,7 +139,9 @@ void main() {
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     await tester.pumpAndSettle();
     expect(current(), Brightness.light);
-    await container.read(themePreferenceProvider.notifier).select(ThemeMode.system);
+    await container
+        .read(themePreferenceProvider.notifier)
+        .select(ThemeMode.system);
     await tester.pumpAndSettle();
     expect(current(), Brightness.dark);
   });

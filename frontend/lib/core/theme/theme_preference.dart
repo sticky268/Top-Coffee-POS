@@ -20,8 +20,8 @@ class ThemePreferenceStore {
   }
 
   Future<void> save(ThemeMode mode) async {
-    final saved = await (await SharedPreferences.getInstance())
-        .setString(key, mode.name);
+    final saved =
+        await (await SharedPreferences.getInstance()).setString(key, mode.name);
     if (!saved) throw StateError('Appearance preference was not saved.');
   }
 }

@@ -150,9 +150,8 @@ void main() {
           if (orders != null)
             ordersRepositoryProvider.overrideWithValue(orders),
           currentBranchProvider.overrideWith(
-            (ref) =>
-                CurrentBranchNotifier(ref, listenToAuth: false)
-                  ..selectBranch(branch),
+            (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
+              ..selectBranch(branch),
           ),
         ],
         child: MaterialApp(
@@ -331,25 +330,25 @@ void main() {
     ) async {
       return switch (call.positionalArguments.first) {
         '/ingredients' => [
-          {
-            'id': 11,
-            'name': 'Coffee Bean with a long supplier description',
-            'current_stock': 49.978,
-            'unit': {'abbreviation': 'kg'},
-          },
-        ],
+            {
+              'id': 11,
+              'name': 'Coffee Bean with a long supplier description',
+              'current_stock': 49.978,
+              'unit': {'abbreviation': 'kg'},
+            },
+          ],
         '/products/availability' => [
-          {
-            'name': 'Iced Caramel Coffee with Oat Milk',
-            'available_servings': 10,
-            'ingredient_cost': 1.2,
-          },
-        ],
+            {
+              'name': 'Iced Caramel Coffee with Oat Milk',
+              'available_servings': 10,
+              'ingredient_cost': 1.2,
+            },
+          ],
         '/reports/operations' => {
-          'gross_sales': 25,
-          'refunds': 5,
-          'net_sales': 20,
-        },
+            'gross_sales': 25,
+            'refunds': 5,
+            'net_sales': 20,
+          },
         _ => <Map<String, dynamic>>[],
       };
     });
