@@ -32,7 +32,9 @@ class AuthRepository {
   }) async {
     final revision = ++_revision;
     final deviceId = await _apiClient.deviceId();
-    if (revision != _revision) throw const AuthException('Sign-in was cancelled.');
+    if (revision != _revision) {
+      throw const AuthException('Sign-in was cancelled.');
+    }
     final response = await _apiClient.request(
       (dio) => dio.post('/auth/login', data: {
         'email': email,
@@ -47,7 +49,9 @@ class AuthRepository {
     );
 
     await _sessionWrite(() async {
-      if (revision != _revision) throw const AuthException('Sign-in was cancelled.');
+      if (revision != _revision) {
+        throw const AuthException('Sign-in was cancelled.');
+      }
       await _apiClient.saveToken(result.token);
       if (_sessionCache != null) {
         try {
@@ -72,7 +76,7 @@ class AuthRepository {
       final token = await _apiClient.readToken();
       if (token != null && revision == _revision) {
         await _apiClient.request((dio) => dio.post('/auth/logout',
-          options: Options(headers: {'Authorization': 'Bearer $token'})));
+            options: Options(headers: {'Authorization': 'Bearer $token'})));
       }
     } finally {
       await _sessionWrite(() async {
@@ -95,8 +99,7 @@ class AuthRepository {
       final json = response.data['data'] as Map<String, dynamic>;
       if (_sessionCache != null) {
         try {
-          await _sessionCache.save(json,
-              token: token);
+          await _sessionCache.save(json, token: token);
         } catch (_) {
           /* A valid server session does not depend on cached access. */
         }
@@ -104,9 +107,8 @@ class AuthRepository {
       return AuthenticatedUser.fromJson(json);
     } on NetworkException {
       if (revision != _revision) throw const AuthException('Session changed.');
-      final cached = _sessionCache == null
-          ? null
-          : await _sessionCache.read(token: token);
+      final cached =
+          _sessionCache == null ? null : await _sessionCache.read(token: token);
       if (cached != null) return AuthenticatedUser.fromJson(cached);
       rethrow;
     }

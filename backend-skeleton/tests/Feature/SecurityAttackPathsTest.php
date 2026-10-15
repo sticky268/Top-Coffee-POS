@@ -63,7 +63,7 @@ class SecurityAttackPathsTest extends TestCase
 
     public function test_tampered_expected_total_rolls_back_and_extra_client_prices_never_settle_the_sale(): void
     {
-        $this->bearer()->postJson('/api/v1/orders', $this->sale(['expected_total' => 0.01]))->assertUnprocessable();
+        $this->bearer()->postJson('/api/v1/orders', $this->sale(['expected_total' => 0.01]))->assertConflict();
         $this->assertDatabaseCount('orders', 0);
         $input = $this->sale(['total' => 0.01, 'subtotal' => 0.01, 'tax_total' => -100,
             'items' => [['product_id' => $this->product->id, 'quantity' => 1, 'unit_price' => 0.01]],
@@ -163,6 +163,32 @@ class SecurityAttackPathsTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
         $this->assertDatabaseCount('audit_logs', 10);
         $this->assertStringNotContainsString('wrong-secret', AuditLog::withoutGlobalScopes()->get()->toJson());
+    }
+
+    public function test_scoped_manager_cannot_change_a_shared_global_price_but_can_change_own_branch_override(): void
+    {
+        $this->product->branches()->attach($this->other, ['is_available' => true]);
+        $manager = User::factory()->create(['business_id' => $this->cashier->business_id]);
+        $manager->assignRole('manager'); $manager->branches()->attach($this->branch);
+        $token = $manager->createToken('scoped-manager')->plainTextToken;
+        $this->bearer($token)->patchJson('/api/v1/products/'.$this->product->id, ['base_price' => 0.01])->assertForbidden();
+        $this->assertDatabaseHas('products', ['id' => $this->product->id, 'base_price' => 10]);
+        $this->bearer($token)->patchJson('/api/v1/products/'.$this->product->id,
+            ['branches' => [['branch_id' => $this->branch->id, 'price_override' => 9]]])->assertOk();
+        $this->assertDatabaseHas('branch_product', ['product_id' => $this->product->id, 'branch_id' => $this->branch->id, 'price_override' => 9]);
+        $this->assertDatabaseHas('branch_product', ['product_id' => $this->product->id, 'branch_id' => $this->other->id, 'price_override' => null]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'product.updated', 'user_id' => $manager->id]);
+    }
+
+    public function test_price_audit_failure_rolls_back_the_catalog_mutation(): void
+    {
+        $admin = User::factory()->create(['business_id' => $this->cashier->business_id]);
+        $admin->assignRole('admin');
+        $audit = \Mockery::mock(\App\Services\AuditLogService::class);
+        $audit->shouldReceive('record')->once()->andThrow(new \RuntimeException('Audit unavailable'));
+        $this->app->instance(\App\Services\AuditLogService::class, $audit);
+        $this->bearer($admin->createToken('admin')->plainTextToken)->patchJson('/api/v1/products/'.$this->product->id, ['base_price' => 1])->assertServerError();
+        $this->assertDatabaseHas('products', ['id' => $this->product->id, 'base_price' => 10]);
     }
 
     public function test_audit_model_rejects_updates_and_deletion(): void

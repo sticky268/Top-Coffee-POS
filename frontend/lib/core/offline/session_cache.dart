@@ -35,7 +35,10 @@ class SessionCache {
       if (age.isNegative || age >= maxAge) return null;
       final user = Map<String, dynamic>.from(snapshot['user'] as Map);
       final expires = user['session_expires_at'];
-      if (expires != null && !_now().toUtc().isBefore(DateTime.parse(expires as String))) return null;
+      if (expires != null &&
+          !_now().toUtc().isBefore(DateTime.parse(expires as String))) {
+        return null;
+      }
       return user;
     } on FormatException {
       return null;

@@ -22,9 +22,11 @@ class JournalCipher {
       var encoded = await _storage.read(key: _keyName);
       if (encoded == null) {
         if (hasEncryptedRows) {
-          throw StateError('Offline data is locked. Its device key is unavailable. Do not clear app data.');
+          throw StateError(
+              'Offline data is locked. Its device key is unavailable. Do not clear app data.');
         }
-        encoded = base64Encode(await (await _algorithm.newSecretKey()).extractBytes());
+        encoded = base64Encode(
+            await (await _algorithm.newSecretKey()).extractBytes());
         await _storage.write(key: _keyName, value: encoded);
         if (await _storage.read(key: _keyName) != encoded) {
           throw StateError('Could not retain the offline data key.');
@@ -43,20 +45,24 @@ class JournalCipher {
   Future<String> seal(String row, String plaintext) async {
     final box = await _algorithm.encrypt(utf8.encode(plaintext),
         secretKey: _key!, aad: _context(row));
-    return prefix + jsonEncode({
-      'nonce': base64Encode(box.nonce),
-      'data': base64Encode(box.cipherText),
-      'mac': base64Encode(box.mac.bytes),
-    });
+    return prefix +
+        jsonEncode({
+          'nonce': base64Encode(box.nonce),
+          'data': base64Encode(box.cipherText),
+          'mac': base64Encode(box.mac.bytes),
+        });
   }
 
   Future<String> open(String row, String ciphertext) async {
-    if (!ciphertext.startsWith(prefix)) throw StateError('Offline record is not encrypted.');
-    final json = jsonDecode(ciphertext.substring(prefix.length)) as Map<String, dynamic>;
+    if (!ciphertext.startsWith(prefix)) {
+      throw StateError('Offline record is not encrypted.');
+    }
+    final json =
+        jsonDecode(ciphertext.substring(prefix.length)) as Map<String, dynamic>;
     final box = SecretBox(base64Decode(json['data'] as String),
         nonce: base64Decode(json['nonce'] as String),
         mac: Mac(base64Decode(json['mac'] as String)));
-    return utf8.decode(await _algorithm.decrypt(box,
-        secretKey: _key!, aad: _context(row)));
+    return utf8.decode(
+        await _algorithm.decrypt(box, secretKey: _key!, aad: _context(row)));
   }
 }

@@ -40,7 +40,8 @@ class ApiClient {
 
   Dio get dio => _dio;
 
-  Future<void> saveToken(String token) => _secureStorage.write(key: _tokenKey, value: token);
+  Future<void> saveToken(String token) =>
+      _secureStorage.write(key: _tokenKey, value: token);
   Future<void> clearToken() => _secureStorage.delete(key: _tokenKey);
   Future<String?> readToken() => _secureStorage.read(key: _tokenKey);
 

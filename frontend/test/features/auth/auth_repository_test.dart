@@ -15,7 +15,8 @@ void main() {
   setUp(() {
     apiClient = MockApiClient();
     repository = AuthRepository(apiClient);
-    when(() => apiClient.deviceId()).thenAnswer((_) async => '11111111-1111-4111-8111-111111111111');
+    when(() => apiClient.deviceId())
+        .thenAnswer((_) async => '11111111-1111-4111-8111-111111111111');
     when(() => apiClient.readToken()).thenAnswer((_) async => 'stored-token');
   });
 
@@ -24,23 +25,36 @@ void main() {
     var calls = 0;
     when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((_) {
       if (calls++ == 0) return response.future;
-      return Future.value(Response(data: {'success': true},
+      return Future.value(Response(
+          data: {'success': true},
           requestOptions: RequestOptions(path: '/auth/logout')));
     });
     when(() => apiClient.clearToken()).thenAnswer((_) async {});
-    final signingIn = repository.login(email: 'a@b.test', password: 'password', deviceName: 'test');
+    final signingIn = repository.login(
+        email: 'a@b.test', password: 'password', deviceName: 'test');
     await Future<void>.delayed(Duration.zero);
     await repository.logout();
-    response.complete(Response(requestOptions: RequestOptions(path: '/auth/login'), data: {
-      'data': {'token': 'late-token', 'user': {'id': 1, 'name': 'Old user',
-        'email': 'a@b.test', 'roles': ['cashier'], 'permissions': [], 'branches': []}}
+    response.complete(
+        Response(requestOptions: RequestOptions(path: '/auth/login'), data: {
+      'data': {
+        'token': 'late-token',
+        'user': {
+          'id': 1,
+          'name': 'Old user',
+          'email': 'a@b.test',
+          'roles': ['cashier'],
+          'permissions': [],
+          'branches': []
+        }
+      }
     }));
     await expectLater(signingIn, throwsA(isA<AuthException>()));
     verifyNever(() => apiClient.saveToken(any()));
   });
 
   group('login', () {
-    test('saves the Sanctum token and returns the parsed user on success', () async {
+    test('saves the Sanctum token and returns the parsed user on success',
+        () async {
       final responseData = {
         'success': true,
         'data': {
@@ -84,14 +98,16 @@ void main() {
           .thenThrow(const AuthException('Invalid credentials'));
 
       expect(
-        () => repository.login(email: 'a@b.com', password: 'wrong', deviceName: 'test'),
+        () => repository.login(
+            email: 'a@b.com', password: 'wrong', deviceName: 'test'),
         throwsA(isA<AuthException>()),
       );
     });
   });
 
   group('logout', () {
-    test('always clears the local token, even if the network call throws', () async {
+    test('always clears the local token, even if the network call throws',
+        () async {
       when(() => apiClient.request<Response<dynamic>>(any()))
           .thenThrow(const NetworkException());
       when(() => apiClient.clearToken()).thenAnswer((_) async {});

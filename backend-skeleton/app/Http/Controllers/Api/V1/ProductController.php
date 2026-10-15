@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\AuditLogService;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -239,6 +240,8 @@ class ProductController extends Controller
                 ]);
             }
 
+            app(AuditLogService::class)->record($request, 'product.created', $product, null,
+                $this->auditSnapshot($product, $branchesInput));
             return $product;
         });
 
@@ -318,6 +321,7 @@ class ProductController extends Controller
         $user = $request->user();
         $branchesInput = $request->input('branches');
 
+
         if ($branchesInput !== null && ! $user->can('branches.view-all')) {
             $allowedBranchIds = $user->branches()->pluck('branches.id')->all();
             foreach ($branchesInput as $branchInput) {
@@ -331,6 +335,9 @@ class ProductController extends Controller
         }
 
         DB::transaction(function () use ($request, $product, $branchesInput) {
+            $product = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
+            $this->authorizeCatalogChange($request, $product);
+            $old = $this->auditSnapshot($product, $branchesInput ?? []);
             $product->fill($request->only(['category_id', 'name', 'sku', 'description', 'base_price']));
             if ($request->has('is_active')) {
                 $product->is_active = $request->boolean('is_active');
@@ -399,6 +406,8 @@ class ProductController extends Controller
                     }
                 }
             }
+            app(AuditLogService::class)->record($request, 'product.updated', $product, $old,
+                $this->auditSnapshot($product, $branchesInput ?? []));
         });
 
         return response()->json([
@@ -417,6 +426,33 @@ class ProductController extends Controller
      * assignments, since this is a management/edit response, not the
      * filtered customer-facing catalog.
      */
+    private function authorizeCatalogChange(Request $request, Product $product): void
+    {
+        $user = $request->user();
+        if (! $user->can('branches.view-all')) {
+            $allowed = $user->branches()->pluck('branches.id')->all();
+            abort_unless($product->branches()->whereIn('branches.id', $allowed)->exists()
+                || in_array((int) $product->category?->branch_id, $allowed, true), 403, 'Product branch access denied.');
+            $changed = clone $product;
+            $changed->fill($request->only(['category_id', 'name', 'sku', 'description', 'base_price', 'is_active']));
+            if ($product->branches()->whereNotIn('branches.id', $allowed)->exists()) {
+                abort_if($changed->isDirty() || $request->hasFile('image') || $request->has('variants'), 403,
+                    'An administrator must change shared catalog details. You may update this branch price and availability.');
+            }
+        }
+
+    }
+
+    private function auditSnapshot(Product $product, array $branches): array
+    {
+        return $product->only(['name', 'base_price', 'is_active']) + [
+            'variants' => $product->variants()->get(['id', 'name', 'price_delta', 'is_active'])->toArray(),
+            'branches' => $product->branches()->whereIn('branches.id', array_column($branches, 'branch_id'))
+                ->get(['branches.id'])->map(fn ($branch) => ['branch_id' => $branch->id,
+                    'price_override' => $branch->pivot->price_override, 'is_available' => $branch->pivot->is_available])->toArray(),
+        ];
+    }
+
     private function present(Product $product): array
     {
         $product->loadMissing(['category:id,name', 'variants', 'branches', 'images']);

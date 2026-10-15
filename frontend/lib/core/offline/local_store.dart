@@ -26,9 +26,12 @@ class SqliteLocalStore implements LocalStore {
       'CREATE TABLE IF NOT EXISTS offline_entries '
       '(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)',
     );
-    final rows = await database.customSelect('SELECT key, value FROM offline_entries').get();
-    await _cipher.initialize(hasEncryptedRows: rows.any(
-        (row) => row.read<String>('value').startsWith(JournalCipher.prefix)));
+    final rows = await database
+        .customSelect('SELECT key, value FROM offline_entries')
+        .get();
+    await _cipher.initialize(
+        hasEncryptedRows: rows.any((row) =>
+            row.read<String>('value').startsWith(JournalCipher.prefix)));
     // Verify existing ciphertext before migrating any legacy record. Failure
     // preserves every row; never interpret corruption as an empty queue.
     for (final row in rows) {
@@ -36,13 +39,16 @@ class SqliteLocalStore implements LocalStore {
         await _cipher.open(row.read<String>('key'), row.read<String>('value'));
       }
     }
-    final legacy = rows.where((row) =>
-        !row.read<String>('value').startsWith(JournalCipher.prefix)).toList();
+    final legacy = rows
+        .where((row) =>
+            !row.read<String>('value').startsWith(JournalCipher.prefix))
+        .toList();
     if (legacy.isEmpty) return;
     await database.transaction(() async {
       for (final row in legacy) {
         final key = row.read<String>('key');
-        await database.customStatement('UPDATE offline_entries SET value = ? WHERE key = ?',
+        await database.customStatement(
+            'UPDATE offline_entries SET value = ? WHERE key = ?',
             [await _cipher.seal(key, row.read<String>('value')), key]);
       }
     });
@@ -53,13 +59,13 @@ class SqliteLocalStore implements LocalStore {
   @override
   Future<String?> read(String key) async {
     await _initialize();
-    final rows = await database
-        .customSelect(
-          'SELECT value FROM offline_entries WHERE key = ?',
-          variables: [Variable.withString(key)],
-        )
-        .get();
-    return rows.isEmpty ? null : await _cipher.open(key, rows.single.read<String>('value'));
+    final rows = await database.customSelect(
+      'SELECT value FROM offline_entries WHERE key = ?',
+      variables: [Variable.withString(key)],
+    ).get();
+    return rows.isEmpty
+        ? null
+        : await _cipher.open(key, rows.single.read<String>('value'));
   }
 
   @override
@@ -83,19 +89,19 @@ class SqliteLocalStore implements LocalStore {
   @override
   Future<Map<String, String>> entries(String prefix) async {
     await _initialize();
-    final rows = await database
-        .customSelect(
-          'SELECT key, value FROM offline_entries WHERE substr(key, 1, ?) = ?',
-          variables: [
-            Variable.withInt(prefix.length),
-            Variable.withString(prefix),
-          ],
-        )
-        .get();
+    final rows = await database.customSelect(
+      'SELECT key, value FROM offline_entries WHERE substr(key, 1, ?) = ?',
+      variables: [
+        Variable.withInt(prefix.length),
+        Variable.withString(prefix),
+      ],
+    ).get();
     final result = <String, String>{};
     for (final row in rows) {
       final key = row.read<String>('key');
-      if (key.startsWith(prefix)) result[key] = await _cipher.open(key, row.read<String>('value'));
+      if (key.startsWith(prefix)) {
+        result[key] = await _cipher.open(key, row.read<String>('value'));
+      }
     }
     return result;
   }
