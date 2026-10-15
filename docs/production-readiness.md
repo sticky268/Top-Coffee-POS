@@ -1,6 +1,24 @@
 # Production release and recovery
 
-## Current laptop acceptance
+## Current candidate status — 15 October 2026
+
+PR #11 remains draft and unmerged. The reviewed baseline `99f4563` passed
+backend/MySQL checks, Flutter analysis/tests, native transport checks, Android
+builds and emulator workflows. The native printer capture received 312,126
+bytes as 180 valid raster bands with one final cut. It used emulator loopback;
+it does not certify physical paper output, Khmer readability or drawer motion.
+
+The release-readiness follow-up tightens the read-only HTTPS URL and MySQL
+storage-engine checks. Final validation is recorded in PR #11's checks. See
+[release-readiness review and handoff](release-readiness-review.md) for verified
+fixes, evidence boundaries and the remaining environment/device work.
+
+Production is not ready for cutover: the target host/API URL, permanent signing
+identity, target-environment migration/restore evidence, monitoring delivery and
+current physical-device acceptance remain pending. These require actual owner
+or operator choices and access; no values are inferred from the rehearsal.
+
+## Historical laptop acceptance — candidate f049472
 
 Code candidate `f049472` passed 302 backend tests, 235 Flutter tests, analysis, Android debug build and both GitHub CI jobs. Network printing to the physical XP-N160II was verified through the Android emulator and confirmed on paper. Native offline save/force-stop/session recovery, cashier/branch isolation and one replay passed using a simulated API with no real sales. The local MySQL backup/restore rehearsal compared all 49 tables and 986 rows, passed staging migrations, and confirmed the source was unchanged. The isolated staging database and private backup were retained.
 
@@ -18,7 +36,7 @@ Build with `FLAVOR=prod` and the selected HTTPS `API_BASE_URL` ending in `/api/v
 
 Use PHP 8.2 or a compatible supported version, Composer dependencies from the committed lockfile, and MySQL/MariaDB or PostgreSQL with transactions and row locking. Serve Laravel from `backend-skeleton/public`, never from the repository root. Configure `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL` as HTTPS, a persistent cache, the intended database, and an existing application key. Preserve that key between releases; generating a new key is not a routine deployment step. Do not seed demo accounts in production. Create business, subscription, branches and authorized staff deliberately.
 
-Use `php artisan pos:production-check --json` to inspect environment, debug/key/URL configuration, database type, migration status and KDS cleanup. This command reads configuration/schema only; it does not migrate, seed or change production data. It must return exit code 0 before declaring the server ready. It does not certify HTTPS termination, backups, credentials, printer operation or payment-terminal integration.
+Use `php artisan pos:production-check --json` to inspect environment, debug/key/URL configuration, database type, migration status and KDS cleanup. The URL must be usable HTTPS without embedded credentials, query or fragment; loopback, localhost and the emulator host are rejected. MySQL/MariaDB application databases must use InnoDB for every base table; selecting the driver alone does not prove transactional storage. Views are excluded. This command reads configuration/schema only; it does not migrate, seed, convert tables or change production data. It must return exit code 0 before declaring the server ready. It does not certify DNS, HTTPS termination, backups, credentials, printer operation or payment-terminal integration.
 
 ## Database rehearsal
 
@@ -60,7 +78,7 @@ See [system-wide engineering review](system-wide-engineering-review.md) for the 
 
 ## Current improvement batch (15 October 2026)
 
-Production hosting has not been configured. Device and printer testing is paused at the owner's request; automated validation may continue. This section is a preparation and evidence checklist, not deployment approval or a claim that an environment is ready.
+Production hosting has not been configured. The owner is currently away from the PC/printer; automated validation may continue. This section is a preparation and evidence checklist, not deployment approval or a claim that an environment is ready.
 
 Owner-confirmed historical hardware acceptance on USB Test 120.1 covers manual drawer opening, automatic opening after a completed cash sale, and receipt reprinting without reopening the drawer. That evidence does not certify later checkout changes, the new manual-opening reason dialog, or drawer audit synchronization. The two receipt-choice buttons and the current UI changes still need acceptance when the owner resumes testing.
 

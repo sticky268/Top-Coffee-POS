@@ -56,7 +56,7 @@ jobs:
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit --filter CafeOperationsTest
       - name: Verify real MySQL contention and populated migration
-        run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest'
+        run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
         run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest'
       - name: Verify private MySQL backup and isolated restore
@@ -168,8 +168,9 @@ jobs:
               f'Application ID: {expected_id}; does not replace any earlier test or POS app.\n'
               'API: http://127.0.0.1:8001/api/v1 through adb reverse tcp:8001 tcp:8001.\n'
               'Keep USB connected. Use the rehearsal server/account.\n'
-              'Configure the selected branch receipt printer, then tap Open cash drawer once.\n'
-              'Observe the physical drawer; app feedback confirms command submission only.\n'
+              'Configure the selected branch receipt printer.\n'
+              'Use Reprint COPY on an existing paid order; inspect English/Khmer, totals and cutting.\n'
+              'Simulated-printer checks do not certify physical paper output. Do not create another sale for this test.\n'
               'Do not uninstall the existing POS app or create test sales in production.\n')
           print('PASS: isolated USB test application ID and visible label verified.')
           PY

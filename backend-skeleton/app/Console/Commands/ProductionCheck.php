@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\ProductionReadiness;
 use Illuminate\Console\Command;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\DB;
@@ -16,13 +17,14 @@ class ProductionCheck extends Command
 
     public function handle(): int
     {
+        $readiness = app(ProductionReadiness::class);
         $key = (string) config('app.key');
         if (str_starts_with($key, 'base64:')) $key = base64_decode(substr($key, 7), true) ?: '';
         $checks = [
             'production_environment' => config('app.env') === 'production',
             'debug_disabled' => config('app.debug') === false,
             'application_key_valid' => Encrypter::supported($key, config('app.cipher')),
-            'https_application_url' => parse_url(config('app.url'), PHP_URL_SCHEME) === 'https',
+            'https_application_url' => $readiness->hasUsableHttpsUrl((string) config('app.url')),
             'bounded_token_lifetime' => is_numeric(config('sanctum.expiration')) && (int) config('sanctum.expiration') > 0,
             'persistent_cache' => ! in_array(config('cache.default'), ['array', 'null'], true),
         ];
@@ -34,7 +36,7 @@ class ProductionCheck extends Command
         }
         try {
             DB::select('SELECT 1');
-            $checks['transactional_database'] = in_array(DB::connection()->getDriverName(), ['mysql', 'pgsql'], true);
+            $checks['transactional_database'] = $readiness->hasTransactionalTables(DB::connection());
             $ran = Schema::hasTable('migrations') ? DB::table('migrations')->pluck('migration')->all() : [];
             $required = array_map(fn ($path) => basename($path, '.php'), glob(database_path('migrations/*.php')) ?: []);
             $checks['migrations_current'] = count(array_diff($required, $ran)) === 0;
