@@ -426,6 +426,18 @@ class UserController extends Controller
         ]);
     }
 
+    public function revokeSessions(Request $request, User $user)
+    {
+        abort_unless($request->user()->can('users.manage')
+            && $this->canManageUser($request->user(), $user), 403, 'User access denied.');
+        DB::transaction(function () use ($request, $user) {
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            app(AuditLogService::class)->record($request, 'user.sessions_revoked', $user);
+            $user->tokens()->delete();
+        });
+        return ['success' => true];
+    }
+
     private function userData(User $user): array
     {
         return [

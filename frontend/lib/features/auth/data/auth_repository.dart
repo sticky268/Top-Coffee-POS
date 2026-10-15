@@ -31,11 +31,14 @@ class AuthRepository {
     required String deviceName,
   }) async {
     final revision = ++_revision;
+    final deviceId = await _apiClient.deviceId();
+    if (revision != _revision) throw const AuthException('Sign-in was cancelled.');
     final response = await _apiClient.request(
       (dio) => dio.post('/auth/login', data: {
         'email': email,
         'password': password,
         'device_name': deviceName,
+        'device_id': deviceId,
       }),
     );
 

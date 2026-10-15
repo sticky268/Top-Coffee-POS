@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:uuid/uuid.dart';
 
 import '../config/env.dart';
 import 'api_exceptions.dart';
@@ -12,6 +13,7 @@ class ApiClient {
       : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
         _dio = Dio(BaseOptions(
           baseUrl: Env.apiBaseUrl,
+          followRedirects: false,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 15),
           headers: {'Accept': 'application/json'},
@@ -41,6 +43,15 @@ class ApiClient {
   Future<void> saveToken(String token) => _secureStorage.write(key: _tokenKey, value: token);
   Future<void> clearToken() => _secureStorage.delete(key: _tokenKey);
   Future<String?> readToken() => _secureStorage.read(key: _tokenKey);
+
+  Future<String> deviceId() async {
+    const key = 'pos_device_id';
+    final previous = await _secureStorage.read(key: key);
+    if (previous != null) return previous;
+    final id = const Uuid().v4();
+    await _secureStorage.write(key: key, value: id);
+    return id;
+  }
 
   /// Wraps a Dio call, converting DioException into a typed ApiException.
   Future<T> request<T>(Future<T> Function(Dio dio) call) async {

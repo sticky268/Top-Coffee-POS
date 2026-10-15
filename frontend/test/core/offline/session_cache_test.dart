@@ -28,6 +28,10 @@ void main() {
     expect(await cache.read(token: 'session-one'), isNull);
     now = now.add(const Duration(hours: 8, minutes: 1));
     expect(await cache.read(token: 'session-one'), isNull);
+    now = DateTime.utc(2026, 10, 8, 1);
+    await cache.save({'id': 1, 'session_expires_at': now.add(const Duration(minutes: 1)).toIso8601String()}, token: 'short-session');
+    now = now.add(const Duration(minutes: 2));
+    expect(await cache.read(token: 'short-session'), isNull);
     await cache.clear();
     expect(value, isNull);
   });

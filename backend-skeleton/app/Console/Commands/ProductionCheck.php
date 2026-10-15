@@ -25,7 +25,9 @@ class ProductionCheck extends Command
             'debug_disabled' => config('app.debug') === false,
             'application_key_valid' => Encrypter::supported($key, config('app.cipher')),
             'https_application_url' => $readiness->hasUsableHttpsUrl((string) config('app.url')),
-            'bounded_token_lifetime' => is_numeric(config('sanctum.expiration')) && (int) config('sanctum.expiration') > 0,
+            'bounded_token_lifetime' => is_numeric(config('sanctum.expiration')) && (int) config('sanctum.expiration') > 0 && (int) config('sanctum.expiration') <= 720,
+            'dedicated_database_user' => ! in_array(strtolower((string) config('database.connections.'.config('database.default').'.username')), ['', 'root'], true),
+            'database_password_configured' => filled(config('database.connections.'.config('database.default').'.password')),
             'persistent_cache' => ! in_array(config('cache.default'), ['array', 'null'], true),
         ];
         try {
@@ -41,7 +43,7 @@ class ProductionCheck extends Command
             $required = array_map(fn ($path) => basename($path, '.php'), glob(database_path('migrations/*.php')) ?: []);
             $checks['migrations_current'] = count(array_diff($required, $ran)) === 0;
             $checks['checkout_controls_enabled'] = ! \App\Models\Business::where('is_active', true)->where(function ($query) {
-                $query->where('require_cash_shift', false)->orWhere('require_manager_controls', false);
+                $query->where('require_cash_shift', false)->orWhere('require_manager_controls', false)->orWhere('manager_discount_percent', '>', 0);
             })->exists();
             $ledger = DB::table('stock_movements')->selectRaw('ingredient_id, SUM(quantity) as ledger_stock')->groupBy('ingredient_id');
             $checks['stock_cache_matches_ledger'] = ! DB::table('ingredients')

@@ -15,6 +15,7 @@ void main() {
   setUp(() {
     apiClient = MockApiClient();
     repository = AuthRepository(apiClient);
+    when(() => apiClient.deviceId()).thenAnswer((_) async => '11111111-1111-4111-8111-111111111111');
     when(() => apiClient.readToken()).thenAnswer((_) async => 'stored-token');
   });
 
@@ -28,6 +29,7 @@ void main() {
     });
     when(() => apiClient.clearToken()).thenAnswer((_) async {});
     final signingIn = repository.login(email: 'a@b.test', password: 'password', deviceName: 'test');
+    await Future<void>.delayed(Duration.zero);
     await repository.logout();
     response.complete(Response(requestOptions: RequestOptions(path: '/auth/login'), data: {
       'data': {'token': 'late-token', 'user': {'id': 1, 'name': 'Old user',

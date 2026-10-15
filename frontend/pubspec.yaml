@@ -37,6 +37,7 @@ dependencies:
   connectivity_plus: ^6.0.3
 
   # Utilities
+  cryptography: ^2.9.0
   uuid: ^4.4.0
   intl: ^0.19.0
   equatable: ^2.0.5

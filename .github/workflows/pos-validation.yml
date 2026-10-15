@@ -21,6 +21,17 @@ jobs:
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Audit locked Composer dependencies
+        run: |
+          mkdir -p build/security
+          composer --no-interaction audit --locked --format=json > build/security/composer-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-security-audit
+          path: backend-skeleton/build/security/*
+          if-no-files-found: ignore
+          retention-days: 7
   operations-mysql:
     runs-on: ubuntu-latest
     services:
@@ -58,7 +69,7 @@ jobs:
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
-        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest'
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest'
       - name: Verify private MySQL backup and isolated restore
         run: bash tools/test_mysql_backup.sh
   flutter:
@@ -89,6 +100,20 @@ jobs:
       - name: Verify appearance source formatting
         run: |
           dart format --output=none --set-exit-if-changed lib/main.dart lib/app.dart lib/core/theme/theme_preference.dart lib/features/settings/presentation/settings_screen.dart lib/features/settings/presentation/appearance_settings_card.dart test/core/theme/theme_preference_test.dart test/presentation/appearance_settings_test.dart test/presentation/app_polish_test.dart
+      - name: Prepare security source format review and dependency inventory
+        run: |
+          dart format lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
+          mkdir -p build/ui-polish build/security
+          git diff -- lib test > build/ui-polish/security-source-format.patch
+          dart pub outdated --json > build/security/pub-outdated.json
+          dart pub deps --json > build/security/pub-dependencies.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flutter-security-inventory
+          path: frontend/build/security/*
+          if-no-files-found: ignore
+          retention-days: 7
       - run: flutter analyze
       - run: flutter test
       - name: Verify checked native printer transport

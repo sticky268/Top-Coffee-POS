@@ -25,10 +25,17 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     Route::post('/auth/login', [AuthController::class, 'login'])
-        ->middleware('throttle:10,1');
+        ->middleware('throttle:pos-login');
+
+    // Losing subscription write access must never prevent session revocation.
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+        Route::get('/auth/sessions', [AuthController::class, 'sessions']);
+        Route::delete('/auth/sessions/{session}', [AuthController::class, 'revokeSession'])->whereNumber('session');
+        Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
+    });
 
     Route::middleware(['auth:sanctum', 'subscription.active'])->group(function () {
-        Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/cash-drawer-events', [\App\Http\Controllers\Api\V1\CashDrawerEventController::class, 'store'])->middleware('throttle:120,1');
         Route::get('/shifts', [\App\Http\Controllers\Api\V1\ShiftController::class, 'index']);
@@ -69,6 +76,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
         Route::get('/users/{user}', [UserController::class, 'show']);
+        Route::post('/users/{user}/revoke-sessions', [UserController::class, 'revokeSessions'])->middleware('throttle:20,1');
         Route::patch('/users/{user}', [UserController::class, 'update']);
         Route::delete('/users/{user}', [UserController::class, 'destroy']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
