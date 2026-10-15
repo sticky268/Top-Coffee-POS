@@ -324,11 +324,6 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
                 ? 'No unreviewed cash differences in these shifts.'
                 : 'No shifts for this branch yet.'),
           ),
-        if (false)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('No shifts for this branch yet.'),
-          ),
       ],
     );
   }
