@@ -15,7 +15,9 @@ class ShiftController extends Controller
     public function index(Request $request, OperationService $ops, ShiftService $service)
     {
         $branch = $ops->branch($request, $request->user()->can('orders.create') ? 'orders.create' : ($request->user()->can('orders.refund') ? 'orders.refund' : 'reports.view'));
+        $request->validate(['shift_id' => 'nullable|integer|min:1']);
         $query = CashierShift::with('cashier')->where('branch_id', $branch);
+        if ($request->filled('shift_id')) $query->whereKey($request->integer('shift_id'));
         if (! $request->user()->can('reports.view')) $query->where('user_id', $request->user()->id);
         return ['success' => true, 'data' => $query->orderByDesc('id')->limit(50)->get()->map(fn ($s) => $service->summary($s))];
     }

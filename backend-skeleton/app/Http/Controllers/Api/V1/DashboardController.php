@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
 use App\Models\Order;
 use App\Models\Branch;
+use App\Models\CashierShift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -145,6 +146,19 @@ class DashboardController extends Controller
             })
             ->values();
 
+        // Cash exceptions are authoritative server records, not device queue
+        // counts. Only managers with reports permission and a selected branch
+        // receive this data; never summarize another branch in an alert.
+        $cashDifferenceCount = 0;
+        $cashDifferenceShiftId = null;
+        if ($branchId !== null && $user->can('reports.view')) {
+            $exceptions = CashierShift::where('branch_id', $branchId)->where('status', 'closed')
+                ->whereNull('reviewed_at')->where('difference', '!=', 0);
+            $cashDifferenceCount = (clone $exceptions)->count();
+            $cashDifferenceShiftId = (clone $exceptions)->orderByDesc('closed_at')
+                ->orderByDesc('id')->value('id');
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -153,6 +167,8 @@ class DashboardController extends Controller
                     'todays_orders' => $todaysOrderCount,
                     'average_order_value' => $averageOrderValue,
                     'low_stock_item_count' => $lowStockItemCount,
+                    'cash_discrepancy_count' => $cashDifferenceCount,
+                    'cash_discrepancy_shift_id' => $cashDifferenceShiftId,
                 ],
                 'recent_orders' => $recentOrders,
                 'sales_overview' => $salesOverview,
