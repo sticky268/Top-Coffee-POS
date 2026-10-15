@@ -66,11 +66,11 @@ void main() {
         '5',
       );
       await tester.scrollUntilVisible(
-        find.text('Confirm & Pay'),
+        find.text('Complete Sale'),
         200,
         scrollable: find.byType(Scrollable).last,
       );
-      await tester.tap(find.text('Confirm & Pay'));
+      await tester.tap(find.text('Complete Sale'));
       await waitFor(tester, find.text('Payment Successful'));
       await tester.ensureVisible(find.text('Back to Dashboard'));
       await tester.tap(find.text('Back to Dashboard'));
