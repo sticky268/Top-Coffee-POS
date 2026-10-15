@@ -40,7 +40,8 @@ Future<void> _fill(WidgetTester tester, String label, String value) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
-Future<void> _login(WidgetTester tester, ProviderContainer container, String email) async {
+Future<void> _login(
+    WidgetTester tester, ProviderContainer container, String email) async {
   await container.read(authControllerProvider.notifier).logout();
   await waitFor(tester, find.widgetWithText(TextFormField, 'Email'));
   await _fill(tester, 'Email', email);
@@ -56,7 +57,8 @@ Future<void> _login(WidgetTester tester, ProviderContainer container, String ema
   fail('Synthetic manager login/branch initialization did not complete.');
 }
 
-Future<void> _enroll(WidgetTester tester, ProviderContainer container, {bool wrongPasswordFirst = false}) async {
+Future<void> _enroll(WidgetTester tester, ProviderContainer container,
+    {bool wrongPasswordFirst = false}) async {
   container.read(appRouterProvider).go('/settings');
   await waitFor(tester, find.text('Save manager PIN'));
   Future<void> submit(String password) async {
@@ -65,16 +67,30 @@ Future<void> _enroll(WidgetTester tester, ProviderContainer container, {bool wro
     await _fill(tester, 'Confirm manager PIN', _pin);
     await _tap(tester, find.text('Save manager PIN'));
   }
+
   if (wrongPasswordFirst) {
     await submit('wrong-disposable-password');
     await waitFor(tester, find.text('Manager verification failed.'));
   }
   await submit(_password);
-  await waitFor(tester, find.text('Manager PIN saved. Use it only with your own signed-in account.'));
-  for (final label in ['Current account password', 'New manager PIN', 'Confirm manager PIN']) {
-    expect(tester.widget<TextFormField>(find.widgetWithText(TextFormField, label)).controller!.text, isEmpty);
+  await waitFor(
+      tester,
+      find.text(
+          'Manager PIN saved. Use it only with your own signed-in account.'));
+  for (final label in [
+    'Current account password',
+    'New manager PIN',
+    'Confirm manager PIN'
+  ]) {
+    expect(
+        tester
+            .widget<TextFormField>(find.widgetWithText(TextFormField, label))
+            .controller!
+            .text,
+        isEmpty);
   }
-  final status = await container.read(apiClientProvider).dio.get('/auth/manager-pin');
+  final status =
+      await container.read(apiClientProvider).dio.get('/auth/manager-pin');
   expect(status.data['data']['configured'], isTrue);
   expect(status.data['data']['locked'], isFalse);
 }
@@ -82,7 +98,8 @@ Future<void> _enroll(WidgetTester tester, ProviderContainer container, {bool wro
 Future<void> _approve(WidgetTester tester, String pin) async {
   final input = find.byKey(const ValueKey('manager-pin-input'));
   await waitFor(tester, input);
-  final text = tester.widget<TextField>(find.descendant(of: input, matching: find.byType(TextField)));
+  final text = tester.widget<TextField>(
+      find.descendant(of: input, matching: find.byType(TextField)));
   expect(text.obscureText, isTrue);
   expect(text.enableSuggestions, isFalse);
   expect(text.autofillHints, isNull);
@@ -94,12 +111,16 @@ Future<void> _approve(WidgetTester tester, String pin) async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('manager enrolls, refunds, cancels both ways and cannot bypass account lockout', (tester) async {
+  testWidgets(
+      'manager enrolls, refunds, cancels both ways and cannot bypass account lockout',
+      (tester) async {
     // Mutating integration acceptance must never target a shop/staging/live URL.
     expect(Env.apiBaseUrl, 'http://10.0.2.2:8000/api/v1');
     await app.main();
     await tester.pump();
-    final container = ProviderScope.containerOf(tester.element(find.byType(TopCoffeeApp)), listen: false);
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(TopCoffeeApp)),
+        listen: false);
     final api = container.read(apiClientProvider).dio;
     final refundUuids = <String>[];
     final cancelStatuses = <int>[];
@@ -132,20 +153,35 @@ void main() {
     expect(container.read(currentBranchProvider)!.name, 'CI Manager Branch');
     final branch = container.read(currentBranchProvider)!.id;
     await _enroll(tester, container, wrongPasswordFirst: true);
-    final products = await api.get('/products', queryParameters: {'branch_id': branch});
-    final product = (products.data['data'] as List).singleWhere((dynamic p) => p['name'] == 'CI Approval Latte')['id'];
-    final tables = await api.get('/tables', queryParameters: {'branch_id': branch});
-    final table = (tables.data['data'] as List).singleWhere((dynamic t) => t['name'] == 'CI Approval Table')['id'];
-    await api.post('/shifts', data: {'uuid': const Uuid().v4(), 'branch_id': branch, 'opening_cash': 20});
+    final products =
+        await api.get('/products', queryParameters: {'branch_id': branch});
+    final product = (products.data['data'] as List)
+        .singleWhere((dynamic p) => p['name'] == 'CI Approval Latte')['id'];
+    final tables =
+        await api.get('/tables', queryParameters: {'branch_id': branch});
+    final table = (tables.data['data'] as List)
+        .singleWhere((dynamic t) => t['name'] == 'CI Approval Table')['id'];
+    await api.post('/shifts', data: {
+      'uuid': const Uuid().v4(),
+      'branch_id': branch,
+      'opening_cash': 20
+    });
     final sale = await api.post('/orders', data: {
-      'uuid': const Uuid().v4(), 'branch_id': branch, 'order_type': 'takeaway',
-      'items': [{'product_id': product, 'quantity': 1}], 'payment': {'method': 'cash', 'tendered': 5},
+      'uuid': const Uuid().v4(),
+      'branch_id': branch,
+      'order_type': 'takeaway',
+      'items': [
+        {'product_id': product, 'quantity': 1}
+      ],
+      'payment': {'method': 'cash', 'tendered': 5},
     });
     final saleId = sale.data['data']['id'] as int;
     Future<Map<String, dynamic>> financials() async {
-      final response = await api.get('/orders/$saleId/financials', queryParameters: {'branch_id': branch});
+      final response = await api.get('/orders/$saleId/financials',
+          queryParameters: {'branch_id': branch});
       return Map<String, dynamic>.from(response.data['data'] as Map);
     }
+
     container.read(appRouterProvider).go('/orders/$saleId/financials');
     await _tap(tester, find.widgetWithText(OutlinedButton, 'Refund'));
     await _fill(tester, 'Amount', '1');
@@ -153,7 +189,8 @@ void main() {
     await _tap(tester, find.text('Confirm'));
     await waitFor(tester, find.byKey(const ValueKey('manager-pin-input')));
     await _tap(tester, find.text('Cancel').last);
-    await waitFor(tester, find.text('Refund approval cancelled. No request was sent.'));
+    await waitFor(
+        tester, find.text('Refund approval cancelled. No request was sent.'));
     expect(refundUuids, isEmpty);
     expect((await financials())['refunded'], 0);
     await _tap(tester, find.text('Confirm'));
@@ -165,36 +202,58 @@ void main() {
     await waitFor(tester, find.text('Refunded: \$1.00'));
     final completed = await financials();
     expect(completed['refunded'], 1);
-    expect(((completed['payments'] as List).single['refunds'] as List), hasLength(1));
-    final pending = jsonEncode(await container.read(operationsRepositoryProvider).pending());
+    expect(((completed['payments'] as List).single['refunds'] as List),
+        hasLength(1));
+    final pending = jsonEncode(
+        await container.read(operationsRepositoryProvider).pending());
     for (final secret in [_pin, _wrongPin, _password]) {
       expect(pending, isNot(contains(secret)));
     }
     // Replay the UI's exact nonsecret intent/UUID through the real API with a
     // fresh PIN. A stored result must not create a second refund.
-    await api.post('/orders/$saleId/refund', data: {
-      'amount': 1, 'inventory_disposition': 'consumed', 'reason': 'CI manager approval correction',
-      'branch_id': branch, 'expected_user_id': auth.user.id, 'uuid': refundUuids.last,
-    }, options: Options(headers: {'X-Manager-Pin': _pin}));
+    await api.post('/orders/$saleId/refund',
+        data: {
+          'amount': 1,
+          'inventory_disposition': 'consumed',
+          'reason': 'CI manager approval correction',
+          'branch_id': branch,
+          'expected_user_id': auth.user.id,
+          'uuid': refundUuids.last,
+        },
+        options: Options(headers: {'X-Manager-Pin': _pin}));
     expect((await financials())['refunded'], 1);
 
     Future<int> held() async {
       final response = await api.post('/orders/hold', data: {
-        'uuid': const Uuid().v4(), 'branch_id': branch, 'order_type': 'dine_in', 'table_id': table,
-        'items': [{'product_id': product, 'quantity': 1}],
+        'uuid': const Uuid().v4(),
+        'branch_id': branch,
+        'order_type': 'dine_in',
+        'table_id': table,
+        'items': [
+          {'product_id': product, 'quantity': 1}
+        ],
       });
       return response.data['data']['id'] as int;
     }
+
     Future<String> status(int id) async {
-      final response = await api.get('/orders/$id', queryParameters: {'branch_id': branch});
+      final response =
+          await api.get('/orders/$id', queryParameters: {'branch_id': branch});
       return response.data['data']['status'] as String;
     }
+
     Future<void> cancel(String pin, {bool editor = false}) async {
       final before = cancelStatuses.length;
-      final anchor = editor ? find.text('Cancel Order').last : find.byTooltip('Cancel order');
+      final anchor = editor
+          ? find.text('Cancel Order').last
+          : find.byTooltip('Cancel order');
       await waitFor(tester, anchor);
       ScaffoldMessenger.of(tester.element(anchor)).clearSnackBars();
-      await _tap(tester, editor ? find.text('Cancel Order').last : find.byTooltip('Cancel order'));
+      await _tap(
+          tester,
+          editor
+              ? find.text('Cancel Order').last
+              : find.byTooltip('Cancel order'));
       await waitFor(tester, find.text('Cancel Order?'));
       await _tap(tester, find.text('Cancel Order').last);
       await _approve(tester, pin);
@@ -204,6 +263,7 @@ void main() {
       expect(cancelStatuses.length, before + 1);
       await tester.pump(const Duration(milliseconds: 300));
     }
+
     final firstHeld = await held();
     container.read(appRouterProvider).go('/orders/$firstHeld');
     await cancel(_wrongPin);
@@ -222,8 +282,12 @@ void main() {
     await cancel(_pin, editor: true);
     expect(cancelStatuses.last, 200);
     expect(await status(secondHeld), 'cancelled');
-    final released = await api.get('/tables', queryParameters: {'branch_id': branch});
-    expect((released.data['data'] as List).singleWhere((dynamic t) => t['id'] == table)['status'], 'available');
+    final released =
+        await api.get('/tables', queryParameters: {'branch_id': branch});
+    expect(
+        (released.data['data'] as List)
+            .singleWhere((dynamic t) => t['id'] == table)['status'],
+        'available');
 
     await _login(tester, container, 'locked-manager@ci.invalid');
     await _enroll(tester, container);
@@ -236,7 +300,10 @@ void main() {
     await waitFor(tester, find.text('Manager PIN locked for 15 minutes.'));
     await cancel(_pin);
     expect(cancelStatuses.last, 429);
-    await waitFor(tester, find.text('Manager PIN is temporarily locked. Wait 15 minutes from the last lockout.'));
+    await waitFor(
+        tester,
+        find.text(
+            'Manager PIN is temporarily locked. Wait 15 minutes from the last lockout.'));
     expect(await status(lockedHeld), 'held');
     final locked = await api.get('/auth/manager-pin');
     expect(locked.data['data']['locked'], isTrue);
@@ -245,10 +312,14 @@ void main() {
     await _fill(tester, 'New manager PIN', _pin);
     await _fill(tester, 'Confirm manager PIN', _pin);
     await _tap(tester, find.text('Save manager PIN'));
-    await waitFor(tester, find.text('Manager PIN is temporarily locked. Wait 15 minutes from the last lockout.'));
+    await waitFor(
+        tester,
+        find.text(
+            'Manager PIN is temporarily locked. Wait 15 minutes from the last lockout.'));
     expect((await api.get('/auth/manager-pin')).data['data']['locked'], isTrue);
     expect(tester.takeException(), isNull);
     // No printer, cash drawer, external payment, production key or live server.
-    debugPrint('PASS: real manager Settings enrollment, masked refund/cancel prompts, one refund replay, both held-order cancellations and persistent account lockout. Synthetic disposable API only.');
+    debugPrint(
+        'PASS: real manager Settings enrollment, masked refund/cancel prompts, one refund replay, both held-order cancellations and persistent account lockout. Synthetic disposable API only.');
   });
 }
