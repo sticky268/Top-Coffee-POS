@@ -233,38 +233,38 @@ class _PhoneLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return LayoutBuilder(
-      builder: (context, viewport) => Column(
-      children: [
-        const SizedBox(height: 16),
-        ProductSearchField(
-          onSubmitted: (code) => _scanProduct(context, ref, code),
-          onChanged: (query) => ref
-              .read(posCatalogControllerProvider.notifier)
-              .updateSearchQuery(query),
-        ),
-        const SizedBox(height: 8),
-        CategorySelector(
-          categories: categories,
-          selectedCategoryId: selectedCategoryId,
-          onSelected: (id) => ref
-              .read(posCatalogControllerProvider.notifier)
-              .selectCategory(id),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ProductGrid(
-            products: products,
-            crossAxisCount: crossAxisCount,
-          ),
-        ),
-        const Divider(height: 1),
-        PhoneCartBar(
-          selectedTable: selectedTable,
-          compact: viewport.maxHeight < 420 ||
-              MediaQuery.viewInsetsOf(context).bottom > 0,
-        ),
-      ],
-    ));
+        builder: (context, viewport) => Column(
+              children: [
+                const SizedBox(height: 16),
+                ProductSearchField(
+                  onSubmitted: (code) => _scanProduct(context, ref, code),
+                  onChanged: (query) => ref
+                      .read(posCatalogControllerProvider.notifier)
+                      .updateSearchQuery(query),
+                ),
+                const SizedBox(height: 8),
+                CategorySelector(
+                  categories: categories,
+                  selectedCategoryId: selectedCategoryId,
+                  onSelected: (id) => ref
+                      .read(posCatalogControllerProvider.notifier)
+                      .selectCategory(id),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ProductGrid(
+                    products: products,
+                    crossAxisCount: crossAxisCount,
+                  ),
+                ),
+                const Divider(height: 1),
+                PhoneCartBar(
+                  selectedTable: selectedTable,
+                  compact: viewport.maxHeight < 420 ||
+                      MediaQuery.viewInsetsOf(context).bottom > 0,
+                ),
+              ],
+            ));
   }
 }
 

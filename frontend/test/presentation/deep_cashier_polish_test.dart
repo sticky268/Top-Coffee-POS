@@ -127,7 +127,8 @@ void main() {
     }
   }
 
-  testWidgets('short large-text workspace keeps cart and review reachable', (tester) async {
+  testWidgets('short large-text workspace keeps cart and review reachable',
+      (tester) async {
     await pump(tester, const Size(360, 480), 2, false);
     expect(tester.takeException(), isNull);
     expect(find.text('Review Order').hitTestable(), findsOneWidget);

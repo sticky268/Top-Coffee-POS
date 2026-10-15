@@ -61,7 +61,8 @@ class PhoneCartBar extends ConsumerWidget {
                 child: pos_ui.PosActionButton(
                   onPressed: cart.isEmpty
                       ? null
-                      : () => context.push('/pos/checkout', extra: selectedTable),
+                      : () =>
+                          context.push('/pos/checkout', extra: selectedTable),
                   child: const Text('Review Order'),
                 ),
               ),
