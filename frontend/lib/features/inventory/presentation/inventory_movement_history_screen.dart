@@ -176,7 +176,13 @@ class _InventoryMovementHistoryScreenState
         maxWidth: 1000,
         child: Column(
           children: [
-            Padding(
+            if (widget.initialMovementId != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Reviewing ledger movement #${widget.initialMovementId} (read-only).'),
+              )
+            else
+              Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: DropdownButtonFormField<String?>(
                 initialValue: _selectedType,
@@ -222,7 +228,8 @@ class _InventoryMovementHistoryScreenState
                 elevation: 1,
                 child: ListTile(
                   leading: const Icon(Icons.inventory_2_outlined),
-                  title: const Text('Current Stock'),
+                  title: Text(widget.initialMovementId == null
+                      ? 'Current Stock' : 'Stock when the report was loaded'),
                   trailing: Text(
                     '${widget.ingredient.currentStock.toStringAsFixed(3)} '
                     '${widget.ingredient.unit.abbreviation}',
