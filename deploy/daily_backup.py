@@ -25,15 +25,26 @@ def digest(path):
 
 def offsite(settings, source, runner=run):
     private_file(settings['rclone_config'])
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+\.age', source.name):
+        raise ValueError('Use a plain .age snapshot filename without glob characters.')
     destination = settings['remote'].rstrip('/') + '/' + source.name
     if not re.fullmatch(r'[A-Za-z0-9_-]+:[A-Za-z0-9_./-]+', settings['remote']) or '..' in settings['remote'].split('/'):
         raise ValueError('Use a configured named remote and fixed bucket/directory prefix.')
     base = ['rclone', '--config', settings['rclone_config'], '--timeout', '2m', '--retries', '2']
-    runner(base + ['copyto', '--immutable', str(source), destination])
+    # Ubuntu's older rclone copyto path bypasses immutable checks. Directory
+    # copy uses its immutable sync engine; the anchored filter selects one file.
+    runner(base + ['copy', '--immutable', '--checksum', '--include', '/' + source.name,
+                   '--max-depth', '1', str(source.parent), settings['remote']])
     value = hashlib.sha256()
+    expected_size = source.stat().st_size
+    received = 0
     # Re-read ciphertext from the remote; success is not inferred from upload exit alone.
     with subprocess.Popen(base + ['cat', destination], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as process:
         for block in iter(lambda: process.stdout.read(1024 * 1024), b''):
+            received += len(block)
+            if received > expected_size:
+                process.terminate()
+                raise RuntimeError('Off-site object is larger than the local snapshot.')
             value.update(block)
         if process.wait(timeout=180) != 0 or value.hexdigest() != digest(source):
             raise RuntimeError('Off-site ciphertext read-back did not match.')

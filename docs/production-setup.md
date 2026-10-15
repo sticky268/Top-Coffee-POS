@@ -263,4 +263,4 @@ Primary references: [Laravel deployment](https://laravel.com/docs/12.x/deploymen
 [Ubuntu firewall](https://ubuntu.com/server/docs/firewalls/),
 [fail2ban jail settings](https://manpages.ubuntu.com/manpages/noble/man5/jail.conf.5.html),
 [Telegram Bot API](https://core.telegram.org/bots/api),
-[rclone immutable copy](https://rclone.org/commands/rclone_copyto/).
+[rclone immutable copy](https://rclone.org/commands/rclone_copy/).

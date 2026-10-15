@@ -68,7 +68,7 @@ sudo python3 deploy/daily_backup.py --config /etc/top-coffee/backup.json --execu
 During the approved UTC hour this locks against concurrent jobs, remembers active
 writer units, stops them, runs the existing authenticated age-encrypted backup,
 and attempts **all** service restarts in finally. It restarts only units that
-were active. It then uploads the .age file using immutable rclone copyto and
+were active. It then uploads the .age file using immutable, checksum-checked rclone directory copy (filtered to the one snapshot) and
 streams the remote ciphertext back through SHA-256 before recording a private
 success receipt. SQL/assets exist only in a private temporary staging directory;
 the published spool holds ciphertext and nonsecret evidence. The embedded
@@ -118,16 +118,20 @@ Retrieve one encrypted object onto the **separate recovery machine** with its
 own read-only retrieval credentials:
 
 ```sh
-rclone --config /secure-recovery/rclone.conf copyto "$REMOTE_OBJECT" /secure-recovery/rehearsal.age --immutable
+rclone --config /secure-recovery/rclone.conf copy --immutable --checksum --include "/$SELECTED_NAME" --max-depth 1 "$REMOTE_PREFIX" /secure-recovery/incoming
 ```
 
-This copies one chosen real remote ciphertext without overwriting a different
-local file. Set REMOTE_OBJECT to an actual retained object, not an application
-URL. Restrict the local directory to mode 700. Use private recovery-client.cnf
+This copies the selected real remote ciphertext without overwriting a different
+local file. Set REMOTE_PREFIX to the actual retained remote directory and
+SELECTED_NAME to one exact snapshot basename (letters/digits, dot, dash and
+underscore only, no glob characters). Set RECOVERY_SNAPSHOT to its resulting
+absolute local path. Restrict incoming and its parent to mode 700. Directory
+copy is deliberate: older Ubuntu rclone copyto can bypass immutable checks;
+CI tests directory-copy overwrite refusal with the actual packaged executable. Use private recovery-client.cnf
 (mode 600) for an **isolated MySQL instance**, never production DB credentials.
 
 ```sh
-python3 backend-skeleton/tools/restore_test.py --credentials /secure-recovery/recovery-client.cnf --backup /secure-recovery/rehearsal.age --identity /secure-recovery/top-coffee.agekey --work-root /secure-recovery/work
+python3 backend-skeleton/tools/restore_test.py --credentials /secure-recovery/recovery-client.cnf --backup "$RECOVERY_SNAPSHOT" --identity /secure-recovery/top-coffee.agekey --work-root /secure-recovery/work
 ```
 
 This authenticates the whole encrypted archive **before contacting MySQL**,
@@ -139,6 +143,12 @@ Add `--drop-on-success` only to delete this command-generated DB/assets after ev
 comparison passes; failures never trigger that cleanup. The private decryption
 workspace is temporary and cleaned on exit. Use --max-archive-bytes only after
 reviewing recovery disk budget; default is 20 GiB.
+
+Only restore trusted retained objects whose source/version/hash provenance is
+recorded independently. A public age recipient lets anyone produce new valid
+ciphertext; encryption authenticity is not proof of the backup producer. Imported
+SQL is administrative input, not a sandboxed upload. Recovery credentials must
+have privileges only on the isolated recovery instance, never the live server.
 
 Manual acceptance must reconcile order/payment/refund/stock totals and inspect
 receipt assets; row counts alone do not prove money integrity. Record elapsed

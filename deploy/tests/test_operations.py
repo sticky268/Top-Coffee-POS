@@ -87,6 +87,18 @@ class OperationsTests(unittest.TestCase):
             watch.monitor(settings, state, fetch=report, send=fail, now=1000)
         self.assertEqual(state, {})
 
+    def test_monitor_persists_first_acknowledgement_when_second_alert_fails(self):
+        state_path = self.root / 'state.json'
+        settings_path = self.private('monitor.json', json.dumps({'state_file': str(state_path)}))
+        def partial(settings, state):
+            state['health_failed'] = 1000
+            raise RuntimeError('second alert failed')
+        with patch.object(sys, 'argv', ['watch.py', '--config', str(settings_path)]), patch.object(watch, 'monitor', side_effect=partial):
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as failure:
+                watch.main()
+        self.assertEqual(failure.exception.code, 1)
+        self.assertEqual(common.config(state_path), {'health_failed': 1000})
+
     def test_private_configuration_rejects_public_or_symlinked_files(self):
         path = self.private('private.json')
         self.assertEqual(common.config(path), {})

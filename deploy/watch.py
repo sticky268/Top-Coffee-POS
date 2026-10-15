@@ -70,8 +70,11 @@ def main():
         with open(path.with_suffix('.lock'), 'a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             state = config(path) if path.exists() else {}
-            healthy = monitor(settings, state)
-            atomic_json(path, state)
+            try:
+                healthy = monitor(settings, state)
+            finally:
+                # Keep earlier acknowledgements if a later event delivery fails.
+                atomic_json(path, state)
         if not healthy:
             parser.exit(1, 'Monitor unhealthy; acknowledged alerts obey the cooldown.\n')
     except Exception:
