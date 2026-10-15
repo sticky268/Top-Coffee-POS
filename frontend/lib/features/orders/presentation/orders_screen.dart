@@ -252,11 +252,12 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                       ref.read(ordersListControllerProvider.notifier).refresh(),
                   child: ListView.separated(
                     controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     physics: const AlwaysScrollableScrollPhysics(),
                     itemCount:
                         widget.state.orders.length +
                         (widget.state.hasMore ? 1 : 0),
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       if (index >= widget.state.orders.length) {
                         return Padding(

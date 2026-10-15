@@ -59,7 +59,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final drawerScope = ref.watch(cashDrawerScopeProvider);
-    final compactToolbar = MediaQuery.sizeOf(context).width < 600;
+    final compactToolbar = MediaQuery.sizeOf(context).width < 760;
     final catalogState = ref.watch(posCatalogControllerProvider);
     final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
     ref.listen(currentBranchProvider, (previous, next) {
@@ -80,17 +80,35 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('New Order'),
+          title: const Text('New Order', maxLines: 1, overflow: TextOverflow.ellipsis),
           leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
           ),
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(56),
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(
+              (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16).clamp(56, 110)),
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(alignment: Alignment.centerRight, child: CashDrawerButton()),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Icon(_selectedTable == null ? Icons.shopping_bag_outlined
+                      : Icons.table_restaurant_outlined, size: 20,
+                    color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(child: Tooltip(
+                    message: _selectedTable == null ? 'Takeaway'
+                        : 'Dine-in · ${_selectedTable!.name}',
+                    child: Text(_selectedTable == null ? 'Takeaway'
+                        : 'Dine-in · ${_selectedTable!.name}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600)),
+                  )),
+                  CashDrawerButton(compact: compactToolbar),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -141,7 +159,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 600;
+              final isCompact = constraints.maxWidth < 760;
               final productColumns = constraints.maxWidth >= 1024
                   ? 4
                   : (constraints.maxWidth >= 600 ? 3 : 2);
@@ -280,7 +298,8 @@ class _TabletLayout extends ConsumerWidget {
           ),
         ),
         const VerticalDivider(width: 1),
-        SizedBox(width: 340, child: CartPanel(selectedTable: selectedTable)),
+        SizedBox(width: MediaQuery.sizeOf(context).width >= 1200 ? 380 : 340,
+          child: CartPanel(selectedTable: selectedTable)),
       ],
     );
   }

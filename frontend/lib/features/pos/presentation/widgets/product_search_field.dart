@@ -24,13 +24,17 @@ class _ProductSearchFieldState extends State<ProductSearchField> {
     child: TextField(
       controller: _controller,
       focusNode: _focus,
-      onChanged: widget.onChanged,
+      onChanged: (value) {
+        setState(() {});
+        widget.onChanged(value);
+      },
       onEditingComplete: widget.onSubmitted == null ? null : () {},
       onSubmitted: widget.onSubmitted == null ? null : (value) {
         final code = value.trim();
         if (code.isEmpty) return;
         widget.onSubmitted!(code);
         _controller.clear();
+        setState(() {});
         widget.onChanged('');
         _focus.requestFocus();
       },
@@ -38,9 +42,21 @@ class _ProductSearchFieldState extends State<ProductSearchField> {
       decoration: InputDecoration(
         labelText: 'Search products or SKU',
         hintText: widget.onSubmitted == null ? 'Name or SKU' : 'Scan SKU, then press Enter',
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: const Icon(Icons.search_rounded),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface,
+        suffixIcon: _controller.text.isEmpty ? null : IconButton(
+          tooltip: 'Clear product search',
+          onPressed: () {
+            _controller.clear();
+            widget.onChanged('');
+            setState(() {});
+            _focus.requestFocus();
+          },
+          icon: const Icon(Icons.close_rounded),
+        ),
         constraints: const BoxConstraints(minHeight: 48),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
     ),
   );

@@ -21,7 +21,9 @@ class CartPanel extends ConsumerWidget {
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
 
-    return LayoutBuilder(
+    return Material(
+      color: theme.colorScheme.surface,
+      child: LayoutBuilder(
       builder: (context, constraints) {
         final compact =
             constraints.maxHeight < 380 ||
@@ -55,9 +57,9 @@ class CartPanel extends ConsumerWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (selectedTable != null)
-                      Text(
-                        selectedTable!.name,
+                    Text(
+                        '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
+                        '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -117,7 +119,7 @@ class CartPanel extends ConsumerWidget {
           children: children,
         );
       },
-    );
+    ));
   }
 
   Future<void> _confirmClearCart(
@@ -289,13 +291,17 @@ class _EmptyCart extends StatelessWidget {
               size: 36,
               color: theme.colorScheme.outline,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
               'Your cart is empty',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(height: 4),
+            Text('Tap a product to start this order.', textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       ),

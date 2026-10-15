@@ -7,6 +7,7 @@ import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../application/cart_controller.dart';
 import '../../domain/pos_models.dart';
 import 'cart_panel.dart';
+import 'checkout_summary.dart';
 
 class PhoneCartBar extends ConsumerWidget {
   const PhoneCartBar({super.key, this.selectedTable});
@@ -40,19 +41,38 @@ class PhoneCartBar extends ConsumerWidget {
     final cart = ref.watch(cartControllerProvider);
     final count = cart.items.fold<int>(0, (sum, item) => sum + item.quantity);
     final total = NumberFormat.currency(symbol: '\$').format(cart.total);
+    final theme = Theme.of(context);
     return Material(
       elevation: 4,
-      color: Theme.of(context).colorScheme.surface,
+      color: theme.colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            pos_ui.OutlinedButton.icon(
-              onPressed: cart.isEmpty ? null : () => _openCart(context),
-              icon: const Icon(Icons.shopping_cart_outlined),
-              label: Text('View cart · $count ${count == 1 ? 'item' : 'items'} · $total'),
+            Material(
+              color: theme.colorScheme.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: theme.colorScheme.outlineVariant)),
+              child: pos_ui.ActionSurface(
+                key: const ValueKey('phone-cart-summary'),
+                onTap: cart.isEmpty ? null : () => _openCart(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(children: [
+                    Icon(Icons.shopping_bag_outlined, color: theme.colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(child: CheckoutAmountRow(
+                      label: 'View cart · $count ${count == 1 ? 'item' : 'items'}',
+                      value: total,
+                    )),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.expand_less_rounded, size: 20),
+                  ]),
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             pos_ui.PosActionButton(

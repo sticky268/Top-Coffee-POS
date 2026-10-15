@@ -155,9 +155,9 @@ void main() {
     final built = await setup(tester, child: const Scaffold(
       body: Column(children: [Expanded(child: SizedBox()), PhoneCartBar()]),
     ));
-    expect(find.text('View cart · 1 item · \$3.50'), findsOneWidget);
+    expect(find.byKey(const ValueKey('phone-cart-summary')), findsOneWidget);
     expect(find.text('Order Summary'), findsNothing);
-    await tester.tap(find.text('View cart · 1 item · \$3.50'));
+    await tester.tap(find.byKey(const ValueKey('phone-cart-summary')));
     await tester.pumpAndSettle();
     expect(find.text('Order Summary'), findsOneWidget);
     await tester.tap(find.byTooltip('Increase quantity'));
@@ -165,7 +165,8 @@ void main() {
     expect(built.container.read(cartControllerProvider).items.single.quantity, 2);
     await tester.tap(find.byTooltip('Close cart'));
     await tester.pumpAndSettle();
-    expect(find.text('View cart · 2 items · \$7.00'), findsOneWidget);
+    expect(find.text('View cart · 2 items'), findsOneWidget);
+    expect(find.text('\$7.00'), findsOneWidget);
     expect(find.text('Order Summary'), findsNothing);
     verifyZeroInteractions(built.repository);
   });

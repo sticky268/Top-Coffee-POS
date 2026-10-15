@@ -10,7 +10,8 @@ import '../../settings/data/receipt_settings.dart';
 
 /// Manual access records its reason without changing sales or cash totals.
 class CashDrawerButton extends ConsumerStatefulWidget {
-  const CashDrawerButton({super.key});
+  const CashDrawerButton({super.key, this.compact = false});
+  final bool compact;
 
   @override
   ConsumerState<CashDrawerButton> createState() => _CashDrawerButtonState();
@@ -77,6 +78,14 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
     ref.watch(authControllerProvider);
     ref.watch(currentBranchProvider);
     if (!_allowed()) return const SizedBox.shrink();
+    if (widget.compact) {
+      return pos_ui.IconButton(
+        tooltip: 'Open cash drawer',
+        onPressed: _busy || _prompting ? null : _open,
+        isLoading: _busy,
+        icon: const Icon(Icons.point_of_sale),
+      );
+    }
     return pos_ui.SecondaryButton.icon(
       onPressed: _busy || _prompting ? null : _open,
       icon: _busy

@@ -5,10 +5,12 @@ import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/pos_models.dart';
 
 class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, required this.product, required this.onTap});
+  const ProductCard({super.key, required this.product, required this.onTap,
+    this.quantityInCart = 0});
 
   final PosProduct product;
   final VoidCallback onTap;
+  final int quantityInCart;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,11 @@ class ProductCard extends StatelessWidget {
         color: theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: theme.colorScheme.outlineVariant),
+          side: BorderSide(
+            color: quantityInCart > 0 ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
+            width: quantityInCart > 0 ? 2 : 1,
+          ),
         ),
         child: pos_ui.ActionSurface(
           borderRadius: BorderRadius.circular(16),
@@ -48,35 +54,40 @@ class ProductCard extends StatelessWidget {
                     Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: ColoredBox(
-                          color: theme.colorScheme.surfaceContainerLow,
-                          child:
-                              product.imageUrl != null &&
-                                  product.imageUrl!.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    product.imageUrl!,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(1, 1024),
-                                    errorBuilder: (_, __, ___) => Center(
-                                      child: Icon(
-                                        Icons.local_cafe_outlined,
-                                        size: 32,
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Center(
-                                  child: Icon(
-                                    Icons.local_cafe_outlined,
-                                    size: 32,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [theme.colorScheme.primaryContainer,
+                                    theme.colorScheme.surfaceContainerLow],
                                 ),
+                              ),
+                              child: product.imageUrl?.isNotEmpty == true
+                                  ? Image.network(product.imageUrl!, fit: BoxFit.cover,
+                                      cacheWidth: (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(1, 1024),
+                                      errorBuilder: (_, __, ___) => _ProductPlaceholder())
+                                  : _ProductPlaceholder(),
+                            ),
+                            if (quantityInCart > 0)
+                              Positioned(
+                                top: 6, right: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text('$quantityInCart in cart',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onPrimary,
+                                      fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -123,4 +134,12 @@ class ProductCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ProductPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Icon(Icons.local_cafe_rounded, size: 36,
+      color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.65)),
+  );
 }

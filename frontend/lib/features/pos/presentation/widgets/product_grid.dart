@@ -27,6 +27,11 @@ class ProductGrid extends ConsumerWidget {
       return const _EmptyProducts();
     }
 
+    final quantities = <int, int>{};
+    for (final item in ref.watch(cartControllerProvider.select((cart) => cart.items))) {
+      quantities.update(item.product.id, (value) => value + item.quantity,
+          ifAbsent: () => item.quantity);
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
@@ -53,6 +58,7 @@ class ProductGrid extends ConsumerWidget {
             final product = products[index];
             return ProductCard(
               product: product,
+              quantityInCart: quantities[product.id] ?? 0,
               onTap: () {
                 if (product.hasVariants) {
                   showVariantSelector(

@@ -83,6 +83,11 @@ jobs:
           name: resolved-flutter-lock
           path: frontend/pubspec.lock
           retention-days: 7
+      - name: Prepare cashier source formatting and review patch
+        run: |
+          dart format lib/features/orders/presentation/orders_screen.dart lib/features/orders/presentation/widgets/order_list_tile.dart lib/features/pos/presentation/cash_drawer_button.dart lib/features/pos/presentation/pos_screen.dart lib/features/pos/presentation/widgets/cart_panel.dart lib/features/pos/presentation/widgets/category_selector.dart lib/features/pos/presentation/widgets/checkout_actions.dart lib/features/pos/presentation/widgets/phone_cart_bar.dart lib/features/pos/presentation/widgets/product_card.dart lib/features/pos/presentation/widgets/product_grid.dart lib/features/pos/presentation/widgets/product_search_field.dart test/presentation/checkout_polish_test.dart test/presentation/deep_cashier_polish_test.dart
+          mkdir -p build/ui-polish
+          git diff -- lib/features/pos/presentation lib/features/orders/presentation test/presentation > build/ui-polish/cashier-source-format.patch
       - run: flutter analyze
       - run: flutter test
       - name: Verify checked native printer transport
@@ -104,7 +109,7 @@ jobs:
         if: always()
         with:
           name: cashier-ui-previews
-          path: frontend/build/ui-polish/*.png
+          path: frontend/build/ui-polish/*
           if-no-files-found: ignore
           retention-days: 7
       - run: flutter build apk --debug
