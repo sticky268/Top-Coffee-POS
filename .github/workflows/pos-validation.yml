@@ -85,6 +85,8 @@ jobs:
           retention-days: 7
       - run: flutter analyze
       - run: flutter test
+      - name: Verify checked native printer transport
+        run: python3 tool/verify_printer_transport.py
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -106,6 +108,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - run: flutter build apk --debug
+      - name: Verify native SDK write dispatch
+        run: cd android && ./gradlew testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
           name: top-coffee-debug-apk

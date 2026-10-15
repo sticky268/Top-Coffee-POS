@@ -67,4 +67,5 @@ flutter {
 
 dependencies {
     implementation(files("libs/printer-lib-3.2.0.aar"))
+    testImplementation("junit:junit:4.13.2")
 }
