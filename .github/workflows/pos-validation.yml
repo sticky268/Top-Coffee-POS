@@ -19,10 +19,12 @@ jobs:
           extensions: pdo_sqlite, pdo_mysql
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
-      - run: php vendor/bin/phpunit
+      - run: php artisan test
       - name: Install operational verification tools
-        run: sudo apt-get update -qq && sudo apt-get install -y age nginx
+        run: sudo apt-get update -qq && sudo apt-get install -y age nginx rclone
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - run: python3 -m unittest discover -s ../deploy/tests -p 'test_*.py'
+      - run: python3 ../deploy/check_signing_files.py
       - name: Verify Nginx reference configuration and public-file boundaries
         run: python3 tools/verify_nginx.py
       - name: Audit locked Composer dependencies

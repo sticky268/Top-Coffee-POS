@@ -143,11 +143,14 @@ thresholds. It returns no staff identities, job payloads or exception secrets.
 Warnings trigger investigation, never automatic punishment or payment reversal.
 `/up` remains liveness only.
 
-The five-minute health timer records failure locally through the alert template.
-**Local journaling is not delivered monitoring.** Choose a destination/recipient
-and prove delivery for synthetic API/login/backup/stale-backup/disk/certificate
-failures. This command cannot see host/network outage, device-only queues or
-off-site backup freshness; monitor those externally. Tune thresholds in pilot.
+The alert service now delivers fixed Telegram events through deploy/alerts.py;
+it is no longer a local logger. Configure real private credentials and run the
+owner-only test send. deploy/watch.py is intended for a separate monitoring host
+and covers HTTPS failure and failed-login spikes. deploy/daily_backup.py handles
+backup failures. Actual provider delivery, dead-man/freshness monitoring and
+certificate-expiry alarms still require owner setup and acceptance. See
+[production setup](../docs/production-setup.md) and
+[backup/recovery](../docs/backup-and-recovery.md).
 
 ## Release sequence
 
@@ -165,3 +168,13 @@ Primary references: [age manual](https://github.com/FiloSottile/age/blob/main/do
 [Laravel deployment](https://laravel.com/docs/12.x/deployment),
 [MySQL grants](https://dev.mysql.com/doc/refman/8.0/en/grant.html),
 [Nginx directives](https://nginx.org/en/docs/http/ngx_http_core_module.html).
+
+## Additional pilot tools
+
+The detailed operator commands and explanations are in
+[production-setup.md](../docs/production-setup.md), with owner-only acceptance in
+[pre-pilot-checklist.md](../docs/pre-pilot-checklist.md). The deployment script
+currently refuses activation because real manager-PIN void/refund step-up is
+missing; the new business-settings verifier records this as a code blocker.
+Daily scheduling/retention are explicit opt-in, and all keys/config examples are
+blank and fail closed. No live action is authorized by these reference files.

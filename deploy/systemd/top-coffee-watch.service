@@ -1,0 +1,15 @@
+[Unit]
+Description=Top Coffee independent HTTPS security and availability monitor
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=posmonitor
+ExecStart=/usr/bin/python3 /opt/top-coffee-ops/deploy/watch.py --config /etc/top-coffee/monitor.json
+TimeoutStartSec=90
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/top-coffee-monitor
+ProtectHome=true
+PrivateTmp=true
+UMask=0077

@@ -1,0 +1,17 @@
+{
+  "closed_window_approved": false,
+  "utc_hour": 20,
+  "all_writers_listed": false,
+  "writer_units": ["top-coffee-scheduler.timer", "top-coffee-scheduler.service", "top-coffee-queue.service", "php8.3-fpm.service"],
+  "commit": "",
+  "credentials": "/etc/top-coffee/backup-client.cnf",
+  "database": "top_coffee_pos",
+  "assets": "/srv/top-coffee/shared/storage/app/public",
+  "recipients": "/etc/top-coffee/backup-recipients.txt",
+  "spool": "/var/lib/top-coffee-backups",
+  "rclone_config": "/etc/top-coffee/rclone.conf",
+  "remote": "",
+  "alerts_config": "/etc/top-coffee/alerts.json",
+  "retention_approved": false,
+  "local_retention_days": 7
+}

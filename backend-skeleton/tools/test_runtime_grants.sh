@@ -17,7 +17,7 @@ mysql --defaults-extra-file="$work/operator.cnf" < "$work/grants.sql" > /dev/nul
 docker cp "$work/runtime.cnf" "$MYSQL_TEST_CONTAINER:/tmp/pos-grants-ci-client.cnf"
 runtime_mysql() { docker exec "$MYSQL_TEST_CONTAINER" mysql --defaults-extra-file=/tmp/pos-grants-ci-client.cnf "$@"; }
 runtime_mysql grants_ci -e "INSERT INTO audit_logs VALUES (1,'fixture'); INSERT INTO orders VALUES (1,10); UPDATE orders SET total=12 WHERE id=1; DELETE FROM orders WHERE id=1; SELECT * FROM migrations; SELECT * FROM audit_logs;" > /dev/null
-for sql in "UPDATE audit_logs SET action='tampered'" 'DELETE FROM audit_logs' 'DELETE FROM migrations' 'CREATE TABLE forbidden (id INT)' 'DROP TABLE audit_logs' "SELECT User FROM mysql.user"; do
+for sql in "UPDATE audit_logs SET action='tampered'" 'DELETE FROM audit_logs' 'DELETE FROM migrations' 'CREATE TABLE forbidden (id INT)' 'DROP TABLE audit_logs' 'DROP TABLE orders' 'ALTER TABLE orders ADD forbidden INT' 'ALTER TABLE audit_logs ADD forbidden INT' 'TRUNCATE TABLE audit_logs' 'DROP DATABASE grants_ci' "SELECT User FROM mysql.user"; do
   if runtime_mysql grants_ci -e "$sql" 2>/dev/null; then
     echo 'ERROR: Runtime account exceeded its intended permissions.'; exit 1
   fi

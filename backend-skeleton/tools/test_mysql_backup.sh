@@ -29,6 +29,7 @@ python3 tools/encrypted_backup.py backup --credentials "$work/client.cnf" --data
 python3 tools/encrypted_backup.py restore-rehearsal --credentials "$work/client.cnf" --database backup_ci_encrypted_restore --assets "$work/encrypted-restored-assets" --backup "$work/encrypted/snapshot.age" --identity "$work/recovery.agekey" --work-root "$work/recovery"
 cmp "$work/assets/logo.png" "$work/encrypted-restored-assets/logo.png"
 [[ $(mysql --defaults-extra-file="$work/client.cnf" --batch --skip-column-names backup_ci -e 'SELECT COUNT(*) FROM receipt') == 2 ]]
+python3 tools/restore_test.py --credentials "$work/client.cnf" --backup "$work/encrypted/snapshot.age" --identity "$work/recovery.agekey" --work-root "$work/recovery" --drop-on-success
 mysql --defaults-extra-file="$work/client.cnf" -e 'DROP DATABASE backup_ci; DROP DATABASE backup_ci_restore; DROP DATABASE backup_ci_encrypted_restore;'
 echo 'PASS: MySQL data, Khmer, decimals and assets restored; source and populated-target overwrites refused.'
 echo 'PASS: age-encrypted database/assets recovery verified; completed backup directory contains ciphertext only.'

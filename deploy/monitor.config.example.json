@@ -1,0 +1,7 @@
+{
+  "health_url": "https://api.example.invalid/api/v1/operations/health",
+  "health_token": "",
+  "alerts_config": "/etc/top-coffee/alerts.json",
+  "state_file": "/var/lib/top-coffee-monitor/alerts-state.json",
+  "cooldown_seconds": 900
+}

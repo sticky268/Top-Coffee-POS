@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'health_token' => env('POS_HEALTH_TOKEN'),
     // Operational warning thresholds; not fraud decisions or per-user verdicts.
     'window_minutes' => (int) env('POS_HEALTH_WINDOW_MINUTES', 5),
     'failed_login_limit' => (int) env('POS_HEALTH_FAILED_LOGIN_LIMIT', 20),

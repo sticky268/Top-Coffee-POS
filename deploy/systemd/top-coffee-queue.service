@@ -1,7 +1,7 @@
 [Unit]
 Description=Top Coffee optional Redis queue worker
 After=network-online.target
-OnFailure=top-coffee-alert@%n.service
+OnFailure=top-coffee-alert@health_failed.service
 
 [Service]
 Type=simple

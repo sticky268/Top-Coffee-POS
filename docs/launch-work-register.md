@@ -30,7 +30,7 @@ no shared admin login or offline manager approval is introduced.
 
 Propose 14 days of restricted operational logs and 30 days of encrypted backup
 versions for owner review. No automatic financial/audit/customer deletion or
-backup pruning is installed. These are **not approved legal retention periods**.
+backup pruning is active by default (the new daily job requires explicit retention approval). These are **not approved legal retention periods**.
 Resolve legal holds/retention before deletion automation. Proposed synchronized
 server targets remain RPO 15 minutes/RTO 4 hours until proven. A drained-write
 snapshot alone cannot meet 15-minute RPO during continuous trading.
@@ -94,3 +94,12 @@ prove complete erasure. Rehearse the approved process on synthetic data first.
 **Completion wording:** implementation and synthetic CI may be called complete
 for their named source. A live control requires its actual environment evidence.
 Do not describe all ten launch items as closed while this evidence is missing.
+
+## Prepared pilot operations follow-up
+
+Production setup, encrypted daily/off-site orchestration, isolated restore proof,
+Telegram/HTTPS monitoring, device-revocation drill and signing instructions are
+prepared in docs/production-setup.md and docs/pre-pilot-checklist.md. These are
+files/tests, not evidence of real provider or hardware acceptance. Real manager
+PIN void/refund step-up remains an engineering blocker; the business-settings
+command and release script deliberately fail closed until it is implemented.

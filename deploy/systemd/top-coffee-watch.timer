@@ -1,0 +1,10 @@
+[Unit]
+Description=Top Coffee external monitor every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=top-coffee-watch.service
+
+[Install]
+WantedBy=timers.target

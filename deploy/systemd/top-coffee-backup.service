@@ -1,0 +1,14 @@
+[Unit]
+Description=Top Coffee closed-shop encrypted off-site backup
+After=network-online.target
+OnFailure=top-coffee-alert@backup_failed.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /opt/top-coffee-ops/deploy/daily_backup.py --config /etc/top-coffee/backup.json --execute
+TimeoutStartSec=30min
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=true
+PrivateTmp=true

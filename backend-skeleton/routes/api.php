@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    Route::get('/operations/health', \App\Http\Controllers\OperationsHealthController::class)->middleware('throttle:30,1');
 
     Route::post('/auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:pos-login');

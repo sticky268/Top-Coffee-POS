@@ -1,7 +1,7 @@
 [Unit]
 Description=Top Coffee read-only operational health checks
 After=network-online.target
-OnFailure=top-coffee-alert@%n.service
+OnFailure=top-coffee-alert@health_failed.service
 
 [Service]
 Type=oneshot

@@ -1,0 +1,5 @@
+# Ubuntu 24.04: /etc/systemd/system/php8.3-fpm.service.d/top-coffee.conf
+[Service]
+KillSignal=SIGQUIT
+KillMode=mixed
+TimeoutStopSec=120
