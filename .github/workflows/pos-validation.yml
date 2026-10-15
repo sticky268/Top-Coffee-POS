@@ -97,12 +97,14 @@ jobs:
           flutter-version: '3.44.9'
           channel: stable
           cache: true
+      - run: flutter pub get
+        working-directory: frontend
       - name: Format manager PIN source for review
         id: format
         continue-on-error: true
         run: |
           dart format frontend/lib/features/auth/domain/auth_models.dart frontend/lib/features/auth/presentation/manager_pin_prompt.dart frontend/lib/features/settings/presentation/manager_pin_settings_card.dart frontend/lib/features/settings/presentation/settings_screen.dart frontend/lib/features/operations/data/operations_repository.dart frontend/lib/features/operations/presentation/payment_operations_screen.dart frontend/lib/features/operations/presentation/operations_screen.dart frontend/lib/features/pos/data/pos_repository.dart frontend/lib/features/pos/presentation/open_order_screen.dart frontend/lib/features/orders/presentation/order_detail_screen.dart frontend/test/features/auth/manager_pin_prompt_test.dart frontend/test/features/operations/operations_repository_test.dart
-          git diff --exit-code
+          git diff --exit-code -- '*.dart'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -121,6 +123,10 @@ jobs:
             frontend/test/features/auth/manager_pin_prompt_test.dart
             frontend/test/features/operations/operations_repository_test.dart
           retention-days: 7
+      - run: flutter analyze
+        working-directory: frontend
+      - run: flutter test test/features/auth/manager_pin_prompt_test.dart test/features/operations/operations_repository_test.dart
+        working-directory: frontend
       - if: steps.format.outcome == 'failure'
         run: exit 1
   flutter:

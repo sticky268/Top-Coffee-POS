@@ -102,7 +102,9 @@ class ManagerPin
         if (! $this->required($request->user())) return;
         $user = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
         $proof = $request->attributes->get('manager_pin_proof');
-        abort_unless($this->manager($user) && is_array($proof) && $proof['user'] === $user->id
+        abort_unless($this->manager($user) && $user->can($action === 'refund' ? 'orders.refund' : 'orders.cancel')
+            && ($user->can('branches.view-all') || $user->branches()->where('branches.id', $order->branch_id)->exists())
+            && is_array($proof) && $proof['user'] === $user->id
             && $proof['order'] === $order->id && $proof['action'] === $action
             && is_string($user->manager_pin_hash) && hash_equals($user->manager_pin_hash, $proof['hash']),
             403, 'Manager approval changed. Enter your PIN again.');

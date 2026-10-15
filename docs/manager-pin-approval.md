@@ -24,7 +24,8 @@ not introduce PIN authorization for discounts, additional charges or stock edits
 
 After a reviewed additive migration on staging, a manager signs in, opens
 **Settings → Manager PIN**, and supplies their current account password, a new
-6–12 digit PIN and its confirmation. Repeated or sequential digits are rejected.
+6–12 digit PIN and its confirmation. Use an approved HTTPS staging/production
+API for real credentials; never enter them on an HTTP development build. Repeated or sequential digits are rejected.
 No PIN is preassigned, printed, returned or created in a production seed. A
 manager can reset only their own PIN with their current account password; they
 cannot target another user ID. Five failed PIN/password-verification checks
