@@ -79,14 +79,13 @@ void main() {
         2);
   });
 
-  test('plaintext downgrade is rejected and preserves the row',
-      () async {
+  test('plaintext downgrade is rejected and preserves the row', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
     final store = SqliteLocalStore(database);
     await store.write('order:1:2:a', 'original evidence');
-    await database.customStatement('UPDATE offline_entries SET value = ?',
-        ['{"status":"forged"}']);
+    await database.customStatement(
+        'UPDATE offline_entries SET value = ?', ['{"status":"forged"}']);
     await expectLater(SqliteLocalStore(database).read('order:1:2:a'),
         throwsA(isA<StateError>()));
     final raw =

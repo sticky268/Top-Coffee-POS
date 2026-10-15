@@ -133,6 +133,10 @@ $checks['debug_disabled'] = config('app.debug') === false;
 ```
 The production server must serve Laravel `public/`, disable PHP execution under uploaded assets and expose no phpMyAdmin/MySQL port publicly. Reviewed product images have image/size validation and business-prefixed storage; dimension limits, cleanup after partial file failure and adversarial file/polyglot testing still need review. Reviewed raw report aggregates use fixed expressions/bindings; searching for `Raw` is not a complete injection proof.
 
+**Reviewed export path:** `frontend/lib/features/reports/data/report_exporter.dart` prefixes formula-like CSV text beginning with optional whitespace then `=`, `+`, `-` or `@`; quoting alone is not treated as protection. XLSX emits user text as escaped inline strings rather than formula elements. PDF uses Dart text/table widgets and a bundled font, not a server HTML renderer with remote-resource fetching. `report_exporter_test.dart` and independent workbook/PDF readers verify generated fixtures. Newly introduced exporters need the same review; this does not certify every spreadsheet application's re-save behavior.
+
+**Needs review (Must-have for launch):** deployed CORS origins and trusted-proxy settings; secret injection/config-cache permissions; queue/scheduler OS identities and private management endpoints; sensitive-data filtering in HTTP, queue and monitoring logs; and any use of `request()->all()`, `unguard()`, raw SQL or privileged field assignment outside the traced controllers. `config/cors.php` is absent from this checkout, so the effective framework/proxy response policy must be tested on staging. `User::$fillable` excludes role/permission fields but includes `business_id`; mass-assignment protection alone does not establish tenant authorization. Current controllers and middleware must remain the authority.
+
 Known initial advisories: `GHSA-jh5r-qr3c-85q8`, `GHSA-97jj-33gv-5xf9`, `GHSA-3q6v-r5mr-hxv8`, `CVE-2026-108082`, `CVE-2026-109413`. The upgraded CI audit returned an empty advisory list; the final frozen lockfile must pass again.
 
 ## 7. MySQL and infrastructure

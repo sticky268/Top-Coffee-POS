@@ -97,8 +97,6 @@ jobs:
           retention-days: 7
       - name: Verify security source formatting and dependency inventory
         run: |
-          # Show the formatter's expected source on failure without rewriting it.
-          dart format --output=show --set-exit-if-changed test/core/offline/journal_encryption_test.dart
           dart format --output=none --set-exit-if-changed lib/features/pos/presentation/cash_drawer_button.dart test/features/pos/cash_drawer_button_test.dart test/presentation/checkout_polish_test.dart lib/features/pos/presentation/checkout_screen.dart lib/features/auth/domain/auth_models.dart lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
           mkdir -p build/security
           dart pub outdated --json > build/security/pub-outdated.json
