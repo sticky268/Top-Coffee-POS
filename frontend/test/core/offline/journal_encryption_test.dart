@@ -79,8 +79,7 @@ void main() {
         2);
   });
 
-  test(
-      'plaintext downgrade after migration is rejected without rewriting the row',
+  test('plaintext downgrade after migration is rejected and preserves evidence',
       () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
