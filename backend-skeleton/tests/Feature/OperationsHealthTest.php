@@ -41,8 +41,9 @@ class OperationsHealthTest extends TestCase
         Cache::shouldReceive('get')->once()->andThrow(new \RuntimeException('SECRET-CONNECTION-PASSWORD'));
         config(['operations.refund_limit' => 0]);
         $this->assertSame(1, Artisan::call('pos:operations-health', ['--json' => true]));
-        $this->assertStringNotContainsString('SECRET-CONNECTION-PASSWORD', Artisan::output());
-        $report = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+        $output = Artisan::output();
+        $this->assertStringNotContainsString('SECRET-CONNECTION-PASSWORD', $output);
+        $report = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
         $this->assertFalse($report['checks']['thresholds_configured']);
         $this->assertFalse($report['checks']['cache_available']);
     }
@@ -54,7 +55,8 @@ class OperationsHealthTest extends TestCase
         DB::table('failed_jobs')->insert(['uuid' => (string) \Illuminate\Support\Str::uuid(), 'connection' => 'redis',
             'queue' => 'default', 'payload' => 'PRIVATE-CUSTOMER-PAYLOAD', 'exception' => 'PRIVATE-STACK', 'failed_at' => now()]);
         $this->assertSame(1, Artisan::call('pos:operations-health', ['--json' => true]));
-        $this->assertStringNotContainsString('PRIVATE-', Artisan::output());
-        $this->assertFalse(json_decode(Artisan::output(), true)['checks']['no_recent_failed_jobs']);
+        $output = Artisan::output();
+        $this->assertStringNotContainsString('PRIVATE-', $output);
+        $this->assertFalse(json_decode($output, true)['checks']['no_recent_failed_jobs']);
     }
 }
