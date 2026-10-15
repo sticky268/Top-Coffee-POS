@@ -32,6 +32,7 @@ void main() {
     List<PrintJob> jobs = const [],
     bool queueError = false,
     BranchSummary branch = _branch,
+    int cashDiscrepancies = 0,
   }) async {
     final auth = _Auth();
     when(() => auth.hasStoredToken()).thenAnswer((_) async => true);
@@ -52,12 +53,16 @@ void main() {
     await container.read(authControllerProvider.notifier).initialization;
     final router = GoRouter(routes: [
       GoRoute(path: '/', builder: (context, state) => const Scaffold(
-        body: SingleChildScrollView(child: DashboardAttentionPanel(lowStockCount: 3)),
+        body: SingleChildScrollView(child: DashboardAttentionPanel(lowStockCount: 3,
+          cashDiscrepancyCount: cashDiscrepancies,
+          cashDiscrepancyShiftId: cashDiscrepancies > 0 ? 41 : null)),
       )),
       GoRoute(path: '/pending-orders', builder: (context, state) =>
         const Scaffold(body: Text('Saved order review destination'))),
       GoRoute(path: '/print-queue', builder: (context, state) =>
         const Scaffold(body: Text('Receipt review destination'))),
+      GoRoute(path: '/operations', builder: (context, state) =>
+        Scaffold(body: Text('Shift review: ${state.uri.queryParameters['shift_id']}'))),
       GoRoute(path: '/inventory', builder: (context, state) =>
         Scaffold(body: Text('Inventory filter: ${state.uri.queryParameters['filter']}'))),
     ]);
@@ -90,6 +95,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Receipt review destination'), findsOneWidget);
   });
+  testWidgets('manager cash alert links to the exact unreviewed shift', (tester) async {
+    await pumpPanel(tester,
+      permissions: const ['reports.view'], cashDiscrepancies: 2);
+    expect(find.text('2 shifts have an unreviewed cash difference'), findsOneWidget);
+    await tester.tap(find.text('2 shifts have an unreviewed cash difference'));
+    await tester.pumpAndSettle();
+    expect(find.text('Shift review: 41'), findsOneWidget);
+  });
+
+  testWidgets('cash discrepancy alert is hidden without report permission', (tester) async {
+    await pumpPanel(tester,
+      permissions: const ['orders.view'], cashDiscrepancies: 2);
+    expect(find.textContaining('unreviewed cash difference'), findsNothing);
+  });
+
   testWidgets('unavailable queues are explicit and do not claim confirmation', (tester) async {
     await pumpPanel(tester, queueError: true);
     expect(find.text('Saved order status unavailable'), findsOneWidget);
