@@ -23,5 +23,25 @@ class IntegrationFixtureSeeder extends Seeder
         $product = Product::forceCreate(['business_id' => $business->id, 'category_id' => $category->id, 'name' => 'CI Latte', 'base_price' => 3.5, 'is_active' => true]);
         $product->branches()->attach($branch->id, ['is_available' => true]);
         RestaurantTable::create(['branch_id' => $branch->id, 'name' => 'CI Table', 'capacity' => 2, 'is_active' => true, 'status' => 'available']);
+
+        // A separate disposable tenant keeps manager step-up requirements from
+        // changing the daily cashier smoke fixture. PINs are enrolled through
+        // the real Settings UI, never seeded or bypassed.
+        $managed = Business::factory()->create(['name' => 'CI Manager Cafe',
+            'require_cash_shift' => true, 'require_manager_controls' => true, 'manager_discount_percent' => 0]);
+        $managedBranch = Branch::create(['business_id' => $managed->id, 'name' => 'CI Manager Branch',
+            'code' => 'CI-PIN', 'timezone' => 'UTC', 'is_active' => true]);
+        foreach (['manager@ci.invalid', 'locked-manager@ci.invalid'] as $email) {
+            $manager = User::factory()->create(['business_id' => $managed->id, 'name' => 'CI Manager',
+                'email' => $email, 'password' => 'ci-disposable-password']);
+            $manager->assignRole('manager');
+            $manager->branches()->attach($managedBranch->id, ['is_primary' => true]);
+        }
+        $managedCategory = Category::forceCreate(['business_id' => $managed->id, 'name' => 'Approval Coffee', 'sort_order' => 1]);
+        $managedProduct = Product::forceCreate(['business_id' => $managed->id, 'category_id' => $managedCategory->id,
+            'name' => 'CI Approval Latte', 'base_price' => 3.5, 'is_active' => true]);
+        $managedProduct->branches()->attach($managedBranch->id, ['is_available' => true]);
+        RestaurantTable::create(['branch_id' => $managedBranch->id, 'name' => 'CI Approval Table',
+            'capacity' => 2, 'is_active' => true, 'status' => 'available']);
     }
 }

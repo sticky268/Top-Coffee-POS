@@ -1,4 +1,5 @@
 import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/network/api_exceptions.dart';
 import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
 
@@ -123,7 +124,13 @@ class OrderDetailScreen extends ConsumerWidget {
                 } catch (error) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Could not cancel order: $error')),
+                    SnackBar(
+                      content: Text(
+                        error is ApiException
+                            ? error.message
+                            : 'Could not cancel order. Refresh its status before trying again.',
+                      ),
+                    ),
                   );
                 }
               },
