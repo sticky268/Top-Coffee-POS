@@ -106,13 +106,13 @@ The service locks the ingredient and appends a movement in a transaction; insuff
 | OFF-1 | Fixed for active journal payloads: `offline_entries.value` was plaintext. AES-256-GCM now encrypts payloads with a device-secure stored random key, fresh nonces and row/API-bound authenticated context. | High | Medium after extraction | Customer/sale/receipt disclosure | Must-have for launch |
 | OFF-2 | Fixed: offline session-cache reads now respect server-issued absolute session expiry in addition to the existing eight-hour cache age, token binding and rollback-time rejection. | Medium | Medium | Cached access beyond token lifetime | Must-have for launch |
 
-**Verification:** run `journal_encryption_test.dart`, `local_store_test.dart`, `session_cache_test.dart`, outbox/sync/repository tests and Android `printer_queue_recovery_test.dart`. Tests inspect raw SQLite ciphertext, migrate legacy values, reopen, swap ciphertext across scopes, modify ciphertext and remove the key. Errors must retain rows rather than return an empty queue. The Android test must prove queue reopen does not replay an uncertain print or lose a receipt.
+**Verification:** run `journal_encryption_test.dart`, `local_store_test.dart`, `session_cache_test.dart`, outbox/sync/repository tests and Android `printer_queue_recovery_test.dart`. Tests inspect raw SQLite ciphertext, migrate legacy values, reopen, swap ciphertext across scopes, modify ciphertext remove the key and attempt a plaintext downgrade after migration. Errors must retain rows rather than return an empty queue. The Android test must prove queue reopen does not replay an uncertain print or lose a receipt.
 
 **Applied Dart pattern:**
 ```dart
 final box = await algorithm.encrypt(utf8.encode(payload), secretKey: key, aad: rowContext);
 ```
-The legacy rewrite is transactional, uses SQLite `secure_delete`, and vacuums after commit. This is authenticated payload encryption, **not SQLCipher/full-file encryption**. Row keys and schema remain visible. It does not certify removal from historical backups or storage snapshots. Generated legacy Drift tables are not used by the inspected runtime journal; populated data from an older app version needs explicit migration/reconciliation review.
+The legacy rewrite is transactional, uses SQLite `secure_delete`, and vacuums after commit. A secure-storage migration marker rejects later plaintext downgrades. This is authenticated payload encryption, **not SQLCipher/full-file encryption**. Row keys and schema remain visible. It does not certify removal from historical backups or storage snapshots. Generated legacy Drift tables are not used by the inspected runtime journal; populated data from an older app version needs explicit migration/reconciliation review.
 
 Server replay still rechecks current authority, branch, fingerprint, prices, shift and stock. No automatic overwrite, backdating, forced conflict acceptance or offline manager approval is introduced. Revocation cannot instantly reach a disconnected device; the server refuses it on reconnection. A stolen unsynced tablet can still mean unrecoverable offline sales: server RPO cannot cover data never uploaded.
 

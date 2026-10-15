@@ -80,6 +80,24 @@ void main() {
   });
 
   test(
+      'plaintext downgrade after migration is rejected without rewriting the row',
+      () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final store = SqliteLocalStore(database);
+    await store.write('order:1:2:a', 'original evidence');
+    await database.customStatement('UPDATE offline_entries SET value = ?',
+        ['{"status":"forged"}']);
+    await expectLater(SqliteLocalStore(database).read('order:1:2:a'),
+        throwsA(isA<StateError>()));
+    final raw =
+        (await database.customSelect('SELECT value FROM offline_entries').get())
+            .single
+            .read<String>('value');
+    expect(raw, '{"status":"forged"}');
+  });
+
+  test(
       'modified ciphertext and a missing key never become an empty recovered queue',
       () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());

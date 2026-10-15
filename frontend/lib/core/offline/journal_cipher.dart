@@ -12,6 +12,8 @@ class JournalCipher {
   final FlutterSecureStorage _storage;
   final _algorithm = AesGcm.with256bits();
   SecretKey? _key;
+  bool allowLegacy = false;
+  static const _markerName = 'journal_protected_v1:${Env.apiBaseUrl}';
   static const prefix = 'posenc:v1:';
   static const _keyName = 'journal_key_v1:${Env.apiBaseUrl}';
   static Future<void> _keyWrites = Future.value();
@@ -19,9 +21,10 @@ class JournalCipher {
   Future<void> initialize({required bool hasEncryptedRows}) async {
     // Two journal instances must not create different keys concurrently.
     final next = _keyWrites.then((_) async {
+      allowLegacy = await _storage.read(key: _markerName) != '1';
       var encoded = await _storage.read(key: _keyName);
       if (encoded == null) {
-        if (hasEncryptedRows) {
+        if (hasEncryptedRows || !allowLegacy) {
           throw StateError(
               'Offline data is locked. Its device key is unavailable. Do not clear app data.');
         }
@@ -39,6 +42,8 @@ class JournalCipher {
     _keyWrites = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     await next;
   }
+
+  Future<void> markProtected() => _storage.write(key: _markerName, value: '1');
 
   List<int> _context(String row) => utf8.encode('${Env.apiBaseUrl}\u0000$row');
 

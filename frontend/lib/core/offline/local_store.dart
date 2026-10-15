@@ -43,7 +43,14 @@ class SqliteLocalStore implements LocalStore {
         .where((row) =>
             !row.read<String>('value').startsWith(JournalCipher.prefix))
         .toList();
-    if (legacy.isEmpty) return;
+    if (legacy.isEmpty) {
+      await _cipher.markProtected();
+      return;
+    }
+    if (!_cipher.allowLegacy) {
+      throw StateError(
+          'Offline record encryption was changed. Keep this device data for review.');
+    }
     await database.transaction(() async {
       for (final row in legacy) {
         final key = row.read<String>('key');
@@ -54,6 +61,7 @@ class SqliteLocalStore implements LocalStore {
     });
     // Remove SQLite free-page remnants after the atomic legacy rewrite.
     await database.customStatement('VACUUM');
+    await _cipher.markProtected();
   }
 
   @override
