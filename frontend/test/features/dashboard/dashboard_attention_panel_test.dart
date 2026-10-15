@@ -52,7 +52,7 @@ void main() {
     addTearDown(container.dispose);
     await container.read(authControllerProvider.notifier).initialization;
     final router = GoRouter(routes: [
-      GoRoute(path: '/', builder: (context, state) => const Scaffold(
+      GoRoute(path: '/', builder: (context, state) => Scaffold(
         body: SingleChildScrollView(child: DashboardAttentionPanel(lowStockCount: 3,
           cashDiscrepancyCount: cashDiscrepancies,
           cashDiscrepancyShiftId: cashDiscrepancies > 0 ? 41 : null)),
