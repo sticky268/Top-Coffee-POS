@@ -126,8 +126,9 @@ class IngredientImpactTest extends TestCase
         $this->getJson("/api/v1/ingredients/{$this->ingredient->id}/products?branch_id={$other->id}")
             ->assertNotFound();
         $foreign = Branch::factory()->create();
+        // Shared tenant middleware rejects a foreign branch before ingredient lookup.
         $this->getJson("/api/v1/ingredients/{$this->ingredient->id}/products?branch_id={$foreign->id}")
-            ->assertNotFound();
+            ->assertForbidden()->assertJsonPath('message', 'You do not have access to that branch.');
     }
 
     public function test_keyset_pages_are_bounded_without_duplicate_product_names(): void
