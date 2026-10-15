@@ -80,6 +80,8 @@ jobs:
       - name: Verify private MySQL backup and isolated restore
         run: bash tools/test_mysql_backup.sh
       - name: Verify least-privilege runtime and append-only audit grants
+        env:
+          MYSQL_TEST_CONTAINER: ${{ job.services.mysql.id }}
         run: bash tools/test_runtime_grants.sh
   flutter:
     runs-on: ubuntu-latest
