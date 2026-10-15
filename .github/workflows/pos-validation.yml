@@ -114,13 +114,15 @@ jobs:
       - name: Prepare isolated USB phone test build
         run: |
           python3 - <<'PY'
+          import os
           from pathlib import Path
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text()
           original = 'android:label="top_coffee_pos"'
           if text.count(original) != 1:
               raise SystemExit('Unexpected application label; refusing to alter the test manifest.')
-          manifest.write_text(text.replace(original, 'android:label="Top Coffee USB Test"'))
+          label = f"Top Coffee USB Test {os.environ['GITHUB_RUN_NUMBER']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
+          manifest.write_text(text.replace(original, f'android:label="{label}"'))
           Path('android/app/src/debug/AndroidManifest.xml').write_text('''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET"/>
             <application android:networkSecurityConfig="@xml/usb_test_network_security_config"/>
@@ -137,7 +139,7 @@ jobs:
           PY
       - name: Build isolated USB phone test APK
         env:
-          ORG_GRADLE_PROJECT_POS_APPLICATION_ID: com.example.top_coffee_pos.drawer_test
+          ORG_GRADLE_PROJECT_POS_APPLICATION_ID: com.example.top_coffee_pos.usbtest.r${{ github.run_id }}a${{ github.run_attempt }}
         run: flutter build apk --debug --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http://127.0.0.1:8001/api/v1
       - name: Verify isolated USB test identity
         run: |
@@ -148,16 +150,18 @@ jobs:
           aapt = sorted((sdk / 'build-tools').glob('*/aapt'))[-1]
           apk = Path('build/app/outputs/flutter-apk/app-debug.apk')
           result = subprocess.check_output([str(aapt), 'dump', 'badging', str(apk)], text=True)
-          if "package: name='com.example.top_coffee_pos.drawer_test'" not in result:
+          expected_id = f"com.example.top_coffee_pos.usbtest.r{os.environ['GITHUB_RUN_ID']}a{os.environ['GITHUB_RUN_ATTEMPT']}"
+          expected_label = f"Top Coffee USB Test {os.environ['GITHUB_RUN_NUMBER']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
+          if f"package: name='{expected_id}'" not in result:
               raise SystemExit('USB test application ID is not isolated.')
-          if "application-label:'Top Coffee USB Test'" not in result:
+          if f"application-label:'{expected_label}'" not in result:
               raise SystemExit('USB test label is not distinguishable.')
           out = Path('build/usb-test')
           out.mkdir(parents=True, exist_ok=True)
           (out / 'top-coffee-usb-test.apk').write_bytes(apk.read_bytes())
           (out / 'README.txt').write_text(
-              'Top Coffee USB Test - DEBUG ONLY\n'
-              'Separate application ID; does not replace the installed POS app.\n'
+              f'{expected_label} - DEBUG ONLY\n'
+              f'Application ID: {expected_id}; does not replace any earlier test or POS app.\n'
               'API: http://127.0.0.1:8001/api/v1 through adb reverse tcp:8001 tcp:8001.\n'
               'Keep USB connected. Use the rehearsal server/account.\n'
               'Configure the selected branch receipt printer, then tap Open cash drawer once.\n'
