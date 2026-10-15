@@ -436,15 +436,8 @@ class MainActivity : FlutterActivity() {
 
         currentPrinter.initializePrinter()
 
-        // Send the bitmap first and give the async printer queue time to drain.
-        currentPrinter.printBitmap(
-            bitmap,
-            POSConst.ALIGNMENT_LEFT,
-            576,
-            POSConst.BMP_NORMAL,
-        )
-
-        Thread.sleep(1000)
+        // Use the same buffered raster path as normal receipts.
+        printReceiptBands(currentPrinter, bitmap)
 
         // Send feed and cut only after the bitmap has had time to finish.
         currentPrinter
@@ -610,6 +603,38 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * ESC/POS bitmap uploads may become corrupt when the SDK sends a very tall
+     * image in one raster command. Keep each band small enough for the device
+     * input buffer and preserve the rendered 576-dot content and row order.
+     * This helper only sends image data; it never starts a payment or drawer
+     * operation. Receipt cutting remains the caller's responsibility.
+     */
+    private fun printReceiptBands(currentPrinter: POSPrinter, bitmap: Bitmap) {
+        val bandHeight = 192
+        var top = 0
+        while (top < bitmap.height) {
+            val height = minOf(bandHeight, bitmap.height - top)
+            val band = Bitmap.createBitmap(bitmap, 0, top, bitmap.width, height)
+            try {
+                currentPrinter.printBitmap(
+                    band,
+                    POSConst.ALIGNMENT_LEFT,
+                    bitmap.width,
+                    POSConst.BMP_NORMAL,
+                )
+                // SDK transmission is queued; don't flood the printer's
+                // receive buffer with the next raster band immediately.
+                Thread.sleep(200)
+            } finally {
+                band.recycle()
+            }
+            top += height
+        }
+        // Let the final band drain before the feed/cut command.
+        Thread.sleep(1000)
     }
 
     private fun printReceiptBitmap(
@@ -1220,14 +1245,7 @@ class MainActivity : FlutterActivity() {
 
             currentPrinter.initializePrinter()
 
-            currentPrinter.printBitmap(
-                bitmap,
-                POSConst.ALIGNMENT_LEFT,
-                576,
-                POSConst.BMP_NORMAL,
-            )
-
-            Thread.sleep(1000)
+            printReceiptBands(currentPrinter, bitmap)
 
             currentPrinter
                 .feedLine(0)
