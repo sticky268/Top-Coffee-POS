@@ -101,7 +101,18 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
-"printTest" -> {
+"openCashDrawer" -> {
+                    try {
+                        val currentPrinter = printer
+                            ?: throw IllegalStateException("Printer is not connected.")
+                        // SDK default pulse on the printer's standard drawer connector.
+                        currentPrinter.openCashBox(0)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("DRAWER_ERROR", e.message, null)
+                    }
+                }
+                "printTest" -> {
                     try {
                         val currentPrinter = printer
 

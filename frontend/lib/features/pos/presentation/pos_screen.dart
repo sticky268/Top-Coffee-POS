@@ -9,6 +9,7 @@ import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
 import '../application/cart_controller.dart';
 import 'widgets/variant_selector_sheet.dart';
+import 'cash_drawer_button.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
 import 'widgets/cart_panel.dart';
@@ -80,6 +81,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
+          ),
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(56),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(alignment: Alignment.centerRight, child: CashDrawerButton()),
+            ),
           ),
           actions: [
             pos_ui.SecondaryButton.icon(

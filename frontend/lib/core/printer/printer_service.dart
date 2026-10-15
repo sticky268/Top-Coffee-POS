@@ -22,7 +22,9 @@ class PrinterService {
       }
     } on MissingPluginException {
       throw StateError(
-        'Receipt printing is unavailable on this device. Use an E-Receipt.',
+        method == 'openCashDrawer'
+            ? 'Cash drawer control is unavailable on this device.'
+            : 'Receipt printing is unavailable on this device. Use an E-Receipt.',
       );
     }
   }
@@ -30,6 +32,9 @@ class PrinterService {
   Future<void> connect(String ipAddress) async {
     await _invoke('connect', <String, dynamic>{'ip': ipAddress});
   }
+
+  /// Sends a pulse only. The printer cannot confirm the physical drawer opened.
+  Future<void> openCashDrawer() => _invoke('openCashDrawer');
 
   Future<void> printTest() async {
     await _invoke('printTest');

@@ -11,6 +11,12 @@ class FakePrinter extends PrinterService {
   Future<void> Function()? connecting;
   final sent = <Map<String, dynamic>>[];
   int connections = 0;
+  int drawerPulses = 0;
+  @override
+  Future<void> openCashDrawer() async {
+    drawerPulses++;
+    if (loseConfirmation) throw StateError('Drawer confirmation lost');
+  }
   @override
   Future<void> connect(String ip) async {
     connections++;
@@ -58,6 +64,41 @@ void main() {
     queue = makeQueue();
   });
   tearDown(() => queue.dispose());
+
+  test('drawer command is never journaled or automatically replayed', () async {
+    printer.loseConfirmation = true;
+    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {}), throwsStateError);
+    expect(printer.drawerPulses, 1);
+    expect(await queue.list(selected), isEmpty);
+    await queue.resumeWaiting(selected);
+    expect(printer.drawerPulses, 1);
+  });
+
+  test('branch switch during drawer connection prevents the pulse', () async {
+    printer.connecting = () async { current = (userId: 16, branchId: 22); };
+    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {}), throwsStateError);
+    expect(printer.drawerPulses, 0);
+  });
+
+  test('drawer permission is checked again after connection', () async {
+    var allowed = true;
+    printer.connecting = () async { allowed = false; };
+    await expectLater(queue.openCashDrawer(selected, () async => 'ip', () {
+      if (!allowed) throw StateError('Not permitted');
+    }), throwsStateError);
+    expect(printer.drawerPulses, 0);
+  });
+
+  test('drawer and receipt commands share one printer serializer', () async {
+    final job = await enqueue();
+    await Future.wait([
+      queue.send(job.id, selected),
+      queue.openCashDrawer(selected, () async => 'ip', () {}),
+    ]);
+    expect(printer.sent, hasLength(1));
+    expect(printer.drawerPulses, 1);
+    expect((await queue.list(selected)).single.status, PrintStatus.sent);
+  });
 
   test(
     'repeated enqueue and send taps share one durable original print',

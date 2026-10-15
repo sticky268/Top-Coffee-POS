@@ -336,6 +336,33 @@ class PrintQueue {
     return job;
   });
 
+  /// An immediate manual command, never persisted or automatically replayed.
+  /// Uses the receipt serializer so connect/disconnect cannot interrupt a print.
+  Future<void> openCashDrawer(
+    PrintScope selected,
+    Future<String> Function() destination,
+    void Function() authorize,
+  ) => _serialized(() async {
+    _guard(selected);
+    authorize();
+    final ip = (await destination()).trim();
+    if (ip.isEmpty) throw StateError('Configure this branch’s printer in Receipt Settings.');
+    _guard(selected);
+    authorize();
+    try {
+      await printer.connect(ip);
+      _guard(selected);
+      authorize();
+      await printer.openCashDrawer();
+    } finally {
+      try {
+        await printer.disconnect();
+      } catch (_) {
+        // Disconnect must not hide the command result or trigger a second pulse.
+      }
+    }
+  });
+
   Future<void> resumeWaiting(PrintScope selected) async {
     for (final job in await list(selected)) {
       if (scope() != selected) return;

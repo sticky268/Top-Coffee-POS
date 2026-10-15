@@ -22,6 +22,18 @@ void main() {
     messenger.setMockMethodCallHandler(paths, null);
   });
 
+  test('drawer bridge sends only the drawer command and surfaces rejection', () async {
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(printer, (call) async {
+      calls.add(call.method);
+      return true;
+    });
+    await PrinterService().openCashDrawer();
+    expect(calls, ['openCashDrawer']);
+    messenger.setMockMethodCallHandler(printer, (_) async => false);
+    await expectLater(PrinterService().openCashDrawer(), throwsA(isA<PlatformException>()));
+  });
+
   test('a printer rejection is surfaced so the cashier can retry', () async {
     messenger.setMockMethodCallHandler(printer, (_) async => false);
     await expectLater(
