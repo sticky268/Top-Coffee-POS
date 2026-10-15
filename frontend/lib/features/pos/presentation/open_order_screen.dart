@@ -380,7 +380,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       if (result == null) return;
 
       isPaying = true;
-      await ref
+      final confirmation = await ref
           .read(posRepositoryProvider)
           .payHeldOrder(
             orderId: saved.id,
@@ -400,6 +400,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         context: context,
         orderId: saved.id,
         orderReference: saved.displayOrderReference,
+        cashDrawerResult: confirmation.cashDrawerResult,
       );
       if (!mounted) return;
 

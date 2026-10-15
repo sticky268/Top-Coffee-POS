@@ -17,3 +17,13 @@ The API is compiled as `http://127.0.0.1:8001/api/v1`, matching the existing PC 
 Install the separate test APK, use the intended rehearsal server account, select the correct branch, and configure its receipt printer destination. Ensure the drawer is attached to the printer's drawer port. On New Order, tap Open cash drawer once and physically check the drawer. Avoid creating orders/payments/stock adjustments for this hardware-only check. A submitted command is not proof of mechanical opening.
 
 The owner's phone screenshot confirmed the test server is reachable through the USB connection. This verifies connectivity only; physical drawer acceptance remains pending until an observation is recorded. Local source changes, generated Flutter files, existing app queues, main/rehearsal databases and port 8001 services are not changed by the build process.
+
+## Automatic opening after cash payment
+
+A server-confirmed completed new order or payment of a held dine-in order automatically requests the drawer when the confirmed payment contains a positive completed cash amount. Split payments with a cash portion are included. QR/card-only, zero-total, held, cancelled, rejected and offline-queued orders do not trigger it. Background synchronization never opens a drawer later; use the manual action for those cases.
+
+The payment success view appears immediately. Printer work runs separately through the existing serialized printer connection; it cannot fail or repeat the payment. A failed or unconfirmed drawer attempt shows a **Payment completed** warning with instructions to inspect the drawer and use the manual button if needed. Receipt printing, retries, reprints and viewing history do not trigger automatic opening.
+
+Before the automatic attempt, the device durably records the cashier/branch/order key. Duplicate callbacks, matching payment replays and an app restart cannot repeat that automatic attempt in the same app storage, even if the printer was disconnected. Failure to save this marker prevents the pulse. The manual action remains explicit and independent. This is a device-local at-most-once safeguard; it does not claim mechanical confirmation or coordination across different devices/reinstalled app storage.
+
+Tests cover cash and split cash, exclusions, delayed server confirmation, paid-state independence from hardware, drawer failure warnings, queued offline requests, held-payment completion, repeated confirmation/restart, changing cashier/branch, storage failure and receipt COPY behavior. Physical testing still requires successful rehearsal login and observation of the real drawer.

@@ -341,10 +341,20 @@ class PrintQueue {
   Future<void> openCashDrawer(
     PrintScope selected,
     Future<String> Function() destination,
-    void Function() authorize,
-  ) => _serialized(() async {
+    void Function() authorize, {
+    int? completedSaleId,
+  }) => _serialized(() async {
     _guard(selected);
     authorize();
+    if (completedSaleId != null) {
+      final key = 'cash-drawer:${selected.userId}:${selected.branchId}:order:$completedSaleId';
+      if (await store.read(key) != null) return;
+      _guard(selected);
+      authorize();
+      // Consume the automatic attempt before any connection or pulse. A crash,
+      // timeout or failure requires an explicit manual action, never a replay.
+      await store.write(key, DateTime.now().toUtc().toIso8601String());
+    }
     final ip = (await destination()).trim();
     if (ip.isEmpty) throw StateError('Configure this branch’s printer in Receipt Settings.');
     _guard(selected);

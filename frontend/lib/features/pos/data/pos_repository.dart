@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/printer/cash_sale_drawer.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/offline/local_store.dart';
 import '../../../core/offline/order_outbox.dart';
@@ -94,11 +95,30 @@ class ApiPosRepository implements PosRepository {
     int? Function()? userId,
     void Function()? onCachedCatalog,
     bool Function()? requireCashShift,
+    Future<String?> Function(OrderConfirmation, int?, int?)? onCompleted,
   }) : _localStore = localStore,
        _outbox = outbox,
        _userId = userId,
        _onCachedCatalog = onCachedCatalog,
-       _requireCashShift = requireCashShift;
+       _requireCashShift = requireCashShift,
+       _onCompleted = onCompleted;
+
+  final Future<String?> Function(OrderConfirmation, int?, int?)? _onCompleted;
+
+  OrderConfirmation _afterPayment(OrderConfirmation confirmation, int? userId, int? branchId) {
+    final callback = _onCompleted;
+    if (callback == null || !confirmation.hasCompletedCashPayment) return confirmation;
+    Future<String?> open() async {
+      try {
+        return await callback(confirmation, userId, branchId);
+      } catch (_) {
+        return cashDrawerFailureMessage;
+      }
+    }
+    // Start after server confirmation without holding the paid-order UI hostage
+    // to printer connectivity. The result is displayed by the success views.
+    return confirmation.withCashDrawerResult(open());
+  }
 
   final ApiClient _apiClient;
   final LocalStore? _localStore;
@@ -202,7 +222,7 @@ class ApiPosRepository implements PosRepository {
         if (pending != null) {
           await _outbox!.finish(pending, orderId: confirmation.orderId);
         }
-        return confirmation;
+        return endpoint == '/orders' ? _afterPayment(confirmation, userId, branchId) : confirmation;
       } catch (error) {
         if (pending != null) {
           await _outbox!.finish(pending, error: error);
@@ -388,6 +408,7 @@ class ApiPosRepository implements PosRepository {
     List<Map<String, dynamic>>? splitPayments,
     int? branchId,
   }) async {
+    final userId = _userId?.call();
     Future<Response<dynamic>> send() => _apiClient.request(
       (dio) => dio.post(
         '/orders/$orderId/pay',
@@ -413,9 +434,9 @@ class ApiPosRepository implements PosRepository {
     } on ServerException {
       response = await send();
     }
-    return OrderConfirmation.fromJson(
+    return _afterPayment(OrderConfirmation.fromJson(
       response.data['data'] as Map<String, dynamic>,
-    );
+    ), userId, branchId);
   }
 
   @override
@@ -477,6 +498,7 @@ final posRepositoryProvider = Provider<PosRepository>((ref) {
   return ApiPosRepository(
     ref.watch(apiClientProvider),
     localStore: ref.watch(localStoreProvider),
+    onCompleted: ref.watch(cashSaleDrawerProvider).afterPayment,
     outbox: ref.watch(orderOutboxProvider),
     userId: () {
       final auth = ref.read(authControllerProvider);

@@ -234,15 +234,30 @@ class OrderConfirmation {
     this.tendered,
     this.changeDue,
     this.payments = const [],
+    this.status,
+    this.cashDrawerResult,
   });
 
   final int orderId;
+  final String? status;
+  final Future<String?>? cashDrawerResult;
   final int? orderNumber;
   final double total;
   final String paymentMethod;
   final double? tendered;
   final double? changeDue;
   final List<PaymentConfirmation> payments;
+
+  OrderConfirmation withCashDrawerResult(Future<String?> result) => OrderConfirmation(
+    orderId: orderId, orderNumber: orderNumber, total: total,
+    paymentMethod: paymentMethod, tendered: tendered, changeDue: changeDue,
+    payments: payments, status: status, cashDrawerResult: result,
+  );
+
+  bool get hasCompletedCashPayment => status == 'completed' && total > 0 &&
+      (payments.isNotEmpty
+          ? payments.any((p) => p.method == 'cash' && p.amount > 0 && p.status == 'completed')
+          : paymentMethod == 'cash');
 
   int get effectiveOrderNumber => orderNumber ?? orderId;
 
@@ -260,6 +275,7 @@ class OrderConfirmation {
 
     return OrderConfirmation(
       orderId: json['id'] as int,
+      status: json['status'] as String?,
       orderNumber: (json['order_number'] as num?)?.toInt(),
       total: (json['total'] as num).toDouble(),
       paymentMethod: payment?['method'] as String? ?? 'unpaid',

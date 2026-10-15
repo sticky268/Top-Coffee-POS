@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../receipt/customer_bill.dart';
 import '../receipt/receipt_action_service.dart';
 import 'app_buttons.dart' as pos_ui;
+import 'cash_drawer_status.dart';
 
 bool canIssueReceiptForOrderStatus(String status) => status == 'completed';
 
@@ -307,6 +308,7 @@ Future<void> showPaymentReceiptDialog({
   required BuildContext context,
   required int orderId,
   required String orderReference,
+  Future<String?>? cashDrawerResult,
 }) {
   return showDialog<void>(
     context: context,
@@ -325,6 +327,7 @@ Future<void> showPaymentReceiptDialog({
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
+            CashDrawerStatus(result: cashDrawerResult),
             ReceiptActionButtons(orderId: orderId),
           ],
         ),

@@ -8,6 +8,7 @@ import '../../../core/receipt/customer_bill.dart';
 import '../../../core/receipt/last_receipt_provider.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
+import '../../../core/widgets/cash_drawer_status.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../customers/data/customers_repository.dart';
@@ -1194,6 +1195,7 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                CashDrawerStatus(result: widget.confirmation.cashDrawerResult),
                 CheckoutTotalCard(
                   label: 'Total paid',
                   value: currency.format(widget.confirmation.total),
