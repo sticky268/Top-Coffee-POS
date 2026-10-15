@@ -27,9 +27,9 @@ The owner confirmed USD and Cambodian riel and a fixed shop rate of US$1 = 4,000
 - Cashier flow: keep both receipt choices reachable, expand the cart for edits, preserve the existing guarded and idempotent payment path.
 - Offline recovery: show saved-on-device vs server-confirmed, retain references/conflicts, and give explicit recovery actions without deleting uncertain payments.
 - Printer recovery: distinguish failed, sent and uncertain output. Printer acknowledgements do not prove paper output. Receipt retries never submit payment or replay automatic drawer pulses.
-- Drawer accountability: durable local evidence precedes a pulse; offline uploads are telemetry only. Records remain under the original cashier and branch. This is device-reported evidence, not tamper-proof hardware sensing.
+- Drawer accountability: the POS Drawer activity action opens the current cashier/branch journal, including upload review and explicit telemetry-only retry. A permanently rejected record does not block later valid uploads. Durable local evidence precedes a pulse; offline uploads are telemetry only. Records remain under the original cashier and branch. This is device-reported evidence, not tamper-proof hardware sensing.
 - Shift close: show authoritative cash components and a read-only counted-versus-expected preview; the server validates final settlement.
-- Inventory: useful restock filters and urgency sorting, branch-safe movement actions, no direct cached-stock editing.
+- Inventory: lazily show a bounded list of actual products using a low-stock ingredient, including optional modifiers. These links do not estimate remaining servings or availability. Useful restock filters and urgency sorting, branch-safe movement actions, no direct cached-stock editing.
 - Manager dashboard: put actual scoped saved-order/receipt exceptions and server low-stock counts above statistics, with direct actions. Counts for device queues explicitly cover this account/device, not all cashiers.
 - Visual consistency: reuse existing theme/button components, labels, tooltips and responsive layouts instead of replacing local presentation work.
 

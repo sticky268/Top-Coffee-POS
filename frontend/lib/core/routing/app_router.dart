@@ -1,3 +1,4 @@
+import '../printer/cash_drawer_activity_screen.dart';
 import '../printer/print_queue_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,6 +111,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) =>
             AppShell(selectedRoute: state.uri.path, child: child),
         routes: [
+          GoRoute(
+            path: '/drawer-activity',
+            builder: (context, state) => const CashDrawerActivityScreen(),
+          ),
           GoRoute(
             path: '/print-queue',
             builder: (context, state) => const PrintQueueScreen(),

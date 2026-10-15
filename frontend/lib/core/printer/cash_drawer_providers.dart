@@ -39,10 +39,23 @@ final cashDrawerSyncProvider = Provider<CashDrawerSync>((ref) {
         throw StateError('The original cashier and branch must be selected.');
       }
       // Pin the token; ApiClient must not substitute a newly signed-in cashier.
-      await api.request((dio) => dio.post('/cash-drawer-events',
-        data: event.toJson(),
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      ));
+      await api.request((dio) async {
+        try {
+          await dio.post('/cash-drawer-events',
+            data: event.toJson(),
+            options: Options(headers: {'Authorization': 'Bearer $token'}),
+          );
+        } on DioException catch (error) {
+          final status = error.response?.statusCode;
+          if (const [400, 404, 405, 409, 410, 413, 415, 422].contains(status)) {
+            // Do not expose arbitrary server diagnostics or credentials in UI.
+            throw CashDrawerUploadRejected(
+              'The server could not accept this audit record (HTTP $status). Review the app/server configuration, then retry the audit upload.',
+            );
+          }
+          rethrow; // Auth, throttling, network and server errors stop/back off.
+        }
+      });
     },
   );
 });
@@ -60,4 +73,24 @@ final cashDrawerSyncWorkerProvider = Provider<void>((ref) {
     timer.cancel();
     unawaited(subscription.cancel());
   });
+});
+
+final cashDrawerActivityProvider = StreamProvider<List<CashDrawerActivity>>((ref) async* {
+  final selected = ref.watch(cashDrawerScopeProvider);
+  if (selected == null) {
+    yield [];
+    return;
+  }
+  final journal = ref.watch(cashDrawerJournalProvider);
+  final events = StreamController<void>();
+  final subscription = journal.changes.listen((_) => events.add(null));
+  ref.onDispose(() {
+    unawaited(subscription.cancel());
+    unawaited(events.close());
+  });
+  yield await journal.activity(selected);
+  await for (final _ in events.stream) {
+    if (ref.read(cashDrawerScopeProvider) != selected) return;
+    yield await journal.activity(selected);
+  }
 });

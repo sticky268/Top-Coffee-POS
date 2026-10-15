@@ -213,7 +213,10 @@ void main() {
       expect(find.text('Could not load the dashboard'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
+      final retry = find.widgetWithText(FilledButton, 'Retry');
+      await tester.ensureVisible(retry);
+      await tester.pump();
+      await tester.tap(retry);
       await tester.pumpAndSettle();
 
       expect(find.text('\$1,248.50'), findsOneWidget);

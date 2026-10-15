@@ -15,6 +15,7 @@ import '../application/inventory_list_controller.dart';
 import '../application/inventory_attention.dart';
 import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
+import 'ingredient_impact_panel.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key, this.initialLowStockOnly = false});
@@ -150,6 +151,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: _IngredientCard(
                           ingredient: ingredient,
+                          scope: data.scope,
                           onEdit: canManage && data.scope == scope
                               ? () => context.push(
                                   '/inventory/edit',
@@ -506,6 +508,7 @@ class _InventoryHeader extends StatelessWidget {
 class _IngredientCard extends StatelessWidget {
   const _IngredientCard({
     required this.ingredient,
+    required this.scope,
     required this.onEdit,
     required this.onStockAction,
     required this.onDelete,
@@ -513,6 +516,7 @@ class _IngredientCard extends StatelessWidget {
   });
 
   final InventoryIngredient ingredient;
+  final InventoryScope? scope;
   final VoidCallback? onEdit;
   final VoidCallback? onStockAction;
   final VoidCallback? onDelete;
@@ -606,7 +610,9 @@ class _IngredientCard extends StatelessWidget {
       elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [LayoutBuilder(
           builder: (context, constraints) {
             final heading = Row(
               children: [
@@ -640,6 +646,14 @@ class _IngredientCard extends StatelessWidget {
               ],
             );
           },
+        ),
+        if (scope != null && ingredient.isActive &&
+            (ingredient.isLowStock || ingredient.currentStock <= 0))
+          IngredientImpactPanel(
+            key: ValueKey('${scope!.userId}:${scope!.branchId}:${ingredient.id}'),
+            ingredientId: ingredient.id, scope: scope!,
+          ),
+        ],
         ),
       ),
     );

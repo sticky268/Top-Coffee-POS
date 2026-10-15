@@ -375,10 +375,10 @@ void main() {
     await tester.scrollUntilVisible(find.text('Gross receipts'), 300);
     await tester.pumpAndSettle();
     await savePreview(tester, preview, 'daily-operations-large-text');
-    await tester.scrollUntilVisible(find.text('Retry original request'), 300);
+    await tester.scrollUntilVisible(find.text('Retry original action'), 300);
     await tester.pumpAndSettle();
-    expect(find.text('Retry original request').hitTestable(), findsOneWidget);
-    await tester.tap(find.text('Retry original request'));
+    expect(find.text('Retry original action').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Retry original action'));
     await tester.pumpAndSettle();
     verify(() => operations.retry(any())).called(1);
     verifyNever(() => operations.write(any(), any()));

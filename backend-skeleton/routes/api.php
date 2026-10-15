@@ -105,6 +105,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
+        Route::get('/ingredients/{id}/products', \App\Http\Controllers\Api\V1\IngredientImpactController::class)->whereNumber('id');
         Route::get('/ingredients', [IngredientController::class, 'index']);
         Route::post('/ingredients', [IngredientController::class, 'store']);
         Route::patch('/ingredients/{id}', [IngredientController::class, 'update'])->whereNumber('id');

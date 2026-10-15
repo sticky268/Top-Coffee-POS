@@ -33,6 +33,29 @@ void main() {
       ));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      final statusLabel = find.text(
+        status == 'synced'
+            ? 'Confirmed by server'
+            : 'Waiting for connection',
+      );
+      // The new status summary precedes the lazily built order cards.
+      // Reach the actual card before asserting its status and receipt actions.
+      await tester.scrollUntilVisible(
+        statusLabel,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(statusLabel, findsOneWidget);
+      if (status == 'synced') {
+        await tester.scrollUntilVisible(
+          find.text('Print Receipt'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Print Receipt').hitTestable(), findsOneWidget);
+      }
       expect(find.text('Payment completed'), findsNothing);
       expect(find.text('Print Receipt'),
           status == 'synced' ? findsOneWidget : findsNothing);

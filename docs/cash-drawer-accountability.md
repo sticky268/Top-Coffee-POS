@@ -39,3 +39,9 @@ Feature tests cover permission and branch/business isolation, actor substitution
 Flutter tests cover persistence across restart, offline retry/backoff, account/branch isolation, acknowledgement races, reason cancellation/validation, audit failure before hardware access, automatic sale markers and shared printer serialization.
 
 Physical testing is deferred at the owner's request. This change does not replace the previous owner-confirmed drawer hardware checks with new claims.
+
+## Rejected upload review
+
+Permanent per-record HTTP rejections (400, 404, 405, 409, 410, 413, 415, 422) are saved in a separate durable, cashier/branch-scoped review record. They do not alter the original evidence or block later valid audit uploads. Authentication, network, throttling and server failures still stop and back off.
+
+Drawer activity shows local command evidence, uploaded status and records needing review. **Retry audit upload** clears that record's review flag and retries telemetry only; it has no printer or payment dependency and cannot generate a new pulse. Device history remains private to the currently authorized original cashier and branch. Endpoint/configuration problems must be corrected before retry can succeed.

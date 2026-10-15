@@ -60,6 +60,31 @@ class CashDrawerEvent {
   );
 }
 
+/// A permanent upload rejection is reviewable and must not block other records.
+class CashDrawerUploadRejected implements Exception {
+  const CashDrawerUploadRejected(this.message);
+  final String message;
+}
+
+class CashDrawerUploadReview {
+  const CashDrawerUploadReview(this.message, this.recordedAt);
+  final String message;
+  final DateTime recordedAt;
+  Map<String, dynamic> toJson() => {
+    'message': message, 'recorded_at': recordedAt.toUtc().toIso8601String(),
+  };
+  factory CashDrawerUploadReview.fromJson(Map<String, dynamic> json) =>
+      CashDrawerUploadReview(json['message'] as String,
+        DateTime.parse(json['recorded_at'] as String));
+}
+
+class CashDrawerActivity {
+  const CashDrawerActivity(this.event, this.uploaded, this.review);
+  final CashDrawerEvent event;
+  final bool uploaded;
+  final CashDrawerUploadReview? review;
+}
+
 /// Separate from payment and print queues. Uploads never send hardware commands.
 /// The durable initial event is required before a drawer command is attempted.
 class CashDrawerJournal {
@@ -104,17 +129,51 @@ class CashDrawerJournal {
     return events;
   }
 
-  Future<List<CashDrawerEvent>> pending(DrawerScope selected) async {
-    final result = <CashDrawerEvent>[];
+  String _reviewKey(CashDrawerEvent event) =>
+      'drawer-event-review:${event.scope.userId}:${event.scope.branchId}:${event.id}';
+
+  Future<List<CashDrawerActivity>> activity(DrawerScope selected) async {
+    final result = <CashDrawerActivity>[];
     for (final event in await list(selected)) {
-      if (await store.read(_ackKey(event)) != event.status) result.add(event);
+      final review = await store.read(_reviewKey(event));
+      result.add(CashDrawerActivity(
+        event, await store.read(_ackKey(event)) == event.status,
+        review == null ? null : CashDrawerUploadReview.fromJson(
+          Map<String, dynamic>.from(jsonDecode(review) as Map)),
+      ));
     }
     return result;
   }
 
+  Future<List<CashDrawerEvent>> pending(DrawerScope selected) async =>
+      (await activity(selected)).where((item) =>
+        !item.uploaded && item.review == null).map((item) => item.event).toList();
+
+  Future<void> flagForReview(CashDrawerEvent event, String message) async {
+    await store.write(_reviewKey(event), jsonEncode(
+      CashDrawerUploadReview(message, DateTime.now().toUtc()).toJson(),
+    ));
+    _notify();
+  }
+
+  Future<void> retryUpload(String id, DrawerScope selected) async {
+    final matches = (await list(selected)).where((event) => event.id == id);
+    if (matches.isEmpty) {
+      throw StateError('This drawer record is unavailable for this cashier and branch.');
+    }
+    await store.delete(_reviewKey(matches.single));
+    _notify();
+  }
+
+  void _notify() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
+
   // A separate acknowledgement cannot overwrite a newer command outcome.
-  Future<void> acknowledge(CashDrawerEvent uploaded) =>
-      store.write(_ackKey(uploaded), uploaded.status);
+  Future<void> acknowledge(CashDrawerEvent uploaded) async {
+    await store.write(_ackKey(uploaded), uploaded.status);
+    _notify();
+  }
 
   void dispose() => unawaited(_changes.close());
 }
@@ -144,7 +203,12 @@ class CashDrawerSync {
     try {
       for (final event in await journal.pending(selected)) {
         if (scope() != selected) return;
-        await upload(event);
+        try {
+          await upload(event);
+        } on CashDrawerUploadRejected catch (error) {
+          await journal.flagForReview(event, error.message);
+          continue; // A rejected record cannot block unrelated valid evidence.
+        }
         // Acknowledgement belongs to this event's actor, even if sign-out occurs
         // during the request. It never writes any new account's journal.
         await journal.acknowledge(event);

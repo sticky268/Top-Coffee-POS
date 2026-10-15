@@ -97,6 +97,7 @@ class _DrawerReasonDialog extends StatefulWidget {
 class _DrawerReasonDialogState extends State<_DrawerReasonDialog> {
   final _form = GlobalKey<FormState>();
   final _reason = TextEditingController();
+  bool _submitted = false;
 
   @override
   void dispose() {
@@ -105,13 +106,16 @@ class _DrawerReasonDialogState extends State<_DrawerReasonDialog> {
   }
 
   void _confirm() {
+    if (_submitted) return;
     if (_form.currentState!.validate()) {
+      _submitted = true;
       Navigator.of(context).pop(_reason.text.trim());
     }
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
     title: const Text('Why are you opening the drawer?'),
     content: SizedBox(
       width: 360,

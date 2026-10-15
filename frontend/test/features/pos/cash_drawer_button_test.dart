@@ -38,7 +38,7 @@ void main() {
     await tester.tap(find.text('Open drawer'));
     await tester.pump();
   }
-  Future<_Printer> pump(WidgetTester tester, {bool allowed = true, bool enabled = true}) async {
+  Future<_Printer> pump(WidgetTester tester, {bool allowed = true, bool enabled = true, bool compact = false}) async {
     SharedPreferences.setMockInitialValues({'receipt_printer_enabled_branch_test': enabled});
     final auth = _Auth();
     when(() => auth.hasStoredToken()).thenAnswer((_) async => true);
@@ -59,7 +59,16 @@ void main() {
     addTearDown(queue.dispose);
     await container.read(authControllerProvider.notifier).initialization;
     await tester.pumpWidget(UncontrolledProviderScope(container: container,
-      child: const MaterialApp(home: Scaffold(body: CashDrawerButton()))));
+      child: MaterialApp(
+        builder: compact ? (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(2),
+            viewInsets: const EdgeInsets.only(bottom: 160),
+          ),
+          child: child!,
+        ) : null,
+        home: const Scaffold(body: CashDrawerButton()),
+      )));
     await tester.pump();
     return printer;
   }
@@ -112,6 +121,26 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(await lastQueue.drawerJournal.list((userId: 1, branchId: 2)), isEmpty);
+  });
+
+  testWidgets('reason and confirmation remain reachable on a short phone with large text', (tester) async {
+    tester.view.physicalSize = const Size(360, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final printer = await pump(tester, compact: true);
+    await tester.tap(find.text('Open cash drawer'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.byType(TextFormField));
+    await tester.enterText(find.byType(TextFormField), 'Make change');
+    await tester.ensureVisible(find.text('Open drawer'));
+    await tester.tap(find.text('Open drawer'));
+    await tester.pump();
+    printer.connected.complete();
+    await tester.pumpAndSettle();
+    expect(printer.pulses, 1);
+    expect(tester.takeException(), isNull);
   });
 
 }

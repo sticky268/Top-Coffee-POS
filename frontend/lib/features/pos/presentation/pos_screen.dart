@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/receipt/last_receipt_provider.dart';
+import '../../../core/printer/cash_drawer_providers.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
@@ -57,6 +58,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final drawerScope = ref.watch(cashDrawerScopeProvider);
     final compactToolbar = MediaQuery.sizeOf(context).width < 600;
     final catalogState = ref.watch(posCatalogControllerProvider);
     final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
@@ -92,6 +94,12 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             ),
           ),
           actions: [
+            if (drawerScope != null)
+              pos_ui.IconButton(
+                tooltip: 'Drawer activity',
+                icon: const Icon(Icons.history),
+                onPressed: () => context.push('/drawer-activity'),
+              ),
             if (compactToolbar)
               pos_ui.IconButton(
                 tooltip: 'Last Receipt',

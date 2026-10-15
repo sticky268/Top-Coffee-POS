@@ -2,8 +2,20 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:top_coffee_pos/core/printer/cash_drawer_journal.dart';
+import 'package:top_coffee_pos/core/printer/print_queue.dart';
+import 'package:top_coffee_pos/core/printer/printer_service.dart';
 
 import '../../support/memory_local_store.dart';
+
+class _AuditPrinter extends PrinterService {
+  int pulses = 0;
+  @override
+  Future<void> connect(String ip) async {}
+  @override
+  Future<void> disconnect() async {}
+  @override
+  Future<void> openCashDrawer() async { pulses++; }
+}
 
 void main() {
   const selected = (userId: 7, branchId: 8);
@@ -107,4 +119,71 @@ void main() {
     expect(calls, 1);
     expect(await journal.pending(selected), hasLength(1));
   });
+  test('permanent first rejection is durable and does not block later evidence', () async {
+    final bad = await journal.begin(selected, reason: 'Review this record');
+    await journal.begin(selected, reason: 'Valid later request');
+    final uploaded = <String>[];
+    var reject = true;
+    final sync = CashDrawerSync(journal, () => selected, (event) async {
+      if (event.id == bad.id && reject) {
+        throw const CashDrawerUploadRejected('Conflicting audit reference.');
+      }
+      uploaded.add(event.id);
+    });
+    await sync.sync(force: true);
+    expect(uploaded, hasLength(1));
+    expect(uploaded, isNot(contains(bad.id)));
+    expect(await journal.pending(selected), isEmpty);
+    final restarted = CashDrawerJournal(store);
+    addTearDown(restarted.dispose);
+    final review = (await restarted.activity(selected)).singleWhere((item) => item.event.id == bad.id);
+    expect(review.review!.message, 'Conflicting audit reference.');
+    expect(review.uploaded, isFalse);
+    expect(await restarted.activity((userId: 99, branchId: 8)), isEmpty);
+    await expectLater(restarted.retryUpload(bad.id, (userId: 99, branchId: 8)), throwsStateError);
+    reject = false;
+    await restarted.retryUpload(bad.id, selected);
+    await CashDrawerSync(restarted, () => selected, (event) async {
+      uploaded.add(event.id); // Upload callback only; no printer dependency exists.
+    }).sync(force: true);
+    expect(uploaded, hasLength(2));
+    expect(uploaded.last, bad.id);
+    expect((await restarted.activity(selected)).every((item) => item.uploaded && item.review == null), isTrue);
+    expect(await restarted.list(selected), hasLength(2)); // No new drawer attempt.
+  });
+
+  test('transient or authentication failures retain ordering and back off', () async {
+    await journal.begin(selected, reason: 'First request');
+    await journal.begin(selected, reason: 'Second request');
+    var uploads = 0;
+    final sync = CashDrawerSync(journal, () => selected, (event) async {
+      uploads++;
+      throw StateError('Network or authorization unavailable');
+    });
+    await sync.sync();
+    await sync.sync();
+    expect(uploads, 1);
+    expect(await journal.pending(selected), hasLength(2));
+    expect((await journal.activity(selected)).every((item) => item.review == null), isTrue);
+  });
+
+  test('explicit audit retry uploads existing evidence without another hardware pulse', () async {
+    final printer = _AuditPrinter();
+    final queue = PrintQueue(store, printer, () => selected, (_) async => 'ip',
+      drawerJournal: journal);
+    addTearDown(queue.dispose);
+    await queue.openCashDrawer(selected, () async => 'ip', () {}, reason: 'Make change');
+    final event = (await journal.list(selected)).single;
+    await journal.flagForReview(event, 'Validation needs review.');
+    final uploaded = <String>[];
+    await journal.retryUpload(event.id, selected);
+    await CashDrawerSync(journal, () => selected, (item) async {
+      uploaded.add(item.id);
+    }).sync(force: true);
+    expect(uploaded, [event.id]);
+    expect(printer.pulses, 1);
+    expect(await journal.list(selected), hasLength(1));
+    expect((await journal.activity(selected)).single.uploaded, isTrue);
+  });
+
 }

@@ -56,6 +56,9 @@ class ApiAuthenticationResponseTest extends TestCase
             '/test-private-page',
             fn () => 'Private'
         );
+        // These routes are registered after application boot, so rebuild the
+        // named-route lookup that normal route loading refreshes during boot.
+        Route::getRoutes()->refreshNameLookups();
 
         $this->get('/test-private-page', ['Accept' => 'text/html'])
             ->assertRedirect('/test-login');
