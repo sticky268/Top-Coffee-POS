@@ -731,20 +731,38 @@ class _OrderPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Totals and actions belong to the scrollable content. On a short device,
+    // a fixed footer exceeded the available height by more than 100 pixels.
     return Column(
       children: [
         _OrderHeader(order: order),
         const Divider(height: 1),
         Expanded(
-          child: lines.isEmpty
-              ? const Center(child: Text('No items in this order.'))
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: lines.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final line = lines[index];
-
+          child: ListView.separated(
+            key: const ValueKey('open-order-summary-scroll'),
+            padding: EdgeInsets.zero,
+            itemCount: lines.length + 1 + (lines.isEmpty ? 1 : 0),
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              if (lines.isEmpty && index == 0) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: Text('No items in this order.')),
+                );
+              }
+              if (index == lines.length + (lines.isEmpty ? 1 : 0)) {
+                return _OrderTotals(
+                  subtotal: subtotal,
+                  discount: discount,
+                  total: total,
+                  currency: currency,
+                  onSave: onSave,
+                  onDiscard: onDiscard,
+                  onCancel: onCancel,
+                  onPay: onPay,
+                );
+              }
+              final line = lines[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       child: Row(
@@ -837,18 +855,8 @@ class _OrderPanel extends StatelessWidget {
                           ],
                         ),
                     );
-                  },
-                ),
-        ),
-        _OrderTotals(
-          subtotal: subtotal,
-          discount: discount,
-          total: total,
-          currency: currency,
-          onSave: onSave,
-          onDiscard: onDiscard,
-          onCancel: onCancel,
-          onPay: onPay,
+            },
+          ),
         ),
       ],
     );
