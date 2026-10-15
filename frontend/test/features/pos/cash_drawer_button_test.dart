@@ -38,12 +38,13 @@ void main() {
     await tester.tap(find.text('Open drawer'));
     await tester.pump();
   }
-  Future<_Printer> pump(WidgetTester tester, {bool allowed = true, bool enabled = true, bool compact = false}) async {
+  Future<_Printer> pump(WidgetTester tester, {bool allowed = true, bool enabled = true, bool compact = false, bool managerControls = false}) async {
     SharedPreferences.setMockInitialValues({'receipt_printer_enabled_branch_test': enabled});
     final auth = _Auth();
     when(() => auth.hasStoredToken()).thenAnswer((_) async => true);
     when(() => auth.getCurrentUser()).thenAnswer((_) async => AuthenticatedUser(
       id: 1, name: 'Cashier', email: 'cashier@example.test',
+      requireManagerControls: managerControls,
       roles: ['cashier'], permissions: allowed ? ['orders.create'] : ['orders.view'],
       branches: [const BranchSummary(id: 2, name: 'Test', code: 'TEST')],
     ));
@@ -86,6 +87,12 @@ void main() {
     expect(event.reason, 'Make change');
     expect(event.status, 'command_sent');
     expect(find.text('Drawer command sent. Check the drawer.'), findsOneWidget);
+  });
+
+  testWidgets('manager controls hide manual drawer access from a cashier', (tester) async {
+    final printer = await pump(tester, managerControls: true);
+    expect(find.text('Open cash drawer'), findsNothing);
+    expect(printer.pulses, 0);
   });
 
   testWidgets('view-only staff have no drawer action', (tester) async {

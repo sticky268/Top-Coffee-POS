@@ -1,5 +1,8 @@
 package com.example.top_coffee_pos
 
+import android.content.pm.ApplicationInfo
+import android.os.Bundle
+import android.view.WindowManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -18,6 +21,13 @@ import net.posprinter.POSConst
 import net.posprinter.POSPrinter
 
 class MainActivity : FlutterActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
 
     companion object {
         private const val PRINTER_CHANNEL = "top_coffee_pos/printer"

@@ -27,6 +27,7 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
     return auth is AuthAuthenticated &&
         branch != null &&
         auth.user.hasPermission('orders.create') &&
+        (!auth.user.requireManagerControls || auth.user.canApproveCheckout) &&
         (auth.user.hasPermission('branches.view-all') ||
             auth.user.branches.any((b) => b.id == branch.id));
   }

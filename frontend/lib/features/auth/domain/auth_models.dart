@@ -59,14 +59,15 @@ class AuthenticatedUser {
 
   factory AuthenticatedUser.fromJson(Map<String, dynamic> json) {
     return AuthenticatedUser(
-      allowedPaymentMethods: List<String>.from(json['allowed_payment_methods'] as List? ?? const ['cash', 'card', 'qr']),
+      allowedPaymentMethods: List<String>.from(
+          json['allowed_payment_methods'] as List? ??
+              const ['cash', 'card', 'qr']),
       requireCashShift:
           (json['checkout_controls'] as Map?)?['require_cash_shift'] == true,
       requireManagerControls:
           (json['checkout_controls'] as Map?)?['require_manager_controls'] ==
-          true,
-      managerDiscountPercent:
-          double.tryParse(
+              true,
+      managerDiscountPercent: double.tryParse(
             '${(json['checkout_controls'] as Map?)?['manager_discount_percent']}',
           ) ??
           10,

@@ -18,6 +18,12 @@ jobs:
           php-version: '8.2'
           extensions: pdo_sqlite, pdo_mysql
           coverage: none
+      - name: Resolve compatible dependency security updates for review
+        run: |
+          composer update laravel/framework league/commonmark symfony/http-foundation symfony/yaml --with-all-dependencies --no-interaction --no-progress
+          mkdir -p build/security
+          cp composer.lock build/security/composer.lock
+          git diff -- composer.lock > build/security/dependency-update.patch
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
@@ -97,7 +103,7 @@ jobs:
           retention-days: 7
       - name: Prepare security source format review and dependency inventory
         run: |
-          dart format test/presentation/checkout_polish_test.dart lib/features/pos/presentation/checkout_screen.dart lib/features/auth/domain/auth_models.dart lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
+          dart format lib/features/pos/presentation/cash_drawer_button.dart test/features/pos/cash_drawer_button_test.dart test/presentation/checkout_polish_test.dart lib/features/pos/presentation/checkout_screen.dart lib/features/auth/domain/auth_models.dart lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
           mkdir -p build/ui-polish build/security
           git diff -- lib test > build/ui-polish/security-source-format.patch
           dart pub outdated --json > build/security/pub-outdated.json

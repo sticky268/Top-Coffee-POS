@@ -4,7 +4,7 @@
     "description": "Top Coffee POS - Laravel API backend",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^12.0",
+        "laravel/framework": "^12.69",
         "laravel/sanctum": "^4.0",
         "spatie/laravel-permission": "^6.9",
         "predis/predis": "^3.0"
