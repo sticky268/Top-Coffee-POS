@@ -121,7 +121,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/operations',
-            builder: (context, state) => const OperationsScreen(),
+            builder: (context, state) => OperationsScreen(
+              initialSection: state.uri.queryParameters['section'],
+              initialShiftId: int.tryParse(state.uri.queryParameters['shift_id'] ?? ''),
+              initialDifferencesOnly: state.uri.queryParameters['review'] == 'differences',
+            ),
           ),
           GoRoute(
             path: '/orders/:id/financials',

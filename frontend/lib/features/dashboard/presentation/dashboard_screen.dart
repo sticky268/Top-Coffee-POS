@@ -67,6 +67,10 @@ class DashboardScreen extends ConsumerWidget {
                           lowStockCount: dashboardState is DashboardLoaded
                               ? dashboardState.stats.lowStockItemCount
                               : null,
+                          cashDiscrepancyCount: dashboardState is DashboardLoaded
+                              ? dashboardState.stats.cashDiscrepancyCount : null,
+                          cashDiscrepancyShiftId: dashboardState is DashboardLoaded
+                              ? dashboardState.stats.cashDiscrepancyShiftId : null,
                         ),
                         _DashboardBody(
                           state: dashboardState,

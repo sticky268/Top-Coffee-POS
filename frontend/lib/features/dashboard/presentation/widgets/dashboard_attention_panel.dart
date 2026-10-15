@@ -14,8 +14,11 @@ import '../../../auth/application/auth_state.dart';
 /// Counts are for this cashier's selected branch on this device, never a
 /// business-wide claim about other devices' queues.
 class DashboardAttentionPanel extends ConsumerWidget {
-  const DashboardAttentionPanel({super.key, this.lowStockCount});
+  const DashboardAttentionPanel({super.key, this.lowStockCount,
+    this.cashDiscrepancyCount, this.cashDiscrepancyShiftId});
   final int? lowStockCount;
+  final int? cashDiscrepancyCount;
+  final int? cashDiscrepancyShiftId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,6 +106,17 @@ class DashboardAttentionPanel extends ConsumerWidget {
             onTap: () => context.push('/print-queue'),
           ),
         ],
+      ));
+    }
+    if (user.hasPermission('reports.view') &&
+        cashDiscrepancyCount != null && cashDiscrepancyCount! > 0) {
+      cards.add(_AttentionRow(
+        icon: Icons.account_balance_wallet_outlined,
+        title: '$cashDiscrepancyCount ${cashDiscrepancyCount == 1 ? 'shift has' : 'shifts have'} an unreviewed cash difference',
+        detail: 'Server-recorded cash shortages or overages in ${branch.name}. Review each shift before confirming.',
+        onTap: () => context.push(cashDiscrepancyShiftId == null
+            ? '/operations?section=Shifts&review=differences'
+            : '/operations?section=Shifts&shift_id=$cashDiscrepancyShiftId&review=differences'),
       ));
     }
     if (user.hasPermission('inventory.view') &&

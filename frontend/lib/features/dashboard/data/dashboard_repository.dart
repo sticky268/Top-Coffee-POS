@@ -61,6 +61,9 @@ class ApiDashboardRepository implements DashboardRepository {
       todaysOrders: _toInt(stats['todays_orders']),
       averageOrderValue: _toDouble(stats['average_order_value']),
       lowStockItemCount: _toInt(stats['low_stock_item_count']),
+      cashDiscrepancyCount: _toInt(stats['cash_discrepancy_count']),
+      cashDiscrepancyShiftId: stats['cash_discrepancy_shift_id'] == null
+          ? null : _toInt(stats['cash_discrepancy_shift_id']),
     );
   }
 

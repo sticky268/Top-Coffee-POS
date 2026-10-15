@@ -16,13 +16,18 @@ import 'operation_form.dart';
 import 'operation_display.dart';
 
 class OperationsScreen extends ConsumerStatefulWidget {
-  const OperationsScreen({super.key});
+  const OperationsScreen({super.key, this.initialSection, this.initialShiftId,
+    this.initialDifferencesOnly = false});
+  final String? initialSection;
+  final int? initialShiftId;
+  final bool initialDifferencesOnly;
   @override
   ConsumerState<OperationsScreen> createState() => _OperationsScreenState();
 }
 
 class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   String _section = 'Shifts';
+  bool _differencesOnly = false;
   int _days = 1;
   bool _compare = false;
   List<Map<String, dynamic>> _comparisons = [];
@@ -37,6 +42,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   @override
   void initState() {
     super.initState();
+    _section = widget.initialSection == 'Owner report' ? 'Owner report' : 'Shifts';
+    _differencesOnly = widget.initialDifferencesOnly;
     Future.microtask(_load);
   }
 
@@ -75,7 +82,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         path,
         query: _section == 'Owner report'
             ? {'date_from': start, 'date_to': now}
-            : {},
+            : _section == 'Shifts' && widget.initialShiftId != null
+                ? {'shift_id': widget.initialShiftId}
+                : {},
       );
       final comparisons = <Map<String, dynamic>>[];
       final auth = ref.read(authControllerProvider);
@@ -161,6 +170,11 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
 
   Widget _shifts(AuthAuthenticated auth) {
     final list = (_data as List).cast<Map<String, dynamic>>();
+    final shown = _differencesOnly
+        ? list.where((s) => s['status'] == 'closed' &&
+            ((num.tryParse('${s['difference']}') ?? 0).abs() >= 0.005) &&
+            s['reviewed_at'] == null).toList()
+        : list;
     final mine = list.where(
       (s) => s['user_id'] == auth.user.id && s['status'] == 'open',
     );
@@ -188,7 +202,13 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
             icon: const Icon(Icons.lock_open),
             label: const Text('Open shift'),
           ),
-        for (final shift in list)
+        if (auth.user.hasPermission('reports.view'))
+          SwitchListTile(
+            title: const Text('Show unreviewed cash differences only'),
+            value: _differencesOnly,
+            onChanged: (value) => setState(() => _differencesOnly = value),
+          ),
+        for (final shift in shown)
           _card('Shift #${shift['id']} · ${shift['status']}', [
             _value('Cashier', shiftCashierName(shift, auth.user)),
             _value('Opened (device time)', operationDeviceTime(shift['created_at'])),
@@ -297,7 +317,14 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
               ],
             ],
           ]),
-        if (list.isEmpty)
+        if (shown.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(_differencesOnly
+                ? 'No unreviewed cash differences in these shifts.'
+                : 'No shifts for this branch yet.'),
+          ),
+        if (false)
           const Padding(
             padding: EdgeInsets.all(24),
             child: Text('No shifts for this branch yet.'),
@@ -605,6 +632,22 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
           report['unpriced_wastage_movements'],
         ),
         _value('Shifts awaiting review', report['unreviewed_shifts']),
+        _value('Shifts with cash differences', report['cash_difference_shift_count']),
+        for (final raw in (report['cash_difference_shifts'] as List? ?? []))
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Shift #${raw['id']} · ${cashDifferenceDescription(raw['difference'])}'),
+            subtitle: Text(operationDeviceTime(raw['closed_at'])),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/operations?section=Shifts&shift_id=${raw['id']}'),
+          ),
+        _value('Stock count adjustments with a difference', report['stock_count_discrepancy_count']),
+        for (final raw in (report['stock_count_discrepancies'] as List? ?? []))
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('${raw['ingredient_name']} · ${raw['quantity']} stock adjustment'),
+            subtitle: Text('${raw['reason']} · ${operationDeviceTime(raw['created_at'])}'),
+          ),
         _value(
           'Cash payments outside a shift',
           report['unassigned_cash_payments'],

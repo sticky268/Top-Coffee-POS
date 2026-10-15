@@ -10,12 +10,16 @@ class DashboardStats {
     required this.todaysOrders,
     required this.averageOrderValue,
     required this.lowStockItemCount,
+    this.cashDiscrepancyCount = 0,
+    this.cashDiscrepancyShiftId,
   });
 
   final double todaysSales;
   final int todaysOrders;
   final double averageOrderValue;
   final int lowStockItemCount;
+  final int cashDiscrepancyCount;
+  final int? cashDiscrepancyShiftId;
 }
 
 enum OrderStatus { pending, preparing, ready, completed, cancelled }
