@@ -137,7 +137,7 @@ void main() {
               find.text('Cash received is below the total.'),
               findsOneWidget,
             );
-            final pay = find.text('Confirm & Pay');
+            final pay = find.text('Complete & Print');
             await tester.scrollUntilVisible(
               pay,
               250,
@@ -148,6 +148,8 @@ void main() {
               find.ancestor(of: pay, matching: find.byType(FilledButton)).first,
             );
             expect(button.onPressed, isNull);
+            final noPrint = find.widgetWithText(OutlinedButton, 'Complete Sale');
+            expect(tester.widget<OutlinedButton>(noPrint).onPressed, isNull);
             await tester.scrollUntilVisible(
               find.text('Exact \$3.50'),
               -250,

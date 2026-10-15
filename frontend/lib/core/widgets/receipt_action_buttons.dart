@@ -14,10 +14,12 @@ class ReceiptActionButtons extends ConsumerStatefulWidget {
   const ReceiptActionButtons({
     super.key,
     required this.orderId,
+    this.autoPrint = false,
     this.showHeading = false,
   });
 
   final int orderId;
+  final bool autoPrint;
   final bool showHeading;
 
   @override
@@ -28,11 +30,25 @@ class ReceiptActionButtons extends ConsumerStatefulWidget {
 class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
   bool _isPrinting = false;
   bool _isSharing = false;
+  String? _printError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoPrint) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _printReceipt();
+      });
+    }
+  }
 
   Future<void> _printReceipt({bool asCopy = false}) async {
     if (_isPrinting || _isSharing) return;
 
-    setState(() => _isPrinting = true);
+    setState(() {
+      _isPrinting = true;
+      _printError = null;
+    });
     try {
       if (asCopy && !await _confirmPrintCopy(context)) return;
       if (!mounted) return;
@@ -53,9 +69,9 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_messageFor(error, 'Could not print receipt'))),
-      );
+      setState(() {
+        _printError = 'Payment is saved. ${_messageFor(error, 'Could not print receipt')}';
+      });
     } finally {
       if (mounted) setState(() => _isPrinting = false);
     }
@@ -109,12 +125,20 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
           ),
           const SizedBox(height: 12),
         ],
+        if (_printError != null) ...[
+          Text(_printError!, semanticsLabel: _printError),
+          TextButton(
+            onPressed: () => context.go('/print-queue'),
+            child: const Text('Check Print Queue'),
+          ),
+          const SizedBox(height: 8),
+        ],
         _DocumentButtonLayout(
           primary: pos_ui.OutlinedButton.icon(
             onPressed: busy ? null : _printReceipt,
             isLoading: _isPrinting,
             icon: const Icon(Icons.print_outlined),
-            label: Text(_isPrinting ? 'Printing...' : 'Print Receipt'),
+            label: Text(_isPrinting ? 'Printing...' : _printError != null ? 'Retry Print' : 'Print Receipt'),
           ),
           secondary: pos_ui.SecondaryButton.icon(
             onPressed: busy ? null : _shareElectronicReceipt,

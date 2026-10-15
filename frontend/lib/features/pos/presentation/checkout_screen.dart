@@ -64,6 +64,7 @@ class _SplitPaymentLine {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  bool _printAfterSale = false;
   String _paymentMethod = 'cash';
   String _orderType = 'takeaway';
   PosTable? _selectedTable;
@@ -203,6 +204,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           CheckoutSuccess(:final confirmation) => _CheckoutSuccessView(
             confirmation: confirmation,
+            autoPrint: _printAfterSale,
           ),
           _ => _CheckoutForm(
             cart: cart,
@@ -240,7 +242,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             errorMessage: checkoutState is CheckoutError
                 ? checkoutState.message
                 : null,
-            onConfirm: () {
+            onConfirm: (printReceipt) {
+              if (ref.read(checkoutControllerProvider) is CheckoutSubmitting) return;
+              _printAfterSale = printReceipt;
               ref
                   .read(checkoutControllerProvider.notifier)
                   .submit(
@@ -322,7 +326,7 @@ class _CheckoutForm extends StatelessWidget {
   final VoidCallback onTenderedChanged;
   final bool isSubmitting;
   final String? errorMessage;
-  final VoidCallback onConfirm;
+  final ValueChanged<bool> onConfirm;
   final VoidCallback onHold;
 
   @override
@@ -1039,7 +1043,7 @@ class _CheckoutForm extends StatelessWidget {
                 ),
               if (selectedTable != null) const SizedBox(height: 8),
               pos_ui.PosActionButton(
-                onPressed: canConfirm ? onConfirm : null,
+                onPressed: canConfirm ? () => onConfirm(true) : null,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(58),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -1055,7 +1059,7 @@ class _CheckoutForm extends StatelessWidget {
                   runSpacing: 4,
                   children: [
                     const Text(
-                      'Confirm & Pay',
+                      'Complete & Print',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     Text(
@@ -1064,6 +1068,16 @@ class _CheckoutForm extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 8),
+              pos_ui.OutlinedButton(
+                onPressed: canConfirm ? () => onConfirm(false) : null,
+                child: const Text('Complete Sale'),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
+                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -1122,9 +1136,10 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 class _CheckoutSuccessView extends ConsumerStatefulWidget {
-  const _CheckoutSuccessView({required this.confirmation});
+  const _CheckoutSuccessView({required this.confirmation, this.autoPrint = false});
 
   final OrderConfirmation confirmation;
+  final bool autoPrint;
 
   @override
   ConsumerState<_CheckoutSuccessView> createState() =>
@@ -1279,7 +1294,10 @@ class _CheckoutSuccessViewState extends ConsumerState<_CheckoutSuccessView> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ReceiptActionButtons(orderId: widget.confirmation.orderId),
+                ReceiptActionButtons(
+                  orderId: widget.confirmation.orderId,
+                  autoPrint: widget.autoPrint,
+                ),
                 const SizedBox(height: 16),
                 pos_ui.PosActionButton(
                   onPressed: () => context.go('/pos/select-table'),
