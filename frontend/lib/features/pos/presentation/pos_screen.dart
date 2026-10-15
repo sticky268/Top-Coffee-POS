@@ -13,6 +13,7 @@ import 'cash_drawer_button.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
 import 'widgets/cart_panel.dart';
+import 'widgets/phone_cart_bar.dart';
 import 'widgets/category_selector.dart';
 import 'widgets/product_grid.dart';
 import 'widgets/product_search_field.dart';
@@ -190,14 +191,13 @@ class _PhoneLayout extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Expanded(
-          flex: 3,
           child: ProductGrid(
             products: products,
             crossAxisCount: crossAxisCount,
           ),
         ),
         const Divider(height: 1),
-        Expanded(flex: 2, child: CartPanel(selectedTable: selectedTable)),
+        PhoneCartBar(selectedTable: selectedTable),
       ],
     );
   }

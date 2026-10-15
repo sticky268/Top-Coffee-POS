@@ -20,6 +20,9 @@ import '../application/checkout_controller.dart';
 import '../application/checkout_state.dart';
 import '../domain/pos_models.dart';
 import 'widgets/checkout_summary.dart';
+import 'widgets/checkout_actions.dart';
+import 'widgets/cash_quick_amounts.dart';
+import '../../../core/config/till_currency.dart';
 
 /// Order review + payment screen, reached via the cart's "Review Order" /
 /// "Checkout" action. Reads the cart at build time; on a successful order,
@@ -421,7 +424,11 @@ class _CheckoutForm extends StatelessWidget {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+            key: const ValueKey('checkout-review-scroll'),
             padding: const EdgeInsets.all(16),
             children: [
               if (errorMessage != null) ...[
@@ -971,7 +978,7 @@ class _CheckoutForm extends StatelessWidget {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            for (final amount in {cart.total, 15.0, 20.0, 50.0})
+                            for (final amount in cashQuickAmounts(cart.total))
                               pos_ui.OutlinedButton(
                                 onPressed: isSubmitting
                                     ? null
@@ -997,6 +1004,32 @@ class _CheckoutForm extends StatelessWidget {
                               ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Riel cash · ${NumberFormat.decimalPattern('en').format(TillCurrency.rielPerDollar)}៛ = US\$1',
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final riel in TillCurrency.rielQuickAmounts(cart.total))
+                              pos_ui.OutlinedButton(
+                                onPressed: isSubmitting ? null : () {
+                                  tenderedController.text = TillCurrency.usdForRielNote(riel).toStringAsFixed(2);
+                                  onTenderedChanged();
+                                },
+                                child: Text(
+                                  '${NumberFormat.decimalPattern('en').format(riel)}៛ / ${currency.format(TillCurrency.usdForRielNote(riel))}',
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (change != null && change >= 0) ...[
+                          const SizedBox(height: 8),
+                          Text('Change equivalent: ${NumberFormat.decimalPattern('en').format(TillCurrency.rielForUsd(change))}៛'),
+                        ],
                         const SizedBox(height: 16),
                         Container(
                           width: double.infinity,
@@ -1042,42 +1075,18 @@ class _CheckoutForm extends StatelessWidget {
                   child: const Text('Save for Later'),
                 ),
               if (selectedTable != null) const SizedBox(height: 8),
-              pos_ui.PosActionButton(
-                onPressed: canConfirm ? () => onConfirm(true) : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(58),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                isLoading: isSubmitting,
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    const Text(
-                      'Complete & Print',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      currency.format(cart.total),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              pos_ui.OutlinedButton(
-                onPressed: canConfirm ? () => onConfirm(false) : null,
-                child: const Text('Complete Sale'),
-              ),
-              const SizedBox(height: 8),
               const Text(
                 'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
-                textAlign: TextAlign.center,
+              ),
+            ],
+                ),
+              ),
+              CheckoutActions(
+                totalLabel: currency.format(cart.total),
+                secondaryTotalLabel: '${NumberFormat.decimalPattern('en').format(TillCurrency.rielForUsd(cart.total))}៛',
+                enabled: canConfirm,
+                isSubmitting: isSubmitting,
+                onComplete: onConfirm,
               ),
             ],
           ),

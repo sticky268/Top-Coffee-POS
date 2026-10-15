@@ -16,6 +16,8 @@ import 'package:top_coffee_pos/features/pos/presentation/checkout_screen.dart';
 import 'package:top_coffee_pos/features/pos/presentation/widgets/cart_panel.dart';
 import 'package:top_coffee_pos/features/pos/presentation/widgets/checkout_summary.dart';
 
+import 'package:top_coffee_pos/features/pos/presentation/widgets/phone_cart_bar.dart';
+
 import 'ui_polish_test.dart' show savePreview;
 
 class MockPosRepository extends Mock implements PosRepository {}
@@ -100,6 +102,42 @@ void main() {
     await tester.pumpAndSettle();
     return (container: container, repository: repo);
   }
+
+  testWidgets('riel shortcut fills exact USD equivalent and preserves change', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final built = await setup(tester, child: const CheckoutScreen());
+    final riel = find.text('20,000៛ / \$5.00');
+    await tester.scrollUntilVisible(riel, 220,
+      scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+    await tester.tap(riel);
+    await tester.pumpAndSettle();
+    final amount = find.widgetWithText(TextField, 'Amount received');
+    expect(tester.widget<TextField>(amount).controller!.text, '5.00');
+    expect(find.text('Change equivalent: 6,000៛'), findsOneWidget);
+    verifyZeroInteractions(built.repository);
+  });
+
+  testWidgets('phone cart expands for edits and returns to compact summary', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final built = await setup(tester, child: const Scaffold(
+      body: Column(children: [Expanded(child: SizedBox()), PhoneCartBar()]),
+    ));
+    expect(find.text('View cart · 1 item · \$3.50'), findsOneWidget);
+    expect(find.text('Order Summary'), findsNothing);
+    await tester.tap(find.text('View cart · 1 item · \$3.50'));
+    await tester.pumpAndSettle();
+    expect(find.text('Order Summary'), findsOneWidget);
+    await tester.tap(find.byTooltip('Increase quantity'));
+    await tester.pumpAndSettle();
+    expect(built.container.read(cartControllerProvider).items.single.quantity, 2);
+    await tester.tap(find.byTooltip('Close cart'));
+    await tester.pumpAndSettle();
+    expect(find.text('View cart · 2 items · \$7.00'), findsOneWidget);
+    expect(find.text('Order Summary'), findsNothing);
+    verifyZeroInteractions(built.repository);
+  });
 
   for (final size in [
     const Size(360, 800),

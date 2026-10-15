@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/printer/print_queue.dart';
 import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/core/receipt/receipt_action_service.dart';
@@ -11,6 +12,25 @@ import 'package:top_coffee_pos/core/widgets/receipt_action_buttons.dart';
 class _ReceiptService extends Mock implements ReceiptActionService {}
 
 void main() {
+  testWidgets('uncertain receipt keeps paid state and directs cashier to inspect paper', (tester) async {
+    final service = _ReceiptService();
+    when(() => service.printReceipt(42, asCopy: false)).thenThrow(
+      ReceiptPrintException(PrintStatus.uncertain, 'Printer confirmation was lost.'),
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [receiptActionServiceProvider.overrideWithValue(service)],
+      child: const MaterialApp(home: Scaffold(body: Column(children: [
+        Text('Payment Successful'),
+        ReceiptActionButtons(orderId: 42, autoPrint: true),
+      ]))),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Payment Successful'), findsOneWidget);
+    expect(find.text('Check Paper'), findsOneWidget);
+    expect(find.text('Retry Print'), findsNothing);
+    verify(() => service.printReceipt(42, asCopy: false)).called(1);
+  });
+
 
   for (final autoPrint in [false, true]) {
     testWidgets('paid receipt autoPrint=$autoPrint never repeats on rebuild', (tester) async {

@@ -18,6 +18,15 @@ import '../printer/print_queue_providers.dart';
 import '../branch/current_branch_provider.dart';
 import 'customer_bill.dart';
 
+/// Retains the durable print outcome so the UI never offers a blind retry
+/// when the printer may already have received the receipt.
+class ReceiptPrintException extends StateError {
+  ReceiptPrintException(this.status, String message) : super(message);
+  final PrintStatus status;
+  bool get requiresPaperCheck =>
+      status == PrintStatus.uncertain || status == PrintStatus.sending;
+}
+
 class ReceiptActionService {
   ReceiptActionService(
     this._repository, {
@@ -60,7 +69,7 @@ class ReceiptActionService {
       );
       final sent = await _printQueue.send(job.id, selected);
       if (sent.status != PrintStatus.sent) {
-        throw StateError(sent.error ?? 'Printing is awaiting confirmation. Open the print queue.');
+        throw ReceiptPrintException(sent.status, sent.error ?? 'Printing is awaiting confirmation. Open the print queue.');
       }
       return receipt;
     }
@@ -108,7 +117,7 @@ class ReceiptActionService {
       );
       final sent = await _printQueue.send(job.id, selected);
       if (sent.status != PrintStatus.sent) {
-        throw StateError(sent.error ?? 'Printing is awaiting confirmation. Open the print queue.');
+        throw ReceiptPrintException(sent.status, sent.error ?? 'Printing is awaiting confirmation. Open the print queue.');
       }
       return;
     }

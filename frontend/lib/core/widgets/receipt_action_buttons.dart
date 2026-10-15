@@ -31,6 +31,7 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
   bool _isPrinting = false;
   bool _isSharing = false;
   String? _printError;
+  bool _requiresPaperCheck = false;
 
   @override
   void initState() {
@@ -48,6 +49,7 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
     setState(() {
       _isPrinting = true;
       _printError = null;
+      _requiresPaperCheck = false;
     });
     try {
       if (asCopy && !await _confirmPrintCopy(context)) return;
@@ -70,6 +72,7 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _requiresPaperCheck = error is ReceiptPrintException && error.requiresPaperCheck;
         _printError = 'Payment is saved. ${_messageFor(error, 'Could not print receipt')}';
       });
     } finally {
@@ -126,7 +129,7 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
           const SizedBox(height: 12),
         ],
         if (_printError != null) ...[
-          Text(_printError!, semanticsLabel: _printError),
+          Semantics(liveRegion: true, child: Text(_printError!)),
           TextButton(
             onPressed: () => context.go('/print-queue'),
             child: const Text('Check Print Queue'),
@@ -135,10 +138,11 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
         ],
         _DocumentButtonLayout(
           primary: pos_ui.OutlinedButton.icon(
-            onPressed: busy ? null : _printReceipt,
+            onPressed: busy ? null : _requiresPaperCheck
+                ? () => context.go('/print-queue') : _printReceipt,
             isLoading: _isPrinting,
             icon: const Icon(Icons.print_outlined),
-            label: Text(_isPrinting ? 'Printing...' : _printError != null ? 'Retry Print' : 'Print Receipt'),
+            label: Text(_isPrinting ? 'Printing...' : _requiresPaperCheck ? 'Check Paper' : _printError != null ? 'Retry Print' : 'Print Receipt'),
           ),
           secondary: pos_ui.SecondaryButton.icon(
             onPressed: busy ? null : _shareElectronicReceipt,
