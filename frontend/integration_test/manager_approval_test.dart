@@ -244,9 +244,8 @@ void main() {
 
     Future<void> cancel(String pin, {bool editor = false}) async {
       final before = cancelStatuses.length;
-      final control = editor
-          ? find.text('Cancel Order')
-          : find.byTooltip('Cancel order');
+      final control =
+          editor ? find.text('Cancel Order') : find.byTooltip('Cancel order');
       await waitFor(tester, control);
       final anchor = control.last;
       ScaffoldMessenger.of(tester.element(anchor)).clearSnackBars();
