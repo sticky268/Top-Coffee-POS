@@ -102,14 +102,23 @@ class MainActivity : FlutterActivity() {
     }
 }
 "openCashDrawer" -> {
-                    try {
-                        val currentPrinter = printer
-                            ?: throw IllegalStateException("Printer is not connected.")
-                        // SDK default pulse on the printer's standard drawer connector.
-                        currentPrinter.openCashBox(0)
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("DRAWER_ERROR", e.message, null)
+                    val connection = printerConnection
+                    if (connection == null || printer == null) {
+                        result.error("NOT_CONNECTED", "Printer is not connected.", null)
+                        return@setMethodCallHandler
+                    }
+                    // Same five bytes as bundled SDK openCashBox(0): ESC p 0 30 255.
+                    // Wait for the write before Dart disconnects; sendData is asynchronous.
+                    POSConnect.backgroundThreadExecutor.execute {
+                        try {
+                            val pulse = byteArrayOf(27, 112, 0, 30, 255.toByte())
+                            if (connection.sendSync(pulse) != pulse.size) {
+                                throw IllegalStateException("Drawer command could not be confirmed.")
+                            }
+                            runOnUiThread { result.success(true) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("DRAWER_ERROR", e.message, null) }
+                        }
                     }
                 }
                 "printTest" -> {
