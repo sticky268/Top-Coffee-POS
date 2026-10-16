@@ -49,7 +49,9 @@ def run_test(name: str, phase: str | None = None) -> None:
     command = ['flutter', 'test', f'integration_test/{name}.dart',
                '--dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1']
     if phase:
-        command.append(f'--dart-define=OFFLINE_PHASE={phase}')
+        # flutter test otherwise uninstalls the integration app on teardown.
+        # Preserve Android data/Keystore across the four real process launches.
+        command += ['--no-uninstall', f'--dart-define=OFFLINE_PHASE={phase}']
     if name == 'operations_readonly_smoke_test':
         command += ['--dart-define=SMOKE_EXPECTED_API=http://10.0.2.2:8000/api/v1',
                     '--dart-define=SMOKE_CI_LOGIN=true']
@@ -58,7 +60,7 @@ def run_test(name: str, phase: str | None = None) -> None:
 
 def stop_android() -> None:
     # CI emulator only; preserves app data and Android Keystore. Each next
-    # flutter test launches a new app process and reinstalls without clearing.
+    # flutter test --no-uninstall launches a new process without clearing data.
     subprocess.run(['adb', 'shell', 'am', 'force-stop', APP_ID], check=True, timeout=15)
     result = subprocess.run(['adb', 'shell', 'pidof', APP_ID],
                             capture_output=True, text=True, timeout=15)

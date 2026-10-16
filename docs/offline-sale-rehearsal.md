@@ -29,7 +29,9 @@ The runner invokes `flutter test` for the existing cashier, read-only operations
 manager approval and native print recovery flows, plus four invocations of
 `integration_test/offline_sale_recovery_test.dart`, with
 `--dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1` and
-`--dart-define=OFFLINE_PHASE=prepare|queue|restart|recover` (one phase per process).
+`--dart-define=OFFLINE_PHASE=prepare|queue|restart|recover` (one phase per process)
+and `--no-uninstall`. Flutter integration tests otherwise uninstall the app on
+teardown; keeping it installed is necessary to test actual restart recovery.
 Each command launches the actual app with real secure storage, SQLite, Riverpod
 providers and HTTP client. The test refuses another API address. No mocked Dio
 adapter, injected auth token or production test endpoint is used.
