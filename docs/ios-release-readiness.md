@@ -111,6 +111,43 @@ Use isolated staging data, never new production sales for acceptance. The curren
 integration host runner is Android/disposable-CI oriented; do not point it at a
 real backend or claim it already runs on iOS.
 
+## Clone troubleshooting and current evidence
+
+The clean-checkout iOS run on source 40dfc636903b7bd1b7611469be555645c08836b4
+passed analysis/tests, simulator Debug and unsigned device Release compilation:
+https://github.com/sticky268/Top-Coffee-POS/actions/runs/38890001098 .
+POS validation also passed:
+https://github.com/sticky268/Top-Coffee-POS/actions/runs/38890001104 .
+This is historical evidence for that source, not certification of later edits.
+
+That source's Android integration run timed out after installing the offline
+restart test, before reporting a test assertion:
+https://github.com/sticky268/Top-Coffee-POS/actions/runs/38890001129 .
+The root cause is unresolved. The runner now captures per-phase verbose Flutter
+logs and failure logcat before emulator teardown, preserves no-uninstall behavior
+and fails on timeout without retrying or clearing device data. Those diagnostics
+are not a claim that the restart issue is fixed.
+
+The iOS matrix now checks Flutter 3.44.9 and the owner's 3.47.7 independently.
+Read each exact candidate's checks; do not infer either result from an older run.
+
+Catalog image selection uses image_picker with gallery access. Info.plist now
+declares NSPhotoLibraryUsageDescription, as required by the plugin's iOS setup.
+Test allow/deny/cancel and product-photo selection on the real device; compilation
+does not certify permission behavior. No camera or microphone flow was added.
+
+For a local signing failure, errSecInternalComponent is not a package
+deprecation warning. Confirm the intended identity/private key exists in the
+login keychain, unlock it privately and allow only the signing tool access.
+Never delete/recreate keys or reset certificate trust as a first step.
+Do not upload keychain passwords, keys or certificates in a build log.
+
+An installed Flutter Debug application on iOS must be started through Xcode or
+Flutter tooling. A home-screen message about Debug launch restrictions is not a
+backend connection diagnosis. For later standalone rehearsal, use a separately
+authorized signed Profile build with the verified staging endpoint. Release
+builds enforce the production HTTPS URL guard. Preserve all queued data.
+
 ## Distribution gate (owner-controlled, not executed)
 
 Keep five evidence groups:
