@@ -70,8 +70,9 @@ void main() {
       acknowledgments.add(
           invocation.namedArguments[#acknowledgedPendingUuids] as List<String>);
       if (ids.length == 1) throw QueuedOrderException(ids.first);
-      if (acknowledgments.last.isEmpty)
+      if (acknowledgments.last.isEmpty) {
         throw UnresolvedOrderException(ids.first);
+      }
       return _confirmation;
     });
     Future<void> submit(CheckoutController controller,
