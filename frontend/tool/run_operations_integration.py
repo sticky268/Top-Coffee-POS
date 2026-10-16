@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -18,6 +19,7 @@ DATABASE = BACKEND / 'database/ci.sqlite'
 API = 'http://127.0.0.1:8000/up'
 APP_ID = 'com.example.top_coffee_pos'
 EVIDENCE = FRONTEND / 'build/security/offline-rehearsal.json'
+DIAGNOSTICS = FRONTEND / 'build/integration-diagnostics'
 
 
 def require(condition: bool, message: str) -> None:
@@ -55,7 +57,44 @@ def run_test(name: str, phase: str | None = None) -> None:
     if name == 'operations_readonly_smoke_test':
         command += ['--dart-define=SMOKE_EXPECTED_API=http://10.0.2.2:8000/api/v1',
                     '--dart-define=SMOKE_CI_LOGIN=true']
-    subprocess.run(command, cwd=FRONTEND, check=True, timeout=900)
+    # Capture tool startup as well as test output; an install can succeed while
+    # VM-service discovery hangs before any Dart assertion is reached.
+    command += ['--verbose']
+    DIAGNOSTICS.mkdir(parents=True, exist_ok=True)
+    label = name + (f'-{phase}' if phase else '')
+    output_path = DIAGNOSTICS / f'{label}.log'
+    print(f'START: {label}; verbose output: {output_path}', flush=True)
+    with output_path.open('w') as output:
+        process = subprocess.Popen(command, cwd=FRONTEND, stdout=output,
+                                   stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            code = process.wait(timeout=900)
+            if code:
+                raise subprocess.CalledProcessError(code, command)
+        except subprocess.TimeoutExpired:
+            # End this test's process group, including Flutter tool children.
+            # Never kill another job's processes or clear retained device data.
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=10)
+            raise
+        finally:
+            output.flush()
+            print('\n'.join(output_path.read_text(errors='replace').splitlines()[-80:]),
+                  flush=True)
+            if process.returncode != 0:
+                # This must run before emulator-runner tears down the emulator.
+                # Fixture-only logcat; no real account or target is permitted.
+                with (DIAGNOSTICS / f'{label}-logcat.txt').open('w') as device_log:
+                    try:
+                        subprocess.run(['adb', 'logcat', '-d', '-t', '1500'],
+                                       stdout=device_log, stderr=subprocess.STDOUT,
+                                       timeout=20, check=False)
+                    except (OSError, subprocess.TimeoutExpired) as error:
+                        device_log.write(f'Diagnostic capture failed: {type(error).__name__}\\n')
 
 
 def stop_android() -> None:
