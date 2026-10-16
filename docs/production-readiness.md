@@ -137,3 +137,10 @@ The additive migration `2026_10_15_000001_create_cash_drawer_events` adds a sepa
 - [ ] Verify alerts and dashboard links lead to an actionable recovery step. Printer uncertainty requires checking paper; payment success must remain distinct from printing or drawer warnings.
 
 The release evidence package should identify the exact candidate commit, CI results, staging migration/restore results, production-check output, signed package metadata and resumed device acceptance. Hosting, signing, backup/monitoring setup and deployment remain pending until verified in the intended environment. No merge, deployment, production migration, running-service change or device test is performed by preparing this checklist.
+
+## iOS preparation
+
+See [iOS setup, signing and acceptance](ios-release-readiness.md) for the Mac/workspace
+commands, unsigned CI build boundaries, permanent Apple identity inputs, missing
+iOS printer-channel support and physical-device/store evidence gates. Android
+signing instructions above do not configure Apple signing or certify iOS.
