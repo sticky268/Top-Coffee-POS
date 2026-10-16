@@ -12,6 +12,7 @@ import 'package:top_coffee_pos/core/offline/journal_cipher.dart';
 import 'package:top_coffee_pos/core/offline/local_store.dart';
 import 'package:top_coffee_pos/core/offline/order_outbox.dart';
 import 'package:top_coffee_pos/core/offline/order_sync.dart';
+import 'package:top_coffee_pos/core/offline/pending_orders_screen.dart';
 import 'package:top_coffee_pos/core/routing/app_router.dart';
 import 'package:top_coffee_pos/features/auth/application/auth_controller.dart';
 import 'package:top_coffee_pos/features/auth/application/auth_state.dart';
@@ -92,6 +93,17 @@ Map<String, dynamic> _intent(PendingOrder order) => {
 Future<void> _pending(WidgetTester tester, ProviderContainer container) async {
   container.read(appRouterProvider).go('/pending-orders');
   await waitFor(tester, find.text('Pending Orders'));
+}
+
+Future<void> _showPendingText(WidgetTester tester, String text) async {
+  await tester.scrollUntilVisible(find.text(text), 250,
+      scrollable: find
+          .descendant(
+            of: find.byType(PendingOrdersScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first);
+  await waitFor(tester, find.text(text));
 }
 
 Future<void> _queueSale(
@@ -235,8 +247,8 @@ void main() {
           api.interceptors.add(recorder);
           addTearDown(() => api.interceptors.remove(recorder));
           await _pending(tester, container);
-          await waitFor(tester, find.text('Needs review'));
-          await waitFor(tester, find.text('Confirmed by server'));
+          await _showPendingText(tester, 'Confirmed by server');
+          await _showPendingText(tester, 'Needs review');
           for (var i = 0; i < 2; i++) {
             await _tap(tester, find.text('Sync now'));
             await waitFor(tester, find.text('Sync now'));
@@ -275,7 +287,7 @@ void main() {
               'Sign in as the cashier who saved this pending order.');
           await _login(tester, container, 'offline-a@ci.invalid');
           await _pending(tester, container);
-          await waitFor(tester, find.text('Needs review'));
+          await _showPendingText(tester, 'Needs review');
           expect((await _orders(container)).map(_intent).toList(), original);
           final ingredients = await api
               .get('/ingredients', queryParameters: {'branch_id': home.id});
