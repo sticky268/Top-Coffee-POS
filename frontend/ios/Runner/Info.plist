@@ -24,8 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connect to your configured Top Coffee POS server on the local network.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose product photos from your photo library for the Top Coffee POS catalog.</string>
+	<string>Choose product photos and receipt logos from your photo library.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
