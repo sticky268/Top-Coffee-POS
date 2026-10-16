@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 from pathlib import Path
 import sqlite3
@@ -11,6 +12,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 
 ROOT = Path(__file__).resolve().parents[2]
 FRONTEND = ROOT / 'frontend'
@@ -47,6 +49,43 @@ def guard() -> None:
         sock.bind(('127.0.0.1', 8000))
 
 
+def capture_vm_state(output_path: Path, label: str) -> None:
+    """Read-only VM diagnostics, restricted to this CI log's loopback port."""
+    snapshot: dict = {}
+    try:
+        log = output_path.read_text(errors='replace')
+        service = re.findall(
+            r'VM Service URL on device: http://127\.0\.0\.1:(\d+)/([A-Za-z0-9_=-]+)/',
+            log)
+        forwards = re.findall(r'Forwarded host port (\d+) to device port (\d+)', log)
+        require(bool(service), 'No device VM service was advertised.')
+        device_port, token = service[-1]
+        ports = [host for host, device in forwards if device == device_port]
+        require(bool(ports), 'No matching loopback forwarding was advertised.')
+        base = f'http://127.0.0.1:{int(ports[-1])}/{token}/'
+
+        def read(method: str, isolate: str | None = None) -> dict:
+            suffix = method
+            if isolate is not None:
+                suffix += '?' + urllib.parse.urlencode({'isolateId': isolate})
+            with urllib.request.urlopen(base + suffix, timeout=3) as response:
+                data = response.read(1_000_001)
+            require(len(data) <= 1_000_000, 'VM diagnostic response exceeded limit.')
+            return json.loads(data)
+
+        vm = read('getVM')
+        snapshot['vm'] = vm
+        snapshot['isolates'] = []
+        for isolate in vm.get('result', {}).get('isolates', [])[:4]:
+            state = read('getIsolate', isolate['id'])
+            snapshot['isolates'].append(state)
+        # Do not fetch objects, variables, tokens or application records.
+    except Exception as error:
+        snapshot['capture_error'] = type(error).__name__
+    (DIAGNOSTICS / f'{label}-vm.json').write_text(
+        json.dumps(snapshot, indent=2) + '\n')
+
+
 def run_test(name: str, phase: str | None = None) -> None:
     command = ['flutter', 'test', f'integration_test/{name}.dart',
                '--dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1']
@@ -72,6 +111,8 @@ def run_test(name: str, phase: str | None = None) -> None:
             if code:
                 raise subprocess.CalledProcessError(code, command)
         except subprocess.TimeoutExpired:
+            output.flush()
+            capture_vm_state(output_path, label)
             # End this test's process group, including Flutter tool children.
             # Never kill another job's processes or clear retained device data.
             os.killpg(process.pid, signal.SIGTERM)
@@ -94,7 +135,7 @@ def run_test(name: str, phase: str | None = None) -> None:
                                        stdout=device_log, stderr=subprocess.STDOUT,
                                        timeout=20, check=False)
                     except (OSError, subprocess.TimeoutExpired) as error:
-                        device_log.write(f'Diagnostic capture failed: {type(error).__name__}\\n')
+                        device_log.write(f'Diagnostic capture failed: {type(error).__name__}\n')
 
 
 def stop_android() -> None:

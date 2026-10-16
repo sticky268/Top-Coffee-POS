@@ -179,3 +179,33 @@ References:
 - https://developer.apple.com/news/upcoming-requirements/?id=04282026a
 - [Production readiness](production-readiness.md)
 - [Pre-pilot acceptance](pre-pilot-checklist.md)
+
+## Remote verification follow-up — 16 October 2026
+
+Application source ffb3a33ee4693f003afc3e772c0b9e6a83c2e040 passed:
+- [iOS matrix](https://github.com/sticky268/Top-Coffee-POS/actions/runs/38899029518):
+  Flutter 3.44.9 and 3.47.7 each passed analysis, all 476 tests, simulator Debug
+  compilation and unsigned device Release compilation.
+- [POS validation](https://github.com/sticky268/Top-Coffee-POS/actions/runs/38899029614):
+  backend, actual MySQL suites, Flutter tests and Android debug/native checks.
+- Info.plist now explains local-server network access and product-photo/receipt-logo
+  selection. It does not relax transport security or configure a backend endpoint.
+
+[Android rehearsal](https://github.com/sticky268/Top-Coffee-POS/actions/runs/38899029571)
+passed cashier, read-only operations, manager approval, offline prepare and queue
+phases. Restart timed out with zero test cases started. Its log shows the VM
+and DDS connected successfully, followed by a wait for the integration-test
+service extension; device logcat contains no reported app crash. This does not
+establish a cashier-data defect or certify offline restart/recovery.
+
+The next controlled run uses Flutter 3.47.7 for the integration host, matching
+one green iOS/toolchain baseline. This is a compatibility experiment, not a
+claimed root-cause fix. No tests, data-preservation flags or ledger assertions
+are removed. On timeout, read-only VM/isolate diagnostics are captured before
+process cleanup, using only the matching loopback forward advertised by the
+owned CI process. No objects or application variables are fetched.
+Read the exact new run before treating this experiment as successful.
+
+Owner Mac changes and installed development app are separate evidence. Physical
+launch, backend connectivity, retained-queue updates, printer implementation/
+acceptance and owner signing/distribution gates remain open.
