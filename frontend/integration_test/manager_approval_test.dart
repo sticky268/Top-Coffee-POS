@@ -25,6 +25,11 @@ const _wrongPin = '928374';
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {
   await waitFor(tester, finder);
+  // Messages are asserted before the next action. Dismiss that notification
+  // explicitly so its overlay cannot intercept phone footer/settings taps.
+  final messenger = ScaffoldMessenger.maybeOf(tester.element(finder));
+  messenger?.clearSnackBars();
+  messenger?.removeCurrentSnackBar();
   await tester.ensureVisible(finder);
   await tester.pump(const Duration(milliseconds: 200));
   await tester.tap(finder);
