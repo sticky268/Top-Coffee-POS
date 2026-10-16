@@ -100,6 +100,58 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   double? get _tenderedAmount => double.tryParse(_tenderedController.text);
 
+  Future<bool> _confirmSeparateSale(String uuid) async {
+    final answer = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Matching sale awaiting confirmation'),
+        content: Text(
+          'A matching order is already saved on this device. Check it before '
+          'collecting payment again. Continue only for a separate sale.\n\n'
+          'Reference: $uuid',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('review'),
+            child: const Text('View Pending Orders'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('separate'),
+            child: const Text('Confirm Separate Sale'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return false;
+    if (answer == 'review') context.go('/pending-orders');
+    return answer == 'separate';
+  }
+
+  Future<void> _startAnotherOrderAfterQueue() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Start another order?'),
+        content: const Text(
+          'This payment is still awaiting server confirmation. Starting an '
+          'identical order may charge the customer twice. Only continue when '
+          'this is a separate sale.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Check Pending Order'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Start Separate Sale'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) context.go('/pos');
+  }
+
   Future<void> _openCustomerPicker() async {
     final repository = ref.read(customersRepositoryProvider);
     final branchId = ref.read(currentBranchProvider)?.id;
@@ -196,8 +248,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       child: const Text('View Pending Orders'),
                     ),
                     pos_ui.SecondaryButton(
-                      onPressed: () => context.go('/pos'),
-                      child: const Text('New Order'),
+                      onPressed: _startAnotherOrderAfterQueue,
+                      child: const Text('Start Another Order'),
                     ),
                   ],
                 ),
@@ -251,6 +303,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 }
                 _printAfterSale = printReceipt;
                 ref.read(checkoutControllerProvider.notifier).submit(
+                      confirmSeparateSale: _confirmSeparateSale,
                       items: cart.items,
                       paymentMethod: _paymentMethod,
                       orderType: _orderType,

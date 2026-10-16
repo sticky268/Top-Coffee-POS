@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:top_coffee_pos/core/offline/order_outbox.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
@@ -463,4 +464,75 @@ void main() {
       verifyZeroInteractions(built.repository);
     });
   }
+
+  testWidgets('queued checkout requires confirmation before another sale',
+      (tester) async {
+    await setup(
+      tester,
+      child: const CheckoutScreen(),
+      state: const CheckoutQueued('queued-sale'),
+    );
+
+    await tester.tap(find.text('Start Another Order'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start another order?'), findsOneWidget);
+    expect(
+      find.textContaining('may charge the customer twice'),
+      findsOneWidget,
+    );
+    expect(find.text('Start Separate Sale'), findsOneWidget);
+    await tester.tap(find.text('Check Pending Order'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start another order?'), findsNothing);
+  });
+
+  testWidgets(
+      'matching sale cancellation keeps cart; explicit approval queues once',
+      (tester) async {
+    final built = await setup(tester, child: const CheckoutScreen());
+    var calls = 0;
+    when(() => built.repository.createOrder(
+          items: any(named: 'items'),
+          requestUuid: any(named: 'requestUuid'),
+          acknowledgedPendingUuids: any(named: 'acknowledgedPendingUuids'),
+          paymentMethod: any(named: 'paymentMethod'),
+          orderType: any(named: 'orderType'),
+          tendered: any(named: 'tendered'),
+          discountTotal: any(named: 'discountTotal'),
+          branchId: any(named: 'branchId'),
+        )).thenAnswer((invocation) async {
+      calls++;
+      final acknowledged =
+          invocation.namedArguments[#acknowledgedPendingUuids] as List<String>;
+      if (!acknowledged.contains('original-sale')) {
+        throw const UnresolvedOrderException('original-sale');
+      }
+      throw const QueuedOrderException('separate-sale');
+    });
+    final amount = find.widgetWithText(TextField, 'Amount received');
+    await tester.scrollUntilVisible(amount, 220,
+        scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+    await tester.enterText(amount, '5');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.tap(find.text('Complete Sale'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matching sale awaiting confirmation'), findsOneWidget);
+    expect(calls, 1);
+    expect(built.container.read(cartControllerProvider).items, hasLength(1));
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(built.container.read(cartControllerProvider).items, hasLength(1));
+    await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.tap(find.text('Complete Sale'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Separate Sale'));
+    await tester.pumpAndSettle();
+    expect(calls, 3);
+    expect(built.container.read(cartControllerProvider).items, isEmpty);
+    expect(find.text('Order saved on this device'), findsOneWidget);
+    expect(find.text('Payment Successful'), findsNothing);
+  });
 }

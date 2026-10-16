@@ -79,6 +79,7 @@ abstract class PosRepository {
 
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
+    List<String> acknowledgedPendingUuids = const [],
     String? requestUuid,
     required String paymentMethod,
     required String orderType,
@@ -185,8 +186,9 @@ class ApiPosRepository implements PosRepository {
 
   Future<OrderConfirmation> _submit(
     String endpoint,
-    Map<String, dynamic> payload,
-  ) async {
+    Map<String, dynamic> payload, {
+    List<String> acknowledgedPendingUuids = const [],
+  }) async {
     final userId = _userId?.call();
     final branchId = payload['branch_id'] as int?;
     PendingOrder? pending;
@@ -218,6 +220,8 @@ class ApiPosRepository implements PosRepository {
         branchId: branchId,
         endpoint: endpoint,
         payload: payload,
+        checkUnresolvedSales: endpoint == '/orders',
+        acknowledgedPendingUuids: acknowledgedPendingUuids,
       );
       payload = pending.payload;
     }
@@ -485,6 +489,7 @@ class ApiPosRepository implements PosRepository {
   @override
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
+    List<String> acknowledgedPendingUuids = const [],
     String? requestUuid,
     required String paymentMethod,
     required String orderType,
@@ -495,36 +500,39 @@ class ApiPosRepository implements PosRepository {
     int? customerId,
     int? branchId,
   }) async {
-    return _submit('/orders', {
-      if (_outbox != null)
-        'expected_total': double.parse(
-          (items.fold<double>(0, (sum, item) => sum + item.lineTotal) -
-                  discountTotal)
-              .clamp(0, double.infinity)
-              .toStringAsFixed(2),
-        ),
-      if (requestUuid != null) 'uuid': requestUuid,
-      if (branchId != null) 'branch_id': branchId,
-      if (customerId != null) 'customer_id': customerId,
-      'order_type': orderType,
-      if (tableId != null) 'table_id': tableId,
-      'items': items
-          .map(
-            (item) => {
-              'product_id': item.product.id,
-              'product_variant_id': item.variant?.id,
-              'quantity': item.quantity,
-            },
-          )
-          .toList(),
-      'discount_total': discountTotal,
-      'payment': {
-        'method': paymentMethod,
-        if (tendered != null) 'tendered': tendered,
-        if (paymentMethod == 'split' && splitPayments != null)
-          'payments': splitPayments,
-      },
-    });
+    return _submit(
+        '/orders',
+        {
+          if (_outbox != null)
+            'expected_total': double.parse(
+              (items.fold<double>(0, (sum, item) => sum + item.lineTotal) -
+                      discountTotal)
+                  .clamp(0, double.infinity)
+                  .toStringAsFixed(2),
+            ),
+          if (requestUuid != null) 'uuid': requestUuid,
+          if (branchId != null) 'branch_id': branchId,
+          if (customerId != null) 'customer_id': customerId,
+          'order_type': orderType,
+          if (tableId != null) 'table_id': tableId,
+          'items': items
+              .map(
+                (item) => {
+                  'product_id': item.product.id,
+                  'product_variant_id': item.variant?.id,
+                  'quantity': item.quantity,
+                },
+              )
+              .toList(),
+          'discount_total': discountTotal,
+          'payment': {
+            'method': paymentMethod,
+            if (tendered != null) 'tendered': tendered,
+            if (paymentMethod == 'split' && splitPayments != null)
+              'payments': splitPayments,
+          },
+        },
+        acknowledgedPendingUuids: acknowledgedPendingUuids);
   }
 }
 
