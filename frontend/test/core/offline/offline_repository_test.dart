@@ -80,7 +80,9 @@ void main() {
     when(() => api.request<Response<dynamic>>(any()))
         .thenThrow(const NetworkException());
     await expectLater(
-        submit(repo(outbox)), throwsA(isA<QueuedOrderException>()));
+        submit(repo(outbox)),
+        throwsA(isA<QueuedOrderException>()
+            .having((error) => error.uuid, 'uuid', 'original')));
     final pending = (await outbox.list(1, 2)).single;
     expect(pending.payload['expected_total'], 3.5);
     expect(pending.payload['expected_cashier_id'], 1);

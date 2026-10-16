@@ -236,10 +236,11 @@ class ApiPosRepository implements PosRepository {
             ? _afterPayment(confirmation, userId, branchId)
             : confirmation;
       } catch (error) {
-        if (pending != null) {
-          await _outbox!.finish(pending, error: error);
+        final queued = pending;
+        if (queued != null) {
+          await _outbox!.finish(queued, error: error);
           if (error is NetworkException || error is ServerException) {
-            throw QueuedOrderException(pending.uuid);
+            throw QueuedOrderException(queued.uuid);
           }
         }
         rethrow;
