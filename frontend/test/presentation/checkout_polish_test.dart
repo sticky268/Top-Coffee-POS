@@ -517,7 +517,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Complete Sale'));
     await tester.tap(find.text('Complete Sale'));
-    await tester.pumpAndSettle();
+    // Submission stays busy behind the modal, so its spinner never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Matching sale awaiting confirmation'), findsOneWidget);
     expect(calls, 1);
     expect(built.container.read(cartControllerProvider).items, hasLength(1));
@@ -527,7 +529,8 @@ void main() {
     expect(built.container.read(cartControllerProvider).items, hasLength(1));
     await tester.ensureVisible(find.text('Complete Sale'));
     await tester.tap(find.text('Complete Sale'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Confirm Separate Sale'));
     await tester.pumpAndSettle();
     expect(calls, 3);
