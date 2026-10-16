@@ -70,7 +70,7 @@ the disposable run.
    UUID/payload twice over HTTP returns the same order. “Retry original request”
    sends the unchanged conflicted intent and retains it for review. Cashier B,
    although authorized for the same branches, sees an empty personal queue and
-   gets403 when attempting A's original intent. A signs back in and finds its
+   gets409 with the original-cashier instruction when attempting A's original intent. A signs back in and finds its
    original confirmed/review entries.
 6. **Independent ledger proof:** host SQL requires exactly one completed order,
    one $3.50 cash payment ($5 tendered/$1.50 change), its original cashier/branch/

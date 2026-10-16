@@ -269,8 +269,10 @@ void main() {
           expect(await _orders(container), isEmpty);
           final denied = await api.post(conflict.endpoint,
               data: conflict.payload,
-              options: Options(validateStatus: (status) => status == 403));
-          expect(denied.statusCode, 403);
+              options: Options(validateStatus: (status) => status == 409));
+          expect(denied.statusCode, 409);
+          expect(denied.data['message'],
+              'Sign in as the cashier who saved this pending order.');
           await _login(tester, container, 'offline-a@ci.invalid');
           await _pending(tester, container);
           await waitFor(tester, find.text('Needs review'));
