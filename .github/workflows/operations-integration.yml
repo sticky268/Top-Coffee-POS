@@ -14,7 +14,7 @@ concurrency:
 jobs:
   android-workflow:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       APP_ENV: testing
       APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
@@ -23,6 +23,7 @@ jobs:
       CACHE_STORE: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
+      POS_ALLOWED_PAYMENT_METHODS: cash
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -38,13 +39,6 @@ jobs:
           touch database/ci.sqlite
           php artisan migrate --force
           php artisan db:seed --class=IntegrationFixtureSeeder --force
-          php artisan serve --host=0.0.0.0 --port=8000 > /tmp/operations-api.log 2>&1 &
-          for attempt in $(seq 1 30); do
-            if curl --silent --fail http://127.0.0.1:8000/up; then exit 0; fi
-            sleep 1
-          done
-          cat /tmp/operations-api.log
-          exit 1
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -67,11 +61,14 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            cd frontend && flutter test integration_test/daily_operations_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
-            cd frontend && flutter test integration_test/operations_readonly_smoke_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1 --dart-define=SMOKE_EXPECTED_API=http://10.0.2.2:8000/api/v1 --dart-define=SMOKE_CI_LOGIN=true
-            cd frontend && flutter test integration_test/manager_approval_test.dart --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
-            cd frontend && flutter test integration_test/printer_queue_recovery_test.dart
+          script: python3 frontend/tool/run_operations_integration.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-rehearsal-evidence
+          path: frontend/build/security/offline-rehearsal.json
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

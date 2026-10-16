@@ -17,6 +17,10 @@ No merge, deployment or live-server operation is authorized by this checklist.
 - [ ] PASS / [ ] FAIL — php artisan test, flutter test and composer audit --locked pass on exact commit.
 - [ ] PASS / [ ] FAIL — Cross-branch/refund and cashier-to-manager attack paths denied;
   tampered totals rejected and duplicate offline UUID returns one sale/payment/stock movement.
+- [ ] PASS / [ ] FAIL — Disposable offline emulator rehearsal passes on exact commit: API outage,
+  real process restart, encrypted original intents, branch/account isolation, exact replay
+  with one payment/stock deduction and retained price conflict (offline-sale-rehearsal.md).
+  Repeat the hardware/release scenarios on the real tablet; CI is not owner acceptance.
 - [ ] PASS / [ ] FAIL — MySQL grants generator applied to disposable account; normal CRUD succeeds,
   DROP/ALTER/TRUNCATE, audit UPDATE/DELETE and migrations writes fail.
 - [ ] PASS / [ ] FAIL — Nginx public/ root, hidden/uploaded PHP boundary, HTTPS host/redirect,
