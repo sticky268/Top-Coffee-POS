@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/printer/printer_service.dart';
+import '../../../core/printer/receipt_raster_preview.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../features/pos/domain/pos_models.dart';
@@ -30,6 +31,14 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     _loadLogo();
     _loadSettings();
   }
+
+  bool _settingsReady = false;
+  int _settingsRequest = 0;
+  int _logoRequest = 0;
+  String _previewPayment = 'Cash';
+
+  bool _sameBranch(String? code) =>
+      mounted && ref.read(currentBranchProvider)?.code == code;
 
   bool showLogo = true;
   String logoPosition = 'Center';
@@ -111,7 +120,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
       method: 'Cash',
       amount: 12.00,
       tendered: 15.00,
-      changeDue: 2.50,
+      changeDue: 3.00,
       status: 'completed',
     );
 
@@ -161,39 +170,40 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
               : 'Receipt Settings · ${currentBranch.name}',
         ),
       ),
-      body: PageContent(
-        maxWidth: 1200,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide =
-                constraints.maxWidth >= 900 &&
-                MediaQuery.textScalerOf(context).scale(14) <= 20;
+      body: !_settingsReady
+          ? const Center(child: CircularProgressIndicator())
+          : PageContent(
+              maxWidth: 1200,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900 &&
+                      MediaQuery.textScalerOf(context).scale(14) <= 20;
 
-            if (isWide) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 3, child: _buildSettingsPanel()),
-                    const SizedBox(width: 16),
-                    Expanded(flex: 2, child: _buildPreviewPanel()),
-                  ],
-                ),
-              );
-            }
+                  if (isWide) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: _buildSettingsPanel()),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 2, child: _buildPreviewPanel()),
+                        ],
+                      ),
+                    );
+                  }
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildSettingsPanel(),
-                const SizedBox(height: 24),
-                _buildPreviewPanel(),
-              ],
-            );
-          },
-        ),
-      ),
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _buildSettingsPanel(),
+                      const SizedBox(height: 24),
+                      _buildPreviewPanel(),
+                    ],
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -237,6 +247,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
+              key: ValueKey('logoPosition' + logoPosition),
               initialValue: logoPosition,
               decoration: const InputDecoration(
                 labelText: 'Logo position',
@@ -257,6 +268,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              key: ValueKey('logoSize' + logoSize),
               initialValue: logoSize,
               decoration: const InputDecoration(
                 labelText: 'Logo size',
@@ -284,6 +296,11 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
+            if (showLogo && logoBytes == null)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Upload a logo to preview its size and position.'),
+              ),
             if (logoBytes != null) ...[
               const SizedBox(height: 8),
               pos_ui.DangerButton.outlinedIcon(
@@ -303,6 +320,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
           icon: Icons.text_fields_outlined,
           children: [
             DropdownButtonFormField<String>(
+              key: ValueKey('fontStyle' + fontStyle),
               initialValue: fontStyle,
               decoration: const InputDecoration(
                 labelText: 'Font style',
@@ -325,6 +343,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              key: ValueKey('businessFontSize' + businessFontSize),
               initialValue: businessFontSize,
               decoration: const InputDecoration(
                 labelText: 'Business name size',
@@ -343,6 +362,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              key: ValueKey('bodyFontSize' + bodyFontSize),
               initialValue: bodyFontSize,
               decoration: const InputDecoration(
                 labelText: 'Body font size',
@@ -361,6 +381,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              key: ValueKey('footerFontSize' + footerFontSize),
               initialValue: footerFontSize,
               decoration: const InputDecoration(
                 labelText: 'Footer font size',
@@ -510,7 +531,8 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: printerIpController,
-              keyboardType: TextInputType.number,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'Printer IP Address',
                 hintText: '192.168.1.111',
@@ -538,7 +560,11 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
 
                   try {
                     await printerService.connect(ipAddress);
-                    await printerService.printTest();
+                    if (Platform.isIOS) {
+                      await printerService.sendPayload(_previewPayload());
+                    } else {
+                      await printerService.printTest();
+                    }
 
                     if (!mounted) {
                       return;
@@ -642,8 +668,11 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
                     await printerService.connect(ipAddress);
 
                     final receipt = _buildBitmapTestReceipt();
-
-                    await printerService.printReceiptBitmapTest(receipt);
+                    if (Platform.isIOS) {
+                      await printerService.sendPayload(_previewPayload());
+                    } else {
+                      await printerService.printReceiptBitmapTest(receipt);
+                    }
 
                     if (!mounted) {
                       return;
@@ -721,6 +750,11 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
                 label: const Text('Print Bitmap Stress Test'),
               ),
             ),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                  'Test buttons print samples, even when receipt printing is disabled.'),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -728,9 +762,9 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
           width: double.infinity,
           child: pos_ui.PrimaryButton.icon(
             onPressed: () async {
-              await _saveSettings();
+              final saved = await _saveSettings();
 
-              if (!mounted) {
+              if (!mounted || !saved) {
                 return;
               }
 
@@ -741,6 +775,11 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             icon: const Icon(Icons.save_outlined),
             label: const Text('Save Settings'),
           ),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+              'Preview changes immediately. Save Settings applies to new receipts. Saved print-queue copies retain their original settings.'),
         ),
       ],
     );
@@ -764,6 +803,23 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            if (Platform.isIOS) ...[
+              DropdownButtonFormField<String>(
+                key: ValueKey(_previewPayment),
+                initialValue: _previewPayment,
+                decoration:
+                    const InputDecoration(labelText: 'Preview payment example'),
+                items: const [
+                  DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                  DropdownMenuItem(
+                      value: 'Split', child: Text('Split: cash + card')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _previewPayment = value);
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
             _buildReceiptPreview(),
           ],
         ),
@@ -772,6 +828,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
   }
 
   Future<void> _pickLogo() async {
+    final branchKey = ref.read(currentBranchProvider)?.code;
     final picker = ImagePicker();
 
     final image = await picker.pickImage(source: ImageSource.gallery);
@@ -782,32 +839,33 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
 
     final bytes = await image.readAsBytes();
 
-    if (!mounted) {
+    if (!_sameBranch(branchKey)) {
       return;
     }
-
-    setState(() {
-      logoBytes = bytes;
-    });
-
-    await _saveLogo(bytes);
+    ++_logoRequest;
+    await _saveLogo(bytes, branchKey);
+    if (_sameBranch(branchKey)) setState(() => logoBytes = bytes);
   }
 
   Future<void> _loadSettings() async {
+    final request = ++_settingsRequest;
+    _settingsReady = false;
     final branch = ref.read(currentBranchProvider);
     final settings = await ReceiptSettings.load(
       branchKey: branch?.code,
       branchNameFallback: branch?.name,
     );
 
-    if (!mounted) {
+    if (!_sameBranch(branch?.code) || request != _settingsRequest) {
       return;
     }
 
     setState(() {
+      _settingsReady = true;
       businessNameController.text = settings.businessName;
       branchNameController.text = settings.branchName;
       logoPosition = settings.logoPosition;
+      showLogo = settings.showLogo;
       logoSize = settings.logoSize;
       fontStyle = settings.fontStyle;
       bodyFontSize = settings.bodyFontSize;
@@ -835,8 +893,17 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     });
   }
 
-  Future<void> _saveSettings() async {
+  Future<bool> _saveSettings() async {
+    if (printerEnabled &&
+        InternetAddress.tryParse(printerIpController.text.trim()) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:
+            Text('Enter a valid printer IP address, such as 192.168.1.111.'),
+      ));
+      return false;
+    }
     final settings = ReceiptSettings(
+      showLogo: showLogo,
       businessName: businessNameController.text,
       branchName: branchNameController.text,
       logoPosition: logoPosition,
@@ -868,32 +935,34 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
 
     final branch = ref.read(currentBranchProvider);
     await settings.save(branchKey: branch?.code);
+    return true;
   }
 
-  String _logoFileName() {
-    final branchKey = ref.read(currentBranchProvider)?.code;
+  String _logoFileName(String? branchKey) {
     final scope = branchKey?.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9_-]+'),
-      '_',
-    );
+          RegExp(r'[^a-z0-9_-]+'),
+          '_',
+        );
     return scope == null || scope.isEmpty
         ? 'receipt_logo.png'
         : 'receipt_logo_$scope.png';
   }
 
-  Future<void> _saveLogo(Uint8List bytes) async {
+  Future<void> _saveLogo(Uint8List bytes, String? branchKey) async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/${_logoFileName()}');
+    final file = File('${directory.path}/${_logoFileName(branchKey)}');
 
     await file.writeAsBytes(bytes);
   }
 
   Future<void> _loadLogo() async {
+    final request = ++_logoRequest;
+    final branchKey = ref.read(currentBranchProvider)?.code;
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/${_logoFileName()}');
+    final file = File('${directory.path}/${_logoFileName(branchKey)}');
 
     if (!await file.exists()) {
-      if (mounted) {
+      if (_sameBranch(branchKey) && request == _logoRequest) {
         setState(() {
           logoBytes = null;
         });
@@ -903,7 +972,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
 
     final bytes = await file.readAsBytes();
 
-    if (!mounted) {
+    if (!_sameBranch(branchKey) || request != _logoRequest) {
       return;
     }
 
@@ -913,14 +982,16 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
   }
 
   Future<void> _removeLogo() async {
+    final branchKey = ref.read(currentBranchProvider)?.code;
+    ++_logoRequest;
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/${_logoFileName()}');
+    final file = File('${directory.path}/${_logoFileName(branchKey)}');
 
     if (await file.exists()) {
       await file.delete();
     }
 
-    if (!mounted) {
+    if (!_sameBranch(branchKey)) {
       return;
     }
 
@@ -994,9 +1065,8 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     required String amount,
     bool header = false,
   }) {
-    final textStyle = header
-        ? const TextStyle(fontWeight: FontWeight.w600)
-        : null;
+    final textStyle =
+        header ? const TextStyle(fontWeight: FontWeight.w600) : null;
 
     return Row(
       children: [
@@ -1036,7 +1106,82 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     );
   }
 
+  Map<String, dynamic> _previewPayload() => {
+        'showLogo': showLogo,
+        'logoBytes': showLogo ? logoBytes : null,
+        'logoPosition': logoPosition,
+        'logoSize': logoSize,
+        'fontStyle': fontStyle,
+        'bodyFontSize': bodyFontSize,
+        'businessFontSize': businessFontSize,
+        'footerFontSize': footerFontSize,
+        'boldBusinessName': boldBusinessName,
+        'boldTotal': boldTotal,
+        'boldFooter': boldFooter,
+        'businessName': businessNameController.text.isEmpty
+            ? 'TOP COFFEE'
+            : businessNameController.text,
+        'branchName': branchNameController.text,
+        'documentTitle': 'SAMPLE · NOT A SALE',
+        'orderNumber': showOrderNumber ? '1025' : '',
+        'dateTime': showDateTime ? '17/10/2026 10:35 AM' : '',
+        'cashierName': showCashier ? 'Admin' : '',
+        'tableName': showTable ? 'T3' : '',
+        'orderType': showOrderType ? 'Dine-in' : '',
+        'showItemName': showItemName,
+        'showQuantity': showQuantity,
+        'showUnitPrice': showUnitPrice,
+        'showLineTotal': showLineTotal,
+        'items': [
+          for (final item in const [
+            {
+              'name': 'Americano',
+              'quantity': '2',
+              'unitPrice': '2.00',
+              'lineTotal': '4.00'
+            },
+            {
+              'name': 'Iced Latte',
+              'quantity': '1',
+              'unitPrice': '3.50',
+              'lineTotal': '3.50'
+            },
+            {
+              'name': 'កាហ្វេ',
+              'quantity': '1',
+              'unitPrice': '5.00',
+              'lineTotal': '5.00'
+            },
+          ])
+            {
+              'name': showItemName ? item['name'] : '',
+              'quantity': showQuantity ? item['quantity'] : '',
+              'unitPrice': showUnitPrice ? item['unitPrice'] : '',
+              'lineTotal': showLineTotal ? item['lineTotal'] : '',
+            },
+        ],
+        'subtotal': '12.50',
+        'discount': '0.50',
+        'total': '12.00',
+        'paymentMethod': showPaymentMethod ? _previewPayment : '',
+        'tendered': showTendered && _previewPayment == 'Cash' ? '15.00' : '',
+        'changeDue': showChange && _previewPayment == 'Cash' ? '3.00' : '',
+        'showSplitPayments': showSplitPayments,
+        'payments': _previewPayment == 'Split'
+            ? const [
+                {'method': 'Cash', 'amount': '7.00'},
+                {'method': 'Card', 'amount': '5.00'}
+              ]
+            : const [
+                {'method': 'Cash', 'amount': '12.00'}
+              ],
+        'footer': footerController.text,
+      };
+
   Widget _buildReceiptPreview() {
+    if (Platform.isIOS) {
+      return ReceiptRasterPreview(payload: _previewPayload());
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1051,21 +1196,21 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
                 alignment: logoPosition == 'Left'
                     ? Alignment.centerLeft
                     : logoPosition == 'Right'
-                    ? Alignment.centerRight
-                    : Alignment.center,
+                        ? Alignment.centerRight
+                        : Alignment.center,
                 child: logoBytes != null
                     ? Image.memory(
                         logoBytes!,
                         width: logoSize == 'Small'
                             ? 48
                             : logoSize == 'Large'
-                            ? 120
-                            : 80,
+                                ? 120
+                                : 80,
                         height: logoSize == 'Small'
                             ? 32
                             : logoSize == 'Large'
-                            ? 80
-                            : 56,
+                                ? 80
+                                : 56,
                         fit: BoxFit.contain,
                       )
                     : Icon(
@@ -1073,8 +1218,8 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
                         size: logoSize == 'Small'
                             ? 32
                             : logoSize == 'Large'
-                            ? 64
-                            : 48,
+                                ? 64
+                                : 48,
                       ),
               ),
             if (showLogo) const SizedBox(height: 8),
@@ -1085,9 +1230,8 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
               textAlign: TextAlign.center,
               style: _receiptFontStyle(
                 fontSize: _businessFontSize(),
-                fontWeight: boldBusinessName
-                    ? FontWeight.bold
-                    : FontWeight.normal,
+                fontWeight:
+                    boldBusinessName ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             Text(branchNameController.text, textAlign: TextAlign.center),
