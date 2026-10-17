@@ -119,6 +119,7 @@ class ExpenseController extends Controller
 
         $validator = Validator::make($request->all(), [
             'category_id' => 'required|integer|exists:expense_categories,id',
+            'uuid' => 'nullable|uuid',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255',
             'spent_at' => 'required|date',
@@ -132,25 +133,32 @@ class ExpenseController extends Controller
             ], 422);
         }
 
-        $expense = Expense::create([
-            'branch_id' => $branchId,
-            'expense_category_id' => $request->integer('category_id'),
-            'user_id' => $request->user()->id,
-            'amount' => $request->input('amount'),
-            'description' => $request->input('description'),
-            'spent_at' => $request->input('spent_at'),
-        ]);
+        $record = function () use ($request, $branchId): array {
+            $expense = Expense::create([
+                'branch_id' => $branchId,
+                'expense_category_id' => $request->integer('category_id'),
+                'user_id' => $request->user()->id,
+                'amount' => $request->input('amount'),
+                'description' => $request->input('description'),
+                'spent_at' => $request->input('spent_at'),
+            ]);
 
-        $expense->load([
-            'category:id,name',
-            'user:id,name,email',
-            'branch:id,name',
-        ]);
+            $expense->load([
+                'category:id,name',
+                'user:id,name,email',
+                'branch:id,name',
+            ]);
+
+            return $expense->toArray();
+        };
+        $data = $request->filled('uuid')
+            ? app(\App\Services\OperationService::class)->run($request, $branchId, 'expense.create', $record)
+            : $record();
 
         return response()->json([
             'success' => true,
             'message' => 'Expense created successfully',
-            'data' => $expense,
+            'data' => $data,
         ], 201);
     }
     /**

@@ -98,6 +98,10 @@ class OperationsRepository {
     }
     final selected = scope();
     if (selected == null) throw const AuthException('Select a branch first.');
+    if (values['branch_id'] != null &&
+        values['branch_id'] != selected.branchId) {
+      throw const AuthException('Branch changed. Reopen this action.');
+    }
     final next = _tail.then((_) async {
       if (scope() != selected) throw const AuthException('Branch changed.');
       final payload = {

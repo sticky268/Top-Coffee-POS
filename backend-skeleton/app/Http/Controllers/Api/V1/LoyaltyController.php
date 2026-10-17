@@ -103,6 +103,7 @@ class LoyaltyController extends Controller
 
     private function resolveBranchId(Request $request)
     {
+        $request->validate(['branch_id' => 'nullable|integer|min:1|exists:branches,id']);
         $user = $request->user();
         $branchId = $request->input('branch_id');
 

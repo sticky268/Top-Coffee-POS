@@ -49,6 +49,7 @@ class IngredientController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
+                'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
                 'name' => ['required', 'string', 'max:255'],
                 'unit_id' => ['required', 'integer', 'exists:units,id'],
                 'reorder_threshold' => ['nullable', 'numeric', 'min:0'],
@@ -309,6 +310,7 @@ class IngredientController extends Controller
                 'type' => ['required', 'string', 'in:purchase,adjustment,wastage,sale_deduction'],
                 'quantity' => ['required', 'numeric', 'not_in:0', 'decimal:0,3'],
                 'reason' => ['nullable', 'string', 'max:255'],
+                'uuid' => ['nullable', 'uuid'],
             ]
         );
 
@@ -330,6 +332,9 @@ class IngredientController extends Controller
                 'message' => 'Ingredient not found.',
             ], 404);
         }
+
+        abort_if($request->filled('branch_id') && $request->integer('branch_id') !== (int) $ingredient->branch_id,
+            404, 'Ingredient not found.');
 
         $type = $request->input('type');
         $quantity = (float) $request->input('quantity');
@@ -353,7 +358,7 @@ class IngredientController extends Controller
             ], 422);
         }
 
-        try {
+        $record = function () use ($request, $ingredient, $type, $quantity, $reason): array {
             $movement = app(StockMovementService::class)->record(
                 $ingredient,
                 $type,
@@ -361,6 +366,32 @@ class IngredientController extends Controller
                 $request->user()->id,
                 $reason,
             );
+
+            $ingredient->refresh();
+            $ingredient->load('unit:id,name,abbreviation');
+
+            return [
+                'movement' => $movement,
+                'ingredient' => [
+                    'id' => $ingredient->id,
+                    'name' => $ingredient->name,
+                    'unit' => $ingredient->unit,
+                    'current_stock' => $ingredient->current_stock,
+                    'average_unit_cost' => $ingredient->average_unit_cost === null ? null : (float) $ingredient->average_unit_cost,
+                    'reorder_threshold' => $ingredient->reorder_threshold,
+                    'is_low_stock' => $ingredient->isLowStock(),
+                    'is_active' => $ingredient->is_active,
+                ],
+            ];
+        };
+
+        try {
+            $data = $request->filled('uuid')
+                ? app(\App\Services\OperationService::class)->run(
+                    $request, (int) $ingredient->branch_id, 'stock.movement.'.$ingredient->id, $record)
+                : $record();
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,
@@ -373,25 +404,10 @@ class IngredientController extends Controller
             ], 404);
         }
 
-        $ingredient->refresh();
-        $ingredient->load('unit:id,name,abbreviation');
-
         return response()->json([
             'success' => true,
             'message' => 'Stock movement recorded successfully.',
-            'data' => [
-                'movement' => $movement,
-                'ingredient' => [
-                    'id' => $ingredient->id,
-                    'name' => $ingredient->name,
-                    'unit' => $ingredient->unit,
-                    'current_stock' => $ingredient->current_stock,
-                'average_unit_cost' => $ingredient->average_unit_cost === null ? null : (float) $ingredient->average_unit_cost,
-                    'reorder_threshold' => $ingredient->reorder_threshold,
-                    'is_low_stock' => $ingredient->isLowStock(),
-                    'is_active' => $ingredient->is_active,
-                ],
-            ],
+            'data' => $data,
         ], 201);
     }
 
