@@ -891,10 +891,24 @@ class OrderController extends Controller
                     ]);
                 }
 
-                return [
-                    'order' => $order->load(['items']),
-                    'old_values' => $oldValues,
-                ];
+                $order = $order->load(['items']);
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.updated',
+                    $order,
+                    $oldValues,
+                    [
+                        'subtotal' => (float) $order->subtotal,
+                        'discount_total' => (float) $order->discount_total,
+                        'total' => (float) $order->total,
+                        'status' => $order->status,
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                    ],
+                );
+
+                return ['order' => $order];
             });
         } catch (HttpException $e) {
             return response()->json([
@@ -910,22 +924,6 @@ class OrderController extends Controller
         }
 
         $order = $result['order'];
-        $oldValues = $result['old_values'];
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.updated',
-            $order,
-            $oldValues,
-            [
-                'subtotal' => (float) $order->subtotal,
-                'discount_total' => (float) $order->discount_total,
-                'total' => (float) $order->total,
-                'status' => $order->status,
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-            ],
-        );
 
         return response()->json([
             'success' => true,
