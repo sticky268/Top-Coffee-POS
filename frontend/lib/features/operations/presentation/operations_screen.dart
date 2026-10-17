@@ -42,6 +42,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   String? _error;
   bool _loading = true;
   bool _pendingBusy = false;
+  int? _shiftFilterId;
   int _generation = 0;
   final _money = NumberFormat.currency(symbol: '\$');
 
@@ -51,6 +52,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     _section =
         widget.initialSection == 'Owner report' ? 'Owner report' : 'Shifts';
     _differencesOnly = widget.initialDifferencesOnly;
+    _shiftFilterId = widget.initialShiftId;
     Future.microtask(_load);
   }
 
@@ -89,8 +91,8 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
         path,
         query: _section == 'Owner report'
             ? {'date_from': start, 'date_to': now}
-            : _section == 'Shifts' && widget.initialShiftId != null
-                ? {'shift_id': widget.initialShiftId}
+            : _section == 'Shifts' && _shiftFilterId != null
+                ? {'shift_id': _shiftFilterId}
                 : {},
       );
       final comparisons = <Map<String, dynamic>>[];
@@ -199,7 +201,20 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (mine.isEmpty &&
+        if (_shiftFilterId != null)
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _shiftFilterId = null;
+                _differencesOnly = false;
+              });
+              _load();
+            },
+            icon: const Icon(Icons.list),
+            label: const Text('Show all shifts'),
+          ),
+        if (_shiftFilterId == null &&
+            mine.isEmpty &&
             (auth.user.hasPermission('orders.create') ||
                 auth.user.hasPermission('orders.refund')))
           FilledButton.icon(
@@ -771,7 +786,10 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     ref.listen(currentBranchProvider, (old, next) {
-      if (old?.id != next?.id) _load();
+      if (old?.id != next?.id) {
+        _shiftFilterId = null;
+        _load();
+      }
     });
     if (auth is! AuthAuthenticated) {
       return const Scaffold(

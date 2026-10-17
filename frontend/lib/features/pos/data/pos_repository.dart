@@ -166,7 +166,8 @@ class ApiPosRepository implements PosRepository {
         }
       }
       return data;
-    } on NetworkException {
+    } on ApiException catch (error) {
+      if (error is! NetworkException && error is! ServerException) rethrow;
       if (cacheKey != null && _localStore != null) {
         final stored = await _localStore.read(cacheKey);
         if (stored != null) {

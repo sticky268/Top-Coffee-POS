@@ -105,7 +105,8 @@ class AuthRepository {
         }
       }
       return AuthenticatedUser.fromJson(json);
-    } on NetworkException {
+    } on ApiException catch (error) {
+      if (error is! NetworkException && error is! ServerException) rethrow;
       if (revision != _revision) throw const AuthException('Session changed.');
       final cached =
           _sessionCache == null ? null : await _sessionCache.read(token: token);

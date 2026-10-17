@@ -13,6 +13,30 @@ class MockApi extends Mock implements ApiClient {}
 
 void main() {
   test(
+      'temporary server failure uses the same scoped catalog fallback as an outage',
+      () async {
+    final api = MockApi();
+    final repository =
+        ApiPosRepository(api, localStore: MemoryLocalStore(), userId: () => 1);
+    when(() => api.request<Response<dynamic>>(any()))
+        .thenAnswer((_) async => Response(
+              requestOptions: RequestOptions(path: '/categories'),
+              data: {
+                'data': [
+                  {'id': 1, 'name': 'Coffee', 'sort_order': 0}
+                ]
+              },
+            ));
+    await repository.getCategories(branchId: 2);
+    when(() => api.request<Response<dynamic>>(any()))
+        .thenThrow(const ServerException());
+
+    expect((await repository.getCategories(branchId: 2)).single.name, 'Coffee');
+    await expectLater(
+        repository.getCategories(branchId: 3), throwsA(isA<ServerException>()));
+  });
+
+  test(
       'catalog fallback is isolated by cashier and branch; auth errors never use cache',
       () async {
     final store = MemoryLocalStore();

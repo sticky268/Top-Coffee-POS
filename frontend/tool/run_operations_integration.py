@@ -87,7 +87,10 @@ def capture_vm_state(output_path: Path, label: str) -> None:
 
 
 def run_test(name: str, phase: str | None = None) -> None:
-    command = ['flutter', 'test', f'integration_test/{name}.dart',
+    # The rehearsal launches several new app processes with retained device
+    # data. Connect directly to the VM service: DDS can fail to attach on a
+    # later launch before any test runs. This keeps all assertions enabled.
+    command = ['flutter', 'test', f'integration_test/{name}.dart', '--no-dds',
                '--dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1']
     if phase:
         # flutter test otherwise uninstalls the integration app on teardown.

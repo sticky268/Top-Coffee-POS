@@ -36,11 +36,14 @@ class OperationsRepository {
     );
     if (scope() != selected) throw const AuthException('Branch changed.');
     final data = response.data['data'];
-    if (path == '/shifts' && data is List) {
+    // A discrepancy link returns one historical shift, not the full set of
+    // active shifts. It cannot invalidate the shift verified for cash checkout.
+    if (path == '/shifts' && data is List && query['shift_id'] == null) {
       final mine = data.where(
         (s) => s['user_id'] == selected.userId && s['status'] == 'open',
       );
-      final key = 'active-shift:${selected.userId}:${selected.branchId}';
+      final key =
+          'active-shift:${selected.userId}:${branchId ?? selected.branchId}';
       if (mine.isEmpty) {
         await store.delete(key);
       } else {
