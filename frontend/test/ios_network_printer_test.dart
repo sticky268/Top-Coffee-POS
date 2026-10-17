@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/core/printer/ios_network_printer.dart';
+import 'package:top_coffee_pos/core/printer/ios_network_printer.dart';
 
 void main() {
   test('raster bands preserve bit order, alpha and final partial band', () {
