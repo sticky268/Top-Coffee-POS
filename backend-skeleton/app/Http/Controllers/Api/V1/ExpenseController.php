@@ -182,14 +182,18 @@ class ExpenseController extends Controller
             return $branchId;
         }
 
-        $today = now()->startOfDay();
+        // spent_at is a branch calendar date, not a UTC timestamp. Derive all
+        // summary windows from one clock reading in that branch's timezone.
+        $timezone = \App\Models\Branch::withTrashed()->findOrFail($branchId)->timezone ?: 'UTC';
+        $now = now($timezone);
+        $today = $now->copy()->startOfDay();
         $tomorrow = $today->copy()->addDay();
 
-        $weekStart = now()->startOfWeek();
+        $weekStart = $now->copy()->startOfWeek();
         $nextWeekStart = $weekStart->copy()->addWeek();
         $previousWeekStart = $weekStart->copy()->subWeek();
 
-        $monthStart = now()->startOfMonth();
+        $monthStart = $now->copy()->startOfMonth();
         $nextMonthStart = $monthStart->copy()->addMonth();
         $previousMonthStart = $monthStart->copy()->subMonth();
 
