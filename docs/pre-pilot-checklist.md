@@ -1,8 +1,14 @@
-# Pre-pilot acceptance — draft PR #11
+# Pre-pilot acceptance — current master
+
+Current application baseline: `e2af37c36d4ec03d015b09ab4cecc26e8c46495b`
+(17 October 2026). PRs #11, #12 and #13 are merged. The exact PR #13 head passed
+POS validation, Daily operations integration and iOS build verification before
+its squash merge. This checklist now tracks deployment and owner acceptance;
+historical PR-specific reports remain evidence for the commits they name.
 
 Record exact commit, evidence links, operator, date and reviewer. **Empty boxes
 mean unverified, not pass.** CI cannot sign off external or owner-only gates.
-No merge, deployment or live-server operation is authorized by this checklist.
+No deployment or live-server operation is authorized by this checklist.
 
 ## Manager-PIN implementation and owner acceptance
 
