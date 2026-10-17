@@ -844,6 +844,38 @@ class OrderTest extends TestCase
         $this->assertSame('held', $auditLog->new_values['status']);
         $this->assertSame($branch->id, $auditLog->new_values['branch_id']);
         $this->assertSame($table->id, $auditLog->new_values['table_id']);
+
+        $auditService = \Mockery::mock(\App\Services\AuditLogService::class);
+        $auditService->shouldReceive('record')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+        $this->app->instance(\App\Services\AuditLogService::class, $auditService);
+
+        $failedUpdate = $this->actingAs($user)->patchJson(
+            "/api/v1/orders/{$orderId}/hold",
+            [
+                'items' => [
+                    [
+                        'product_id' => $americano->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ],
+        );
+
+        $failedUpdate->assertStatus(500);
+
+        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+        $this->assertSame(11.0, (float) $order->total);
+        $this->assertCount(2, $order->items);
+        $this->assertSame('occupied', $table->fresh()->status);
+        $this->assertSame(
+            1,
+            AuditLog::query()
+                ->where('action', 'order.updated')
+                ->where('auditable_id', $orderId)
+                ->count(),
+        );
     }
     public function test_paid_held_dine_in_order_deducts_inventory(): void
     {
@@ -1653,6 +1685,50 @@ class OrderTest extends TestCase
             'quantity' => -20,
             'reason' => "Sale deduction for Order #{$orderId}",
         ]);
+
+        $movementCountBeforeFailedEdit = DB::table('stock_movements')
+            ->where('reason', 'like', "%Order #{$orderId}%")
+            ->count();
+
+        $auditLog = \Mockery::mock(\App\Services\AuditLogService::class);
+        $auditLog->shouldReceive('record')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+        $this->app->instance(\App\Services\AuditLogService::class, $auditLog);
+
+        $failedResponse = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $oldProduct->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $failedResponse->assertStatus(500);
+
+        $order->refresh();
+        $this->assertSame(
+            $newProduct->id,
+            $order->items()->firstOrFail()->product_id
+        );
+        $this->assertSame(
+            100.0,
+            (float) $oldIngredient->fresh()->current_stock
+        );
+        $this->assertSame(
+            80.0,
+            (float) $newIngredient->fresh()->current_stock
+        );
+        $this->assertSame(
+            $movementCountBeforeFailedEdit,
+            DB::table('stock_movements')
+                ->where('reason', 'like', "%Order #{$orderId}%")
+                ->count()
+        );
     }
     public function test_editing_order_after_recipe_change_reverses_original_inventory_usage(): void
     {

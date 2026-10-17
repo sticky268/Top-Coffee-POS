@@ -71,4 +71,27 @@ class ShiftDisplayTest extends TestCase
             ->assertJsonMissingPath('data.1.cashier');
         $this->assertCount(1, $queries);
     }
+
+    public function test_active_shift_remains_visible_beyond_the_recent_history_limit(): void
+    {
+        $business = Business::factory()->create();
+        $branch = Branch::create(['business_id' => $business->id, 'name' => 'Cafe', 'code' => 'SD-04']);
+        $actor = User::factory()->create(['business_id' => $business->id]);
+        $colleague = User::factory()->create(['business_id' => $business->id]);
+        $actor->branches()->attach($branch->id);
+        foreach (['orders.create', 'reports.view'] as $name) {
+            Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+            $actor->givePermissionTo($name);
+        }
+        $active = CashierShift::create(['branch_id' => $branch->id, 'user_id' => $actor->id, 'opening_cash' => 20]);
+        for ($index = 0; $index < 51; $index++) {
+            CashierShift::create(['branch_id' => $branch->id, 'user_id' => $colleague->id,
+                'opening_cash' => 0, 'status' => 'closed', 'closed_at' => now()]);
+        }
+
+        $this->actingAs($actor)->getJson('/api/v1/shifts?branch_id='.$branch->id)
+            ->assertOk()->assertJsonCount(50, 'data')
+            ->assertJsonPath('data.0.id', $active->id)
+            ->assertJsonPath('data.0.status', 'open');
+    }
 }

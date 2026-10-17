@@ -13,13 +13,23 @@ String savedOperationTitle(Map<String, dynamic> operation) {
     return type == 'in'
         ? 'Add cash to drawer'
         : type == 'out'
-        ? 'Remove cash from drawer'
-        : 'Cash movement';
+            ? 'Remove cash from drawer'
+            : 'Cash movement';
   }
   if (RegExp(r'^/shifts/\d+/close$').hasMatch(path)) return 'Close shift';
   if (RegExp(r'^/shifts/\d+/review$').hasMatch(path)) return 'Review shift';
   if (path == '/stock/count') return 'Stock count';
   if (path == '/stock/transfer') return 'Stock transfer';
+  if (path == '/expenses') return 'Record expense';
+  if (path == '/purchases') return 'Record purchase';
+  if (RegExp(r'^/ingredients/\d+/movements$').hasMatch(path)) {
+    return switch (payload is Map ? payload['type'] : null) {
+      'purchase' => 'Add stock',
+      'adjustment' => 'Adjust stock',
+      'wastage' => 'Record wastage',
+      _ => 'Stock movement',
+    };
+  }
   if (RegExp(r'^/orders/\d+/refund$').hasMatch(path)) {
     return 'Payment refund';
   }
@@ -29,10 +39,24 @@ String savedOperationTitle(Map<String, dynamic> operation) {
   return 'Saved action';
 }
 
+List<String> savedOperationDetails(Map<String, dynamic> operation) {
+  final payload = operation['payload'];
+  if (payload is! Map) return const [];
+  final amount = num.tryParse('${payload['amount']}');
+  final quantity = num.tryParse('${payload['quantity']}');
+  final note = payload['description'] ?? payload['reason'];
+  return [
+    if (amount != null && amount.isFinite)
+      'Amount: ${NumberFormat.currency(symbol: '\$').format(amount)}',
+    if (quantity != null && quantity.isFinite) 'Quantity: $quantity',
+    if (payload['spent_at'] is String) 'Expense date: ${payload['spent_at']}',
+    if (note is String && note.trim().isNotEmpty) note.trim(),
+  ];
+}
+
 String operationDeviceTime(Object? value) {
-  final time = value is DateTime
-      ? value
-      : DateTime.tryParse(value?.toString() ?? '');
+  final time =
+      value is DateTime ? value : DateTime.tryParse(value?.toString() ?? '');
   return time == null
       ? 'Not available'
       : DateFormat.yMMMd().add_jm().format(time.toLocal());

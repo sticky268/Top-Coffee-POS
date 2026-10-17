@@ -100,7 +100,12 @@ void main() {
       );
       await tester.tap(find.text('Confirm'));
       await waitFor(tester, find.text('Awaiting manager review'));
+      // The summary can appear behind the closing dialog before its route
+      // animation finishes. Assert the closed form and final summary state.
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextFormField, 'Counted cash'), findsNothing);
       expect(find.text('Counted cash'), findsOneWidget);
+      expect(find.text('\$23.50'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );

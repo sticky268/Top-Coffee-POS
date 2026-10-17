@@ -68,7 +68,9 @@ class AuthController extends StateNotifier<AuthState> {
       // error reading the stored token itself. In every case the safe,
       // recoverable outcome is the login screen, not a stuck spinner.
       try {
-        if (error is! NetworkException) await _repository.clearStoredToken();
+        if (error is! NetworkException && error is! ServerException) {
+          await _repository.clearStoredToken();
+        }
       } catch (_) {
         // Best-effort — if even clearing the token fails, still proceed
         // to Unauthenticated below rather than staying stuck.

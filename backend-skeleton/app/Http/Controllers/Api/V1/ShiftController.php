@@ -19,7 +19,11 @@ class ShiftController extends Controller
         $query = CashierShift::with('cashier')->where('branch_id', $branch);
         if ($request->filled('shift_id')) $query->whereKey($request->integer('shift_id'));
         if (! $request->user()->can('reports.view')) $query->where('user_id', $request->user()->id);
-        return ['success' => true, 'data' => $query->orderByDesc('id')->limit(50)->get()->map(fn ($s) => $service->summary($s))];
+        // Cash checkout verifies the actor's open shift from this list. Keep it
+        // visible even when a busy branch has more than 50 newer shift records.
+        return ['success' => true, 'data' => $query
+            ->orderByRaw('CASE WHEN user_id = ? AND status = ? THEN 0 ELSE 1 END', [$request->user()->id, 'open'])
+            ->orderByDesc('id')->limit(50)->get()->map(fn ($s) => $service->summary($s))];
     }
 
     public function open(Request $request, OperationService $ops, ShiftService $service)

@@ -2,16 +2,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/data/auth_repository.dart' show apiClientProvider;
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exceptions.dart';
+import '../../../core/branch/current_branch_provider.dart';
+import '../../operations/data/operations_repository.dart';
 import '../domain/expense_models.dart';
 
 final expensesRepositoryProvider = Provider<ExpensesRepository>((ref) {
-  return ExpensesRepository(ref.watch(apiClientProvider));
+  return ExpensesRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(operationsRepositoryProvider),
+    branchId: ref.watch(currentBranchProvider)?.id,
+  );
 });
 
 class ExpensesRepository {
-  ExpensesRepository(this._apiClient);
+  ExpensesRepository(this._apiClient, this._operations, {this.branchId});
 
   final ApiClient _apiClient;
+  final OperationsRepository _operations;
+  final int? branchId;
+
+  int get _selectedBranch =>
+      branchId ?? (throw const AuthException('Select a branch first.'));
 
   Future<List<ExpenseCategory>> getExpenseCategories() async {
     final response = await _apiClient.request(
@@ -28,6 +40,7 @@ class ExpensesRepository {
         )
         .toList();
   }
+
   Future<ExpenseListPage> getExpenses({
     int? categoryId,
     String? dateFrom,
@@ -40,6 +53,7 @@ class ExpensesRepository {
       (dio) => dio.get(
         '/expenses',
         queryParameters: {
+          'branch_id': _selectedBranch,
           if (categoryId != null) 'category_id': categoryId,
           if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
           if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
@@ -57,16 +71,19 @@ class ExpensesRepository {
 
   Future<ExpenseSummary> getExpenseSummary() async {
     final response = await _apiClient.request(
-      (dio) => dio.get('/expenses/summary'),
+      (dio) => dio.get('/expenses/summary',
+          queryParameters: {'branch_id': _selectedBranch}),
     );
 
     return ExpenseSummary.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
   }
+
   Future<Expense> getExpense(int id) async {
     final response = await _apiClient.request(
-      (dio) => dio.get('/expenses/$id'),
+      (dio) => dio.get('/expenses/$id',
+          queryParameters: {'branch_id': _selectedBranch}),
     );
 
     return Expense.fromJson(
@@ -80,20 +97,16 @@ class ExpensesRepository {
     String? description,
     required String spentAt,
   }) async {
-    final response = await _apiClient.request(
-      (dio) => dio.post(
-        '/expenses',
-        data: {
-          'category_id': categoryId,
-          'amount': amount,
-          'description': description,
-          'spent_at': spentAt,
-        },
-      ),
-    );
+    final data = await _operations.write('/expenses', {
+      'branch_id': _selectedBranch,
+      'category_id': categoryId,
+      'amount': amount,
+      'description': description,
+      'spent_at': spentAt,
+    });
 
     return Expense.fromJson(
-      response.data['data'] as Map<String, dynamic>,
+      Map<String, dynamic>.from(data as Map),
     );
   }
 
@@ -108,6 +121,7 @@ class ExpensesRepository {
       (dio) => dio.patch(
         '/expenses/$id',
         data: {
+          'branch_id': _selectedBranch,
           if (categoryId != null) 'category_id': categoryId,
           if (amount != null) 'amount': amount,
           if (description != null) 'description': description,
@@ -120,9 +134,11 @@ class ExpensesRepository {
       response.data['data'] as Map<String, dynamic>,
     );
   }
+
   Future<void> deleteExpense(int id) async {
     await _apiClient.request(
-      (dio) => dio.delete('/expenses/$id'),
+      (dio) => dio.delete('/expenses/$id',
+          queryParameters: {'branch_id': _selectedBranch}),
     );
   }
 }

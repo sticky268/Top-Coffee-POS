@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/expense_categories_controller.dart';
 import '../application/expense_categories_state.dart';
@@ -27,10 +28,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   int? _selectedCategoryId;
   DateTime _spentAt = DateTime.now();
   bool _isSaving = false;
+  int? _branchId;
 
   @override
   void initState() {
     super.initState();
+    _branchId = ref.read(currentBranchProvider)?.id;
     final expense = widget.expense;
     if (expense != null) {
       _selectedCategoryId = expense.expenseCategoryId;
@@ -52,6 +55,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _saveExpense() async {
+    if (_isSaving) return;
+    if (_branchId == null ||
+        ref.read(currentBranchProvider)?.id != _branchId ||
+        (widget.expense != null && widget.expense!.branchId != _branchId)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Branch changed. Reopen the expense form for this branch.'),
+      ));
+      return;
+    }
     final categoryId = _selectedCategoryId;
     final amount = double.tryParse(_amountController.text.trim());
 
@@ -62,7 +74,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
-    if (amount == null || amount <= 0) {
+    if (amount == null || !amount.isFinite || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount.')),
       );
@@ -113,9 +125,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } on ApiException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      final message = widget.expense == null &&
+              (error is NetworkException || error is ServerException)
+          ? '${error.message} Your request is saved. Retry the same details '
+              'or check saved requests in Daily Operations.'
+          : error.message;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
 

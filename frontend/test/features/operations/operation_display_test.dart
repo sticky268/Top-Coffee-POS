@@ -13,13 +13,17 @@ void main() {
     branches: [],
   );
 
-  test('saved financial actions use clear labels without changing requests', () {
+  test('saved financial actions use clear labels without changing requests',
+      () {
     final examples = {
       '/shifts': 'Open shift',
       '/shifts/3/close': 'Close shift',
       '/shifts/3/review': 'Review shift',
       '/stock/count': 'Stock count',
       '/stock/transfer': 'Stock transfer',
+      '/expenses': 'Record expense',
+      '/purchases': 'Record purchase',
+      '/ingredients/4/movements': 'Stock movement',
       '/orders/8/refund': 'Payment refund',
       '/orders/8/additional-charge': 'Additional payment',
       '/unknown/action': 'Saved action',
@@ -43,6 +47,22 @@ void main() {
       }),
       'Add cash to drawer',
     );
+    final expense = <String, dynamic>{
+      'path': '/expenses',
+      'payload': {
+        'amount': 12.5,
+        'spent_at': '2026-10-17',
+        'description': 'Supplies',
+      },
+    };
+    expect(savedOperationDetails(expense),
+        ['Amount: \$12.50', 'Expense date: 2026-10-17', 'Supplies']);
+    expect(
+        savedOperationTitle({
+          'path': '/ingredients/4/movements',
+          'payload': {'type': 'wastage'}
+        }),
+        'Record wastage');
   });
 
   test('cashier names come from the server with safe legacy fallback', () {
@@ -57,7 +77,8 @@ void main() {
     );
   });
 
-  test('times are formatted in device time and invalid values stay unknown', () {
+  test('times are formatted in device time and invalid values stay unknown',
+      () {
     final utc = DateTime.utc(2026, 10, 15, 23, 40);
     final expected = DateFormat.yMMMd().add_jm().format(utc.toLocal());
     expect(operationDeviceTime(utc.toIso8601String()), expected);
@@ -66,7 +87,8 @@ void main() {
     expect(operationDeviceTime('not a timestamp'), 'Not available');
   });
 
-  test('cash differences distinguish shortage, overage, match and unavailable', () {
+  test('cash differences distinguish shortage, overage, match and unavailable',
+      () {
     expect(cashDifferenceDescription('-0.01'), '\$0.01 short');
     expect(cashDifferenceDescription(1.25), '\$1.25 over');
     expect(cashDifferenceDescription(0), 'Cash count matches');

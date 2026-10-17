@@ -102,6 +102,34 @@ class ExpenseTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_expense_summary_uses_branch_dates_across_midnight_and_month_boundaries(): void
+    {
+        $this->seedExpensePermissions();
+        $branch = $this->createBranch('Riverside', 'TZ-01');
+        $user = $this->makeUserForBranch($branch);
+        $category = ExpenseCategory::forceCreate(['business_id' => $this->business->id, 'name' => 'Supplies']);
+        $this->makeExpense($branch, $user, $category, ['amount' => 5, 'spent_at' => '2026-10-31']);
+        $this->makeExpense($branch, $user, $category, ['amount' => 10, 'spent_at' => '2026-11-01']);
+        $this->actingAs($user);
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-01T01:00:00Z'));
+
+        try {
+            $branch->update(['timezone' => 'Asia/Phnom_Penh']);
+            $this->getJson('/api/v1/expenses/summary?branch_id='.$branch->id)
+                ->assertOk()->assertJsonPath('data.today', 10)
+                ->assertJsonPath('data.month', 10)->assertJsonPath('data.previous_month', 5)
+                ->assertJsonPath('data.trend.6.date', '2026-11-01');
+
+            $branch->update(['timezone' => 'America/Los_Angeles']);
+            $this->getJson('/api/v1/expenses/summary?branch_id='.$branch->id)
+                ->assertOk()->assertJsonPath('data.today', 5)
+                ->assertJsonPath('data.month', 5)->assertJsonPath('data.previous_month', 0)
+                ->assertJsonPath('data.trend.6.date', '2026-10-31');
+        } finally {
+            $this->travelBack();
+        }
+    }
+
     public function test_user_without_expense_permission_cannot_view_expenses(): void
     {
         $branch = $this->createBranch('Riverside', 'PP-01');

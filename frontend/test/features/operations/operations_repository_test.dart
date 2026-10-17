@@ -97,6 +97,61 @@ void main() {
     repo = OperationsRepository(api, store, () => scope);
   });
 
+  test('viewing a historical shift preserves the verified active shift',
+      () async {
+    when(() => api.request<Response<dynamic>>(any())).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/shifts'),
+        data: {
+          'data': [
+            {'id': 12, 'user_id': 1, 'status': 'open'},
+          ],
+        },
+      ),
+    );
+    await repo.get('/shifts');
+    expect(await store.read('active-shift:1:2'), '12');
+
+    when(() => api.request<Response<dynamic>>(any())).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/shifts'),
+        data: {
+          'data': [
+            {'id': 5, 'user_id': 1, 'status': 'closed'},
+          ],
+        },
+      ),
+    );
+    await repo.get('/shifts', query: {'shift_id': 5});
+    expect(await store.read('active-shift:1:2'), '12');
+
+    // An unfiltered authoritative response can still invalidate a closed shift.
+    await repo.get('/shifts');
+    expect(await store.read('active-shift:1:2'), isNull);
+  });
+
+  test(
+    'shift reads for another branch update only that branch cache',
+    () async {
+      await store.write('active-shift:1:2', '12');
+      when(() => api.request<Response<dynamic>>(any())).thenAnswer(
+        (_) async => Response(
+          requestOptions: RequestOptions(path: '/shifts'),
+          data: {
+            'data': [
+              {'id': 30, 'user_id': 1, 'status': 'open'},
+            ],
+          },
+        ),
+      );
+
+      await repo.get('/shifts', branchId: 3);
+
+      expect(await store.read('active-shift:1:2'), '12');
+      expect(await store.read('active-shift:1:3'), '30');
+    },
+  );
+
   test(
     'refund PIN stays in the transient header and retry needs a fresh PIN',
     () async {

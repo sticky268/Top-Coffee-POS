@@ -346,7 +346,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
                   setState(() {
                     isSaving = false;
-                    errorMessage = error.toString();
+                    errorMessage = error is ApiException
+                        ? error.message
+                        : 'Could not save the stock change. Please try again.';
+                    if (error is NetworkException || error is ServerException) {
+                      errorMessage = '$errorMessage Your request is saved. '
+                          'Retry the same details or check saved requests in Daily Operations.';
+                    }
                   });
                 }
               }
