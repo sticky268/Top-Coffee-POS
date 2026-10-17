@@ -198,6 +198,13 @@ class _PrintQueueScreenState extends ConsumerState<PrintQueueScreen> {
                     'Jobs are saved on this device for your account and selected branch. Sent means accepted by the printer; check the paper before making a COPY.',
                   ),
                   const SizedBox(height: 12),
+                  Text(
+                    '${values.where((job) => job.status == PrintStatus.failed).length} failed · '
+                    '${values.where((job) => job.status == PrintStatus.uncertain).length} need paper check · '
+                    '${values.where((job) => job.status == PrintStatus.waiting).length} waiting',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
                   if (values.isEmpty)
                     const Text('No print jobs for this branch yet.'),
                   for (final job in values) _card(job, scope),

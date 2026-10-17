@@ -25,49 +25,101 @@ class CartLineTile extends ConsumerWidget {
         : item.product.name;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.bodyLarge,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.quantity} × ${currency.format(item.unitPrice)}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          pos_ui.IconButton(
-            icon: const Icon(Icons.remove_circle_outline),
-            visualDensity: VisualDensity.compact,
-            tooltip: 'Decrease quantity',
-            onPressed: () => cartNotifier.decrementQuantity(item.lineKey),
-          ),
-          Text('${item.quantity}', style: theme.textTheme.titleMedium),
-          pos_ui.IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            visualDensity: VisualDensity.compact,
-            tooltip: 'Increase quantity',
-            onPressed: () => cartNotifier.incrementQuantity(item.lineKey),
-          ),
-          SizedBox(
-            width: 60,
+          Tooltip(
+            message: title,
             child: Text(
-              currency.format(item.lineTotal),
-              textAlign: TextAlign.right,
-              style: theme.textTheme.titleMedium,
+              title,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${item.quantity} × ${currency.format(item.unitPrice)}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final quantity = DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    pos_ui.IconButton(
+                      icon: const Icon(Icons.remove_rounded),
+                      tooltip: 'Decrease quantity',
+                      onPressed: () =>
+                          cartNotifier.decrementQuantity(item.lineKey),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        '${item.quantity}',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    pos_ui.IconButton(
+                      icon: const Icon(Icons.add_rounded),
+                      tooltip: 'Increase quantity',
+                      onPressed: () =>
+                          cartNotifier.incrementQuantity(item.lineKey),
+                    ),
+                  ],
+                ),
+              );
+              final total = Text(
+                currency.format(item.lineTotal),
+                maxLines: 1,
+                softWrap: false,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              );
+              if (MediaQuery.textScalerOf(context).scale(14) > 20) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    quantity,
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: total,
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  quantity,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: total,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

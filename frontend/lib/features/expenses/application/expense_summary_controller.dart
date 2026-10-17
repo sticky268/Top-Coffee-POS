@@ -7,6 +7,7 @@ import 'expense_summary_state.dart';
 
 class ExpenseSummaryController
     extends StateNotifier<ExpenseSummaryState> {
+  int _generation = 0;
   ExpenseSummaryController(this._repository, this._ref)
       : super(const ExpenseSummaryLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -44,18 +45,19 @@ class ExpenseSummaryController
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const ExpenseSummaryLoading();
 
     try {
       final summary = await _repository.getExpenseSummary();
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = ExpenseSummaryLoaded(summary);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = ExpenseSummaryError(
         e is ApiException ? e.message : 'Something went wrong',

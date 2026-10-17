@@ -8,6 +8,7 @@ use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Supplier;
 use App\Services\StockMovementService;
+use App\Services\OperationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -104,12 +105,13 @@ class PurchaseController extends Controller
             $request->all(),
             [
                 'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+                'uuid' => ['nullable', 'uuid'],
                 'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
                 'purchased_at' => ['required', 'date'],
                 'items' => ['required', 'array', 'min:1'],
                 'items.*.ingredient_id' => ['required', 'integer', 'distinct', 'exists:ingredients,id'],
-                'items.*.quantity' => ['required', 'numeric', 'gt:0'],
-                'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
+                'items.*.quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,3'],
+                'items.*.unit_cost' => ['required', 'numeric', 'min:0', 'decimal:0,4'],
             ]
         );
 
@@ -186,7 +188,7 @@ class PurchaseController extends Controller
         }
 
         try {
-            $purchase = DB::transaction(function () use (
+            $create = function () use (
                 $request,
                 $user,
                 $branchId,
@@ -233,8 +235,12 @@ class PurchaseController extends Controller
                     );
                 }
 
-                return $purchase;
-            });
+                return ['id' => $purchase->id];
+            };
+            $result = $request->filled('uuid')
+                ? app(OperationService::class)->run($request, (int) $branchId, 'purchase.create', $create)
+                : DB::transaction($create);
+            $purchase = Purchase::findOrFail($result['id']);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,

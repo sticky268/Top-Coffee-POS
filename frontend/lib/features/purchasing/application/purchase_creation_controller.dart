@@ -159,6 +159,7 @@ class PurchaseCreationController
   }
 
   Future<Purchase> save() async {
+    if (state.isSaving) throw StateError('A purchase is already being saved.');
     final supplierId = state.supplierId;
 
     if (supplierId == null) {
@@ -170,13 +171,13 @@ class PurchaseCreationController
     }
 
     for (final item in state.items) {
-      if (item.quantity <= 0) {
+      if (!item.quantity.isFinite || item.quantity <= 0) {
         throw StateError(
           'Each ingredient quantity must be greater than zero.',
         );
       }
 
-      if (item.unitCost < 0) {
+      if (!item.unitCost.isFinite || item.unitCost < 0) {
         throw StateError(
           'Ingredient unit cost cannot be negative.',
         );

@@ -1,0 +1,11 @@
+{
+  "health_url": "https://api.example.invalid/api/v1/operations/health",
+  "health_token": "",
+  "alerts_config": "/etc/top-coffee/alerts.json",
+  "state_file": "/var/lib/top-coffee-monitor/alerts-state.json",
+  "cooldown_seconds": 900,
+  "tls_min_days": 14,
+  "backup_max_age_seconds": 93600,
+  "backup_remote": "",
+  "backup_rclone_config": "/etc/top-coffee/monitor-rclone.conf"
+}

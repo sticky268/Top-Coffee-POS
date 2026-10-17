@@ -1,0 +1,66 @@
+name: iOS build verification
+on:
+  pull_request:
+  push:
+    branches: [codex/checkout-ui-polish]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ios-build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter: ['3.44.9', '3.47.7']
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter }}
+          channel: stable
+          cache: true
+      - name: Record source and toolchain
+        run: |
+          mkdir -p build/ios-evidence
+          git rev-parse HEAD > build/ios-evidence/source.txt
+          xcodebuild -version > build/ios-evidence/xcode.txt
+          xcodebuild -showsdks > build/ios-evidence/sdks.txt
+          flutter --version > build/ios-evidence/flutter.txt
+          flutter doctor -v > build/ios-evidence/doctor.txt
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Compile unsigned simulator application
+        run: flutter build ios --simulator --debug
+      - name: Compile unsigned release application
+        # Compile-only reserved endpoint; never installs or contacts a server.
+        run: flutter build ios --release --no-codesign --dart-define=FLAVOR=prod --dart-define=API_BASE_URL=https://example.invalid/api/v1
+      - name: Record compile evidence boundary
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          Path('build/ios-evidence/result.json').write_text(json.dumps({
+              'simulator_debug_compile': 'passed',
+              'unsigned_device_release_compile': 'passed',
+              'signing': 'not tested',
+              'device_install_or_runtime': 'not tested',
+              'printer_or_drawer': 'not tested',
+              'store_distribution': 'not attempted'
+          }, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-build-evidence-${{ matrix.flutter }}
+          path: frontend/build/ios-evidence/
+          retention-days: 14

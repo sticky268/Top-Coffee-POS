@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
 use App\Models\Order;
 use App\Models\Branch;
+use App\Models\CashierShift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -59,14 +60,15 @@ class DashboardController extends Controller
             }
         }
 
-        $today = Carbon::today();
-        $tomorrow = $today->copy()->addDay();
+        $timezone = $branchId === null ? 'UTC'
+            : (Branch::withTrashed()->findOrFail($branchId)->timezone ?: 'UTC');
+        $today = Carbon::today($timezone)->utc();
+        $tomorrow = Carbon::today($timezone)->addDay()->utc();
 
         $todayOrders = Order::query()
             ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
             ->where('status', 'completed')
-            ->where('created_at', '>=', $today)
-            ->where('created_at', '<', $tomorrow)
+            ->completedDuring($today, $tomorrow)
             ->when($branchId !== null, function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             });
@@ -90,6 +92,7 @@ class DashboardController extends Controller
         $recentOrders = Order::query()
             ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
             ->with(['branch:id,name,code', 'cashier:id,name', 'payments'])
+            ->withSum('items as item_count', 'quantity')
             ->when($branchId !== null, function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             })
@@ -106,7 +109,7 @@ class DashboardController extends Controller
                     'order_type' => $order->order_type,
                     'status' => $order->status,
                     'total' => (float) $order->total,
-                    'item_count' => $order->items()->sum('quantity'),
+                    'item_count' => (int) $order->item_count,
                     'branch' => $order->branch ? [
                         'id' => $order->branch->id,
                         'name' => $order->branch->name,
@@ -123,15 +126,14 @@ class DashboardController extends Controller
             ->values();
 
         $salesOverview = collect(range(6, 0))
-            ->map(function (int $daysAgo) use ($branchId, $businessId) {
-                $date = Carbon::today()->subDays($daysAgo);
+            ->map(function (int $daysAgo) use ($branchId, $businessId, $timezone) {
+                $date = Carbon::today($timezone)->subDays($daysAgo);
                 $nextDate = $date->copy()->addDay();
 
                 $total = Order::query()
                     ->whereIn('orders.branch_id', Branch::withTrashed()->where('business_id', $businessId)->select('id'))
                     ->where('status', 'completed')
-                    ->where('created_at', '>=', $date)
-                    ->where('created_at', '<', $nextDate)
+                    ->completedDuring($date->copy()->utc(), $nextDate->copy()->utc())
                     ->when($branchId !== null, function ($query) use ($branchId) {
                         $query->where('branch_id', $branchId);
                     })
@@ -144,6 +146,19 @@ class DashboardController extends Controller
             })
             ->values();
 
+        // Cash exceptions are authoritative server records, not device queue
+        // counts. Only managers with reports permission and a selected branch
+        // receive this data; never summarize another branch in an alert.
+        $cashDifferenceCount = 0;
+        $cashDifferenceShiftId = null;
+        if ($branchId !== null && $user->can('reports.view')) {
+            $exceptions = CashierShift::where('branch_id', $branchId)->where('status', 'closed')
+                ->whereNull('reviewed_at')->where('difference', '!=', 0);
+            $cashDifferenceCount = (clone $exceptions)->count();
+            $cashDifferenceShiftId = (clone $exceptions)->orderByDesc('closed_at')
+                ->orderByDesc('id')->value('id');
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -152,6 +167,8 @@ class DashboardController extends Controller
                     'todays_orders' => $todaysOrderCount,
                     'average_order_value' => $averageOrderValue,
                     'low_stock_item_count' => $lowStockItemCount,
+                    'cash_discrepancy_count' => $cashDifferenceCount,
+                    'cash_discrepancy_shift_id' => $cashDifferenceShiftId,
                 ],
                 'recent_orders' => $recentOrders,
                 'sales_overview' => $salesOverview,

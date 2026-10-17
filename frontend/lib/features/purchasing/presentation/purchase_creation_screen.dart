@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -147,8 +149,9 @@ class _PurchaseCreationScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -172,20 +175,23 @@ class _PurchaseCreationScreenState
           ),
         ],
       ),
-      body: dataAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _buildErrorState(error),
-        data: (data) {
-          if (data.suppliers.isEmpty) {
-            return _buildNoSuppliersState();
-          }
+      body: PageContent(
+        maxWidth: 1000,
+        child: dataAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _buildErrorState(error),
+          data: (data) {
+            if (data.suppliers.isEmpty) {
+              return _buildNoSuppliersState();
+            }
 
-          if (data.ingredients.isEmpty) {
-            return _buildNoIngredientsState();
-          }
+            if (data.ingredients.isEmpty) {
+              return _buildNoIngredientsState();
+            }
 
-          return _buildForm(data, state);
-        },
+            return _buildForm(data, state);
+          },
+        ),
       ),
     );
   }

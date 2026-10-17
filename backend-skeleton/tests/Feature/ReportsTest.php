@@ -118,6 +118,63 @@ class ReportsTest extends TestCase
         return $order;
     }
 
+    public function test_held_sales_are_reported_on_completion_day_in_branch_timezone(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id,
+            'timezone' => 'America/Denver']);
+        $user = $this->makeUserForBranch($branch);
+        $this->makeOrder($branch, $user, ['created_at' => '2026-10-12 10:00:00',
+            'completed_at' => '2026-10-14 01:00:00']);
+        // 01:00 UTC on the 14th is still the 13th in Denver.
+        $this->actingAs($user)->getJson('/api/v1/reports?branch_id='.$branch->id.'&date_from=2026-10-13&date_to=2026-10-13')
+            ->assertOk()->assertJsonPath('data.summary.total_orders', 1)
+            ->assertJsonPath('data.summary.timezone', 'America/Denver');
+        $this->getJson('/api/v1/reports?branch_id='.$branch->id.'&date_from=2026-10-12&date_to=2026-10-12')
+            ->assertOk()->assertJsonPath('data.summary.total_orders', 0);
+    }
+
+    public function test_report_chart_query_count_does_not_grow_per_day(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $user = $this->makeUserForBranch($branch);
+        $this->actingAs($user);
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+        $this->getJson('/api/v1/reports?date_from=2026-01-01&date_to=2026-12-31')->assertOk();
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+        $chartQueries = array_filter($queries, fn ($q) => str_contains($q['query'], 'bucket_0'));
+        $this->assertCount(1, $chartQueries);
+        $this->getJson('/api/v1/reports?date_from=2020-01-01&date_to=2026-12-31')->assertUnprocessable();
+    }
+
+    public function test_report_reconciles_additional_charges_and_partial_refunds(): void
+    {
+        $this->seedReportsPermissions();
+        $branch = Branch::factory()->create(['business_id' => $this->business->id, 'timezone' => 'UTC']);
+        $user = $this->makeUserForBranch($branch);
+        $user->givePermissionTo(Permission::findOrCreate('orders.refund'));
+        $this->actingAs($user);
+        $order = $this->makeOrder($branch, $user);
+        Payment::create(['order_id' => $order->id, 'method' => 'card', 'amount' => 10,
+            'status' => 'completed', 'processed_by' => $user->id]);
+        $this->postJson('/api/v1/orders/'.$order->id.'/additional-charge', [
+            'branch_id' => $branch->id, 'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'amount' => 2, 'method' => 'card', 'reason' => 'Correction',
+        ])->assertOk();
+        $this->postJson('/api/v1/orders/'.$order->id.'/refund', [
+            'branch_id' => $branch->id, 'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'amount' => 3, 'reason' => 'Partial correction', 'inventory_disposition' => 'consumed',
+        ])->assertOk();
+        $this->getJson('/api/v1/reports')->assertOk()
+            ->assertJsonPath('data.summary.total_sales', 10)
+            ->assertJsonPath('data.summary.supplemental_sales', 2)
+            ->assertJsonPath('data.summary.refunds', 3)
+            ->assertJsonPath('data.summary.net_sales', 9)
+            ->assertJsonPath('data.payment_methods.0.total', 9);
+    }
+
     public function test_unauthenticated_request_is_rejected(): void
     {
         $this->getJson('/api/v1/reports')

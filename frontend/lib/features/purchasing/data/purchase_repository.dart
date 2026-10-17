@@ -1,3 +1,4 @@
+import '../../operations/data/operations_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -41,9 +42,10 @@ class PurchaseCreateItem {
 }
 
 class ApiPurchaseRepository implements PurchaseRepository {
-  ApiPurchaseRepository(this._apiClient);
+  ApiPurchaseRepository(this._apiClient, this._operations);
 
   final ApiClient _apiClient;
+  final OperationsRepository _operations;
 
   @override
   Future<PurchaseHistoryPage> getPurchaseHistory({
@@ -74,26 +76,19 @@ class ApiPurchaseRepository implements PurchaseRepository {
     required DateTime purchasedAt,
     required List<PurchaseCreateItem> items,
   }) async {
-    final response = await _apiClient.request(
-      (dio) => dio.post(
-        '/purchases',
-        data: {
-          if (branchId != null) 'branch_id': branchId,
-          'supplier_id': supplierId,
-          'purchased_at': purchasedAt.toIso8601String().split('T').first,
-          'items': items.map((item) => item.toJson()).toList(),
-        },
-      ),
-    );
-
-    return Purchase.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    final data = await _operations.write('/purchases', {
+      if (branchId != null) 'branch_id': branchId,
+      'supplier_id': supplierId,
+      'purchased_at': purchasedAt.toIso8601String().split('T').first,
+      'items': items.map((item) => item.toJson()).toList(),
+    });
+    return Purchase.fromJson(Map<String, dynamic>.from(data as Map));
   }
 }
 
 final purchaseRepositoryProvider = Provider<PurchaseRepository>((ref) {
   return ApiPurchaseRepository(
     ref.watch(apiClientProvider),
+    ref.watch(operationsRepositoryProvider),
   );
 });

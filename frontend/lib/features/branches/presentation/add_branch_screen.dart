@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
@@ -77,137 +79,140 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Branch')),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Branch Information',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Branch Name',
-                          hintText: 'Top Coffee - Riverside',
-                          border: OutlineInputBorder(),
-                        ),
-                        textInputAction: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Branch name is required';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _codeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Branch Code',
-                          hintText: 'PP-01',
-                          border: OutlineInputBorder(),
-                        ),
-                        textInputAction: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Branch code is required';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _addressController,
-                        decoration: const InputDecoration(
-                          labelText: 'Address',
-                          hintText: 'Phnom Penh',
-                          border: OutlineInputBorder(),
-                        ),
-                        textInputAction: TextInputAction.next,
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Phone',
-                          hintText: '012 345 678',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _timezoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Timezone',
-                          border: OutlineInputBorder(),
-                        ),
-                        textInputAction: TextInputAction.done,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Timezone is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: SwitchListTile(
-                  title: const Text('Active'),
-                  subtitle: const Text(
-                    'Allow this branch to be used in the system',
-                  ),
-                  value: _isActive,
-                  onChanged: _isSaving
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _isActive = value;
-                          });
-                        },
-                ),
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
+      body: PageContent(
+        maxWidth: 800,
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
                 Card(
-                  color: Theme.of(context).colorScheme.errorContainer,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Branch Information',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Branch Name',
+                            hintText: 'Top Coffee - Riverside',
+                            border: OutlineInputBorder(),
+                          ),
+                          textInputAction: TextInputAction.next,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Branch name is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _codeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Branch Code',
+                            hintText: 'PP-01',
+                            border: OutlineInputBorder(),
+                          ),
+                          textInputAction: TextInputAction.next,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Branch code is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _addressController,
+                          decoration: const InputDecoration(
+                            labelText: 'Address',
+                            hintText: 'Phnom Penh',
+                            border: OutlineInputBorder(),
+                          ),
+                          textInputAction: TextInputAction.next,
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _phoneController,
+                          decoration: const InputDecoration(
+                            labelText: 'Phone',
+                            hintText: '012 345 678',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _timezoneController,
+                          decoration: const InputDecoration(
+                            labelText: 'Timezone',
+                            border: OutlineInputBorder(),
+                          ),
+                          textInputAction: TextInputAction.done,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Timezone is required';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: pos_ui.PrimaryButton(
-                  onPressed: _isSaving ? null : _save,
-                  isLoading: _isSaving,
-                  child: const Text('Create Branch'),
+                const SizedBox(height: 16),
+                Card(
+                  child: SwitchListTile(
+                    title: const Text('Active'),
+                    subtitle: const Text(
+                      'Allow this branch to be used in the system',
+                    ),
+                    value: _isActive,
+                    onChanged: _isSaving
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _isActive = value;
+                            });
+                          },
+                  ),
                 ),
-              ),
-            ],
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _errorMessage!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 52,
+                  child: pos_ui.PrimaryButton(
+                    onPressed: _isSaving ? null : _save,
+                    isLoading: _isSaving,
+                    child: const Text('Create Branch'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

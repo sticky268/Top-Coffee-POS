@@ -2766,6 +2766,42 @@ class OrderTest extends TestCase
         $this->assertDatabaseCount('payments', 0);
     }
 
+    public function test_matching_held_payment_retry_returns_receipt_without_repeating_effects(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $input = ['expected_total' => 3.5, 'payment' => ['method' => 'cash', 'tendered' => 5]];
+        $first = $this->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertOk();
+        $before = [];
+        foreach (['orders', 'payments', 'stock_movements', 'loyalty_transactions', 'audit_logs'] as $name) {
+            $before[$name] = DB::table($name)->orderBy('id')->get()->toJson();
+        }
+        $retry = $this->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertOk();
+        $this->assertSame($first->json('data'), $retry->json('data'));
+        foreach ($before as $name => $rows) {
+            $this->assertSame($rows, DB::table($name)->orderBy('id')->get()->toJson(), $name);
+        }
+        $input['payment']['tendered'] = 10;
+        $this->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertConflict();
+        $input['payment']['tendered'] = 5;
+        $other = $this->makeCashier(Branch::findOrFail($table->branch_id));
+        $this->actingAs($other)->postJson("/api/v1/orders/{$orderId}/pay", $input)->assertConflict();
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_immediate_checkout_cannot_bypass_an_existing_held_bill(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $this->postJson('/api/v1/orders', [
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'cash', 'tendered' => 5],
+        ])->assertConflict();
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertSame(100.0, (float) $ingredient->fresh()->current_stock);
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'held']);
+    }
+
     public function test_held_payment_rejects_invalid_expected_total(): void
     {
         [$orderId] = $this->makeHeldBillForPaymentReview();

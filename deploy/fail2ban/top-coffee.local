@@ -1,0 +1,10 @@
+# Install /etc/fail2ban/jail.d/top-coffee.local after testing SSH key access.
+[sshd]
+enabled = true
+backend = systemd
+port = ssh
+maxretry = 5
+findtime = 10m
+bantime = 1h
+# Authentication API throttling is enforced by Laravel; do not ban all shared
+# coffee-shop NAT clients using a broad nginx 401 filter.

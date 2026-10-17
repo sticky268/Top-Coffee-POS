@@ -1,0 +1,17 @@
+[Unit]
+Description=Top Coffee read-only operational health checks
+After=network-online.target
+OnFailure=top-coffee-alert@health_failed.service
+
+[Service]
+Type=oneshot
+User=posapp
+Group=posapp
+WorkingDirectory=/srv/top-coffee/current/backend-skeleton
+ExecStart=/usr/bin/php artisan pos:operations-health --json
+TimeoutStartSec=60
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0077

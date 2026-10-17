@@ -1,5 +1,8 @@
 package com.example.top_coffee_pos
 
+import android.content.pm.ApplicationInfo
+import android.os.Bundle
+import android.view.WindowManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -10,6 +13,8 @@ import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.StandardMethodCodec
+import net.posprinter.IConnectListener
 import net.posprinter.IDeviceConnection
 import net.posprinter.POSConnect
 import net.posprinter.POSConst
@@ -17,12 +22,21 @@ import net.posprinter.POSPrinter
 
 class MainActivity : FlutterActivity() {
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     companion object {
         private const val PRINTER_CHANNEL = "top_coffee_pos/printer"
     }
 
-    private var printerConnection: IDeviceConnection? = null
-    private var printer: POSPrinter? = null
+    private val printerLifecycle = Any()
+    @Volatile private var printerStopped = false
+    @Volatile private var printerConnection: IDeviceConnection? = null
+    @Volatile private var printer: POSPrinter? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -32,76 +46,91 @@ class MainActivity : FlutterActivity() {
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             PRINTER_CHANNEL,
+            StandardMethodCodec.INSTANCE,
+            flutterEngine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(),
         ).setMethodCallHandler { call, result ->
 
             when (call.method) {
                 "connect" -> {
-    val ipAddress = call.argument<String>("ip")
+                    val ipAddress = call.argument<String>("ip")
 
-    if (ipAddress.isNullOrBlank()) {
-        result.error(
-            "INVALID_IP",
-            "Printer IP address is required.",
-            null,
-        )
-        return@setMethodCallHandler
-    }
-
-    var replySubmitted = false
-
-    try {
-        printerConnection?.close()
-        printer = null
-
-        val connection = POSConnect.createDevice(
-            POSConnect.DEVICE_TYPE_ETHERNET,
-        )
-
-        connection.connect(
-            ipAddress,
-            object : net.posprinter.IConnectListener {
-                override fun onStatus(
-                    code: Int,
-                    connectInfo: String,
-                    message: String,
-                ) {
-                    if (replySubmitted) {
-                        return
+                    if (ipAddress.isNullOrBlank()) {
+                        result.error(
+                            "INVALID_IP",
+                            "Printer IP address is required.",
+                            null,
+                        )
+                        return@setMethodCallHandler
                     }
 
-                    replySubmitted = true
-
-                    if (code == POSConnect.CONNECT_SUCCESS) {
-
-                        printerConnection = connection
-                        printer = POSPrinter(connection)
-
-                        result.success(true)
-                    } else {
-                        connection.close()
-
-                        result.error(
-                            "CONNECT_ERROR",
-                            "Could not connect to printer at $ipAddress.",
-                            "$code: $message",
-                        )
+                    // The SDK fixes each TCP connect timeout at one second. Retry only opening
+                    // the connection; a receipt or drawer command is never replayed here.
+                    try {
+                        printer = null
+                        printerConnection?.closeSync()
+                        printerConnection = null
+                        var lastFailure = "No response on TCP port 9100."
+                        var connected = false
+                        for (attempt in 1..3) {
+                            check(!printerStopped) { "Printer session has closed." }
+                            val connection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_ETHERNET)
+                            var keepConnection = false
+                            try {
+                                if (connection.connectSync(ipAddress, object : IConnectListener {
+                                    override fun onStatus(code: Int, connectInfo: String, message: String) {
+                                        if (code != POSConnect.CONNECT_SUCCESS) lastFailure = message
+                                    }
+                                })) {
+                                    synchronized(printerLifecycle) {
+                                        check(!printerStopped) { "Printer session has closed." }
+                                        printerConnection = connection
+                                        printer = ConfirmedPosPrinter(connection)
+                                        keepConnection = true
+                                        connected = true
+                                    }
+                                    break
+                                }
+                            } catch (e: Exception) {
+                                lastFailure = e.message ?: "Connection failed."
+                            } finally {
+                                if (!keepConnection) connection.closeSync()
+                            }
+                            if (attempt < 3) Thread.sleep(250)
+                        }
+                        if (connected) {
+                            result.success(true)
+                        } else {
+                            result.error(
+                                "CONNECT_ERROR",
+                                "Could not connect to printer at $ipAddress:9100 after 3 attempts. " +
+                                    "Check the printer cable and that this device is on the printer's local network.",
+                                lastFailure,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        result.error("CONNECT_ERROR", e.message, null)
                     }
                 }
-            },
-        )
-    } catch (e: Exception) {
-        if (!replySubmitted) {
-            replySubmitted = true
-
-            result.error(
-                "CONNECT_ERROR",
-                e.message,
-                null,
-            )
-        }
-    }
-}
-"printTest" -> {
+                "openCashDrawer" -> {
+                    val connection = printerConnection
+                    if (connection == null || printer == null) {
+                        result.error("NOT_CONNECTED", "Printer is not connected.", null)
+                        return@setMethodCallHandler
+                    }
+                    // Runs on the serial background channel, just like receipts.
+                    // A drawer pulse is sent once and never retried automatically.
+                    try {
+                        val pulse = byteArrayOf(27, 112, 0, 30, 255.toByte())
+                        CheckedPrinterWriter(
+                            { data -> connection.sendSync(data) },
+                            { connection.closeSync() },
+                        ).write(pulse)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("DRAWER_ERROR", e.message, null)
+                    }
+                }
+                "printTest" -> {
                     try {
                         val currentPrinter = printer
 
@@ -195,16 +224,9 @@ class MainActivity : FlutterActivity() {
                             paint,
                         )
 
-                        currentPrinter
-                            .initializePrinter()
-                            .printBitmap(
-                                bitmap,
-                                POSConst.ALIGNMENT_LEFT,
-                                576,
-                                POSConst.BMP_NORMAL,
-                            )
-                            .feedLine(3)
-                            .cutHalfAndFeed(1)
+                        currentPrinter.initializePrinter()
+                        printReceiptBands(currentPrinter, bitmap)
+                        currentPrinter.feedLine(3).cutHalfAndFeed(1)
 
                         bitmap.recycle()
 
@@ -298,14 +320,8 @@ class MainActivity : FlutterActivity() {
                                 y += 45f
                             }
 
-                            currentPrinter
-                                .printBitmap(
-                                    bitmap,
-                                    POSConst.ALIGNMENT_LEFT,
-                                    576,
-                                    POSConst.BMP_NORMAL,
-                                )
-                                .feedLine(2)
+                            printReceiptBands(currentPrinter, bitmap)
+                            currentPrinter.feedLine(2)
 
                             bitmap.recycle()
                         }
@@ -416,17 +432,10 @@ class MainActivity : FlutterActivity() {
 
         currentPrinter.initializePrinter()
 
-        // Send the bitmap first and give the async printer queue time to drain.
-        currentPrinter.printBitmap(
-            bitmap,
-            POSConst.ALIGNMENT_LEFT,
-            576,
-            POSConst.BMP_NORMAL,
-        )
+        // Use the same buffered raster path as normal receipts.
+        printReceiptBands(currentPrinter, bitmap)
 
-        Thread.sleep(1000)
-
-        // Send feed and cut only after the bitmap has had time to finish.
+        // Every image byte has completed its checked write before feed/cut.
         currentPrinter
             .feedLine(3)
             .cutHalfAndFeed(1)
@@ -580,7 +589,7 @@ class MainActivity : FlutterActivity() {
 }
                 "disconnect" -> {
                     printer = null
-                    printerConnection?.close()
+                    printerConnection?.closeSync()
                     printerConnection = null
                     result.success(true)
                 }
@@ -589,6 +598,33 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+        }
+    }
+
+    /**
+     * ESC/POS bitmap uploads may become corrupt when the SDK sends a very tall
+     * image in one raster command. Keep each band small enough for the device
+     * input buffer and preserve the rendered 576-dot content and row order.
+     * This helper only sends image data; it never starts a payment or drawer
+     * operation. Receipt cutting remains the caller's responsibility.
+     */
+    private fun printReceiptBands(currentPrinter: POSPrinter, bitmap: Bitmap) {
+        val bandHeight = 24
+        var top = 0
+        while (top < bitmap.height) {
+            val height = minOf(bandHeight, bitmap.height - top)
+            val band = Bitmap.createBitmap(bitmap, 0, top, bitmap.width, height)
+            try {
+                currentPrinter.printBitmap(
+                    band,
+                    POSConst.ALIGNMENT_LEFT,
+                    bitmap.width,
+                    POSConst.BMP_NORMAL,
+                )
+            } finally {
+                band.recycle()
+            }
+            top += height
         }
     }
 
@@ -1200,14 +1236,7 @@ class MainActivity : FlutterActivity() {
 
             currentPrinter.initializePrinter()
 
-            currentPrinter.printBitmap(
-                bitmap,
-                POSConst.ALIGNMENT_LEFT,
-                576,
-                POSConst.BMP_NORMAL,
-            )
-
-            Thread.sleep(1000)
+            printReceiptBands(currentPrinter, bitmap)
 
             currentPrinter
                 .feedLine(0)
@@ -1220,9 +1249,12 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        printer = null
-        printerConnection?.close()
-        printerConnection = null
+        synchronized(printerLifecycle) {
+            printerStopped = true
+            printer = null
+            printerConnection?.closeSync()
+            printerConnection = null
+        }
         POSConnect.exit()
 
         super.onDestroy()

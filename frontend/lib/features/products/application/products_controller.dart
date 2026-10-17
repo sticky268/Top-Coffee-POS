@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../data/products_repository.dart';
+import '../../pos/domain/pos_models.dart';
 import 'products_state.dart';
 
 /// Loads categories + products for the standalone Products browsing
@@ -16,6 +17,7 @@ import 'products_state.dart';
 /// Same mounted-guard + deterministic `initialization` future pattern as
 /// every other controller in this codebase.
 class ProductsController extends StateNotifier<ProductsState> {
+  int _generation = 0;
   ProductsController(this._repository, this._ref)
       : super(const ProductsLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -51,27 +53,25 @@ class ProductsController extends StateNotifier<ProductsState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
     state = const ProductsLoading();
 
     try {
-      final categoriesFuture = _repository.getCategories(
-        branchId: _branchId,
-      );
-      final productsFuture = _repository.getProducts(
-        branchId: _branchId,
-      );
-
-      final categories = await categoriesFuture;
-      final products = await productsFuture;
-      if (!mounted) return;
+      final results = await Future.wait<Object>([
+        Future.sync(() => _repository.getCategories(branchId: _branchId)),
+        Future.sync(() => _repository.getProducts(branchId: _branchId)),
+      ]);
+      final categories = results[0] as List<PosCategory>;
+      final products = results[1] as List<PosProduct>;
+      if (!mounted || generation != _generation) return;
 
       state = ProductsLoaded(
         categories: categories,
         products: products,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = ProductsError(
         e is ApiException ? e.message : 'Something went wrong',
       );

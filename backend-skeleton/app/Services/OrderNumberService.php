@@ -24,7 +24,11 @@ class OrderNumberService
 
         $currentMax = Order::withoutGlobalScopes()
             ->where('branch_id', $branchId)
-            ->max('order_number');
+            // A locking read sees commits made while we waited for the branch.
+            // MAX() would read an older repeatable-read snapshot on MySQL.
+            ->orderByDesc('order_number')
+            ->lockForUpdate()
+            ->value('order_number');
 
         return ((int) $currentMax) + 1;
     }

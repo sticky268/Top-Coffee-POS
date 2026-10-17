@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
@@ -121,11 +123,14 @@ class _AddIngredientScreenState extends ConsumerState<AddIngredientScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Ingredient')),
-      body: _isLoadingUnits
-          ? const Center(child: CircularProgressIndicator())
-          : _units.isEmpty
-          ? _buildNoUnitsState()
-          : _buildForm(),
+      body: PageContent(
+        maxWidth: 800,
+        child: _isLoadingUnits
+            ? const Center(child: CircularProgressIndicator())
+            : _units.isEmpty
+            ? _buildNoUnitsState()
+            : _buildForm(),
+      ),
     );
   }
 

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
+import '../../pos/presentation/widgets/checkout_summary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -6,6 +9,8 @@ import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/reports_controller.dart';
 import '../application/reports_state.dart';
 import '../domain/reports_models.dart';
+import '../../../core/branch/current_branch_provider.dart';
+import 'report_export_actions.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -16,30 +21,34 @@ class ReportsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
-      body: switch (state) {
-        ReportsLoading() => const Center(child: CircularProgressIndicator()),
-        ReportsError(:final message) => _ErrorView(
-          message: message,
-          onRetry: () {
-            ref.read(reportsControllerProvider.notifier).refresh();
-          },
-        ),
-        ReportsLoaded(:final report, :final dateFrom, :final dateTo) =>
-          _ReportsContent(
-            report: report,
-            dateFrom: dateFrom,
-            dateTo: dateTo,
-            selectedRange: ref
-                .read(reportsControllerProvider.notifier)
-                .selectedRange,
-            onRangeSelected: (range) {
-              ref.read(reportsControllerProvider.notifier).selectRange(range);
-            },
-            onRefresh: () {
-              return ref.read(reportsControllerProvider.notifier).refresh();
+      body: PageContent(
+        maxWidth: 1200,
+        child: switch (state) {
+          ReportsLoading() => const Center(child: CircularProgressIndicator()),
+          ReportsError(:final message) => _ErrorView(
+            message: message,
+            onRetry: () {
+              ref.read(reportsControllerProvider.notifier).refresh();
             },
           ),
-      },
+          ReportsLoaded(:final report, :final dateFrom, :final dateTo) =>
+            _ReportsContent(
+              branch: ref.watch(currentBranchProvider)?.name ?? 'All accessible branches (UTC)',
+              report: report,
+              dateFrom: dateFrom,
+              dateTo: dateTo,
+              selectedRange: ref
+                  .read(reportsControllerProvider.notifier)
+                  .selectedRange,
+              onRangeSelected: (range) {
+                ref.read(reportsControllerProvider.notifier).selectRange(range);
+              },
+              onRefresh: () {
+                return ref.read(reportsControllerProvider.notifier).refresh();
+              },
+            ),
+        },
+      ),
     );
   }
 }
@@ -47,6 +56,7 @@ class ReportsScreen extends ConsumerWidget {
 class _ReportsContent extends StatelessWidget {
   const _ReportsContent({
     required this.report,
+    required this.branch,
     required this.dateFrom,
     required this.dateTo,
     required this.selectedRange,
@@ -55,6 +65,7 @@ class _ReportsContent extends StatelessWidget {
   });
 
   final ReportsData report;
+  final String branch;
   final DateTime dateFrom;
   final DateTime dateTo;
   final ReportsDateRange selectedRange;
@@ -84,7 +95,14 @@ class _ReportsContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          ReportExportActions(report: report, branch: branch),
+          const SizedBox(height: 16),
           _SummaryGrid(summary: report.summary),
+          const SizedBox(height: 12),
+          CheckoutAmountRow(label: 'Additional charges', value: _money(report.summary.supplementalSales)),
+          CheckoutAmountRow(label: 'Refunds', value: _money(report.summary.refunds)),
+          CheckoutAmountRow(label: 'Net sales', value: _money(report.summary.netSales), emphasized: true),
+          const Text('Adjustments follow the selected completed orders. Operations reports use the adjustment date.'),
           const SizedBox(height: 16),
           _SectionCard(
             title: 'Sales Overview',
@@ -100,7 +118,7 @@ class _ReportsContent extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final paymentMethods = _SectionCard(
-                title: 'Payment Methods',
+                title: 'Net Payment Collections',
                 icon: Icons.payments_outlined,
                 child: _PaymentMethodsList(data: report.paymentMethods),
               );
@@ -109,7 +127,8 @@ class _ReportsContent extends StatelessWidget {
                 icon: Icons.receipt_long_outlined,
                 child: _OrderTypesList(data: report.orderTypes),
               );
-              if (constraints.maxWidth < 700) {
+              if (constraints.maxWidth < 700 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -152,26 +171,22 @@ class _DateRangeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<ReportsDateRange>(
-      segments: const [
-        ButtonSegment(value: ReportsDateRange.today, label: Text('Today')),
-        ButtonSegment(
-          value: ReportsDateRange.yesterday,
-          label: Text('Yesterday'),
-        ),
-        ButtonSegment(value: ReportsDateRange.last7Days, label: Text('7 Days')),
-        ButtonSegment(
-          value: ReportsDateRange.last30Days,
-          label: Text('30 Days'),
-        ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final option in const {
+          ReportsDateRange.today: 'Today',
+          ReportsDateRange.yesterday: 'Yesterday',
+          ReportsDateRange.last7Days: '7 Days',
+          ReportsDateRange.last30Days: '30 Days',
+        }.entries)
+          ChoiceChip(
+            label: Text(option.value),
+            selected: selectedRange == option.key,
+            onSelected: (_) => onSelected(option.key),
+          ),
       ],
-      selected: {selectedRange},
-      onSelectionChanged: (selection) {
-        if (selection.isNotEmpty) {
-          onSelected(selection.first);
-        }
-      },
-      showSelectedIcon: false,
     );
   }
 }
@@ -185,31 +200,37 @@ class _SummaryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 700 ? 3 : 1;
-
-        return GridView.count(
-          crossAxisCount: columns,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          mainAxisExtent: 112 * MediaQuery.textScalerOf(context).scale(1),
+        final columns =
+            constraints.maxWidth >= 700 &&
+                MediaQuery.textScalerOf(context).scale(14) <= 20
+            ? 3
+            : 1;
+        final cards = [
+          _SummaryCard(
+            icon: Icons.attach_money,
+            title: 'Total Sales',
+            value: _money(summary.totalSales),
+          ),
+          _SummaryCard(
+            icon: Icons.receipt_long_outlined,
+            title: 'Total Orders',
+            value: summary.totalOrders.toString(),
+          ),
+          _SummaryCard(
+            icon: Icons.shopping_cart_outlined,
+            title: 'Average Order',
+            value: _money(summary.averageOrderValue),
+          ),
+        ];
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
           children: [
-            _SummaryCard(
-              icon: Icons.attach_money,
-              title: 'Total Sales',
-              value: _money(summary.totalSales),
-            ),
-            _SummaryCard(
-              icon: Icons.receipt_long_outlined,
-              title: 'Total Orders',
-              value: summary.totalOrders.toString(),
-            ),
-            _SummaryCard(
-              icon: Icons.shopping_cart_outlined,
-              title: 'Average Order',
-              value: _money(summary.averageOrderValue),
-            ),
+            for (final card in cards)
+              SizedBox(
+                width: (constraints.maxWidth - (columns - 1) * 16) / columns,
+                child: card,
+              ),
           ],
         );
       },
@@ -230,36 +251,15 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 30, color: theme.colorScheme.primary),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            CheckoutAmountRow(label: title, value: value, emphasized: true),
           ],
         ),
       ),
@@ -287,13 +287,17 @@ class _SectionCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(icon, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -362,7 +366,7 @@ class _HourlySalesChart extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     SizedBox(
-                      height: 40,
+                      height: 40 * MediaQuery.textScalerOf(context).scale(1),
                       child: Column(
                         children: [
                           if (index % 4 == 0)
@@ -485,14 +489,13 @@ class _PaymentMethodsList extends StatelessWidget {
     return Column(
       children: [
         for (final item in data)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
+          RecordTile(
             leading: const Icon(Icons.payments_outlined),
-            title: Text(_label(item.method)),
-            subtitle: Text('${item.count} payment(s)'),
-            trailing: Text(
-              _money(item.total),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            title: _label(item.method),
+            subtitle: '${item.count} payment(s)',
+            details: CheckoutAmountRow(
+              label: 'Total',
+              value: _money(item.total),
             ),
           ),
       ],
@@ -514,14 +517,13 @@ class _OrderTypesList extends StatelessWidget {
     return Column(
       children: [
         for (final item in data)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
+          RecordTile(
             leading: const Icon(Icons.receipt_long_outlined),
-            title: Text(_label(item.type)),
-            subtitle: Text('${item.count} order(s)'),
-            trailing: Text(
-              _money(item.total),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            title: _label(item.type),
+            subtitle: '${item.count} order(s)',
+            details: CheckoutAmountRow(
+              label: 'Total',
+              value: _money(item.total),
             ),
           ),
       ],
@@ -543,14 +545,13 @@ class _TopProductsList extends StatelessWidget {
     return Column(
       children: [
         for (var index = 0; index < data.length; index++)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(radius: 18, child: Text('${index + 1}')),
-            title: Text(data[index].productName),
-            subtitle: Text('${data[index].quantitySold} sold'),
-            trailing: Text(
-              _money(data[index].salesTotal),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          RecordTile(
+            leading: const Icon(Icons.local_cafe_outlined),
+            title: data[index].productName,
+            subtitle: '${data[index].quantitySold} sold',
+            details: CheckoutAmountRow(
+              label: 'Total',
+              value: _money(data[index].salesTotal),
             ),
           ),
       ],

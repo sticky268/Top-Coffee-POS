@@ -27,3 +27,10 @@ Thumbs.db
 *.cnf
 *.keystore
 *.jks
+*.age
+*.agekey
+
+# Android private signing material at any depth
+**/key.properties
+*.p12
+*.pfx

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -81,10 +83,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
         actions: [
-          pos_ui.PrimaryButton.icon(
+          pos_ui.IconButton(
             onPressed: _openAddExpense,
+            tooltip: 'Add Expense',
             icon: const Icon(Icons.add),
-            label: const Text('Add Expense'),
           ),
           const SizedBox(width: 8),
           pos_ui.IconButton(
@@ -95,43 +97,46 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: switch (state) {
-        ExpensesListLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        ExpensesListError(:final message) => _ExpensesErrorView(
-          message: message,
-          onRetry: _refreshExpenses,
-        ),
-        ExpensesListLoaded loaded => _ExpensesContent(
-          state: loaded,
-          summaryState: summaryState,
-          onRefresh: _refreshExpenses,
-          searchController: _searchController,
-          onSearch: _search,
-          categoryId: _categoryId,
-          dateFrom: _dateFrom,
-          dateTo: _dateTo,
-          onCategoryChanged: (value) {
-            setState(() {
-              _categoryId = value;
-            });
-          },
-          onDateRangeChanged: (from, to) {
-            setState(() {
-              _dateFrom = from;
-              _dateTo = to;
-            });
-          },
-          onClearFilters: () {
-            setState(() {
-              _categoryId = null;
-              _dateFrom = null;
-              _dateTo = null;
-            });
-          },
-        ),
-      },
+      body: PageContent(
+        maxWidth: 1000,
+        child: switch (state) {
+          ExpensesListLoading() => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          ExpensesListError(:final message) => _ExpensesErrorView(
+            message: message,
+            onRetry: _refreshExpenses,
+          ),
+          ExpensesListLoaded loaded => _ExpensesContent(
+            state: loaded,
+            summaryState: summaryState,
+            onRefresh: _refreshExpenses,
+            searchController: _searchController,
+            onSearch: _search,
+            categoryId: _categoryId,
+            dateFrom: _dateFrom,
+            dateTo: _dateTo,
+            onCategoryChanged: (value) {
+              setState(() {
+                _categoryId = value;
+              });
+            },
+            onDateRangeChanged: (from, to) {
+              setState(() {
+                _dateFrom = from;
+                _dateTo = to;
+              });
+            },
+            onClearFilters: () {
+              setState(() {
+                _categoryId = null;
+                _dateFrom = null;
+                _dateTo = null;
+              });
+            },
+          ),
+        },
+      ),
     );
   }
 }
@@ -596,7 +601,9 @@ class _DashboardPeriodCards extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 600;
+        final compact =
+            constraints.maxWidth < 600 ||
+            MediaQuery.textScalerOf(context).scale(14) > 20;
 
         final cards = [
           _PeriodCard(

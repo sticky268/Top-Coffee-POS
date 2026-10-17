@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import 'operation_display.dart';
 
 class OperationField {
   const OperationField(
@@ -8,6 +10,7 @@ class OperationField {
     this.label, {
     this.initial = '',
     this.options,
+    this.optionLabels = const {},
     this.number = false,
     this.optional = false,
   });
@@ -15,6 +18,7 @@ class OperationField {
   final String label;
   final String initial;
   final List<String>? options;
+  final Map<String, String> optionLabels;
   final bool number;
   final bool optional;
 }
@@ -25,6 +29,7 @@ Future<bool?> showOperationForm(
   required List<OperationField> fields,
   required Future<void> Function(Map<String, dynamic>) save,
   String? explanation,
+  num? expectedCash,
 }) => showDialog<bool>(
   context: context,
   barrierDismissible: false,
@@ -33,6 +38,7 @@ Future<bool?> showOperationForm(
     fields: fields,
     save: save,
     explanation: explanation,
+    expectedCash: expectedCash,
   ),
 );
 
@@ -42,11 +48,13 @@ class _OperationForm extends StatefulWidget {
     required this.fields,
     required this.save,
     this.explanation,
+    this.expectedCash,
   });
   final String title;
   final List<OperationField> fields;
   final Future<void> Function(Map<String, dynamic>) save;
   final String? explanation;
+  final num? expectedCash;
   @override
   State<_OperationForm> createState() => _OperationFormState();
 }
@@ -129,6 +137,22 @@ class _OperationFormState extends State<_OperationForm> {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(widget.explanation!),
                   ),
+                if (widget.expectedCash != null) ...[
+                  Text(
+                    'Expected drawer cash (at refresh): '
+                    '${NumberFormat.currency(symbol: '\$').format(widget.expectedCash)}',
+                  ),
+                  if (num.tryParse(_controllers['counted_cash']?.text ?? '')
+                      case final num counted when counted.isFinite && counted >= 0)
+                    Text(
+                      cashDifferenceDescription(
+                        ((counted * 100).round() -
+                                (widget.expectedCash! * 100).round()) /
+                            100,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                ],
                 for (final f in widget.fields)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 14),
@@ -141,7 +165,7 @@ class _OperationFormState extends State<_OperationForm> {
                                 .map(
                                   (o) => DropdownMenuItem(
                                     value: o,
-                                    child: Text(o),
+                                    child: Text(f.optionLabels[o] ?? o),
                                   ),
                                 )
                                 .toList(),
@@ -152,6 +176,10 @@ class _OperationFormState extends State<_OperationForm> {
                           )
                         : TextFormField(
                             controller: _controllers[f.keyName],
+                            onChanged: f.keyName == 'counted_cash' &&
+                                    widget.expectedCash != null
+                                ? (_) => setState(() {})
+                                : null,
                             enabled: !_busy && _submitted == null,
                             decoration: InputDecoration(labelText: f.label),
                             keyboardType: f.number

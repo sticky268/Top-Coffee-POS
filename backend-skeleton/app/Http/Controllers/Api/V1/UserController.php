@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 
 use App\Models\Branch;
+use App\Services\AuditLogService;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,8 @@ class UserController extends Controller
 
             $query->whereHas('branches', function ($query) use ($branchIds) {
                 $query->whereIn('branches.id', $branchIds);
+            })->whereDoesntHave('branches', function ($query) use ($branchIds) {
+                $query->whereNotIn('branches.id', $branchIds);
             });
         }
 
@@ -171,7 +174,7 @@ class UserController extends Controller
             ], 403);
         }
 
-        $user = DB::transaction(function () use ($data, $branchIds, $primaryBranchId, $actor) {
+        $user = DB::transaction(function () use ($data, $branchIds, $primaryBranchId, $actor, $request) {
             $user = User::create([
                 'business_id' => $actor->business_id,
                 'name' => $data['name'],
@@ -185,6 +188,8 @@ class UserController extends Controller
 
             $this->syncBranches($user, $branchIds, $primaryBranchId);
 
+            app(AuditLogService::class)->record($request, 'user.created', $user, null,
+                ['name' => $user->name, 'role' => $data['role'], 'branch_ids' => $branchIds]);
             return $user->load([
                 'roles:id,name',
                 'branches:id,name,code',
@@ -323,7 +328,8 @@ class UserController extends Controller
             }
         }
 
-        DB::transaction(function () use ($user, $data, $branchIds, $primaryBranchId) {
+        DB::transaction(function () use ($user, $data, $branchIds, $primaryBranchId, $request) {
+            $old = $user->only(['name', 'email', 'phone', 'is_active']);
             $update = [];
 
             foreach (['name', 'email', 'phone', 'is_active'] as $field) {
@@ -338,6 +344,11 @@ class UserController extends Controller
 
             if ($update !== []) {
                 $user->update($update);
+            }
+            // Password resets and deactivation must invalidate existing devices.
+            if (isset($update['password']) || ($update['is_active'] ?? true) === false) {
+                $user->tokens()->delete();
+                $user->forceFill(['manager_pin_hash' => null, 'manager_pin_failures' => 0, 'manager_pin_locked_until' => null])->save();
             }
 
             if (isset($data['role'])) {
@@ -360,6 +371,11 @@ class UserController extends Controller
                         ]);
                     });
             }
+            app(AuditLogService::class)->record($request, 'user.updated', $user, $old,
+                $user->only(['name', 'email', 'phone', 'is_active']) + [
+                    'role' => $data['role'] ?? null, 'branch_ids' => $branchIds,
+                    'password_reset' => isset($data['password']),
+                ]);
         });
 
         $user->load([
@@ -399,12 +415,28 @@ class UserController extends Controller
             ], 422);
         }
 
-        $user->delete();
+        DB::transaction(function () use ($user, $request) {
+            app(AuditLogService::class)->record($request, 'user.deleted', $user, $user->only(['name', 'email']), null);
+            $user->tokens()->delete();
+            $user->delete();
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'User deleted successfully',
         ]);
+    }
+
+    public function revokeSessions(Request $request, User $user)
+    {
+        abort_unless($request->user()->can('users.manage')
+            && $this->canManageUser($request->user(), $user), 403, 'User access denied.');
+        DB::transaction(function () use ($request, $user) {
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            app(AuditLogService::class)->record($request, 'user.sessions_revoked', $user);
+            $user->tokens()->delete();
+        });
+        return ['success' => true];
     }
 
     private function userData(User $user): array
@@ -450,9 +482,8 @@ class UserController extends Controller
 
         $actorBranchIds = $actor->branches()->pluck('branches.id');
 
-        return $target->branches()
-            ->whereIn('branches.id', $actorBranchIds)
-            ->exists();
+        return $target->branches()->whereIn('branches.id', $actorBranchIds)->exists()
+            && ! $target->branches()->whereNotIn('branches.id', $actorBranchIds)->exists();
     }
 
     private function canAccessBranch(User $user, int $branchId): bool

@@ -8,6 +8,7 @@ import 'package:top_coffee_pos/core/network/api_client.dart';
 import 'package:top_coffee_pos/core/network/api_exceptions.dart';
 import 'package:top_coffee_pos/core/offline/local_store.dart';
 import 'package:top_coffee_pos/features/operations/data/operations_repository.dart';
+import 'package:top_coffee_pos/features/purchasing/data/purchase_repository.dart';
 
 class _Api extends Mock implements ApiClient {}
 
@@ -32,6 +33,7 @@ class _Memory extends LocalStore {
 
 class _Adapter implements HttpClientAdapter {
   final List<Map<String, dynamic>> requests = [];
+  final List<Map<String, dynamic>> headers = [];
   int status = 200;
   bool timeout = false;
   @override
@@ -41,6 +43,7 @@ class _Adapter implements HttpClientAdapter {
     Future<void>? cancel,
   ) async {
     requests.add(Map<String, dynamic>.from(options.data as Map));
+    headers.add(Map<String, dynamic>.from(options.headers));
     if (timeout) {
       throw DioException(
         requestOptions: options,
@@ -51,7 +54,18 @@ class _Adapter implements HttpClientAdapter {
       jsonEncode(
         status == 200
             ? {
-                'data': {'id': 5, 'status': 'closed'},
+                'data': options.path == '/purchases'
+                    ? {
+                        'id': 5,
+                        'branch_id': 2,
+                        'supplier_id': 3,
+                        'created_by': 1,
+                        'total_cost': 6,
+                        'purchased_at': '2026-10-14',
+                        'supplier': {'id': 3, 'name': 'Supplier'},
+                        'items': [],
+                      }
+                    : {'id': 5, 'status': 'closed'},
               }
             : {'message': 'Rejected'},
       ),
@@ -81,6 +95,52 @@ void main() {
     dio.httpClientAdapter = adapter;
     when(() => api.dio).thenReturn(dio);
     repo = OperationsRepository(api, store, () => scope);
+  });
+
+  test(
+    'refund PIN stays in the transient header and retry needs a fresh PIN',
+    () async {
+      adapter.timeout = true;
+      await expectLater(
+        repo.write(
+            '/orders/7/refund',
+            {
+              'amount': 2,
+              'reason': 'Correction',
+            },
+            managerPin: '836492'),
+        throwsA(isA<NetworkException>()),
+      );
+      expect(adapter.headers.single['X-Manager-Pin'], '836492');
+      expect(jsonEncode(store.values), isNot(contains('836492')));
+      final saved = (await repo.pending()).single;
+      final uuid = saved['uuid'];
+      final restarted = OperationsRepository(api, store, () => scope);
+      adapter.status = 422;
+      adapter.timeout = false;
+      await expectLater(
+        restarted.retry(saved),
+        throwsA(isA<UncertainOperationException>()),
+      );
+      expect(adapter.headers.last.containsKey('X-Manager-Pin'), isFalse);
+      adapter.status = 200;
+      await restarted.retry(
+        (await restarted.pending()).single,
+        managerPin: '749281',
+      );
+      expect(adapter.headers.last['X-Manager-Pin'], '749281');
+      expect(adapter.requests.map((p) => p['uuid']), everyElement(uuid));
+      expect(await restarted.pending(), isEmpty);
+    },
+  );
+
+  test('credentials cannot enter the saved operation payload', () {
+    expect(
+      () => repo.write('/orders/7/refund', {'amount': 2, 'pin': '836492'}),
+      throwsArgumentError,
+    );
+    expect(store.values, isEmpty);
+    expect(adapter.requests, isEmpty);
   });
 
   test(
@@ -136,6 +196,38 @@ void main() {
       expect(saved['rejected'], isTrue);
       await repo.dismissRejected(saved);
       expect(await repo.pending(), isEmpty);
+    },
+  );
+
+  test(
+    'purchase timeout survives restart and a new confirmed purchase gets a new UUID',
+    () async {
+      Future<void> create(ApiPurchaseRepository purchases) async {
+        await purchases.createPurchase(
+          branchId: 2,
+          supplierId: 3,
+          purchasedAt: DateTime(2026, 10, 14),
+          items: [
+            const PurchaseCreateItem(ingredientId: 4, quantity: 2, unitCost: 3),
+          ],
+        );
+      }
+
+      adapter.timeout = true;
+      await expectLater(
+        create(ApiPurchaseRepository(api, repo)),
+        throwsA(isA<NetworkException>()),
+      );
+      final original = (await repo.pending()).single['uuid'];
+      adapter.timeout = false;
+      final restarted = OperationsRepository(api, store, () => scope);
+      final purchases = ApiPurchaseRepository(api, restarted);
+      await create(purchases);
+      expect(adapter.requests[1]['uuid'], original);
+      expect(await restarted.pending(), isEmpty);
+      await create(purchases);
+      expect(adapter.requests[2]['uuid'], isNot(original));
+      expect(adapter.requests[2]['expected_user_id'], 1);
     },
   );
 

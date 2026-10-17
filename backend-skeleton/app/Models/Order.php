@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\BranchScoped;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
@@ -32,11 +33,11 @@ class Order extends Model
         static::saving(function (Order $order) {
             if ($order->isDirty(['discount_total', 'subtotal'])) {
                 // Audit only after a persisted ID exists, in the same transaction.
+                $discount = \App\Services\OperationService::cents($order->discount_total);
+                $subtotal = \App\Services\OperationService::cents($order->subtotal);
+                abort_if($discount > $subtotal, 422, 'Discount cannot exceed the subtotal.');
                 $actor = auth()->user();
                 if ($actor && $actor->business->require_manager_controls) {
-                    $discount = \App\Services\OperationService::cents($order->discount_total);
-                    $subtotal = \App\Services\OperationService::cents($order->subtotal);
-                    abort_if($discount > $subtotal, 422, 'Discount cannot exceed the subtotal.');
                     abort_if($discount > 0 && $discount * 100 > $subtotal * (float) $actor->business->manager_discount_percent
                         && ! app(\App\Services\CheckoutControls::class)->manager($actor), 403, 'A manager must sign in to approve this discount.');
                 }
@@ -46,6 +47,17 @@ class Order extends Model
             if ($order->wasRecentlyCreated || $order->wasChanged(['discount_total', 'subtotal'])) {
                 app(\App\Services\CheckoutControls::class)->discount($order);
             }
+        });
+    }
+
+    /** Indexed completion-time interval, with a fallback for legacy sales. */
+    public function scopeCompletedDuring(Builder $query, $from, $until): Builder
+    {
+        return $query->where(function ($query) use ($from, $until) {
+            $query->where(fn ($query) => $query->where('orders.completed_at', '>=', $from)
+                ->where('orders.completed_at', '<', $until))
+                ->orWhere(fn ($query) => $query->whereNull('orders.completed_at')
+                    ->where('orders.created_at', '>=', $from)->where('orders.created_at', '<', $until));
         });
     }
 

@@ -6,6 +6,7 @@ import '../data/supplier_repository.dart';
 import 'supplier_list_state.dart';
 
 class SupplierListController extends StateNotifier<SupplierListState> {
+  int _generation = 0;
   SupplierListController(this._repository, this._ref)
       : super(const SupplierListLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -43,7 +44,8 @@ class SupplierListController extends StateNotifier<SupplierListState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const SupplierListLoading();
 
@@ -52,13 +54,13 @@ class SupplierListController extends StateNotifier<SupplierListState> {
         branchId: _branchId,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = SupplierListLoaded(
         suppliers: suppliers,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = SupplierListError(
         e is ApiException ? e.message : 'Something went wrong',

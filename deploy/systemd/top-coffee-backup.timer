@@ -1,0 +1,11 @@
+[Unit]
+Description=Top Coffee daily closed-shop backup (owner must approve hour)
+
+[Timer]
+# 20:00 UTC = 03:00 Asia/Phnom_Penh next day. Match backup.json utc_hour=20.
+OnCalendar=*-*-* 20:00:00 UTC
+Persistent=false
+Unit=top-coffee-backup.service
+
+[Install]
+WantedBy=timers.target

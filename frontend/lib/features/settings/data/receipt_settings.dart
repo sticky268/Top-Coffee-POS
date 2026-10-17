@@ -29,12 +29,14 @@ class ReceiptSettings {
     required this.footer,
     required this.printerEnabled,
     required this.printerIpAddress,
+    this.showLogo = true,
   });
 
   final String businessName;
   final String branchName;
   final String logoPosition;
   final String logoSize;
+  final bool showLogo;
   final String fontStyle;
   final String bodyFontSize;
   final String businessFontSize;
@@ -69,12 +71,13 @@ class ReceiptSettings {
 
   static const String defaultBusinessName = 'TOP COFFEE';
   static const String defaultBranchName = 'Phnom Penh Branch';
-  static const String defaultFooter =
-      'Thank you for visiting Top Coffee!';
+  static const String defaultFooter = 'Thank you for visiting Top Coffee!';
 
   static String _key(String base, String? branchKey) {
     final scope = branchKey?.trim();
-    return scope == null || scope.isEmpty ? base : '${base}_branch_${scope.toLowerCase()}';
+    return scope == null || scope.isEmpty
+        ? base
+        : '${base}_branch_${scope.toLowerCase()}';
   }
 
   static Future<ReceiptSettings> load({
@@ -84,13 +87,12 @@ class ReceiptSettings {
     final prefs = await SharedPreferences.getInstance();
 
     return ReceiptSettings(
-      businessName:
-          prefs.getString(_key('receipt_business_name', branchKey)) ??
-              defaultBusinessName,
-      branchName:
-          prefs.getString(_key('receipt_branch_name', branchKey)) ??
-              branchNameFallback ??
-              defaultBranchName,
+      showLogo: prefs.getBool(_key('receipt_show_logo', branchKey)) ?? true,
+      businessName: prefs.getString(_key('receipt_business_name', branchKey)) ??
+          defaultBusinessName,
+      branchName: prefs.getString(_key('receipt_branch_name', branchKey)) ??
+          branchNameFallback ??
+          defaultBranchName,
       logoPosition:
           prefs.getString(_key('receipt_logo_position', branchKey)) ?? 'Center',
       logoSize:
@@ -98,25 +100,25 @@ class ReceiptSettings {
       fontStyle:
           prefs.getString(_key('receipt_font_style', branchKey)) ?? 'Default',
       bodyFontSize:
-          prefs.getString(_key('receipt_body_font_size', branchKey)) ?? 'Medium',
+          prefs.getString(_key('receipt_body_font_size', branchKey)) ??
+              'Medium',
       businessFontSize:
-          prefs.getString(_key('receipt_business_font_size', branchKey)) ?? 'Large',
+          prefs.getString(_key('receipt_business_font_size', branchKey)) ??
+              'Large',
       footerFontSize:
-          prefs.getString(_key('receipt_footer_font_size', branchKey)) ?? 'Medium',
+          prefs.getString(_key('receipt_footer_font_size', branchKey)) ??
+              'Medium',
       boldBusinessName:
           prefs.getBool(_key('receipt_bold_business_name', branchKey)) ?? true,
-      boldTotal:
-          prefs.getBool(_key('receipt_bold_total', branchKey)) ?? true,
-      boldFooter:
-          prefs.getBool(_key('receipt_bold_footer', branchKey)) ?? true,
+      boldTotal: prefs.getBool(_key('receipt_bold_total', branchKey)) ?? true,
+      boldFooter: prefs.getBool(_key('receipt_bold_footer', branchKey)) ?? true,
       showOrderNumber:
           prefs.getBool(_key('receipt_show_order_number', branchKey)) ?? true,
       showDateTime:
           prefs.getBool(_key('receipt_show_date_time', branchKey)) ?? true,
       showCashier:
           prefs.getBool(_key('receipt_show_cashier', branchKey)) ?? true,
-      showTable:
-          prefs.getBool(_key('receipt_show_table', branchKey)) ?? true,
+      showTable: prefs.getBool(_key('receipt_show_table', branchKey)) ?? true,
       showOrderType:
           prefs.getBool(_key('receipt_show_order_type', branchKey)) ?? true,
       showItemName:
@@ -131,8 +133,7 @@ class ReceiptSettings {
           prefs.getBool(_key('receipt_show_payment_method', branchKey)) ?? true,
       showTendered:
           prefs.getBool(_key('receipt_show_tendered', branchKey)) ?? true,
-      showChange:
-          prefs.getBool(_key('receipt_show_change', branchKey)) ?? true,
+      showChange: prefs.getBool(_key('receipt_show_change', branchKey)) ?? true,
       showSplitPayments:
           prefs.getBool(_key('receipt_show_split_payments', branchKey)) ?? true,
       footer:
@@ -147,6 +148,8 @@ class ReceiptSettings {
 
   Future<void> save({String? branchKey}) async {
     final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setBool(_key('receipt_show_logo', branchKey), showLogo);
 
     await prefs.setString(
       _key('receipt_business_name', branchKey),

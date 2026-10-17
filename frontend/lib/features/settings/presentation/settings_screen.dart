@@ -1,50 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-class SettingsScreen extends StatelessWidget {
+import '../../../core/widgets/page_content.dart';
+import 'package:go_router/go_router.dart';
+import 'appearance_settings_card.dart';
+import 'manager_pin_settings_card.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
+
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.receipt_long_outlined),
-              title: const Text('Receipt Settings'),
-              subtitle: const Text(
-                'Configure receipts, printer, logo, and receipt layout',
+      body: PageContent(
+        maxWidth: 800,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'Your workspace',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Personalize appearance, manage receipts, and review your account.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 24),
+            const AppearanceSettingsCard(),
+            if (auth is AuthAuthenticated && auth.user.canApproveCheckout)
+              ManagerPinSettingsCard(
+                key: ValueKey(auth.user.id),
+                userId: auth.user.id,
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/receipt'),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.workspace_premium_outlined),
-              title: const Text('Subscription'),
-              subtitle: const Text(
-                'View your plan, branch usage, and subscription status',
+            const SizedBox(height: 16),
+            Card(
+              child: RecordTile(
+                leading: const Icon(Icons.receipt_long_outlined),
+                title: 'Receipt Settings',
+                subtitle:
+                    'Configure receipts, printer, logo, and receipt layout',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/settings/receipt'),
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/subscription'),
             ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('About'),
-              subtitle: const Text('App information'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/about'),
+            const SizedBox(height: 8),
+            Card(
+              child: RecordTile(
+                leading: const Icon(Icons.workspace_premium_outlined),
+                title: 'Subscription',
+                subtitle:
+                    'View your plan, branch usage, and subscription status',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/settings/subscription'),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Card(
+              child: RecordTile(
+                leading: const Icon(Icons.info_outline),
+                title: 'About',
+                subtitle: 'App information',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/settings/about'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

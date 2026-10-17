@@ -20,9 +20,12 @@ class ApiDashboardRepository implements DashboardRepository {
   final ApiClient _apiClient;
   final int? branchId;
 
-  Map<String, dynamic>? _cachedData;
+  Future<Map<String, dynamic>>? _inFlight;
 
-  Future<Map<String, dynamic>> _getDashboardData() async {
+  Future<Map<String, dynamic>> _getDashboardData() => _inFlight ??=
+      _fetchDashboardData().whenComplete(() => _inFlight = null);
+
+  Future<Map<String, dynamic>> _fetchDashboardData() async {
     final response = await _apiClient.request(
       (dio) => dio.get(
         '/dashboard',
@@ -41,20 +44,11 @@ class ApiDashboardRepository implements DashboardRepository {
     return Map<String, dynamic>.from(data);
   }
 
-  Future<Map<String, dynamic>> _getData() async {
-    if (_cachedData != null) {
-      final data = _cachedData!;
-      _cachedData = null;
-      return data;
-    }
-
-    return _getDashboardData();
-  }
+  Future<Map<String, dynamic>> _getData() => _getDashboardData();
 
   @override
   Future<DashboardStats> getStats() async {
     final data = await _getDashboardData();
-    _cachedData = data;
 
     final stats = data['stats'];
 
@@ -67,6 +61,9 @@ class ApiDashboardRepository implements DashboardRepository {
       todaysOrders: _toInt(stats['todays_orders']),
       averageOrderValue: _toDouble(stats['average_order_value']),
       lowStockItemCount: _toInt(stats['low_stock_item_count']),
+      cashDiscrepancyCount: _toInt(stats['cash_discrepancy_count']),
+      cashDiscrepancyShiftId: stats['cash_discrepancy_shift_id'] == null
+          ? null : _toInt(stats['cash_discrepancy_shift_id']),
     );
   }
 

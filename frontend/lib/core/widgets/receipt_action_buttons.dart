@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../receipt/customer_bill.dart';
 import '../receipt/receipt_action_service.dart';
 import 'app_buttons.dart' as pos_ui;
+import 'cash_drawer_status.dart';
 
 bool canIssueReceiptForOrderStatus(String status) => status == 'completed';
 
@@ -13,10 +14,12 @@ class ReceiptActionButtons extends ConsumerStatefulWidget {
   const ReceiptActionButtons({
     super.key,
     required this.orderId,
+    this.autoPrint = false,
     this.showHeading = false,
   });
 
   final int orderId;
+  final bool autoPrint;
   final bool showHeading;
 
   @override
@@ -27,11 +30,27 @@ class ReceiptActionButtons extends ConsumerStatefulWidget {
 class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
   bool _isPrinting = false;
   bool _isSharing = false;
+  String? _printError;
+  bool _requiresPaperCheck = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoPrint) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _printReceipt();
+      });
+    }
+  }
 
   Future<void> _printReceipt({bool asCopy = false}) async {
     if (_isPrinting || _isSharing) return;
 
-    setState(() => _isPrinting = true);
+    setState(() {
+      _isPrinting = true;
+      _printError = null;
+      _requiresPaperCheck = false;
+    });
     try {
       if (asCopy && !await _confirmPrintCopy(context)) return;
       if (!mounted) return;
@@ -52,9 +71,10 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_messageFor(error, 'Could not print receipt'))),
-      );
+      setState(() {
+        _requiresPaperCheck = error is ReceiptPrintException && error.requiresPaperCheck;
+        _printError = 'Payment is saved. ${_messageFor(error, 'Could not print receipt')}';
+      });
     } finally {
       if (mounted) setState(() => _isPrinting = false);
     }
@@ -108,12 +128,21 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
           ),
           const SizedBox(height: 12),
         ],
+        if (_printError != null) ...[
+          Semantics(liveRegion: true, child: Text(_printError!)),
+          TextButton(
+            onPressed: () => context.go('/print-queue'),
+            child: const Text('Check Print Queue'),
+          ),
+          const SizedBox(height: 8),
+        ],
         _DocumentButtonLayout(
           primary: pos_ui.OutlinedButton.icon(
-            onPressed: busy ? null : _printReceipt,
+            onPressed: busy ? null : _requiresPaperCheck
+                ? () => context.go('/print-queue') : _printReceipt,
             isLoading: _isPrinting,
             icon: const Icon(Icons.print_outlined),
-            label: Text(_isPrinting ? 'Printing...' : 'Print Receipt'),
+            label: Text(_isPrinting ? 'Printing...' : _requiresPaperCheck ? 'Check Paper' : _printError != null ? 'Retry Print' : 'Print Receipt'),
           ),
           secondary: pos_ui.SecondaryButton.icon(
             onPressed: busy ? null : _shareElectronicReceipt,
@@ -307,6 +336,7 @@ Future<void> showPaymentReceiptDialog({
   required BuildContext context,
   required int orderId,
   required String orderReference,
+  Future<String?>? cashDrawerResult,
 }) {
   return showDialog<void>(
     context: context,
@@ -325,6 +355,7 @@ Future<void> showPaymentReceiptDialog({
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
+            CashDrawerStatus(result: cashDrawerResult),
             ReceiptActionButtons(orderId: orderId),
           ],
         ),

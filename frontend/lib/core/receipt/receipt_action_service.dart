@@ -13,10 +13,20 @@ import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/domain/pos_models.dart';
 import '../../features/settings/data/receipt_settings.dart';
 import '../printer/printer_service.dart';
+import '../printer/receipt_raster_pdf.dart';
 import '../printer/print_queue.dart';
 import '../printer/print_queue_providers.dart';
 import '../branch/current_branch_provider.dart';
 import 'customer_bill.dart';
+
+/// Retains the durable print outcome so the UI never offers a blind retry
+/// when the printer may already have received the receipt.
+class ReceiptPrintException extends StateError {
+  ReceiptPrintException(this.status, String message) : super(message);
+  final PrintStatus status;
+  bool get requiresPaperCheck =>
+      status == PrintStatus.uncertain || status == PrintStatus.sending;
+}
 
 class ReceiptActionService {
   ReceiptActionService(
@@ -25,10 +35,10 @@ class ReceiptActionService {
     PrintQueue? printQueue,
     PrintScope? Function()? printScope,
     String? Function()? branchCode,
-  }) : _printerService = printerService ?? PrinterService(),
-       _printQueue = printQueue,
-       _printScope = printScope,
-       _branchCode = branchCode;
+  })  : _printerService = printerService ?? PrinterService(),
+        _printQueue = printQueue,
+        _printScope = printScope,
+        _branchCode = branchCode;
 
   final PosRepository _repository;
   final PrinterService _printerService;
@@ -58,7 +68,13 @@ class ReceiptActionService {
         branchName: receipt.branchName,
         asCopy: asCopy,
       );
-      await _printQueue.send(job.id, selected);
+      final sent = await _printQueue.send(job.id, selected);
+      if (sent.status != PrintStatus.sent) {
+        throw ReceiptPrintException(
+            sent.status,
+            sent.error ??
+                'Printing is awaiting confirmation. Open the print queue.');
+      }
       return receipt;
     }
     await _withPrinter(
@@ -103,7 +119,13 @@ class ReceiptActionService {
         branchName: bill.branchName,
         asCopy: asCopy,
       );
-      await _printQueue.send(job.id, selected);
+      final sent = await _printQueue.send(job.id, selected);
+      if (sent.status != PrintStatus.sent) {
+        throw ReceiptPrintException(
+            sent.status,
+            sent.error ??
+                'Printing is awaiting confirmation. Open the print queue.');
+      }
       return;
     }
     await _withPrinter(
@@ -232,17 +254,24 @@ class ReceiptActionService {
     OrderReceipt receipt,
     ReceiptSettings settings,
   ) async {
+    if (Platform.isIOS) {
+      final payload =
+          await _printerService.prepareReceiptWithSettings(receipt, settings);
+      if (receipt.refundedTotal > 0) {
+        payload['documentTitle'] = 'RECEIPT · REFUND RECORDED';
+      }
+      return receiptRasterPdf(payload);
+    }
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
         : receipt.payment != null
-        ? <PaymentConfirmation>[receipt.payment!]
-        : <PaymentConfirmation>[];
+            ? <PaymentConfirmation>[receipt.payment!]
+            : <PaymentConfirmation>[];
 
     return _buildPdf(
       settings: settings,
-      documentTitle: receipt.refundedTotal > 0
-          ? 'RECEIPT · REFUND RECORDED'
-          : '',
+      documentTitle:
+          receipt.refundedTotal > 0 ? 'RECEIPT · REFUND RECORDED' : '',
       orderReference: receipt.displayOrderReference,
       orderType: receipt.orderType,
       branchName: receipt.branchName,
@@ -270,7 +299,13 @@ class ReceiptActionService {
     );
   }
 
-  Future<List<int>> _buildBillPdf(CustomerBill bill, ReceiptSettings settings) {
+  Future<List<int>> _buildBillPdf(
+      CustomerBill bill, ReceiptSettings settings) async {
+    if (Platform.isIOS) {
+      final payload =
+          await _printerService.prepareBillWithSettings(bill, settings);
+      return receiptRasterPdf(payload);
+    }
     return _buildPdf(
       settings: settings,
       documentTitle: 'E-BILL · UNPAID',

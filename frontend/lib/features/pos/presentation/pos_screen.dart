@@ -4,12 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/receipt/last_receipt_provider.dart';
+import '../../../core/printer/cash_drawer_providers.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
+import '../application/cart_controller.dart';
+import 'widgets/variant_selector_sheet.dart';
+import 'cash_drawer_button.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
 import 'widgets/cart_panel.dart';
+import 'widgets/phone_cart_bar.dart';
 import 'widgets/category_selector.dart';
 import 'widgets/product_grid.dart';
 import 'widgets/product_search_field.dart';
@@ -53,6 +58,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final drawerScope = ref.watch(cashDrawerScopeProvider);
+    final compactToolbar = MediaQuery.sizeOf(context).width < 760;
     final catalogState = ref.watch(posCatalogControllerProvider);
     final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
     ref.listen(currentBranchProvider, (previous, next) {
@@ -73,37 +80,100 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('New Order'),
+          title: const Text('New Order',
+              maxLines: 1, overflow: TextOverflow.ellipsis),
           leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
           ),
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(
+                (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16)
+                    .clamp(56, 110)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Icon(
+                      _selectedTable == null
+                          ? Icons.shopping_bag_outlined
+                          : Icons.table_restaurant_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Tooltip(
+                    message: _selectedTable == null
+                        ? 'Takeaway'
+                        : 'Dine-in · ${_selectedTable!.name}',
+                    child: Text(
+                        _selectedTable == null
+                            ? 'Takeaway'
+                            : 'Dine-in · ${_selectedTable!.name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                  )),
+                  CashDrawerButton(compact: compactToolbar),
+                ],
+              ),
+            ),
+          ),
           actions: [
-            pos_ui.SecondaryButton.icon(
-              onPressed: lastReceipt == null
-                  ? null
-                  : () => showLastReceiptDialog(
-                        context: context,
-                        orderId: lastReceipt.id,
-                        orderReference: lastReceipt.displayOrderReference,
-                      ),
-              icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Last Receipt'),
-            ),
+            if (drawerScope != null)
+              pos_ui.IconButton(
+                tooltip: 'Drawer activity',
+                icon: const Icon(Icons.history),
+                onPressed: () => context.push('/drawer-activity'),
+              ),
+            if (compactToolbar)
+              pos_ui.IconButton(
+                tooltip: 'Last Receipt',
+                onPressed: lastReceipt == null
+                    ? null
+                    : () => showLastReceiptDialog(
+                          context: context,
+                          orderId: lastReceipt.id,
+                          orderReference: lastReceipt.displayOrderReference,
+                        ),
+                icon: const Icon(Icons.receipt_long_outlined),
+              )
+            else
+              pos_ui.SecondaryButton.icon(
+                onPressed: lastReceipt == null
+                    ? null
+                    : () => showLastReceiptDialog(
+                          context: context,
+                          orderId: lastReceipt.id,
+                          orderReference: lastReceipt.displayOrderReference,
+                        ),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Last Receipt'),
+              ),
             const SizedBox(width: 8),
-            pos_ui.SecondaryButton.icon(
-              onPressed: _openTableSelector,
-              icon: const Icon(Icons.table_restaurant),
-              label: const Text('Dine-in'),
-            ),
+            if (compactToolbar)
+              pos_ui.IconButton(
+                tooltip: 'Dine-in',
+                onPressed: _openTableSelector,
+                icon: const Icon(Icons.table_restaurant),
+              )
+            else
+              pos_ui.SecondaryButton.icon(
+                onPressed: _openTableSelector,
+                icon: const Icon(Icons.table_restaurant),
+                label: const Text('Dine-in'),
+              ),
             const SizedBox(width: 8),
           ],
         ),
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 600;
+              final isCompact = constraints.maxWidth < 760;
               final productColumns = constraints.maxWidth >= 1024
                   ? 4
                   : (constraints.maxWidth >= 600 ? 3 : 2);
@@ -111,10 +181,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               return switch (catalogState) {
                 PosCatalogLoading() => const _CatalogLoading(),
                 PosCatalogError(:final message) => _CatalogErrorView(
-                  message: message,
-                  onRetry: () =>
-                      ref.read(posCatalogControllerProvider.notifier).refresh(),
-                ),
+                    message: message,
+                    onRetry: () => ref
+                        .read(posCatalogControllerProvider.notifier)
+                        .refresh(),
+                  ),
                 PosCatalogLoaded(
                   :final categories,
                   :final selectedCategoryId,
@@ -161,34 +232,39 @@ class _PhoneLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        const SizedBox(height: 16),
-        ProductSearchField(
-          onChanged: (query) => ref
-              .read(posCatalogControllerProvider.notifier)
-              .updateSearchQuery(query),
-        ),
-        const SizedBox(height: 8),
-        CategorySelector(
-          categories: categories,
-          selectedCategoryId: selectedCategoryId,
-          onSelected: (id) => ref
-              .read(posCatalogControllerProvider.notifier)
-              .selectCategory(id),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          flex: 3,
-          child: ProductGrid(
-            products: products,
-            crossAxisCount: crossAxisCount,
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(flex: 2, child: CartPanel(selectedTable: selectedTable)),
-      ],
-    );
+    return LayoutBuilder(
+        builder: (context, viewport) => Column(
+              children: [
+                const SizedBox(height: 16),
+                ProductSearchField(
+                  onSubmitted: (code) => _scanProduct(context, ref, code),
+                  onChanged: (query) => ref
+                      .read(posCatalogControllerProvider.notifier)
+                      .updateSearchQuery(query),
+                ),
+                const SizedBox(height: 8),
+                CategorySelector(
+                  categories: categories,
+                  selectedCategoryId: selectedCategoryId,
+                  onSelected: (id) => ref
+                      .read(posCatalogControllerProvider.notifier)
+                      .selectCategory(id),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ProductGrid(
+                    products: products,
+                    crossAxisCount: crossAxisCount,
+                  ),
+                ),
+                const Divider(height: 1),
+                PhoneCartBar(
+                  selectedTable: selectedTable,
+                  compact: viewport.maxHeight < 420 ||
+                      MediaQuery.viewInsetsOf(context).bottom > 0,
+                ),
+              ],
+            ));
   }
 }
 
@@ -218,6 +294,7 @@ class _TabletLayout extends ConsumerWidget {
             children: [
               const SizedBox(height: 16),
               ProductSearchField(
+                onSubmitted: (code) => _scanProduct(context, ref, code),
                 onChanged: (query) => ref
                     .read(posCatalogControllerProvider.notifier)
                     .updateSearchQuery(query),
@@ -241,7 +318,9 @@ class _TabletLayout extends ConsumerWidget {
           ),
         ),
         const VerticalDivider(width: 1),
-        SizedBox(width: 340, child: CartPanel(selectedTable: selectedTable)),
+        SizedBox(
+            width: MediaQuery.sizeOf(context).width >= 1200 ? 380 : 340,
+            child: CartPanel(selectedTable: selectedTable)),
       ],
     );
   }
@@ -293,5 +372,25 @@ class _CatalogErrorView extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+void _scanProduct(BuildContext context, WidgetRef ref, String code) {
+  final catalog = ref.read(posCatalogControllerProvider);
+  if (catalog is! PosCatalogLoaded) return;
+  final matches = catalog.products
+      .where((product) =>
+          product.sku?.trim().toLowerCase() == code.trim().toLowerCase())
+      .toList();
+  if (matches.length != 1) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('SKU not found. Search by product name.')));
+    return;
+  }
+  final product = matches.single;
+  if (product.hasVariants) {
+    showVariantSelector(context, ref, product);
+  } else {
+    ref.read(cartControllerProvider.notifier).addItem(product);
   }
 }

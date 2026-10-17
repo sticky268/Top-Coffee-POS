@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/order_models.dart';
 import 'order_status_helpers.dart';
 
@@ -13,54 +14,108 @@ class OrderListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currency = NumberFormat.currency(symbol: '\$');
-    final statusColor = orderStatusColor(order.status, theme.colorScheme);
+    final scheme = theme.colorScheme;
+    final statusColor = orderStatusColor(order.status, scheme);
     final dateLabel = order.createdAt != null
         ? DateFormat('MMM d, h:mm a').format(order.createdAt!)
-        : '—';
-
-    final subtitleParts = <String>[
-      dateLabel,
-      orderTypeLabel(order.orderType),
-      if (order.cashier != null) order.cashier!.name,
-    ];
-
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: statusColor.withValues(alpha: 0.15),
-        child: Text(
-          '#${order.displayOrderNumber}',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: statusColor,
-          ),
-        ),
+        : 'Time unavailable';
+    final statusIcon = switch (order.status) {
+      'completed' => Icons.check_circle_outline_rounded,
+      'cancelled' => Icons.cancel_outlined,
+      'held' => Icons.pause_circle_outline_rounded,
+      _ => Icons.schedule_rounded,
+    };
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
       ),
-      title: Text('Order ${order.displayOrderReference}'),
-      subtitle: Text(
-        subtitleParts.join(' · '),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(statusIcon, size: 16, color: statusColor),
+        const SizedBox(width: 6),
+        Flexible(
+            child: Text(orderStatusLabel(order.status),
+                style: theme.textTheme.labelMedium?.copyWith(
+                    color: statusColor, fontWeight: FontWeight.w700))),
+      ]),
+    );
+    final amount = Text(NumberFormat.currency(symbol: '\$').format(order.total),
         maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            currency.format(order.total),
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            orderStatusLabel(order.status),
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: statusColor,
-              fontSize: 12,
-            ),
-          ),
-        ],
+        softWrap: false,
+        style:
+            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700));
+    return Material(
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant)),
+      child: pos_ui.ActionSurface(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.receipt_long_outlined,
+                      size: 22, color: scheme.onPrimaryContainer)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('Order ${order.displayOrderReference}',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text('$dateLabel · ${orderTypeLabel(order.orderType)}',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant)),
+                  ])),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded,
+                  size: 20, color: scheme.onSurfaceVariant),
+            ]),
+            if (order.cashier != null) ...[
+              const SizedBox(height: 12),
+              Text(order.cashier!.name,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
+            ],
+            const SizedBox(height: 14),
+            LayoutBuilder(builder: (context, constraints) {
+              if (MediaQuery.textScalerOf(context).scale(14) > 20) {
+                return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      badge,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                          width: double.infinity,
+                          child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: amount)),
+                    ]);
+              }
+              return Row(children: [
+                badge,
+                const SizedBox(width: 12),
+                Expanded(
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: amount))
+              ]);
+            }),
+          ]),
+        ),
       ),
     );
   }

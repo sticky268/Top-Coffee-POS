@@ -31,7 +31,7 @@ class ShiftService
     public function summary(CashierShift $shift): array
     {
         $payments = DB::table('payments')->where('shift_id', $shift->id)->whereIn('status', ['completed', 'partially_refunded', 'refunded'])->orderBy('id');
-        $refunds = DB::table('payment_refunds')->join('payments', 'payments.id', '=', 'payment_refunds.payment_id')->where('payment_refunds.shift_id', $shift->id)->select('payment_refunds.*', 'payments.method')->orderBy('payment_refunds.id');
+        $refunds = DB::table('payment_refunds')->join('payments', 'payments.id', '=', 'payment_refunds.payment_id')->where('payment_refunds.shift_id', $shift->id)->select('payment_refunds.*', 'payments.method', 'payments.order_id')->orderBy('payment_refunds.id');
         $movements = DB::table('cash_movements')->where('shift_id', $shift->id)->orderBy('id');
         if (DB::transactionLevel() > 0) {
             // Current reads after waiting on the shift lock prevent stale drawer totals.
@@ -44,12 +44,22 @@ class ShiftService
         $cashRefunds = $refunds->where('method', 'cash')->sum(fn ($r) => OperationService::cents($r->amount));
         $in = $movements->where('type', 'in')->sum(fn ($m) => OperationService::cents($m->amount));
         $out = $movements->where('type', 'out')->sum(fn ($m) => OperationService::cents($m->amount));
-        return $shift->toArray() + [
+        $shift->loadMissing('cashier');
+        return $shift->attributesToArray() + [
+            'cashier_name' => $shift->cashier?->name,
             'cash_sales' => $cash / 100, 'cash_refunds' => $cashRefunds / 100,
             'cash_in' => $in / 100, 'cash_out' => $out / 100,
             'live_expected_cash' => (OperationService::cents($shift->opening_cash) + $cash - $cashRefunds + $in - $out) / 100,
             'payment_totals' => $payments->groupBy('method')->map(fn ($rows, $method) => ['method' => $method, 'amount' => $rows->sum(fn ($p) => OperationService::cents($p->amount)) / 100])->values()->all(),
             'movements' => $movements->toArray(),
+            // These cash refunds reduced this shift's expected cash, even if
+            // their original sale happened in another shift.
+            'cash_refund_orders' => $refunds->where('method', 'cash')->map(fn ($r) => [
+                'order_id' => (int) $r->order_id,
+                'amount' => (float) $r->amount,
+                'reason' => $r->reason,
+                'created_at' => $r->created_at,
+            ])->values()->all(),
         ];
     }
 }

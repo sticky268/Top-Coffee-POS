@@ -44,6 +44,30 @@ class OperationsReportController extends Controller
         $cost = -(float) (clone $consumption)->selectRaw('SUM(quantity * unit_cost) as value')->value('value');
         $unknownMovements = (clone $consumption)->whereNull('unit_cost')->count();
         $waste = DB::table('stock_movements')->where('branch_id', $branch)->where('type', 'wastage')->whereBetween('created_at', [$start, $end]);
+        // An aggregate can hide two offsetting drawer discrepancies. Return
+        // bounded, branch-scoped source records for a manager to inspect.
+        $cashDifferences = CashierShift::where('branch_id', $branch)->where('status', 'closed')
+            ->where('difference', '!=', 0)->whereBetween('closed_at', [$start, $end]);
+        $cashDifferenceCount = (clone $cashDifferences)->count();
+        $cashDifferenceRows = (clone $cashDifferences)->orderByDesc('closed_at')->orderByDesc('id')
+            ->limit(20)->get(['id', 'difference', 'closed_at', 'reviewed_at']);
+        // Stock count adjustments are already in the immutable movement ledger.
+        // This is a read-only review; it does not claim manager approval.
+        $stockDifferences = DB::table('stock_movements as movements')
+            ->join('ingredients', 'ingredients.id', '=', 'movements.ingredient_id')
+            ->join('units', 'units.id', '=', 'ingredients.unit_id')
+            ->whereColumn('ingredients.branch_id', 'movements.branch_id')
+            ->where('movements.branch_id', $branch)->where('movements.type', 'adjustment')
+            ->where('movements.reason', 'like', 'Stock count: %')
+            ->where('movements.quantity', '!=', 0)
+            ->whereBetween('movements.created_at', [$start, $end]);
+        $stockDifferenceCount = (clone $stockDifferences)->count();
+        $stockDifferenceRows = (clone $stockDifferences)->orderByDesc('movements.created_at')
+            ->orderByDesc('movements.id')->limit(20)
+            ->get(['movements.id', 'movements.ingredient_id', 'ingredients.name as ingredient_name',
+                'ingredients.current_stock', 'ingredients.reorder_threshold', 'ingredients.is_active',
+                'units.id as unit_id', 'units.name as unit_name', 'units.abbreviation as unit_abbreviation',
+                'movements.quantity', 'movements.balance_after', 'movements.reason', 'movements.created_at']);
         return ['success' => true, 'data' => [
             'gross_sales' => $gross, 'refunds' => (float) $refunds, 'net_sales' => round($gross - $refunds, 2),
             'discounts' => (float) (clone $orders)->sum('discount_total'), 'orders' => (clone $orders)->count(),
@@ -53,6 +77,10 @@ class OperationsReportController extends Controller
             'wastage_cost' => round(abs((float) (clone $waste)->selectRaw('SUM(quantity * unit_cost) as value')->value('value')), 2),
             'unpriced_wastage_movements' => (clone $waste)->whereNull('unit_cost')->count(),
             'cash_difference' => (float) CashierShift::where('branch_id', $branch)->whereBetween('closed_at', [$start, $end])->sum('difference'),
+            'cash_difference_shift_count' => $cashDifferenceCount,
+            'cash_difference_shifts' => $cashDifferenceRows,
+            'stock_count_discrepancy_count' => $stockDifferenceCount,
+            'stock_count_discrepancies' => $stockDifferenceRows,
             'unassigned_cash_payments' => DB::table('payments')->join('orders', 'orders.id', '=', 'payments.order_id')->where('orders.branch_id', $branch)->where('payments.method', 'cash')->whereNull('payments.shift_id')->whereBetween('payments.created_at', [$start, $end])->count(),
             'unreviewed_shifts' => CashierShift::where('branch_id', $branch)->where('status', 'closed')->whereNull('reviewed_at')->count(),
         ]];

@@ -10,6 +10,7 @@ final auditLogListControllerProvider =
 });
 
 class AuditLogListController extends StateNotifier<AuditLogListState> {
+  int _generation = 0;
   AuditLogListController(this._repository)
       : super(const AuditLogListLoading()) {
     load();
@@ -25,6 +26,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
   DateTime? _to;
 
   Future<void> load() async {
+    final generation = ++_generation;
     state = const AuditLogListLoading();
 
     try {
@@ -38,7 +40,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = AuditLogListLoaded(
         logs: page.data,
@@ -47,12 +49,13 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = AuditLogListError(_messageFor(e));
     }
   }
 
   Future<void> refresh() async {
+    final generation = ++_generation;
     try {
       final page = await _repository.getAuditLogs(
         search: _search.isEmpty ? null : _search,
@@ -64,7 +67,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = AuditLogListLoaded(
         logs: page.data,
@@ -73,7 +76,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = AuditLogListError(_messageFor(e));
     }
   }
@@ -115,6 +118,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
   }
 
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! AuditLogListLoaded ||
@@ -138,7 +142,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
         page: nextPage,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = current.copyWith(
         logs: [...current.logs, ...page.data],
@@ -148,7 +152,7 @@ class AuditLogListController extends StateNotifier<AuditLogListState> {
         isLoadingMore: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = current.copyWith(isLoadingMore: false);
     }
   }

@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/features/dashboard/application/dashboard_controller.dart';
+import 'package:top_coffee_pos/core/network/api_exceptions.dart';
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
+import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/dashboard/application/dashboard_state.dart';
 import 'package:top_coffee_pos/features/dashboard/data/dashboard_repository.dart';
 import 'package:top_coffee_pos/features/dashboard/domain/dashboard_models.dart';
@@ -37,7 +42,8 @@ void main() {
   /// `.notifier` forces the (lazy) provider to construct immediately,
   /// and `initialization` is a deterministic completion signal — no
   /// guessing with delays.
-  ({ProviderContainer container, DashboardController controller}) buildAndStart() {
+  ({ProviderContainer container, DashboardController controller})
+  buildAndStart() {
     final container = ProviderContainer(
       overrides: [dashboardRepositoryProvider.overrideWithValue(repository)],
     );
@@ -49,55 +55,82 @@ void main() {
   test('starts in Loading immediately after construction', () {
     when(() => repository.getStats()).thenAnswer((_) async => _stats);
     when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
-    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+    when(
+      () => repository.getSalesOverview(),
+    ).thenAnswer((_) async => [_salesPoint]);
 
     final built = buildAndStart();
 
-    expect(built.container.read(dashboardControllerProvider), isA<DashboardLoading>());
+    expect(
+      built.container.read(dashboardControllerProvider),
+      isA<DashboardLoading>(),
+    );
   });
 
-  test('loads successfully into DashboardLoaded with the fetched data', () async {
-    when(() => repository.getStats()).thenAnswer((_) async => _stats);
-    when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
-    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+  test(
+    'loads successfully into DashboardLoaded with the fetched data',
+    () async {
+      when(() => repository.getStats()).thenAnswer((_) async => _stats);
+      when(
+        () => repository.getRecentOrders(),
+      ).thenAnswer((_) async => [_order]);
+      when(
+        () => repository.getSalesOverview(),
+      ).thenAnswer((_) async => [_salesPoint]);
 
-    final built = buildAndStart();
-    await built.controller.initialization;
+      final built = buildAndStart();
+      await built.controller.initialization;
 
-    final state = built.container.read(dashboardControllerProvider);
-    expect(state, isA<DashboardLoaded>());
-    final loaded = state as DashboardLoaded;
-    expect(loaded.stats.todaysOrders, 86);
-    expect(loaded.recentOrders, hasLength(1));
-    expect(loaded.salesOverview, hasLength(1));
-  });
+      final state = built.container.read(dashboardControllerProvider);
+      expect(state, isA<DashboardLoaded>());
+      final loaded = state as DashboardLoaded;
+      expect(loaded.stats.todaysOrders, 86);
+      expect(loaded.recentOrders, hasLength(1));
+      expect(loaded.salesOverview, hasLength(1));
+    },
+  );
 
-  test('a repository failure results in DashboardError, never a stuck Loading', () async {
-    when(() => repository.getStats()).thenThrow(Exception('network down'));
-    when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
-    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+  test(
+    'a repository failure results in DashboardError, never a stuck Loading',
+    () async {
+      when(() => repository.getStats()).thenThrow(Exception('network down'));
+      when(
+        () => repository.getRecentOrders(),
+      ).thenAnswer((_) async => [_order]);
+      when(
+        () => repository.getSalesOverview(),
+      ).thenAnswer((_) async => [_salesPoint]);
 
-    final built = buildAndStart();
-    await built.controller.initialization;
+      final built = buildAndStart();
+      await built.controller.initialization;
 
-    final state = built.container.read(dashboardControllerProvider);
-    expect(state, isNot(isA<DashboardLoading>()));
-    expect(state, isA<DashboardError>());
-  });
+      final state = built.container.read(dashboardControllerProvider);
+      expect(state, isNot(isA<DashboardLoading>()));
+      expect(state, isA<DashboardError>());
+    },
+  );
 
   test('refresh() re-fetches and can recover from a prior error', () async {
     when(() => repository.getStats()).thenThrow(Exception('network down'));
     when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
-    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+    when(
+      () => repository.getSalesOverview(),
+    ).thenAnswer((_) async => [_salesPoint]);
 
     final built = buildAndStart();
     await built.controller.initialization;
-    expect(built.container.read(dashboardControllerProvider), isA<DashboardError>());
+    expect(
+      built.container.read(dashboardControllerProvider),
+      isA<DashboardError>(),
+    );
 
     when(() => repository.getStats()).thenAnswer((_) async => _stats);
     await built.controller.refresh();
 
-    expect(built.container.read(dashboardControllerProvider), isA<DashboardLoaded>());
+    expect(
+      built.container.read(dashboardControllerProvider),
+      isA<DashboardLoaded>(),
+    );
   });
 
   test('does not throw when the container is disposed mid-load', () async {
@@ -106,7 +139,9 @@ void main() {
       return _stats;
     });
     when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
-    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+    when(
+      () => repository.getSalesOverview(),
+    ).thenAnswer((_) async => [_salesPoint]);
 
     final container = ProviderContainer(
       overrides: [dashboardRepositoryProvider.overrideWithValue(repository)],
@@ -117,4 +152,111 @@ void main() {
 
     await expectLater(controller.initialization, completes);
   });
+  for (final firstFailure in [0, 1, 2]) {
+    test(
+      'handles all concurrent network failures when request $firstFailure fails first',
+      () async {
+        final stats = Completer<DashboardStats>();
+        final orders = Completer<List<RecentOrder>>();
+        final sales = Completer<List<SalesDataPoint>>();
+        when(() => repository.getStats()).thenAnswer((_) => stats.future);
+        when(
+          () => repository.getRecentOrders(),
+        ).thenAnswer((_) => orders.future);
+        when(
+          () => repository.getSalesOverview(),
+        ).thenAnswer((_) => sales.future);
+        final built = buildAndStart();
+        final requests = <Completer<Object>>[stats, orders, sales];
+        requests[firstFailure].completeError(
+          const NetworkException('Cannot reach the server'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        for (var i = 0; i < requests.length; i++) {
+          if (i != firstFailure) {
+            requests[i].completeError(
+              const NetworkException('Cannot reach the server'),
+            );
+          }
+        }
+        await built.controller.initialization;
+        await Future<void>.delayed(Duration.zero);
+        final state = built.container.read(dashboardControllerProvider);
+        expect(state, isA<DashboardError>());
+        expect((state as DashboardError).message, 'Cannot reach the server');
+        when(() => repository.getStats()).thenAnswer((_) async => _stats);
+        when(
+          () => repository.getRecentOrders(),
+        ).thenAnswer((_) async => [_order]);
+        when(
+          () => repository.getSalesOverview(),
+        ).thenAnswer((_) async => [_salesPoint]);
+        await built.controller.refresh();
+        expect(
+          built.container.read(dashboardControllerProvider),
+          isA<DashboardLoaded>(),
+        );
+      },
+    );
+  }
+
+  test('a late failure cannot replace a successful newer refresh', () async {
+    final oldStats = Completer<DashboardStats>();
+    final oldOrders = Completer<List<RecentOrder>>();
+    final oldSales = Completer<List<SalesDataPoint>>();
+    when(() => repository.getStats()).thenAnswer((_) => oldStats.future);
+    when(
+      () => repository.getRecentOrders(),
+    ).thenAnswer((_) => oldOrders.future);
+    when(
+      () => repository.getSalesOverview(),
+    ).thenAnswer((_) => oldSales.future);
+    final built = buildAndStart();
+    final oldLoad = built.controller.initialization;
+    when(() => repository.getStats()).thenAnswer((_) async => _stats);
+    when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
+    when(
+      () => repository.getSalesOverview(),
+    ).thenAnswer((_) async => [_salesPoint]);
+    await built.controller.refresh();
+    oldStats.completeError(const NetworkException());
+    oldOrders.completeError(const NetworkException());
+    oldSales.completeError(const NetworkException());
+    await oldLoad;
+    expect(
+      built.container.read(dashboardControllerProvider),
+      isA<DashboardLoaded>(),
+    );
+  });
+  test('branch replacement loads once and ignores a late previous branch response', () async {
+    final oldStats = Completer<DashboardStats>();
+    final nextRepository = MockDashboardRepository();
+    when(() => repository.getStats()).thenAnswer((_) => oldStats.future);
+    when(() => repository.getRecentOrders()).thenAnswer((_) async => [_order]);
+    when(() => repository.getSalesOverview()).thenAnswer((_) async => [_salesPoint]);
+    when(() => nextRepository.getStats()).thenAnswer((_) async => const DashboardStats(
+      todaysSales: 99, todaysOrders: 9, averageOrderValue: 11, lowStockItemCount: 0));
+    when(() => nextRepository.getRecentOrders()).thenAnswer((_) async => []);
+    when(() => nextRepository.getSalesOverview()).thenAnswer((_) async => []);
+    final container = ProviderContainer(overrides: [
+      currentBranchProvider.overrideWith((ref) => CurrentBranchNotifier(
+        ref, listenToAuth: false)..selectBranch(
+          const BranchSummary(id: 1, name: 'One', code: 'ONE'))),
+      dashboardRepositoryProvider.overrideWith((ref) =>
+        ref.watch(currentBranchProvider)?.id == 2 ? nextRepository : repository),
+    ]);
+    addTearDown(container.dispose);
+    container.listen(dashboardControllerProvider, (previous, next) {});
+    final oldController = container.read(dashboardControllerProvider.notifier);
+    container.read(currentBranchProvider.notifier).selectBranch(
+      const BranchSummary(id: 2, name: 'Two', code: 'TWO'));
+    await container.read(dashboardControllerProvider.notifier).initialization;
+    oldStats.complete(_stats);
+    await oldController.initialization;
+    final current = container.read(dashboardControllerProvider) as DashboardLoaded;
+    expect(current.stats.todaysOrders, 9);
+    verify(() => repository.getStats()).called(1);
+    verify(() => nextRepository.getStats()).called(1);
+  });
+
 }

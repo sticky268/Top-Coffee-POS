@@ -67,6 +67,20 @@ class AuditLogController extends Controller
                 $query->where('created_at', '<=', $request->input('to'));
             });
 
+        if (! $request->user()->can('branches.view-all')) {
+            $branchIds = $request->user()->branches()->pluck('branches.id');
+            $query->where(function ($query) use ($branchIds, $request) {
+                $query->whereIn('new_values->branch_id', $branchIds)
+                    ->orWhereIn('old_values->branch_id', $branchIds)
+                    ->orWhere(function ($query) use ($request) {
+                        // Legacy scope-less events remain visible only to their actor.
+                        $query->whereNull('new_values->branch_id')
+                            ->whereNull('old_values->branch_id')
+                            ->where('user_id', $request->user()->id);
+                    });
+            });
+        }
+
         $perPage = (int) $request->input('per_page', 20);
 
         $logs = $query

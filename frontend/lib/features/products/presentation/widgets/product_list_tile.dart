@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../pos/domain/pos_models.dart';
+import '../../../../core/widgets/page_content.dart';
 
 /// A browsing/management list row — distinct from POS's ProductCard,
 /// which is a compact tap-to-add-to-cart grid tile. This screen is for
@@ -51,7 +52,7 @@ class ProductListTile extends StatelessWidget {
         '${product.variants.length} option${product.variants.length == 1 ? '' : 's'}',
     ];
 
-    return ListTile(
+    return RecordTile(
       onTap: !canModify || isDisabling ? null : onEdit,
       leading: CircleAvatar(
         backgroundColor: theme.colorScheme.primaryContainer,
@@ -73,38 +74,24 @@ class ProductListTile extends StatelessWidget {
                 color: theme.colorScheme.onPrimaryContainer,
               ),
       ),
-      title: Text(product.name),
-      subtitle: subtitleParts.isEmpty
-          ? null
-          : Text(
-              subtitleParts.join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+      title: product.name,
+      subtitle: subtitleParts.join(' · '),
+      details: Text(priceLabel, style: theme.textTheme.titleMedium),
       trailing: isDisabling
-          ? const SizedBox(
-              width: 20,
-              height: 20,
+          ? const SizedBox.square(
+              dimension: 24,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(priceLabel, style: theme.textTheme.titleMedium),
-                PopupMenuButton<String>(
-                  enabled: canModify && !isDisabling,
-                  tooltip: canModify
-                      ? 'More actions'
-                      : 'Subscription is read-only',
-                  onSelected: (value) {
-                    if (value == 'disable' && canModify) {
-                      onDisable();
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'disable', child: Text('Disable')),
-                  ],
-                ),
+          : PopupMenuButton<String>(
+              enabled: canModify && !isDisabling,
+              tooltip: canModify ? 'More actions' : 'Subscription is read-only',
+              onSelected: (value) {
+                if (value == 'disable' && canModify) {
+                  onDisable();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'disable', child: Text('Disable')),
               ],
             ),
     );

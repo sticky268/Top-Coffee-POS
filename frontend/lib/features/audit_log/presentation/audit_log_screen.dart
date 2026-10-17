@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -73,11 +75,14 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildSearchBar(),
-          Expanded(child: _buildBody(state)),
-        ],
+      body: PageContent(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            _buildSearchBar(),
+            Expanded(child: _buildBody(state)),
+          ],
+        ),
       ),
     );
   }
@@ -239,8 +244,9 @@ class _AuditLogCard extends StatelessWidget {
                 ),
                 if (log.createdAt != null)
                   Text(
-                    DateFormat('dd MMM, HH:mm')
-                        .format(log.createdAt!.toLocal()),
+                    DateFormat(
+                      'dd MMM, HH:mm',
+                    ).format(log.createdAt!.toLocal()),
                     style: theme.textTheme.bodySmall,
                   ),
               ],

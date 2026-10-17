@@ -1,0 +1,13 @@
+[Unit]
+Description=Deliver Top Coffee fixed operator alert (%i)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/top-coffee-ops/deploy/alerts.py %i --config /etc/top-coffee/alerts.json
+TimeoutStartSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0077

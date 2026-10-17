@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -81,21 +83,26 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ),
         ],
       ),
-      body: switch (state) {
-        OrdersListLoading() => const Center(child: CircularProgressIndicator()),
-        OrdersListError(:final message) => _OrdersErrorView(
-          message: message,
-          onRetry: () =>
-              ref.read(ordersListControllerProvider.notifier).refresh(),
-        ),
-        OrdersListLoaded loaded => _OrdersContent(
-          state: loaded,
-          searchController: _searchController,
-          onSearch: _search,
-          onOpenFilters: () => _openFilters(loaded.filters),
-          onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
-        ),
-      },
+      body: PageContent(
+        maxWidth: 1000,
+        child: switch (state) {
+          OrdersListLoading() => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          OrdersListError(:final message) => _OrdersErrorView(
+              message: message,
+              onRetry: () =>
+                  ref.read(ordersListControllerProvider.notifier).refresh(),
+            ),
+          OrdersListLoaded loaded => _OrdersContent(
+              state: loaded,
+              searchController: _searchController,
+              onSearch: _search,
+              onOpenFilters: () => _openFilters(loaded.filters),
+              onClearFilters: loaded.filters.hasFilters ? _clearFilters : null,
+            ),
+        },
+      ),
     );
   }
 }
@@ -152,39 +159,43 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: widget.searchController,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => widget.onSearch(),
-                  decoration: InputDecoration(
-                    hintText: 'Search order number...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: widget.searchController.text.isNotEmpty
-                        ? pos_ui.IconButton(
-                            tooltip: 'Clear search',
-                            onPressed: () {
-                              widget.searchController.clear();
-                              widget.onSearch();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.clear),
-                          )
-                        : null,
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(14)),
-                    ),
-                    isDense: true,
+              TextField(
+                controller: widget.searchController,
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => widget.onSearch(),
+                decoration: InputDecoration(
+                  hintText: 'Search receipt number',
+                  helperText: 'Use the number printed on the receipt.',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: widget.searchController.text.isNotEmpty
+                      ? pos_ui.IconButton(
+                          tooltip: 'Clear search',
+                          onPressed: () {
+                            widget.searchController.clear();
+                            widget.onSearch();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.clear),
+                        )
+                      : null,
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
                   ),
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: 8),
-              pos_ui.OutlinedButton.icon(
-                onPressed: widget.onOpenFilters,
-                icon: const Icon(Icons.tune),
-                label: const Text('Filter'),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: pos_ui.OutlinedButton.icon(
+                  onPressed: widget.onOpenFilters,
+                  icon: const Icon(Icons.tune),
+                  label: const Text('Filter'),
+                ),
               ),
             ],
           ),
@@ -241,11 +252,11 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
                       ref.read(ordersListControllerProvider.notifier).refresh(),
                   child: ListView.separated(
                     controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount:
-                        widget.state.orders.length +
+                    itemCount: widget.state.orders.length +
                         (widget.state.hasMore ? 1 : 0),
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       if (index >= widget.state.orders.length) {
                         return Padding(

@@ -37,6 +37,10 @@ class StockMovementService
             throw new InvalidArgumentException('Invalid stock movement type.');
         }
 
+        if (! is_finite($quantity)) {
+            throw new InvalidArgumentException('Stock movement quantity must be finite.');
+        }
+        $quantity = round($quantity, 3);
         if ($quantity == 0.0) {
             throw new InvalidArgumentException('Stock movement quantity cannot be zero.');
         }
@@ -75,7 +79,7 @@ $reference instanceof \App\Models\Order && ($quantity > 0 || $type === 'wastage'
             }
 
             $currentStock = (float) $lockedIngredient->current_stock;
-            $newBalance = $currentStock + $quantity;
+            $newBalance = round($currentStock + $quantity, 3);
 
             if ($newBalance < 0) {
                 throw new InvalidArgumentException(

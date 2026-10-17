@@ -84,10 +84,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.local_cafe_rounded,
-                      size: 56,
-                      color: theme.colorScheme.primary,
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Icon(
+                          Icons.local_cafe_rounded,
+                          size: 48,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -97,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Sign in to continue',
+                      'Welcome back. Sign in to your business.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -119,11 +128,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         AutofillHints.email,
                       ],
                       keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.mail_outline),
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(14)),
+                        ),
                       ),
                       validator: _validateEmail,
                       onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
@@ -135,6 +148,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       focusNode: _passwordFocus,
                       enabled: !isLoading,
                       obscureText: _obscurePassword,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       autofillHints: const [AutofillHints.password],
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(

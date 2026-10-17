@@ -7,7 +7,10 @@ void main() {
       'http://api.example.com/api/v1',
       'https://localhost/api/v1',
       'https://10.0.2.2/api/v1',
-      'https://user:pass@api.example.com/api/v1'
+      'https://user:pass@api.example.com/api/v1',
+      'https://api.example.com',
+      'https://api.example.com/api/v1?token=secret',
+      'https://api.example.com/api/v1#ignored'
     ]) {
       expect(() => Env.validateProductionUrl(url: url, environment: 'prod'),
           throwsStateError);

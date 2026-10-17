@@ -1,6 +1,9 @@
 import 'dart:io';
 
+import 'ios_network_printer.dart';
+
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../receipt/customer_bill.dart';
@@ -10,7 +13,13 @@ import '../../features/settings/data/receipt_settings.dart';
 class PrinterService {
   static const MethodChannel _channel = MethodChannel('top_coffee_pos/printer');
 
+  static final IosNetworkPrinter _iosPrinter = IosNetworkPrinter();
+
   Future<void> _invoke(String method, [Map<String, dynamic>? arguments]) async {
+    if (Platform.isIOS) {
+      await _iosPrinter.invoke(method, arguments);
+      return;
+    }
     try {
       final accepted = await _channel.invokeMethod<bool>(method, arguments);
       if (accepted != true) {
@@ -22,7 +31,9 @@ class PrinterService {
       }
     } on MissingPluginException {
       throw StateError(
-        'Receipt printing is unavailable on this device. Use an E-Receipt.',
+        method == 'openCashDrawer'
+            ? 'Cash drawer control is unavailable on this device.'
+            : 'Receipt printing is unavailable on this device. Use an E-Receipt.',
       );
     }
   }
@@ -30,6 +41,9 @@ class PrinterService {
   Future<void> connect(String ipAddress) async {
     await _invoke('connect', <String, dynamic>{'ip': ipAddress});
   }
+
+  /// Sends a pulse only. The printer cannot confirm the physical drawer opened.
+  Future<void> openCashDrawer() => _invoke('openCashDrawer');
 
   Future<void> printTest() async {
     await _invoke('printTest');
@@ -45,9 +59,9 @@ class PrinterService {
 
   String _logoFileName(String? branchKey) {
     final scope = branchKey?.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9_-]+'),
-      '_',
-    );
+          RegExp(r'[^a-z0-9_-]+'),
+          '_',
+        );
     return scope == null || scope.isEmpty
         ? 'receipt_logo.png'
         : 'receipt_logo_$scope.png';
@@ -76,29 +90,35 @@ class PrinterService {
       branchKey: receipt.branchCode,
       branchNameFallback: receipt.branchName,
     );
-    final logoBytes = await _loadLogoBytes(receipt.branchCode);
+    return prepareReceiptWithSettings(receipt, settings);
+  }
+
+  Future<Map<String, dynamic>> prepareReceiptWithSettings(
+    OrderReceipt receipt,
+    ReceiptSettings settings,
+  ) async {
+    final logoBytes =
+        settings.showLogo ? await _loadLogoBytes(receipt.branchCode) : null;
 
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
         : receipt.payment != null
-        ? <PaymentConfirmation>[receipt.payment!]
-        : <PaymentConfirmation>[];
+            ? <PaymentConfirmation>[receipt.payment!]
+            : <PaymentConfirmation>[];
 
     final paymentMethod = payments.length > 1
         ? 'Split'
         : payments.isNotEmpty
-        ? payments.first.method
-        : '';
+            ? payments.first.method
+            : '';
 
-    final tendered =
-        payments.length == 1 &&
+    final tendered = payments.length == 1 &&
             payments.first.tendered != null &&
             settings.showTendered
         ? payments.first.tendered!.toStringAsFixed(2)
         : null;
 
-    final changeDue =
-        payments.length == 1 &&
+    final changeDue = payments.length == 1 &&
             payments.first.changeDue != null &&
             settings.showChange
         ? payments.first.changeDue!.toStringAsFixed(2)
@@ -112,16 +132,23 @@ class PrinterService {
       return <String, dynamic>{
         'name': settings.showItemName ? itemName : '',
         'quantity': settings.showQuantity ? item.quantity : '',
-        'unitPrice': settings.showUnitPrice
-            ? item.unitPrice.toStringAsFixed(2)
-            : '',
-        'lineTotal': settings.showLineTotal
-            ? item.lineTotal.toStringAsFixed(2)
-            : '',
+        'unitPrice':
+            settings.showUnitPrice ? item.unitPrice.toStringAsFixed(2) : '',
+        'lineTotal':
+            settings.showLineTotal ? item.lineTotal.toStringAsFixed(2) : '',
       };
     }).toList();
 
     return <String, dynamic>{
+      'fontStyle': settings.fontStyle,
+      'showLogo': settings.showLogo,
+      'showItemName': settings.showItemName,
+      'showQuantity': settings.showQuantity,
+      'showUnitPrice': settings.showUnitPrice,
+      'showLineTotal': settings.showLineTotal,
+      'dateTime': settings.showDateTime && receipt.createdAt != null
+          ? DateFormat('dd/MM/yyyy h:mm a').format(receipt.createdAt!.toLocal())
+          : '',
       'logoBytes': logoBytes,
       'logoPosition': settings.logoPosition,
       'logoSize': settings.logoSize,
@@ -132,10 +159,11 @@ class PrinterService {
       'boldTotal': settings.boldTotal,
       'boldFooter': settings.boldFooter,
       'documentTitle': '',
-      'orderNumber': settings.showOrderNumber
-          ? receipt.displayOrderReference
-          : '',
-      'businessName': settings.businessName,
+      'orderNumber':
+          settings.showOrderNumber ? receipt.displayOrderReference : '',
+      'businessName': settings.businessName.trim().isEmpty
+          ? ReceiptSettings.defaultBusinessName
+          : settings.businessName.trim(),
       'branchName': settings.branchName,
       'cashierName': settings.showCashier ? receipt.cashierName ?? '' : '',
       'tableName': settings.showTable ? receipt.tableName ?? '' : '',
@@ -172,22 +200,37 @@ class PrinterService {
       branchKey: bill.branchCode,
       branchNameFallback: bill.branchName,
     );
-    final logoBytes = await _loadLogoBytes(bill.branchCode);
+    return prepareBillWithSettings(bill, settings);
+  }
+
+  Future<Map<String, dynamic>> prepareBillWithSettings(
+    CustomerBill bill,
+    ReceiptSettings settings,
+  ) async {
+    final logoBytes =
+        settings.showLogo ? await _loadLogoBytes(bill.branchCode) : null;
 
     final items = bill.items.map((item) {
       return <String, dynamic>{
         'name': settings.showItemName ? item.displayName : '',
         'quantity': settings.showQuantity ? item.quantity : '',
-        'unitPrice': settings.showUnitPrice
-            ? item.unitPrice.toStringAsFixed(2)
-            : '',
-        'lineTotal': settings.showLineTotal
-            ? item.lineTotal.toStringAsFixed(2)
-            : '',
+        'unitPrice':
+            settings.showUnitPrice ? item.unitPrice.toStringAsFixed(2) : '',
+        'lineTotal':
+            settings.showLineTotal ? item.lineTotal.toStringAsFixed(2) : '',
       };
     }).toList();
 
     return <String, dynamic>{
+      'fontStyle': settings.fontStyle,
+      'showLogo': settings.showLogo,
+      'showItemName': settings.showItemName,
+      'showQuantity': settings.showQuantity,
+      'showUnitPrice': settings.showUnitPrice,
+      'showLineTotal': settings.showLineTotal,
+      'dateTime': settings.showDateTime && bill.createdAt != null
+          ? DateFormat('dd/MM/yyyy h:mm a').format(bill.createdAt!.toLocal())
+          : '',
       'logoBytes': logoBytes,
       'logoPosition': settings.logoPosition,
       'logoSize': settings.logoSize,
@@ -199,7 +242,9 @@ class PrinterService {
       'boldFooter': settings.boldFooter,
       'documentTitle': 'BILL · UNPAID',
       'orderNumber': settings.showOrderNumber ? bill.displayReference : '',
-      'businessName': settings.businessName,
+      'businessName': settings.businessName.trim().isEmpty
+          ? ReceiptSettings.defaultBusinessName
+          : settings.businessName.trim(),
       'branchName': settings.branchName,
       'cashierName': settings.showCashier ? bill.cashierName ?? '' : '',
       'tableName': settings.showTable ? bill.tableName ?? '' : '',
@@ -218,6 +263,10 @@ class PrinterService {
   }
 
   Future<void> printReceiptBitmapTest(OrderReceipt receipt) async {
+    if (Platform.isIOS) {
+      await sendPayload(await prepareReceipt(receipt));
+      return;
+    }
     final settings = await ReceiptSettings.load(
       branchKey: receipt.branchCode,
       branchNameFallback: receipt.branchName,
@@ -226,24 +275,22 @@ class PrinterService {
     final payments = receipt.payments.isNotEmpty
         ? receipt.payments
         : receipt.payment != null
-        ? <PaymentConfirmation>[receipt.payment!]
-        : <PaymentConfirmation>[];
+            ? <PaymentConfirmation>[receipt.payment!]
+            : <PaymentConfirmation>[];
 
     final paymentMethod = payments.length > 1
         ? 'Split'
         : payments.isNotEmpty
-        ? payments.first.method
-        : '';
+            ? payments.first.method
+            : '';
 
-    final tendered =
-        payments.length == 1 &&
+    final tendered = payments.length == 1 &&
             payments.first.tendered != null &&
             settings.showTendered
         ? payments.first.tendered!.toStringAsFixed(2)
         : null;
 
-    final changeDue =
-        payments.length == 1 &&
+    final changeDue = payments.length == 1 &&
             payments.first.changeDue != null &&
             settings.showChange
         ? payments.first.changeDue!.toStringAsFixed(2)
@@ -254,12 +301,10 @@ class PrinterService {
         'name': settings.showItemName ? item.productName : '',
         'variant': settings.showItemName ? item.variantName ?? '' : '',
         'quantity': settings.showQuantity ? item.quantity : '',
-        'unitPrice': settings.showUnitPrice
-            ? item.unitPrice.toStringAsFixed(2)
-            : '',
-        'lineTotal': settings.showLineTotal
-            ? item.lineTotal.toStringAsFixed(2)
-            : '',
+        'unitPrice':
+            settings.showUnitPrice ? item.unitPrice.toStringAsFixed(2) : '',
+        'lineTotal':
+            settings.showLineTotal ? item.lineTotal.toStringAsFixed(2) : '',
       };
     }).toList();
 
@@ -273,10 +318,11 @@ class PrinterService {
       'boldBusinessName': settings.boldBusinessName,
       'boldTotal': settings.boldTotal,
       'boldFooter': settings.boldFooter,
-      'orderNumber': settings.showOrderNumber
-          ? receipt.displayOrderReference
-          : '',
-      'businessName': settings.businessName,
+      'orderNumber':
+          settings.showOrderNumber ? receipt.displayOrderReference : '',
+      'businessName': settings.businessName.trim().isEmpty
+          ? ReceiptSettings.defaultBusinessName
+          : settings.businessName.trim(),
       'branchName': settings.branchName,
       'cashierName': settings.showCashier ? receipt.cashierName ?? '' : '',
       'tableName': settings.showTable ? receipt.tableName ?? '' : '',

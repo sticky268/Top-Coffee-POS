@@ -19,7 +19,29 @@ jobs:
           extensions: pdo_sqlite, pdo_mysql
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
-      - run: php vendor/bin/phpunit
+      - name: Create disposable testing environment file
+        run: |
+          printf 'APP_ENV=testing\nAPP_DEBUG=false\n' > .env
+      - run: php artisan test
+      - name: Install operational verification tools
+        run: sudo apt-get update -qq && sudo apt-get install -y age nginx rclone
+      - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - run: python3 -m unittest discover -s ../deploy/tests -p 'test_*.py'
+      - run: python3 ../deploy/check_signing_files.py
+      - name: Verify Nginx reference configuration and public-file boundaries
+        run: python3 tools/verify_nginx.py
+      - name: Audit locked Composer dependencies
+        if: always()
+        run: |
+          mkdir -p build/security
+          composer --no-interaction audit --locked --format=json > build/security/composer-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-security-audit
+          path: backend-skeleton/build/security/*
+          if-no-files-found: ignore
+          retention-days: 7
   operations-mysql:
     runs-on: ubuntu-latest
     services:
@@ -55,11 +77,60 @@ jobs:
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php vendor/bin/phpunit --filter CafeOperationsTest
       - name: Verify real MySQL contention and populated migration
-        run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest'
+        run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
-        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest'
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest|PilotOperationsTest|ManagerPinTest'
+      - name: Install age for encrypted MySQL recovery
+        run: sudo apt-get update -qq && sudo apt-get install -y age
       - name: Verify private MySQL backup and isolated restore
         run: bash tools/test_mysql_backup.sh
+      - name: Verify least-privilege runtime and append-only audit grants
+        env:
+          MYSQL_TEST_CONTAINER: ${{ job.services.mysql.id }}
+        run: bash tools/test_runtime_grants.sh
+  manager-pin-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: frontend
+      - name: Format manager PIN source for review
+        id: format
+        continue-on-error: true
+        run: |
+          dart format frontend/lib/features/auth/domain/auth_models.dart frontend/lib/features/auth/presentation/manager_pin_prompt.dart frontend/lib/features/settings/presentation/manager_pin_settings_card.dart frontend/lib/features/settings/presentation/settings_screen.dart frontend/lib/features/operations/data/operations_repository.dart frontend/lib/features/operations/presentation/payment_operations_screen.dart frontend/lib/features/operations/presentation/operations_screen.dart frontend/lib/features/pos/data/pos_repository.dart frontend/lib/features/pos/presentation/open_order_screen.dart frontend/lib/features/orders/presentation/order_detail_screen.dart frontend/test/features/auth/manager_pin_prompt_test.dart frontend/test/features/operations/operations_repository_test.dart frontend/integration_test/manager_approval_test.dart frontend/integration_test/offline_sale_recovery_test.dart
+          git diff --exit-code -- '*.dart'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manager-pin-formatted-source
+          path: |
+            frontend/lib/features/auth/domain/auth_models.dart
+            frontend/lib/features/auth/presentation/manager_pin_prompt.dart
+            frontend/lib/features/settings/presentation/manager_pin_settings_card.dart
+            frontend/lib/features/settings/presentation/settings_screen.dart
+            frontend/lib/features/operations/data/operations_repository.dart
+            frontend/lib/features/operations/presentation/payment_operations_screen.dart
+            frontend/lib/features/operations/presentation/operations_screen.dart
+            frontend/lib/features/pos/data/pos_repository.dart
+            frontend/lib/features/pos/presentation/open_order_screen.dart
+            frontend/lib/features/orders/presentation/order_detail_screen.dart
+            frontend/test/features/auth/manager_pin_prompt_test.dart
+            frontend/test/features/operations/operations_repository_test.dart
+            frontend/integration_test/manager_approval_test.dart
+            frontend/integration_test/offline_sale_recovery_test.dart
+          retention-days: 7
+      - run: flutter analyze
+        working-directory: frontend
+      - run: flutter test test/features/auth/manager_pin_prompt_test.dart test/features/operations/operations_repository_test.dart
+        working-directory: frontend
+      - if: steps.format.outcome == 'failure'
+        run: exit 1
   flutter:
     runs-on: ubuntu-latest
     defaults:
@@ -82,18 +153,119 @@ jobs:
           name: resolved-flutter-lock
           path: frontend/pubspec.lock
           retention-days: 7
+      - name: Verify security source formatting and dependency inventory
+        run: |
+          dart format --output=none --set-exit-if-changed lib/features/pos/presentation/cash_drawer_button.dart test/features/pos/cash_drawer_button_test.dart test/presentation/checkout_polish_test.dart lib/features/pos/presentation/checkout_screen.dart lib/features/auth/domain/auth_models.dart lib/core/offline/journal_cipher.dart lib/core/offline/local_store.dart lib/core/offline/session_cache.dart lib/core/network/api_client.dart lib/features/auth/data/auth_repository.dart test/core/offline/journal_encryption_test.dart test/core/offline/local_store_test.dart test/core/offline/session_cache_test.dart test/features/auth/auth_repository_test.dart
+          mkdir -p build/security
+          dart pub outdated --json > build/security/pub-outdated.json
+          dart pub deps --json > build/security/pub-dependencies.json
+      - name: Verify cashier source formatting
+        run: |
+          dart format --output=none --set-exit-if-changed lib/features/orders/presentation/orders_screen.dart lib/features/orders/presentation/widgets/order_list_tile.dart lib/features/pos/presentation/cash_drawer_button.dart lib/features/pos/presentation/pos_screen.dart lib/features/pos/presentation/widgets/cart_panel.dart lib/features/pos/presentation/widgets/category_selector.dart lib/features/pos/presentation/widgets/checkout_actions.dart lib/features/pos/presentation/widgets/phone_cart_bar.dart lib/features/pos/presentation/widgets/product_card.dart lib/features/pos/presentation/widgets/product_grid.dart lib/features/pos/presentation/widgets/product_search_field.dart test/presentation/checkout_polish_test.dart test/presentation/deep_cashier_polish_test.dart
+      - name: Verify appearance source formatting
+        run: |
+          dart format --output=none --set-exit-if-changed lib/main.dart lib/app.dart lib/core/theme/theme_preference.dart lib/features/settings/presentation/settings_screen.dart lib/features/settings/presentation/appearance_settings_card.dart test/core/theme/theme_preference_test.dart test/presentation/appearance_settings_test.dart test/presentation/app_polish_test.dart
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flutter-security-inventory
+          path: frontend/build/security/*
+          if-no-files-found: ignore
+          retention-days: 7
       - run: flutter analyze
       - run: flutter test
+      - name: Verify checked native printer transport
+        run: python3 tool/verify_printer_transport.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exported Excel and PDF with independent readers
+        run: |
+          python -m pip install 'openpyxl>=3.1,<4' 'pypdf>=5,<7'
+          python tool/verify_report_exports.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-export-previews
+          path: frontend/build/report-exports/*
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: cashier-ui-previews
-          path: frontend/build/ui-polish/*.png
+          path: frontend/build/ui-polish/*
           if-no-files-found: ignore
           retention-days: 7
       - run: flutter build apk --debug
+      - name: Verify native SDK write dispatch
+        run: cd android && ./gradlew :app:testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
           name: top-coffee-debug-apk
           path: frontend/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+      - name: Prepare isolated USB phone test build
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
+          original = 'android:label="top_coffee_pos"'
+          if text.count(original) != 1:
+              raise SystemExit('Unexpected application label; refusing to alter the test manifest.')
+          label = f"Top Coffee USB Test {os.environ['GITHUB_RUN_NUMBER']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
+          manifest.write_text(text.replace(original, f'android:label="{label}"'))
+          Path('android/app/src/debug/AndroidManifest.xml').write_text('''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:networkSecurityConfig="@xml/usb_test_network_security_config"/>
+          </manifest>''')
+          policy = Path('android/app/src/debug/res/xml/usb_test_network_security_config.xml')
+          policy.parent.mkdir(parents=True, exist_ok=True)
+          policy.write_text('''<network-security-config>
+            <base-config cleartextTrafficPermitted="false"/>
+            <domain-config cleartextTrafficPermitted="true">
+              <domain>127.0.0.1</domain>
+              <domain>localhost</domain>
+            </domain-config>
+          </network-security-config>''')
+          PY
+      - name: Build isolated USB phone test APK
+        env:
+          ORG_GRADLE_PROJECT_POS_APPLICATION_ID: com.example.top_coffee_pos.usbtest.r${{ github.run_id }}a${{ github.run_attempt }}
+        run: flutter build apk --debug --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http://127.0.0.1:8001/api/v1
+      - name: Verify isolated USB test identity
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          sdk = Path(os.environ['ANDROID_HOME'])
+          aapt = sorted((sdk / 'build-tools').glob('*/aapt'))[-1]
+          apk = Path('build/app/outputs/flutter-apk/app-debug.apk')
+          result = subprocess.check_output([str(aapt), 'dump', 'badging', str(apk)], text=True)
+          expected_id = f"com.example.top_coffee_pos.usbtest.r{os.environ['GITHUB_RUN_ID']}a{os.environ['GITHUB_RUN_ATTEMPT']}"
+          expected_label = f"Top Coffee USB Test {os.environ['GITHUB_RUN_NUMBER']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
+          if f"package: name='{expected_id}'" not in result:
+              raise SystemExit('USB test application ID is not isolated.')
+          if f"application-label:'{expected_label}'" not in result:
+              raise SystemExit('USB test label is not distinguishable.')
+          out = Path('build/usb-test')
+          out.mkdir(parents=True, exist_ok=True)
+          (out / 'top-coffee-usb-test.apk').write_bytes(apk.read_bytes())
+          (out / 'README.txt').write_text(
+              f'{expected_label} - DEBUG ONLY\n'
+              f'Application ID: {expected_id}; does not replace any earlier test or POS app.\n'
+              'API: http://127.0.0.1:8001/api/v1 through adb reverse tcp:8001 tcp:8001.\n'
+              'Keep USB connected. Use the rehearsal server/account.\n'
+              'Configure the selected branch receipt printer.\n'
+              'Use Reprint COPY on an existing paid order; inspect English/Khmer, totals and cutting.\n'
+              'Simulated-printer checks do not certify physical paper output. Do not create another sale for this test.\n'
+              'Do not uninstall the existing POS app or create test sales in production.\n')
+          print('PASS: isolated USB test application ID and visible label verified.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top-coffee-usb-phone-test
+          path: frontend/build/usb-test/*
+          if-no-files-found: error
           retention-days: 7

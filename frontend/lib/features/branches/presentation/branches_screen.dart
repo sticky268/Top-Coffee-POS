@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -60,7 +62,12 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
     final authState = ref.watch(authControllerProvider);
 
     if (authState is! AuthAuthenticated) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: PageContent(
+          maxWidth: 1000,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
 
     final user = authState.user;
@@ -68,12 +75,15 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
     if (!user.hasPermission('branches.manage')) {
       return Scaffold(
         appBar: AppBar(title: const Text('Branches')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'You do not have permission to manage branches.',
-              textAlign: TextAlign.center,
+        body: const PageContent(
+          maxWidth: 1000,
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'You do not have permission to manage branches.',
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ),
@@ -99,12 +109,15 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildSearch(),
-          _buildFilters(),
-          Expanded(child: _buildBody(state)),
-        ],
+      body: PageContent(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            _buildSearch(),
+            _buildFilters(),
+            Expanded(child: _buildBody(state)),
+          ],
+        ),
       ),
     );
   }
@@ -272,50 +285,24 @@ class _BranchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Card(
-      child: ListTile(
+      child: RecordTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: const CircleAvatar(child: Icon(Icons.account_tree_outlined)),
-        title: Text(branch.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                branch.code,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              if (branch.address != null && branch.address!.isNotEmpty)
-                Text(
-                  branch.address!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              if (branch.phone != null && branch.phone!.isNotEmpty)
-                Text(
-                  branch.phone!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-            ],
-          ),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        title: branch.name,
+        subtitle: [
+          branch.code,
+          if (branch.address?.isNotEmpty == true) branch.address!,
+          if (branch.phone?.isNotEmpty == true) branch.phone!,
+        ].join('\n'),
+        trailing: const Icon(Icons.chevron_right),
+        details: Wrap(
+          spacing: 16,
+          runSpacing: 8,
           children: [
             Text(
               '${branch.usersCount} ${branch.usersCount == 1 ? 'user' : 'users'}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 8),
             Text(branch.isActive ? 'Active' : 'Inactive'),
           ],
         ),

@@ -1,9 +1,12 @@
 import 'package:drift/native.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:top_coffee_pos/core/offline/local_store.dart';
 import 'package:top_coffee_pos/core/storage/app_database.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   test('SQLite journal supports durable replace, scoped reads and deletion',
       () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());

@@ -41,3 +41,43 @@ isolation, scope switching during connection, immutable receipt/logo snapshots,
 revised receipts and storage failures. UI tests check narrow uncertain-job cards
 and the required copy confirmation. Real paper/Khmer output still requires the
 physical printer.
+
+## Native Ethernet transmission follow-up
+
+The photographed PP-01-000129 receipt had a readable header followed by garbled
+image bytes. The initial banding change (`e18ff35`) reduced raster height but
+still queued SDK writes and used sleeps as a drain estimate. Inspecting the
+bundled printer-lib 3.2.0 bytecode confirmed that Ethernet connects time out at
+1,000 ms, `POSPrinter.sendData` queues writes, and even its synchronous mode
+discards `sendSync` failure results. These are verified transport defects; they
+do not establish the exact hardware cause of the photographed corruption.
+
+The native channel now runs serially off the Android UI thread. Connection
+opening gets up to three fresh attempts, closing each failed connection before
+the next attempt. No receipt bytes or drawer pulses are sent by these retries.
+The existing SDK remains responsible for ESC/POS encoding. Its single-buffer
+and list-buffer sends are overridden to write synchronously, check every byte
+count, and stop the session on failure. Image bands are 24 rows; outgoing data
+is paced in chunks of at most 512 bytes. Feed/cut must complete the same checked
+path before success reaches the Dart queue. A ten-second write watchdog closes
+a stalled connection. A partial write, timeout or interrupted print stays
+uncertain and cannot automatically replay the receipt or cut command.
+
+`python3 frontend/tool/verify_printer_transport.py` exercises the production Java
+writer without hardware: exact byte ordering, chunk boundaries, short/failed
+writes, no replay or cut after failure, stalled-write cancellation and thread
+interruption. Android JVM tests additionally exercise the real bundled SDK's
+single/list dispatch through the checked subclass. The Android emulator also
+opens a synthetic TCP printer on its own loopback address, sends a long receipt
+through the real Dart/native bridge and SDK, and parses every raster header and
+payload through the final cut. It rejects truncated bands, unexpected commands,
+wrong widths and early/duplicate cuts. It cannot contact a shop printer or
+submit a payment. Existing Flutter queue tests cover the resulting
+failed-before-send versus uncertain states.
+
+Physical acceptance is still pending. The later Android-to-printer connection
+timeout can also be caused by the local network or printer connection limits;
+connection retries cannot guarantee access to an unreachable TCP port. When the
+owner is back at the device, inspect a **Reprint COPY of an existing paid order**
+on the XP-N160II at its configured IP. Do not create another sale for this test.
+CI checks do not certify paper output, Khmer shaping or physical drawer motion.

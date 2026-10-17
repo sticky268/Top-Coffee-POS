@@ -42,6 +42,17 @@ void main() {
         'branch_id': 2
       });
 
+  test('automatic retries back off while manual sync remains available', () async {
+    await prepare(1);
+    when(() => api.request<Response<dynamic>>(any())).thenThrow(const NetworkException());
+    await sync.sync(force: false);
+    await sync.sync(force: false);
+    verify(() => api.request<Response<dynamic>>(any())).called(1);
+    await sync.sync();
+    verify(() => api.request<Response<dynamic>>(any())).called(1);
+    expect((await outbox.list(1, 2)).single.status, 'pending');
+  });
+
   test('reconnect acknowledges a saved order, concurrent syncs send only once',
       () async {
     await prepare(1);

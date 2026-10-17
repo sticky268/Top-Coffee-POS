@@ -7,6 +7,7 @@ import '../offline/local_store.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../../features/settings/data/receipt_settings.dart';
+import 'cash_drawer_providers.dart';
 import 'print_queue.dart';
 import 'printer_service.dart';
 
@@ -40,6 +41,7 @@ final printQueueProvider = Provider<PrintQueue>((ref) {
       }
       return settings.printerIpAddress;
     },
+    drawerJournal: ref.watch(cashDrawerJournalProvider),
   );
   ref.onDispose(queue.dispose);
   return queue;
@@ -63,6 +65,7 @@ final printJobsProvider = StreamProvider<List<PrintJob>>((ref) async* {
   }
 });
 final printQueueWorkerProvider = Provider<void>((ref) {
+  ref.watch(cashDrawerSyncWorkerProvider);
   final scope = ref.watch(printScopeProvider);
   if (scope == null) return;
   final queue = ref.watch(printQueueProvider);

@@ -83,7 +83,7 @@ class RecipeController extends Controller
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'items' => ['required', 'array'],
             'items.*.ingredient_id' => ['required', 'integer', 'distinct'],
-            'items.*.quantity_used' => ['required', 'numeric', 'gt:0'],
+            'items.*.quantity_used' => ['required', 'numeric', 'gt:0', 'decimal:0,3'],
         ]);
 
         if ($validator->fails()) {
@@ -138,6 +138,8 @@ class RecipeController extends Controller
             $product,
             $request
         ) {
+            $old = RecipeItem::where('branch_id', $branchId)->where('product_id', $product->id)
+                ->whereNull('modifier_id')->get(['ingredient_id', 'quantity_used'])->toArray();
             RecipeItem::query()
                 ->where('branch_id', $branchId)
                 ->where('product_id', $product->id)
@@ -153,6 +155,10 @@ class RecipeController extends Controller
                     'quantity_used' => $item['quantity_used'],
                 ]);
             }
+
+            app(\App\Services\AuditLogService::class)->record($request, 'recipe.updated', $product,
+                ['branch_id' => $branchId, 'items' => $old],
+                ['branch_id' => $branchId, 'items' => $request->input('items')]);
 
             return RecipeItem::query()
                 ->where('branch_id', $branchId)

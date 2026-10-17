@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branch/current_branch_provider.dart';
@@ -179,202 +181,209 @@ class _LoyaltySettingsScreenState extends ConsumerState<LoyaltySettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Loyalty Settings')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadSettings,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (currentBranch != null) ...[
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.store_outlined),
-                        title: Text(currentBranch.name),
-                        subtitle: Text('Branch ${currentBranch.code}'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (_errorMessage != null) ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(color: theme.colorScheme.error),
+      body: PageContent(
+        maxWidth: 800,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadSettings,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (currentBranch != null) ...[
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.store_outlined),
+                          title: Text(currentBranch.name),
+                          subtitle: Text('Branch ${currentBranch.code}'),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (_settings != null)
-                    Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Loyalty Program',
-                            style: theme.textTheme.titleMedium,
+                      const SizedBox(height: 16),
+                    ],
+                    if (_errorMessage != null) ...[
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(color: theme.colorScheme.error),
                           ),
-                          const SizedBox(height: 8),
-                          Card(
-                            child: Column(
-                              children: [
-                                SwitchListTile(
-                                  title: const Text('Enable Loyalty'),
-                                  subtitle: const Text(
-                                    'Allow customers to earn and use loyalty points.',
-                                  ),
-                                  value: _isEnabled,
-                                  onChanged: _isSaving
-                                      ? null
-                                      : (value) {
-                                          setState(() {
-                                            _isEnabled = value;
-                                          });
-                                        },
-                                ),
-                                const Divider(height: 1),
-                                SwitchListTile(
-                                  title: const Text('Enable Redemption'),
-                                  subtitle: const Text(
-                                    'Allow customers to redeem points for rewards.',
-                                  ),
-                                  value: _redemptionEnabled,
-                                  onChanged: _isSaving
-                                      ? null
-                                      : (value) {
-                                          setState(() {
-                                            _redemptionEnabled = value;
-                                          });
-                                        },
-                                ),
-                              ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_settings != null)
+                      Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Loyalty Program',
+                              style: theme.textTheme.titleMedium,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text('Points', style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 8),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
+                            const SizedBox(height: 8),
+                            Card(
                               child: Column(
                                 children: [
-                                  TextFormField(
-                                    controller: _pointsPerCurrencyController,
-                                    enabled: !_isSaving,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Points per currency unit',
-                                      helperText: 'Example: 1 point for every currency unit spent.',
+                                  SwitchListTile(
+                                    title: const Text('Enable Loyalty'),
+                                    subtitle: const Text(
+                                      'Allow customers to earn and use loyalty points.',
                                     ),
-                                    validator: (value) {
-                                      final number = double.tryParse(
-                                        value?.trim() ?? '',
-                                      );
-                                      if (number == null || number < 0) {
-                                        return 'Enter a valid number.';
-                                      }
-                                      return null;
-                                    },
+                                    value: _isEnabled,
+                                    onChanged: _isSaving
+                                        ? null
+                                        : (value) {
+                                            setState(() {
+                                              _isEnabled = value;
+                                            });
+                                          },
                                   ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller:
-                                        _pointsPerRewardCurrencyController,
-                                    enabled: !_isSaving,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Points required per reward currency unit',
-                                      helperText: 'Example: 100 points = 1 reward currency unit.',
+                                  const Divider(height: 1),
+                                  SwitchListTile(
+                                    title: const Text('Enable Redemption'),
+                                    subtitle: const Text(
+                                      'Allow customers to redeem points for rewards.',
                                     ),
-                                    validator: (value) {
-                                      final number = double.tryParse(
-                                        value?.trim() ?? '',
-                                      );
-                                      if (number == null || number <= 0) {
-                                        return 'Enter a number greater than 0.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: _minimumRedeemPointsController,
-                                    enabled: !_isSaving,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Minimum points to redeem',
-                                    ),
-                                    validator: (value) {
-                                      final number = int.tryParse(
-                                        value?.trim() ?? '',
-                                      );
-                                      if (number == null || number < 0) {
-                                        return 'Enter a valid whole number.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: _expirationMonthsController,
-                                    enabled: !_isSaving,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Point expiration (months)',
-                                      helperText:
-                                          'Leave empty if points never expire.',
-                                    ),
-                                    validator: (value) {
-                                      final text = value?.trim() ?? '';
-                                      if (text.isEmpty) return null;
-
-                                      final number = int.tryParse(text);
-                                      if (number == null || number < 1) {
-                                        return 'Enter a whole number of at least 1.';
-                                      }
-                                      return null;
-                                    },
+                                    value: _redemptionEnabled,
+                                    onChanged: _isSaving
+                                        ? null
+                                        : (value) {
+                                            setState(() {
+                                              _redemptionEnabled = value;
+                                            });
+                                          },
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: pos_ui.PrimaryButton.icon(
-                              onPressed: _isSaving ? null : _saveSettings,
-                              isLoading: _isSaving,
-                              icon: const Icon(Icons.save_outlined),
-                              label: Text(
-                                _isSaving ? 'Saving...' : 'Save Changes',
+                            const SizedBox(height: 16),
+                            Text('Points', style: theme.textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _pointsPerCurrencyController,
+                                      enabled: !_isSaving,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Points per currency unit',
+                                        helperText:
+                                            'Example: 1 point for every currency unit spent.',
+                                      ),
+                                      validator: (value) {
+                                        final number = double.tryParse(
+                                          value?.trim() ?? '',
+                                        );
+                                        if (number == null || number < 0) {
+                                          return 'Enter a valid number.';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller:
+                                          _pointsPerRewardCurrencyController,
+                                      enabled: !_isSaving,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText:
+                                            'Points required per reward currency unit',
+                                        helperText:
+                                            'Example: 100 points = 1 reward currency unit.',
+                                      ),
+                                      validator: (value) {
+                                        final number = double.tryParse(
+                                          value?.trim() ?? '',
+                                        );
+                                        if (number == null || number <= 0) {
+                                          return 'Enter a number greater than 0.';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller:
+                                          _minimumRedeemPointsController,
+                                      enabled: !_isSaving,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Minimum points to redeem',
+                                      ),
+                                      validator: (value) {
+                                        final number = int.tryParse(
+                                          value?.trim() ?? '',
+                                        );
+                                        if (number == null || number < 0) {
+                                          return 'Enter a valid whole number.';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller: _expirationMonthsController,
+                                      enabled: !_isSaving,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Point expiration (months)',
+                                        helperText:
+                                            'Leave empty if points never expire.',
+                                      ),
+                                      validator: (value) {
+                                        final text = value?.trim() ?? '';
+                                        if (text.isEmpty) return null;
+
+                                        final number = int.tryParse(text);
+                                        if (number == null || number < 1) {
+                                          return 'Enter a whole number of at least 1.';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (_settings != null)
-                            Text(
-                              'Current settings loaded for ${currentBranch?.name ?? 'the selected branch'}.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: pos_ui.PrimaryButton.icon(
+                                onPressed: _isSaving ? null : _saveSettings,
+                                isLoading: _isSaving,
+                                icon: const Icon(Icons.save_outlined),
+                                label: Text(
+                                  _isSaving ? 'Saving...' : 'Save Changes',
+                                ),
                               ),
                             ),
-                        ],
+                            const SizedBox(height: 8),
+                            if (_settings != null)
+                              Text(
+                                'Current settings loaded for ${currentBranch?.name ?? 'the selected branch'}.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }

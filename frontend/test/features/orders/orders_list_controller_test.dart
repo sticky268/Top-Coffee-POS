@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -67,6 +68,21 @@ void main() {
 
     return (container: container, controller: controller);
   }
+
+  test('late old-branch results cannot replace the selected branch', () async {
+    final first = Completer<OrderListPage>();
+    when(() => repository.getOrders(page: 1, branchId: 74)).thenAnswer((_) => first.future);
+    when(() => repository.getOrders(page: 1, branchId: 75)).thenAnswer((_) async =>
+        OrderListPage(orders: [_order(75)], currentPage: 1, lastPage: 1, total: 1));
+    final built = buildAndStart(branch: branch74);
+    final initial = built.controller.initialization;
+    built.container.read(currentBranchProvider.notifier).selectBranch(branch75);
+    await built.controller.initialization;
+    first.complete(OrderListPage(orders: [_order(74)], currentPage: 1, lastPage: 1, total: 1));
+    await initial;
+    final state = built.container.read(ordersListControllerProvider) as OrdersListLoaded;
+    expect(state.orders.single.id, 75);
+  });
 
   test('loads page 1 into OrdersListLoaded', () async {
     when(

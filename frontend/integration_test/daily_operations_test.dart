@@ -59,18 +59,24 @@ void main() {
       await tester.scrollUntilVisible(
         find.widgetWithText(TextField, 'Amount received'),
         200,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('checkout-review-scroll')),
+          matching: find.byType(Scrollable),
+        ).first,
       );
       await tester.enterText(
         find.widgetWithText(TextField, 'Amount received'),
         '5',
       );
       await tester.scrollUntilVisible(
-        find.text('Confirm & Pay'),
+        find.text('Complete Sale'),
         200,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('checkout-review-scroll')),
+          matching: find.byType(Scrollable),
+        ).first,
       );
-      await tester.tap(find.text('Confirm & Pay'));
+      await tester.tap(find.text('Complete Sale'));
       await waitFor(tester, find.text('Payment Successful'));
       await tester.ensureVisible(find.text('Back to Dashboard'));
       await tester.tap(find.text('Back to Dashboard'));

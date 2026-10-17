@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -7,9 +9,11 @@ import '../data/inventory_repository.dart';
 import '../domain/inventory_models.dart';
 
 class InventoryMovementHistoryScreen extends ConsumerStatefulWidget {
-  const InventoryMovementHistoryScreen({super.key, required this.ingredient});
+  const InventoryMovementHistoryScreen({super.key, required this.ingredient,
+    this.initialMovementId});
 
   final InventoryIngredient ingredient;
+  final int? initialMovementId;
 
   @override
   ConsumerState<InventoryMovementHistoryScreen> createState() =>
@@ -44,7 +48,8 @@ class _InventoryMovementHistoryScreenState
           .read(inventoryRepositoryProvider)
           .getStockMovements(
             ingredientId: widget.ingredient.id,
-            type: _selectedType,
+            type: widget.initialMovementId == null ? _selectedType : null,
+            movementId: widget.initialMovementId,
             page: 1,
             perPage: _pageSize,
           );
@@ -54,7 +59,7 @@ class _InventoryMovementHistoryScreenState
       setState(() {
         _movements = movements;
         _currentPage = 1;
-        _hasMore = movements.length == _pageSize;
+        _hasMore = widget.initialMovementId == null && movements.length == _pageSize;
         _isLoading = false;
       });
     } catch (error) {
@@ -92,7 +97,7 @@ class _InventoryMovementHistoryScreenState
       setState(() {
         _movements.addAll(movements);
         _currentPage = nextPage;
-        _hasMore = movements.length == _pageSize;
+        _hasMore = widget.initialMovementId == null && movements.length == _pageSize;
       });
     } catch (error) {
       if (!mounted) return;
@@ -167,66 +172,77 @@ class _InventoryMovementHistoryScreenState
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: DropdownButtonFormField<String?>(
-              initialValue: _selectedType,
-              decoration: const InputDecoration(
-                labelText: 'Movement Type',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('All movements'),
+      body: PageContent(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            if (widget.initialMovementId != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Reviewing ledger movement #${widget.initialMovementId} (read-only).'),
+              )
+            else
+              Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: DropdownButtonFormField<String?>(
+                initialValue: _selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Movement Type',
+                  border: OutlineInputBorder(),
                 ),
-                DropdownMenuItem<String?>(
-                  value: 'purchase',
-                  child: Text('Stock In / Purchase'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'adjustment',
-                  child: Text('Adjustment'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'wastage',
-                  child: Text('Wastage'),
-                ),
-                DropdownMenuItem<String?>(
-                  value: 'sale_deduction',
-                  child: Text('Sale Deduction'),
-                ),
-              ],
-              onChanged: _isLoading || _isLoadingMore
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _selectedType = value;
-                      });
-                      _loadMovements();
-                    },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Card(
-              elevation: 1,
-              child: ListTile(
-                leading: const Icon(Icons.inventory_2_outlined),
-                title: const Text('Current Stock'),
-                trailing: Text(
-                  '${widget.ingredient.currentStock.toStringAsFixed(3)} '
-                  '${widget.ingredient.unit.abbreviation}',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
+                items: const [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All movements'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'purchase',
+                    child: Text('Stock In / Purchase'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'adjustment',
+                    child: Text('Adjustment'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'wastage',
+                    child: Text('Wastage'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'sale_deduction',
+                    child: Text('Sale Deduction'),
+                  ),
+                ],
+                onChanged: _isLoading || _isLoadingMore
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedType = value;
+                        });
+                        _loadMovements();
+                      },
               ),
             ),
-          ),
-          Expanded(child: _buildBody()),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Card(
+                elevation: 1,
+                child: ListTile(
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: Text(widget.initialMovementId == null
+                      ? 'Current Stock' : 'Stock when the report was loaded'),
+                  trailing: Text(
+                    '${widget.ingredient.currentStock.toStringAsFixed(3)} '
+                    '${widget.ingredient.unit.abbreviation}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
     );
   }
@@ -264,7 +280,9 @@ class _InventoryMovementHistoryScreenState
     }
 
     if (_movements.isEmpty) {
-      return const Center(child: Text('No stock movements found.'));
+      return Center(child: Text(widget.initialMovementId == null
+          ? 'No stock movements found.'
+          : 'The selected stock count was not found in this ingredient history.'));
     }
 
     return RefreshIndicator(
@@ -316,7 +334,10 @@ class _InventoryMovementHistoryScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _typeLabel(movement.type),
+                          movement.type == 'adjustment' &&
+                                  (movement.reason?.startsWith('Stock count: ') ?? false)
+                              ? 'Stock count discrepancy'
+                              : _typeLabel(movement.type),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
@@ -334,6 +355,16 @@ class _InventoryMovementHistoryScreenState
                           ),
                         ],
                         const SizedBox(height: 8),
+                        if (movement.type == 'adjustment' &&
+                            (movement.reason?.startsWith('Stock count: ') ?? false))
+                          Text(
+                            'Recorded before: '
+                            '${(movement.balanceAfter - movement.quantity).toStringAsFixed(3)} '
+                            '${widget.ingredient.unit.abbreviation} · '
+                            'Counted: ${movement.balanceAfter.toStringAsFixed(3)} '
+                            '${widget.ingredient.unit.abbreviation}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         Text(
                           'Balance after: '
                           '${movement.balanceAfter.toStringAsFixed(3)} '

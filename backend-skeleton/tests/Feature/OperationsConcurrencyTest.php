@@ -106,6 +106,67 @@ class OperationsConcurrencyTest extends TestCase
         }
     }
 
+    public function test_concurrent_checkouts_allocate_distinct_branch_numbers(): void
+    {
+        $category = \App\Models\Category::create(['branch_id' => $this->branch->id, 'name' => 'Race coffee']);
+        $product = \App\Models\Product::create(['category_id' => $category->id,
+            'name' => 'Coffee', 'base_price' => 10, 'is_active' => true]);
+        $product->branches()->attach($this->branch->id, ['is_available' => true]);
+        $payload = ['order_type' => 'takeaway',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment' => ['method' => 'card']];
+        $results = $this->race([
+            $this->input($this->actor, '/api/v1/orders', $payload),
+            $this->input($this->other, '/api/v1/orders', $payload),
+        ], 'branches', $this->branch->id);
+        $this->assertSame([201, 201], array_column($results, 'status'), json_encode($results));
+        $numbers = array_map(fn ($r) => $r['body']['data']['order_number'], $results);
+        sort($numbers);
+        $this->assertSame([1, 2], $numbers);
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('payments', 2);
+    }
+
+    public function test_concurrent_matching_held_payments_return_one_receipt_and_one_payment(): void
+    {
+        $category = \App\Models\Category::create(['branch_id' => $this->branch->id, 'name' => 'Held race coffee']);
+        $product = \App\Models\Product::create(['category_id' => $category->id,
+            'name' => 'Coffee', 'base_price' => 10, 'is_active' => true]);
+        $product->branches()->attach($this->branch->id, ['is_available' => true]);
+        $table = \App\Models\RestaurantTable::create(['branch_id' => $this->branch->id,
+            'name' => 'Race table', 'capacity' => 2, 'status' => 'available', 'is_active' => true]);
+        $id = $this->postJson('/api/v1/orders/hold', ['branch_id' => $this->branch->id,
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertCreated()->json('data.id');
+        $payload = ['expected_total' => 10, 'payment' => ['method' => 'card']];
+        // Separate tokens and matching payloads model two overlapping retries.
+        $first = $this->input($this->actor, "/api/v1/orders/$id/pay", $payload);
+        $second = $this->input($this->actor, "/api/v1/orders/$id/pay", $payload);
+        $results = $this->race([$first, $second], 'orders', $id);
+        $this->assertSame([200, 200], array_column($results, 'status'), json_encode($results));
+        $this->assertSame($results[0]['body']['data'], $results[1]['body']['data']);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('restaurant_tables', ['id' => $table->id, 'status' => 'available']);
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'order.paid')->count());
+    }
+
+    public function test_concurrent_branch_creation_cannot_exceed_the_plan_limit(): void
+    {
+        $plan = \App\Models\Plan::create(['name' => 'Two branches', 'slug' => 'race-two',
+            'branch_limit' => 2, 'price' => 0, 'billing_interval' => 'monthly', 'is_active' => true]);
+        $this->actor->business->update(['plan_id' => $plan->id]);
+        $permission = Permission::findOrCreate('branches.manage');
+        $this->actor->givePermissionTo($permission);
+        $first = $this->input($this->actor, '/api/v1/branches',
+            ['name' => 'Second', 'code' => 'RACE-2', 'timezone' => 'UTC']);
+        $second = $this->input($this->actor, '/api/v1/branches',
+            ['name' => 'Third', 'code' => 'RACE-3', 'timezone' => 'UTC']);
+        $results = $this->race([$first, $second], 'businesses', $this->actor->business_id);
+        $statuses = array_column($results, 'status'); sort($statuses);
+        $this->assertSame([201, 403], $statuses, json_encode($results));
+        $this->assertSame(2, Branch::where('business_id', $this->actor->business_id)->count());
+    }
+
     public function test_simultaneous_same_uuid_refund_is_applied_once(): void
     {
         $this->open($this->actor);

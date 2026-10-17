@@ -1,0 +1,23 @@
+[Unit]
+Description=Top Coffee optional Redis queue worker
+After=network-online.target
+OnFailure=top-coffee-alert@health_failed.service
+
+[Service]
+Type=simple
+User=posapp
+Group=posapp
+WorkingDirectory=/srv/top-coffee/current/backend-skeleton
+ExecStart=/usr/bin/php artisan queue:work redis --sleep=3 --tries=3 --timeout=90 --max-time=3600
+Restart=always
+RestartSec=5
+TimeoutStopSec=120
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/top-coffee/shared/storage /srv/top-coffee/current/backend-skeleton/bootstrap/cache
+ProtectHome=true
+PrivateTmp=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

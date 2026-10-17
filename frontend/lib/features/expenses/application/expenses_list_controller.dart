@@ -7,6 +7,7 @@ import 'expenses_list_state.dart';
 
 /// Loads and manages the expense list.
 class ExpensesListController extends StateNotifier<ExpensesListState> {
+  int _generation = 0;
   ExpensesListController(this._repository, this._ref)
       : super(const ExpensesListLoading()) {
     _branchId = _ref.read(currentBranchProvider)?.id;
@@ -72,7 +73,8 @@ class ExpensesListController extends StateNotifier<ExpensesListState> {
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const ExpensesListLoading();
 
@@ -85,7 +87,7 @@ class ExpensesListController extends StateNotifier<ExpensesListState> {
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = ExpensesListLoaded(
         expenses: page.data,
@@ -94,7 +96,7 @@ class ExpensesListController extends StateNotifier<ExpensesListState> {
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = ExpensesListError(
         e is ApiException ? e.message : 'Something went wrong',
@@ -103,6 +105,7 @@ class ExpensesListController extends StateNotifier<ExpensesListState> {
   }
 
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! ExpensesListLoaded) return;
@@ -119,7 +122,7 @@ class ExpensesListController extends StateNotifier<ExpensesListState> {
         page: current.currentPage + 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 
@@ -133,7 +136,7 @@ class ExpensesListController extends StateNotifier<ExpensesListState> {
         isLoadingMore: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 

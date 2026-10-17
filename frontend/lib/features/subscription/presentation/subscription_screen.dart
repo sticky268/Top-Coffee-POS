@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
@@ -25,34 +27,39 @@ class SubscriptionScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: switch (state) {
-        SubscriptionLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        SubscriptionError(:final message) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 48),
-                const SizedBox(height: 16),
-                Text(message, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                pos_ui.PrimaryButton(
-                  onPressed: () {
-                    ref.read(subscriptionControllerProvider.notifier).refresh();
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
+      body: PageContent(
+        maxWidth: 1000,
+        child: switch (state) {
+          SubscriptionLoading() => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          SubscriptionError(:final message) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48),
+                  const SizedBox(height: 16),
+                  Text(message, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  pos_ui.PrimaryButton(
+                    onPressed: () {
+                      ref
+                          .read(subscriptionControllerProvider.notifier)
+                          .refresh();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        SubscriptionLoaded(:final subscription) => _SubscriptionContent(
-          subscription: subscription,
-        ),
-      },
+          SubscriptionLoaded(:final subscription) => _SubscriptionContent(
+            subscription: subscription,
+          ),
+        },
+      ),
     );
   }
 }

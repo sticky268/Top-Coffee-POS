@@ -1,9 +1,15 @@
+import '../../../core/branch/current_branch_provider.dart';
+import '../../../core/network/api_exceptions.dart';
+import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/receipt/customer_bill.dart';
+import '../../pos/presentation/widgets/checkout_summary.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../../core/widgets/receipt_action_buttons.dart';
 import '../../auth/application/auth_controller.dart';
@@ -25,23 +31,20 @@ class OrderDetailScreen extends ConsumerWidget {
     final state = ref.watch(orderDetailControllerProvider(orderId));
     final authState = ref.watch(authControllerProvider);
 
-    final canEditHeld =
-        state is OrderDetailLoaded &&
+    final canEditHeld = state is OrderDetailLoaded &&
         state.order.status == 'held' &&
         state.order.orderType == 'dine_in' &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.create');
 
-    final canAdjustCompleted =
-        state is OrderDetailLoaded &&
+    final canAdjustCompleted = state is OrderDetailLoaded &&
         state.order.status == 'completed' &&
         state.order.supplementalTotal == 0 &&
         state.order.refundedTotal == 0 &&
         authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.edit');
 
-    final canCancel =
-        state is OrderDetailLoaded &&
+    final canCancel = state is OrderDetailLoaded &&
         state.order.status == 'held' &&
         state.order.orderType == 'dine_in' &&
         authState is AuthAuthenticated &&
@@ -95,9 +98,22 @@ class OrderDetailScreen extends ConsumerWidget {
                 );
                 if (confirmed != true || !context.mounted) return;
                 try {
-                  await ref
-                      .read(posRepositoryProvider)
-                      .cancelHeldOrder(orderId: orderId);
+                  final pin = await requestManagerPin(
+                    context,
+                    ref,
+                    action: 'Approve order cancellation',
+                  );
+                  if (pin == null || !context.mounted) return;
+                  final repo = ref.read(posRepositoryProvider);
+                  if (pin.isEmpty) {
+                    await repo.cancelHeldOrder(orderId: orderId);
+                  } else {
+                    await repo.cancelHeldOrder(
+                      orderId: orderId,
+                      managerPin: pin,
+                      branchId: ref.read(currentBranchProvider)?.id,
+                    );
+                  }
                   await ref
                       .read(ordersListControllerProvider.notifier)
                       .refresh();
@@ -108,7 +124,13 @@ class OrderDetailScreen extends ConsumerWidget {
                 } catch (error) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Could not cancel order: $error')),
+                    SnackBar(
+                      content: Text(
+                        error is ApiException
+                            ? error.message
+                            : 'Could not cancel order. Refresh its status before trying again.',
+                      ),
+                    ),
                   );
                 }
               },
@@ -128,57 +150,61 @@ class OrderDetailScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: switch (state) {
-        OrderDetailLoading() => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        OrderDetailError(:final message) => _DetailErrorView(
-          message: message,
-          onRetry: () => ref
-              .read(orderDetailControllerProvider(orderId).notifier)
-              .refresh(),
-        ),
-        OrderDetailLoaded(:final order) => _OrderDetailBody(
-          order: order,
-          onAdjustCompleted: canAdjustCompleted
-              ? () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (dialogContext) => AlertDialog(
-                      title: const Text('Adjust completed order?'),
-                      content: const Text(
-                        'This changes a completed historical sale and updates inventory. '
-                        'The final total must stay equal to the amount already paid. '
-                        'Use the refund or additional payment workflow for payment changes.',
-                      ),
-                      actions: [
-                        pos_ui.SecondaryButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(false),
-                          child: const Text('Cancel'),
+      body: PageContent(
+        maxWidth: 800,
+        child: switch (state) {
+          OrderDetailLoading() => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          OrderDetailError(:final message) => _DetailErrorView(
+              message: message,
+              onRetry: () => ref
+                  .read(orderDetailControllerProvider(orderId).notifier)
+                  .refresh(),
+            ),
+          OrderDetailLoaded(:final order) => _OrderDetailBody(
+              order: order,
+              onAdjustCompleted: canAdjustCompleted
+                  ? () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Adjust completed order?'),
+                          content: const Text(
+                            'This changes a completed historical sale and updates inventory. '
+                            'The final total must stay equal to the amount already paid. '
+                            'Use the refund or additional payment workflow for payment changes.',
+                          ),
+                          actions: [
+                            pos_ui.SecondaryButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            pos_ui.PrimaryButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                              child: const Text('Adjust Order'),
+                            ),
+                          ],
                         ),
-                        pos_ui.PrimaryButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(true),
-                          child: const Text('Adjust Order'),
-                        ),
-                      ],
-                    ),
-                  );
+                      );
 
-                  if (confirmed != true || !context.mounted) return;
-                  final changed = await context.push<bool>(
-                    '/orders/$orderId/edit',
-                  );
-                  if (context.mounted && changed == true) {
-                    await ref
-                        .read(orderDetailControllerProvider(orderId).notifier)
-                        .refresh();
-                  }
-                }
-              : null,
-        ),
-      },
+                      if (confirmed != true || !context.mounted) return;
+                      final changed = await context.push<bool>(
+                        '/orders/$orderId/edit',
+                      );
+                      if (context.mounted && changed == true) {
+                        await ref
+                            .read(
+                                orderDetailControllerProvider(orderId).notifier)
+                            .refresh();
+                      }
+                    }
+                  : null,
+            ),
+        },
+      ),
     );
   }
 }
@@ -257,18 +283,14 @@ class _OrderDetailBody extends StatelessWidget {
               : Column(
                   children: [
                     for (final item in order.items)
-                      ListTile(
-                        title: Text(
-                          item.variantName != null
-                              ? '${item.productName} — ${item.variantName}'
-                              : item.productName,
-                        ),
-                        subtitle: Text(
-                          '${item.quantity} × ${currency.format(item.unitPrice)}',
-                        ),
-                        trailing: Text(
-                          currency.format(item.lineTotal),
-                          style: theme.textTheme.titleMedium,
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: CheckoutOrderLine(
+                          title: item.productName,
+                          variant: item.variantName,
+                          quantity: item.quantity,
+                          unitPrice: currency.format(item.unitPrice),
+                          lineTotal: currency.format(item.lineTotal),
                         ),
                       ),
                   ],
@@ -310,10 +332,9 @@ class _OrderDetailBody extends StatelessWidget {
                 children: [
                   Text('Payment', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  for (final payment
-                      in (order.payments.isNotEmpty
-                          ? order.payments
-                          : [order.payment!])) ...[
+                  for (final payment in (order.payments.isNotEmpty
+                      ? order.payments
+                      : [order.payment!])) ...[
                     _InfoRow(
                       label: 'Method',
                       value: paymentMethodLabel(payment.method),
@@ -347,29 +368,26 @@ class _OrderDetailBody extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.edit_note_outlined),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Completed sale',
-                          style: theme.textTheme.titleMedium,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Completed sale',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Adjustments are restricted and recorded in the audit log.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Adjustments are restricted and recorded in the audit log.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 12),
                   pos_ui.OutlinedButton.icon(
                     onPressed: onAdjustCompleted,
                     icon: const Icon(Icons.edit_outlined),
@@ -414,22 +432,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(value, style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
+    return DetailValue(label: label, value: value);
   }
 }
 
@@ -446,17 +449,13 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = emphasize
-        ? theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)
-        : theme.textTheme.bodyLarge;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: style),
-        Text(value, style: style),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: CheckoutAmountRow(
+        label: label,
+        value: value,
+        emphasized: emphasize,
+      ),
     );
   }
 }

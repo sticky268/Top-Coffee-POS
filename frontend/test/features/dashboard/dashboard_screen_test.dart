@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/app.dart';
 import 'package:top_coffee_pos/core/offline/order_sync.dart';
+import 'package:top_coffee_pos/core/printer/print_queue_providers.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
@@ -23,7 +24,8 @@ const _testUser = AuthenticatedUser(
   name: 'Alex',
   email: 'cashier@topcoffee.test',
   roles: ['manager'],
-  permissions: ['orders.create', 'reports.view'],
+  permissions: ['orders.create', 'orders.view', 'reports.view',
+    'inventory.view', 'products.view', 'customers.view'],
   branches: [BranchSummary(id: 1, name: 'Riverside', code: 'PP-01')],
 );
 
@@ -68,6 +70,8 @@ void main() {
     Future<ProviderContainer> pumpDashboard(WidgetTester tester) async {
       final container = ProviderContainer(
         overrides: [
+          pendingOrdersProvider.overrideWith((ref) => Stream.value([])),
+          printJobsProvider.overrideWith((ref) => Stream.value([])),
           authRepositoryProvider.overrideWithValue(authRepository),
           dashboardRepositoryProvider.overrideWithValue(dashboardRepository),
           currentBranchProvider.overrideWith((ref) {
@@ -144,6 +148,27 @@ void main() {
       expect(find.text('Reports'), findsOneWidget);
     });
 
+    testWidgets('quick actions respect the restored permission list', (tester) async {
+      when(() => authRepository.getCurrentUser()).thenAnswer((_) async =>
+        const AuthenticatedUser(
+          id: 1, name: 'Alex', email: 'cashier@topcoffee.test', roles: ['manager'],
+          permissions: ['orders.create', 'reports.view'],
+          branches: [BranchSummary(id: 1, name: 'Riverside', code: 'PP-01')],
+        ));
+      when(() => dashboardRepository.getStats()).thenAnswer((_) async => _stats);
+      when(() => dashboardRepository.getRecentOrders()).thenAnswer((_) async => _orders);
+      when(() => dashboardRepository.getSalesOverview()).thenAnswer((_) async => _sales);
+      final container = await pumpDashboard(tester);
+      await container.read(dashboardControllerProvider.notifier).initialization;
+      await tester.pump();
+      expect(find.text('New Order'), findsOneWidget);
+      expect(find.text('Reports'), findsOneWidget);
+      expect(find.text('Daily Operations'), findsOneWidget);
+      expect(find.text('Inventory'), findsNothing);
+      expect(find.text('Products'), findsNothing);
+      expect(find.text('Customers'), findsNothing);
+    });
+
     testWidgets(
         'shows a loading indicator while data is in flight, then the content',
         (tester) async {
@@ -188,7 +213,10 @@ void main() {
       expect(find.text('Could not load the dashboard'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
+      final retry = find.widgetWithText(FilledButton, 'Retry');
+      await tester.ensureVisible(retry);
+      await tester.pump();
+      await tester.tap(retry);
       await tester.pumpAndSettle();
 
       expect(find.text('\$1,248.50'), findsOneWidget);

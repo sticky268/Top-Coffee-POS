@@ -44,6 +44,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Check paper — confirmation unknown'), findsOneWidget);
+      expect(find.text('0 failed · 1 need paper check · 0 waiting'), findsOneWidget);
       expect(find.text('Retry'), findsNothing);
       final copy = find.widgetWithText(OutlinedButton, 'Reprint COPY');
       await tester.ensureVisible(copy);

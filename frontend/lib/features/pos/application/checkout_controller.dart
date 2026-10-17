@@ -34,6 +34,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   static const Uuid _uuid = Uuid();
 
   Future<void> submit({
+    Future<bool> Function(String uuid)? confirmSeparateSale,
     required List<CartItem> items,
     required String paymentMethod,
     required String orderType,
@@ -84,18 +85,47 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     state = const CheckoutSubmitting();
 
     try {
-      final confirmation = await _repository.createOrder(
-        requestUuid: requestUuid,
-        items: items,
-        paymentMethod: paymentMethod,
-        orderType: orderType,
-        tableId: tableId,
-        tendered: tendered,
-        splitPayments: splitPayments,
-        discountTotal: discountTotal,
-        customerId: customerId,
-        branchId: branchId,
-      );
+      final acknowledged = <String>[];
+      OrderConfirmation confirmation;
+      while (true) {
+        try {
+          confirmation = await _repository.createOrder(
+            acknowledgedPendingUuids: List.unmodifiable(acknowledged),
+            requestUuid: requestUuid,
+            items: items,
+            paymentMethod: paymentMethod,
+            orderType: orderType,
+            tableId: tableId,
+            tendered: tendered,
+            splitPayments: splitPayments,
+            discountTotal: discountTotal,
+            customerId: customerId,
+            branchId: branchId,
+          );
+          break;
+        } on UnresolvedOrderException catch (e) {
+          if (!mounted) return;
+          final approved = await confirmSeparateSale?.call(e.uuid) ?? false;
+          if (!mounted) return;
+          final currentAuth = _ref.read(authControllerProvider);
+          final currentUser =
+              currentAuth is AuthAuthenticated ? currentAuth.user.id : null;
+          if (currentUser != userId ||
+              _ref.read(currentBranchProvider)?.id != branchId) {
+            state = const CheckoutError(
+              'Cashier or branch changed. Review the order before submitting again.',
+            );
+            return;
+          }
+          if (!approved) {
+            state = const CheckoutError(
+              'A matching sale is awaiting confirmation. Check Pending Orders before collecting payment again.',
+            );
+            return;
+          }
+          acknowledged.add(e.uuid);
+        }
+      }
       _pendingRequests.remove(requestKey);
       if (!mounted) return;
       state = CheckoutSuccess(confirmation);
@@ -182,5 +212,5 @@ class CheckoutController extends StateNotifier<CheckoutState> {
 
 final checkoutControllerProvider =
     StateNotifierProvider.autoDispose<CheckoutController, CheckoutState>((ref) {
-      return CheckoutController(ref.watch(posRepositoryProvider), ref);
-    });
+  return CheckoutController(ref.watch(posRepositoryProvider), ref);
+});

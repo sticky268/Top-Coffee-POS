@@ -39,8 +39,10 @@ class AuthenticatedUser {
     required this.roles,
     required this.permissions,
     required this.branches,
+    this.allowedPaymentMethods = const ['cash', 'card', 'qr'],
     this.requireCashShift = false,
     this.requireManagerControls = false,
+    this.requireManagerPin = false,
     this.managerDiscountPercent = 10,
   });
 
@@ -50,20 +52,29 @@ class AuthenticatedUser {
   final List<String> roles;
   final List<String> permissions;
   final List<BranchSummary> branches;
-  final bool requireCashShift, requireManagerControls;
+  final List<String> allowedPaymentMethods;
+  final bool requireCashShift, requireManagerControls, requireManagerPin;
   final double managerDiscountPercent;
 
   bool get canApproveCheckout => hasRole('admin') || hasRole('manager');
 
   factory AuthenticatedUser.fromJson(Map<String, dynamic> json) {
     return AuthenticatedUser(
+      allowedPaymentMethods: List<String>.from(
+        json['allowed_payment_methods'] as List? ??
+            const ['cash', 'card', 'qr'],
+      ),
       requireCashShift:
           (json['checkout_controls'] as Map?)?['require_cash_shift'] == true,
       requireManagerControls:
           (json['checkout_controls'] as Map?)?['require_manager_controls'] ==
-          true,
-      managerDiscountPercent:
-          double.tryParse(
+              true,
+      requireManagerPin:
+          ((json['checkout_controls'] as Map?)?['require_manager_pin'] ??
+                  (json['checkout_controls']
+                      as Map?)?['require_manager_controls']) ==
+              true,
+      managerDiscountPercent: double.tryParse(
             '${(json['checkout_controls'] as Map?)?['manager_discount_percent']}',
           ) ??
           10,

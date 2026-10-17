@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:top_coffee_pos/features/auth/application/auth_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:top_coffee_pos/core/widgets/page_content.dart';
 import 'package:go_router/go_router.dart';
 import 'package:top_coffee_pos/features/pos/presentation/widgets/product_card.dart';
 import 'package:top_coffee_pos/features/pos/application/cart_controller.dart';
@@ -278,7 +279,7 @@ Future<void> rehearseShift(
               of: closedCard,
               matching: find.text('Difference'),
             ),
-            matching: find.byType(Wrap),
+            matching: find.byType(DetailValue),
           )
           .first,
       matching: find.text('\$0.00'),
@@ -293,7 +294,7 @@ Future<void> rehearseShift(
     }.entries) {
       final row = find.ancestor(
         of: find.descendant(of: closedCard, matching: find.text(entry.key)),
-        matching: find.byType(Wrap),
+        matching: find.byType(DetailValue),
       );
       expect(
         find.descendant(of: row, matching: find.text(entry.value)),
@@ -415,7 +416,7 @@ Future<void> rehearseReview(WidgetTester tester) async {
     final row = find
         .ancestor(
           of: find.descendant(of: card(), matching: find.text(label)),
-          matching: find.byType(Wrap),
+          matching: find.byType(DetailValue),
         )
         .first;
     expect(
@@ -843,7 +844,8 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
           'ingredient_id': 11,
           'expected_stock': 49.980,
           'counted_stock': 49.978,
-          'reason': 'Automated rehearsal: recover lost stock-count confirmation',
+          'reason':
+              'Automated rehearsal: recover lost stock-count confirmation',
         };
         if (resumeUuid.isEmpty) {
           await repo.write('/stock/count', values);
@@ -881,22 +883,36 @@ Future<void> rehearseOfflineRecovery(WidgetTester tester) async {
     await tester.pump();
     await waitForOperations(tester);
     final retry = find.widgetWithText(TextButton, 'Retry original request');
-    await tester.scrollUntilVisible(retry, 300,
-        scrollable: find.descendant(of: find.byType(OperationsScreen),
-            matching: find.byType(Scrollable)).first);
+    await tester.scrollUntilVisible(
+      retry,
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(OperationsScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(retry, findsOneWidget);
     await tester.ensureVisible(retry);
     await tester.pumpAndSettle();
     for (var i = 0; i < 12 && retry.hitTestable().evaluate().isEmpty; i++) {
       await tester.drag(
-        find.descendant(of: find.byType(OperationsScreen),
-            matching: find.byType(Scrollable)).first,
+        find
+            .descendant(
+              of: find.byType(OperationsScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
         const Offset(0, -250),
       );
       await tester.pumpAndSettle();
     }
-    expect(retry.hitTestable(), findsOneWidget,
-        reason: 'The retry button must be visible and tappable.');
+    expect(
+      retry.hitTestable(),
+      findsOneWidget,
+      reason: 'The retry button must be visible and tappable.',
+    );
     await tester.tap(retry.hitTestable());
     for (var i = 0; i < 200; i++) {
       await tester.pump(const Duration(milliseconds: 200));

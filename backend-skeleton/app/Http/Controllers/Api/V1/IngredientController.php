@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ingredient;
+use App\Models\Branch;
 use App\Models\RecipeItem;
 use App\Models\StockMovement;
 use App\Services\StockMovementService;
@@ -219,8 +220,15 @@ class IngredientController extends Controller
             ], 403);
         }
 
+        // Movement history is an inventory ledger: enforce tenant and branch
+        // membership even when a caller supplies a valid ingredient ID.
+        $accessibleBranches = Branch::query()->where('business_id', $request->user()->business_id)->select('id');
+        if (! $request->user()->can('branches.view-all')) {
+            $accessibleBranches->whereIn('id', $request->user()->branches()->select('branches.id'));
+        }
         $ingredient = Ingredient::query()
             ->with('unit:id,name,abbreviation')
+            ->whereIn('branch_id', $accessibleBranches)
             ->whereKey($id)
             ->first();
 
@@ -237,6 +245,7 @@ class IngredientController extends Controller
                 'type' => ['nullable', 'string', 'in:purchase,adjustment,wastage,sale_deduction'],
                 'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
                 'page' => ['nullable', 'integer', 'min:1'],
+                'movement_id' => ['nullable', 'integer', 'min:1'],
             ]
         );
 
@@ -253,6 +262,9 @@ class IngredientController extends Controller
         $movements = StockMovement::query()
             ->with('ingredient:id,name,unit_id')
             ->where('ingredient_id', $ingredient->id)
+            ->when($request->filled('movement_id'), function ($query) use ($request) {
+                $query->whereKey($request->integer('movement_id'));
+            })
             ->when($request->filled('type'), function ($query) use ($request) {
                 $query->where('type', $request->input('type'));
             })
@@ -295,7 +307,7 @@ class IngredientController extends Controller
             $request->all(),
             [
                 'type' => ['required', 'string', 'in:purchase,adjustment,wastage,sale_deduction'],
-                'quantity' => ['required', 'numeric', 'not_in:0'],
+                'quantity' => ['required', 'numeric', 'not_in:0', 'decimal:0,3'],
                 'reason' => ['nullable', 'string', 'max:255'],
             ]
         );
@@ -361,7 +373,6 @@ class IngredientController extends Controller
             ], 404);
         }
 
-        $ingredient->refresh();
         $ingredient->refresh();
         $ingredient->load('unit:id,name,abbreviation');
 

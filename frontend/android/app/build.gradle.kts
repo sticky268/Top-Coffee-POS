@@ -25,7 +25,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Set the permanent ID in private Gradle configuration before release.
         applicationId = providers.gradleProperty("POS_APPLICATION_ID").orElse("com.example.top_coffee_pos").get()
         if (releaseRequested && applicationId == "com.example.top_coffee_pos") {
             throw GradleException("Set a permanent POS_APPLICATION_ID before publishing a release.")
@@ -49,8 +49,7 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Release tasks require the private signing configuration checked above.
             signingConfig = signingConfigs.findByName("release")
         }
     }
@@ -68,4 +67,5 @@ flutter {
 
 dependencies {
     implementation(files("libs/printer-lib-3.2.0.aar"))
+    testImplementation("junit:junit:4.13.2")
 }

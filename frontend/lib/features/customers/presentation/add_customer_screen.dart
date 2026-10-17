@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exceptions.dart';
@@ -78,8 +80,9 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     } on ApiException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
 
@@ -99,62 +102,65 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Customer')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _nameController,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'Customer name',
-                border: OutlineInputBorder(),
+      body: PageContent(
+        maxWidth: 800,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  hintText: 'Customer name',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                hintText: 'Phone number',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  hintText: 'Phone number',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: 'Email address',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  hintText: 'Email address',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _notesController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Optional notes',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _notesController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  hintText: 'Optional notes',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            pos_ui.PrimaryButton(
-              onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
-                  ? null
-                  : _saveCustomer,
-              isLoading: _isSaving,
-              child: const Text('Save Customer'),
-            ),
-          ],
+              const SizedBox(height: 24),
+              pos_ui.PrimaryButton(
+                onPressed: _isSaving || !SubscriptionActionGuard.canModify(ref)
+                    ? null
+                    : _saveCustomer,
+                isLoading: _isSaving,
+                child: const Text('Save Customer'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/printer/cash_sale_drawer.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/offline/local_store.dart';
 import '../../../core/offline/order_outbox.dart';
@@ -58,7 +60,11 @@ abstract class PosRepository {
     int? branchId,
   });
 
-  Future<void> cancelHeldOrder({required int orderId});
+  Future<void> cancelHeldOrder({
+    required int orderId,
+    String? managerPin,
+    int? branchId,
+  });
 
   Future<OrderConfirmation> payHeldOrder({
     required int orderId,
@@ -73,6 +79,7 @@ abstract class PosRepository {
 
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
+    List<String> acknowledgedPendingUuids = const [],
     String? requestUuid,
     required String paymentMethod,
     required String orderType,
@@ -93,11 +100,37 @@ class ApiPosRepository implements PosRepository {
     int? Function()? userId,
     void Function()? onCachedCatalog,
     bool Function()? requireCashShift,
-  }) : _localStore = localStore,
-       _outbox = outbox,
-       _userId = userId,
-       _onCachedCatalog = onCachedCatalog,
-       _requireCashShift = requireCashShift;
+    Future<String?> Function(OrderConfirmation, int?, int?)? onCompleted,
+  })  : _localStore = localStore,
+        _outbox = outbox,
+        _userId = userId,
+        _onCachedCatalog = onCachedCatalog,
+        _requireCashShift = requireCashShift,
+        _onCompleted = onCompleted;
+
+  final Future<String?> Function(OrderConfirmation, int?, int?)? _onCompleted;
+
+  OrderConfirmation _afterPayment(
+    OrderConfirmation confirmation,
+    int? userId,
+    int? branchId,
+  ) {
+    final callback = _onCompleted;
+    if (callback == null || !confirmation.hasCompletedCashPayment) {
+      return confirmation;
+    }
+    Future<String?> open() async {
+      try {
+        return await callback(confirmation, userId, branchId);
+      } catch (_) {
+        return cashDrawerFailureMessage;
+      }
+    }
+
+    // Start after server confirmation without holding the paid-order UI hostage
+    // to printer connectivity. The result is displayed by the success views.
+    return confirmation.withCashDrawerResult(open());
+  }
 
   final ApiClient _apiClient;
   final LocalStore? _localStore;
@@ -139,8 +172,8 @@ class ApiPosRepository implements PosRepository {
         if (stored != null) {
           final snapshot = jsonDecode(stored) as Map<String, dynamic>;
           final age = DateTime.now().toUtc().difference(
-            DateTime.parse(snapshot['saved_at'] as String),
-          );
+                DateTime.parse(snapshot['saved_at'] as String),
+              );
           if (!age.isNegative && age < const Duration(hours: 24)) {
             _onCachedCatalog?.call();
             return snapshot['data'] as List;
@@ -153,8 +186,9 @@ class ApiPosRepository implements PosRepository {
 
   Future<OrderConfirmation> _submit(
     String endpoint,
-    Map<String, dynamic> payload,
-  ) async {
+    Map<String, dynamic> payload, {
+    List<String> acknowledgedPendingUuids = const [],
+  }) async {
     final userId = _userId?.call();
     final branchId = payload['branch_id'] as int?;
     PendingOrder? pending;
@@ -163,8 +197,7 @@ class ApiPosRepository implements PosRepository {
       payload = {...payload, 'shift_id': int.tryParse(shift ?? '')};
     }
     final payment = payload['payment'] as Map?;
-    final cash =
-        payment?['method'] == 'cash' ||
+    final cash = payment?['method'] == 'cash' ||
         (payment?['payments'] as List? ?? []).any(
           (part) => (part as Map)['method'] == 'cash',
         );
@@ -187,6 +220,8 @@ class ApiPosRepository implements PosRepository {
         branchId: branchId,
         endpoint: endpoint,
         payload: payload,
+        checkUnresolvedSales: endpoint == '/orders',
+        acknowledgedPendingUuids: acknowledgedPendingUuids,
       );
       payload = pending.payload;
     }
@@ -201,12 +236,15 @@ class ApiPosRepository implements PosRepository {
         if (pending != null) {
           await _outbox!.finish(pending, orderId: confirmation.orderId);
         }
-        return confirmation;
+        return endpoint == '/orders'
+            ? _afterPayment(confirmation, userId, branchId)
+            : confirmation;
       } catch (error) {
-        if (pending != null) {
-          await _outbox!.finish(pending, error: error);
+        final queued = pending;
+        if (queued != null) {
+          await _outbox!.finish(queued, error: error);
           if (error is NetworkException || error is ServerException) {
-            throw QueuedOrderException(pending.uuid);
+            throw QueuedOrderException(queued.uuid);
           }
         }
         rethrow;
@@ -374,8 +412,27 @@ class ApiPosRepository implements PosRepository {
   }
 
   @override
-  Future<void> cancelHeldOrder({required int orderId}) async {
-    await _apiClient.request((dio) => dio.post('/orders/$orderId/cancel'));
+  Future<void> cancelHeldOrder({
+    required int orderId,
+    String? managerPin,
+    int? branchId,
+  }) async {
+    final userId = _userId?.call();
+    await _apiClient.request(
+      (dio) => dio.post(
+        '/orders/$orderId/cancel',
+        data: {
+          if (userId != null) 'expected_user_id': userId,
+          if (branchId != null) 'branch_id': branchId,
+        },
+        options: Options(
+          headers: {
+            if (managerPin != null && managerPin.isNotEmpty)
+              'X-Manager-Pin': managerPin,
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -387,24 +444,36 @@ class ApiPosRepository implements PosRepository {
     List<Map<String, dynamic>>? splitPayments,
     int? branchId,
   }) async {
-    final response = await _apiClient.request(
-      (dio) => dio.post(
-        '/orders/$orderId/pay',
-        data: {
-          if (branchId != null) 'branch_id': branchId,
-          if (expectedTotal != null) 'expected_total': expectedTotal,
-          'payment': {
-            'method': paymentMethod,
-            if (tendered != null) 'tendered': tendered,
-            if (paymentMethod == 'split' && splitPayments != null)
-              'payments': splitPayments,
-          },
-        },
-      ),
-    );
+    final userId = _userId?.call();
+    Future<Response<dynamic>> send() => _apiClient.request(
+          (dio) => dio.post(
+            '/orders/$orderId/pay',
+            data: {
+              if (branchId != null) 'branch_id': branchId,
+              if (expectedTotal != null) 'expected_total': expectedTotal,
+              'payment': {
+                'method': paymentMethod,
+                if (tendered != null) 'tendered': tendered,
+                if (paymentMethod == 'split' && splitPayments != null)
+                  'payments': splitPayments,
+              },
+            },
+          ),
+        );
 
-    return OrderConfirmation.fromJson(
-      response.data['data'] as Map<String, dynamic>,
+    Response<dynamic> response;
+    try {
+      response = await send();
+    } on NetworkException {
+      // The server acknowledges matching retries without paying twice.
+      response = await send();
+    } on ServerException {
+      response = await send();
+    }
+    return _afterPayment(
+      OrderConfirmation.fromJson(response.data['data'] as Map<String, dynamic>),
+      userId,
+      branchId,
     );
   }
 
@@ -420,6 +489,7 @@ class ApiPosRepository implements PosRepository {
   @override
   Future<OrderConfirmation> createOrder({
     required List<CartItem> items,
+    List<String> acknowledgedPendingUuids = const [],
     String? requestUuid,
     required String paymentMethod,
     required String orderType,
@@ -430,36 +500,39 @@ class ApiPosRepository implements PosRepository {
     int? customerId,
     int? branchId,
   }) async {
-    return _submit('/orders', {
-      if (_outbox != null)
-        'expected_total': double.parse(
-          (items.fold<double>(0, (sum, item) => sum + item.lineTotal) -
-                  discountTotal)
-              .clamp(0, double.infinity)
-              .toStringAsFixed(2),
-        ),
-      if (requestUuid != null) 'uuid': requestUuid,
-      if (branchId != null) 'branch_id': branchId,
-      if (customerId != null) 'customer_id': customerId,
-      'order_type': orderType,
-      if (tableId != null) 'table_id': tableId,
-      'items': items
-          .map(
-            (item) => {
-              'product_id': item.product.id,
-              'product_variant_id': item.variant?.id,
-              'quantity': item.quantity,
-            },
-          )
-          .toList(),
-      'discount_total': discountTotal,
-      'payment': {
-        'method': paymentMethod,
-        if (tendered != null) 'tendered': tendered,
-        if (paymentMethod == 'split' && splitPayments != null)
-          'payments': splitPayments,
-      },
-    });
+    return _submit(
+        '/orders',
+        {
+          if (_outbox != null)
+            'expected_total': double.parse(
+              (items.fold<double>(0, (sum, item) => sum + item.lineTotal) -
+                      discountTotal)
+                  .clamp(0, double.infinity)
+                  .toStringAsFixed(2),
+            ),
+          if (requestUuid != null) 'uuid': requestUuid,
+          if (branchId != null) 'branch_id': branchId,
+          if (customerId != null) 'customer_id': customerId,
+          'order_type': orderType,
+          if (tableId != null) 'table_id': tableId,
+          'items': items
+              .map(
+                (item) => {
+                  'product_id': item.product.id,
+                  'product_variant_id': item.variant?.id,
+                  'quantity': item.quantity,
+                },
+              )
+              .toList(),
+          'discount_total': discountTotal,
+          'payment': {
+            'method': paymentMethod,
+            if (tendered != null) 'tendered': tendered,
+            if (paymentMethod == 'split' && splitPayments != null)
+              'payments': splitPayments,
+          },
+        },
+        acknowledgedPendingUuids: acknowledgedPendingUuids);
   }
 }
 
@@ -467,6 +540,7 @@ final posRepositoryProvider = Provider<PosRepository>((ref) {
   return ApiPosRepository(
     ref.watch(apiClientProvider),
     localStore: ref.watch(localStoreProvider),
+    onCompleted: ref.watch(cashSaleDrawerProvider).afterPayment,
     outbox: ref.watch(orderOutboxProvider),
     userId: () {
       final auth = ref.read(authControllerProvider);

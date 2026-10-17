@@ -232,6 +232,9 @@ class OrderController extends Controller
                     if (! $table->is_active) {
                         abort(422, 'The selected table is inactive.');
                     }
+                    if ($table->status !== 'available') {
+                        abort(409, 'The selected table is no longer available. Open its saved bill before paying.');
+                    }
                 }
 
                 $subtotal = 0;
@@ -284,6 +287,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -336,6 +341,44 @@ class OrderController extends Controller
 
                 app(\App\Services\LoyaltyService::class)->awardForOrder($order);
 
+                $payments = $order->payments()->get()->values();
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.created',
+                    $order,
+                    null,
+                    [
+                        'status' => $order->status,
+                        'branch_id' => $order->branch_id,
+                        'total' => (float) $order->total,
+                    ],
+                );
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.paid',
+                    $order,
+                    [
+                        'status' => 'held',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                    ],
+                    [
+                        'status' => 'completed',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                        'payments' => $payments->map(fn (Payment $payment) => [
+                            'method' => $payment->method,
+                            'amount' => (float) $payment->amount,
+                        ])->values()->all(),
+                    ],
+                );
+
                 return $order->load(['items', 'payments']);
             });
         } catch (UniqueConstraintViolationException $e) {
@@ -352,6 +395,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not create the order. Please try again.',
@@ -359,42 +403,6 @@ class OrderController extends Controller
         }
 
         $payments = $order->payments->values();
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.created',
-            $order,
-            null,
-            [
-                'status' => $order->status,
-                'branch_id' => $order->branch_id,
-                'total' => (float) $order->total,
-            ],
-        );
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.paid',
-            $order,
-            [
-                'status' => 'held',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-            ],
-            [
-                'status' => 'completed',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-                'payments' => $payments->map(fn (Payment $payment) => [
-                    'method' => $payment->method,
-                    'amount' => (float) $payment->amount,
-                ])->values()->all(),
-            ],
-        );
 
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
@@ -609,6 +617,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -694,6 +704,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not save the order. Please try again.',
@@ -826,6 +837,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -889,6 +902,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not update the order. Please try again.',
@@ -946,7 +960,8 @@ class OrderController extends Controller
         $user = $request->user();
 
         try {
-            $order = DB::transaction(function () use ($user, $id) {
+            $order = DB::transaction(function () use ($request, $user, $id) {
+                \App\Models\User::whereKey($user->id)->lockForUpdate()->firstOrFail();
                 $order = Order::query()
                     ->whereKey($id)
                     ->lockForUpdate()
@@ -975,7 +990,11 @@ class OrderController extends Controller
                     ->lockForUpdate()
                     ->first();
 
+                app(\App\Services\ManagerPin::class)->assertApproval($request, $order, 'void');
                 $order->update(['status' => 'cancelled']);
+                app(AuditLogService::class)->record($request, 'order.cancelled', $order,
+                    ['status' => 'held', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
+                    ['status' => 'cancelled', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id]);
 
                 if ($table) {
                     $otherHeldOrders = Order::query()
@@ -997,19 +1016,12 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not cancel the order. Please try again.',
             ], 500);
         }
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.cancelled',
-            $order,
-            ['status' => 'held', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
-            ['status' => 'cancelled', 'branch_id' => $order->branch_id, 'table_id' => $order->table_id],
-        );
 
         return response()->json([
             'success' => true,
@@ -1067,7 +1079,6 @@ class OrderController extends Controller
             ) {
                 $order = Order::query()
                     ->where('id', $id)
-                    ->where('status', 'held')
                     ->where('order_type', 'dine_in')
                     ->lockForUpdate()
                     ->first();
@@ -1080,6 +1091,36 @@ class OrderController extends Controller
                     && ! $user->branches()->where('branches.id', $order->branch_id)->exists()) {
                     abort(403, 'You do not have access to this branch.');
                 }
+                // The order ID is the payment idempotency key. A retry can only
+                // acknowledge the same cashier and the same persisted payment.
+                if ($order->status !== 'held') {
+                    abort_unless($order->status === 'completed', 409, 'This order is no longer payable.');
+                    if ($request->filled('expected_total')) {
+                        abort_if((int) round((float) $request->input('expected_total') * 100)
+                            !== (int) round((float) $order->total * 100), 409, 'The order total has changed.');
+                    }
+                    $payments = $order->payments()->orderBy('id')->lockForUpdate()->get();
+                    $parts = $paymentMethod === 'split' ? $request->input('payment.payments') : [[
+                        'method' => $paymentMethod, 'amount' => $order->total,
+                        'tendered' => $tenderedInput ?? $order->total,
+                    ]];
+                    $expected = array_map(fn ($part) => [
+                        $part['method'], (int) round((float) $part['amount'] * 100),
+                        $part['method'] === 'cash'
+                            ? (int) round((float) ($part['tendered'] ?? 0) * 100) : null,
+                    ], $parts);
+                    $actual = $payments->map(fn (Payment $payment) => [
+                        $payment->method, (int) round((float) $payment->amount * 100),
+                        $payment->method === 'cash'
+                            ? (int) round((float) $payment->tendered * 100) : null,
+                    ])->all();
+                    abort_unless($payments->isNotEmpty() && $actual === $expected
+                        && $payments->every(fn (Payment $payment) => $payment->status === 'completed'
+                            && (int) $payment->processed_by === (int) $user->id),
+                        409, 'This order already has a different payment. Review its receipt.');
+                    return ['order' => $order, 'payments' => $payments];
+                }
+
 
                 $table = \App\Models\RestaurantTable::query()
                     ->where('branch_id', $order->branch_id)
@@ -1112,6 +1153,7 @@ class OrderController extends Controller
                     $user->id,
                     true,
                 );
+                $payments = collect($payments)->values();
                 $order->update([
                     'status' => 'completed',
                     'completed_at' => now(),
@@ -1121,6 +1163,39 @@ class OrderController extends Controller
                     'status' => 'available',
                 ]);
 
+                app(\App\Services\LoyaltyService::class)->awardForOrder($order);
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.paid',
+                    $order,
+                    [
+                        'status' => 'held',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                    ],
+                    [
+                        'status' => 'completed',
+                        'branch_id' => $order->branch_id,
+                        'table_id' => $order->table_id,
+                        'customer_id' => $order->customer_id,
+                        'total' => (float) $order->total,
+                        'payments' => $payments->map(fn (Payment $payment) => [
+                            'id' => $payment->id,
+                            'method' => $payment->method,
+                            'amount' => (float) $payment->amount,
+                            'tendered' => $payment->tendered !== null
+                                ? (float) $payment->tendered
+                                : null,
+                            'change_due' => $payment->change_due !== null
+                                ? (float) $payment->change_due
+                                : null,
+                            'status' => $payment->status,
+                        ])->values()->all(),
+                    ],
+                );
                 return [
                     'order' => $order->fresh(),
                     'payments' => $payments,
@@ -1132,6 +1207,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not complete the payment. Please try again.',
@@ -1141,39 +1217,6 @@ class OrderController extends Controller
         $order = $result['order'];
         $payments = collect($result['payments'])->values();
 
-        app(\App\Services\LoyaltyService::class)->awardForOrder($order);
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.paid',
-            $order,
-            [
-                'status' => 'held',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-            ],
-            [
-                'status' => 'completed',
-                'branch_id' => $order->branch_id,
-                'table_id' => $order->table_id,
-                'customer_id' => $order->customer_id,
-                'total' => (float) $order->total,
-                'payments' => $payments->map(fn (Payment $payment) => [
-                    'id' => $payment->id,
-                    'method' => $payment->method,
-                    'amount' => (float) $payment->amount,
-                    'tendered' => $payment->tendered !== null
-                        ? (float) $payment->tendered
-                        : null,
-                    'change_due' => $payment->change_due !== null
-                        ? (float) $payment->change_due
-                        : null,
-                    'status' => $payment->status,
-                ])->values()->all(),
-            ],
-        );
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
 
@@ -1268,22 +1311,25 @@ class OrderController extends Controller
             abort(422, 'A split payment must contain at least two payment methods.');
         }
 
-        $splitTotal = round(
-            collect($payments)->sum(
-                fn (array $payment) => (float) $payment['amount']
-            ),
-            2
+        // Validate the same rounded cents that will be persisted per payment.
+        // Rounding only the aggregate can accept rows whose stored sum differs.
+        $splitCents = array_map(
+            fn (array $payment) => (int) round((float) $payment['amount'] * 100),
+            $payments,
         );
+        if (in_array(0, $splitCents, true)) {
+            abort(422, 'Each split payment must be at least one cent.');
+        }
 
-        if (abs($splitTotal - $total) > 0.001) {
+        if (array_sum($splitCents) !== (int) round($total * 100)) {
             abort(422, 'Split payment amounts must equal the order total.');
         }
 
         $createdPayments = [];
 
-        foreach ($payments as $paymentInput) {
+        foreach ($payments as $index => $paymentInput) {
             $method = $paymentInput['method'];
-            $amount = round((float) $paymentInput['amount'], 2);
+            $amount = $splitCents[$index] / 100;
             $portionTendered = $paymentInput['tendered'] ?? null;
             $changeDue = null;
 
@@ -1452,6 +1498,8 @@ class OrderController extends Controller
                     $resolvedItems[] = [
                         'product_id' => $product->id,
                         'product_variant_id' => $variantId,
+                        'product_name' => $product->name,
+                        'variant_name' => $variantId !== null ? $variant->name : null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
@@ -1516,6 +1564,7 @@ class OrderController extends Controller
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         } catch (Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Could not update the order. Please try again.',
@@ -1759,8 +1808,8 @@ class OrderController extends Controller
                     'id' => $item->id,
                     'product_id' => $item->product_id,
                     'product_variant_id' => $item->product_variant_id,
-                    'product_name' => $item->product?->name ?? 'Unknown product',
-                    'variant_name' => $item->variant?->name,
+                    'product_name' => $item->product_name ?? $item->product?->name ?? 'Unknown product',
+                    'variant_name' => $item->variant_name ?? $item->variant?->name,
                     'quantity' => $item->quantity,
                     'unit_price' => (float) $item->unit_price,
                     'line_total' => round((float) $item->unit_price * $item->quantity, 2),

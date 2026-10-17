@@ -31,6 +31,7 @@ class PaymentAdjustmentController extends Controller
         $request->validate(['amount' => 'required|numeric|gt:0|decimal:0,2', 'reason' => 'required|string|max:255', 'inventory_disposition' => 'required|in:consumed,restock,wastage']);
         $result = $ops->run($request, $branch, 'order.refund.'.$id, function () use ($request, $id, $branch) {
             $order = Order::whereKey($id)->where('branch_id', $branch)->lockForUpdate()->firstOrFail();
+            app(\App\Services\ManagerPin::class)->assertApproval($request, $order, 'refund');
             if ($request->user()->business->require_manager_controls) {
                 abort_unless(app(\App\Services\CheckoutControls::class)->manager($request->user()), 403, 'A manager must sign in to approve this payment adjustment.');
             }

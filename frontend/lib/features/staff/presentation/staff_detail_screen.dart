@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/subscription/subscription_action_guard.dart';
@@ -58,33 +60,36 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<StaffMember>(
-        future: _staffFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: PageContent(
+        maxWidth: 800,
+        child: FutureBuilder<StaffMember>(
+          future: _staffFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  snapshot.error.toString(),
-                  textAlign: TextAlign.center,
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    snapshot.error.toString(),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            );
-          }
+              );
+            }
 
-          final staff = snapshot.data;
+            final staff = snapshot.data;
 
-          if (staff == null) {
-            return const Center(child: Text('Staff member not found'));
-          }
+            if (staff == null) {
+              return const Center(child: Text('Staff member not found'));
+            }
 
-          return _StaffProfile(staff: staff);
-        },
+            return _StaffProfile(staff: staff);
+          },
+        ),
       ),
     );
   }
@@ -117,8 +122,9 @@ class _StaffProfile extends StatelessWidget {
         Center(
           child: Text(
             staff.name,
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(height: 8),
@@ -154,8 +160,9 @@ class _StaffProfile extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             'Branches',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Card(
@@ -201,21 +208,6 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
+    return DetailValue(label: label, value: value);
   }
 }

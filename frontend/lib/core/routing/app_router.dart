@@ -1,3 +1,4 @@
+import '../printer/cash_drawer_activity_screen.dart';
 import '../printer/print_queue_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -111,12 +112,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             AppShell(selectedRoute: state.uri.path, child: child),
         routes: [
           GoRoute(
+            path: '/drawer-activity',
+            builder: (context, state) => const CashDrawerActivityScreen(),
+          ),
+          GoRoute(
             path: '/print-queue',
             builder: (context, state) => const PrintQueueScreen(),
           ),
           GoRoute(
             path: '/operations',
-            builder: (context, state) => const OperationsScreen(),
+            builder: (context, state) => OperationsScreen(
+              initialSection: state.uri.queryParameters['section'],
+              initialShiftId: int.tryParse(state.uri.queryParameters['shift_id'] ?? ''),
+              initialDifferencesOnly: state.uri.queryParameters['review'] == 'differences',
+            ),
           ),
           GoRoute(
             path: '/orders/:id/financials',
@@ -267,7 +276,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/inventory',
-            builder: (context, state) => const InventoryScreen(),
+            builder: (context, state) => InventoryScreen(
+              initialLowStockOnly: state.uri.queryParameters['filter'] == 'low-stock',
+            ),
             routes: [
               GoRoute(
                 path: 'add',
@@ -284,7 +295,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'history',
                 builder: (context, state) {
                   final ingredient = state.extra as InventoryIngredient;
-                  return InventoryMovementHistoryScreen(ingredient: ingredient);
+                  return InventoryMovementHistoryScreen(
+                    ingredient: ingredient,
+                    initialMovementId: int.tryParse(state.uri.queryParameters['movement_id'] ?? ''),
+                  );
                 },
               ),
             ],

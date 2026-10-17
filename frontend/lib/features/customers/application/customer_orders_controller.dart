@@ -6,6 +6,7 @@ import 'customer_orders_state.dart';
 
 class CustomerOrdersController
     extends StateNotifier<CustomerOrdersState> {
+  int _generation = 0;
   CustomerOrdersController(
     this._repository,
     this._customerId,
@@ -27,7 +28,8 @@ class CustomerOrdersController
   }
 
   Future<void> _load() async {
-    if (!mounted) return;
+    final generation = ++_generation;
+    if (!mounted || generation != _generation) return;
 
     state = const CustomerOrdersLoading();
 
@@ -37,7 +39,7 @@ class CustomerOrdersController
         page: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = CustomerOrdersLoaded(
         orders: page.data,
@@ -46,7 +48,7 @@ class CustomerOrdersController
         total: page.total,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       state = CustomerOrdersError(
         e is ApiException ? e.message : 'Something went wrong',
@@ -55,6 +57,7 @@ class CustomerOrdersController
   }
 
   Future<void> loadMore() async {
+    final generation = _generation;
     final current = state;
 
     if (current is! CustomerOrdersLoaded) return;
@@ -68,7 +71,7 @@ class CustomerOrdersController
         page: current.currentPage + 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 
@@ -82,7 +85,7 @@ class CustomerOrdersController
         isLoadingMore: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
 
       final latest = state;
 
