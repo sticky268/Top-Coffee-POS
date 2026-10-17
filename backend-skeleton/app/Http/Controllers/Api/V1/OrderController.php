@@ -1550,13 +1550,30 @@ class OrderController extends Controller
                     $user->id,
                 );
 
-                return [
-                    'order' => $order->fresh()->load([
-                        'items',
-                        'payments',
-                    ]),
-                    'old_values' => $oldValues,
-                ];
+                $order = $order->fresh()->load([
+                    'items',
+                    'payments',
+                ]);
+
+                app(AuditLogService::class)->record(
+                    $request,
+                    'order.updated',
+                    $order,
+                    $oldValues,
+                    [
+                        'subtotal' => (float) $order->subtotal,
+                        'discount_total' => (float) $order->discount_total,
+                        'total' => (float) $order->total,
+                        'items' => $order->items->map(fn (OrderItem $item) => [
+                            'product_id' => $item->product_id,
+                            'product_variant_id' => $item->product_variant_id,
+                            'quantity' => (int) $item->quantity,
+                            'unit_price' => (float) $item->unit_price,
+                        ])->values()->all(),
+                    ],
+                );
+
+                return ['order' => $order];
             });
         } catch (HttpException $e) {
             return response()->json([
@@ -1572,26 +1589,7 @@ class OrderController extends Controller
         }
 
         $order = $result['order'];
-        $oldValues = $result['old_values'];
         $payments = $order->payments->values();
-
-        app(AuditLogService::class)->record(
-            $request,
-            'order.updated',
-            $order,
-            $oldValues,
-            [
-                'subtotal' => (float) $order->subtotal,
-                'discount_total' => (float) $order->discount_total,
-                'total' => (float) $order->total,
-                'items' => $order->items->map(fn (OrderItem $item) => [
-                    'product_id' => $item->product_id,
-                    'product_variant_id' => $item->product_variant_id,
-                    'quantity' => (int) $item->quantity,
-                    'unit_price' => (float) $item->unit_price,
-                ])->values()->all(),
-            ],
-        );
 
         $payment = $payments->first();
         $isSplit = $payments->count() > 1;
