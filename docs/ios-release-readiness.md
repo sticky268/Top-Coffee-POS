@@ -1,6 +1,6 @@
 # iOS setup, signing and acceptance
 
-This is preparation, not release approval. PR #11 stays draft and unmerged.
+This is preparation, not release approval. The application changes are merged.
 CI compile success does not certify signing, an installed application, physical
 hardware, backend readiness or App Store acceptance. Never store Apple passwords,
 private keys, provisioning secrets or real customer data in repository evidence.

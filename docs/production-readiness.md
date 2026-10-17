@@ -6,20 +6,21 @@ The [deployment/recovery kit](../deploy/README.md) provides Nginx/FPM/systemd
 references, encrypted backup/recovery, per-table runtime grants and local health
 signals. The [launch register](launch-work-register.md) tracks all ten ranked
 actions and the remaining host/operator/privacy/physical-device gates. These
-files do not deploy or certify a host. Exact final CI remains in draft PR #11.
+files do not deploy or certify a host.
 
-## Current candidate status — 15 October 2026
+## Current candidate status — 17 October 2026
 
-PR #11 remains draft and unmerged. The reviewed baseline `99f4563` passed
-backend/MySQL checks, Flutter analysis/tests, native transport checks, Android
-builds and emulator workflows. The native printer capture received 312,126
-bytes as 180 valid raster bands with one final cut. It used emulator loopback;
-it does not certify physical paper output, Khmer readability or drawer motion.
+PRs #11, #12 and #13 are merged. Current master is
+`e2af37c36d4ec03d015b09ab4cecc26e8c46495b`. The exact PR #13 head passed POS
+validation, Daily operations integration and iOS build verification before its
+squash merge. The owner subsequently confirmed iPhone login, receipt printing,
+Khmer output and receipt-setting behavior against the rehearsal environment.
+Those confirmations are device acceptance for that setup, not certification of
+a future production host or signed distribution build.
 
-The release-readiness follow-up tightens the read-only HTTPS URL and MySQL
-storage-engine checks. Final validation is recorded in PR #11's checks. See
-[release-readiness review and handoff](release-readiness-review.md) for verified
-fixes, evidence boundaries and the remaining environment/device work.
+See [release-readiness review and handoff](release-readiness-review.md) for the
+historical review and [pre-pilot acceptance](pre-pilot-checklist.md) for current
+deployment gates.
 
 Production is not ready for cutover: the target host/API URL, permanent signing
 identity, target-environment migration/restore evidence, monitoring delivery and

@@ -2,9 +2,10 @@
 
 The owner authorized continuing feasible remote work. This maps the ten ranked
 actions in `security-review-2026-10-15.md`, not ten unseen business decisions.
-Exact final CI is recorded in draft PR #11. No live deployment, merge, host/account
-purchase, real credential generation, DB grant change or external message occurs
-by preparing this kit.
+The implementation PRs are merged; current master is recorded in
+`pre-pilot-checklist.md`. No live deployment, host/account purchase, real
+credential generation, DB grant change or external message occurs by preparing
+this kit.
 
 | # | Workstream | Implemented/prepared | Evidence still needed to close the launch item |
 |---|---|---|---|

@@ -1,10 +1,11 @@
 # Reference deployment and recovery kit
 
 This prepares a **single-host Linux reference deployment** for the cash-only
-pilot. It does not select/purchase a host, register a domain, generate production
-credentials, install services, change grants, migrate a database or deploy this
-PR. PR #11 remains draft/unmerged. Actual target acceptance and owner deployment
-approval are required. See the [launch register](../docs/launch-work-register.md).
+pilot. The application changes are merged, but no production host or domain has
+been selected. This kit does not purchase a host, register a domain, generate
+production credentials, install services, change grants, migrate a database or
+deploy the application. Actual target acceptance and owner deployment approval
+are required. See the [launch register](../docs/launch-work-register.md).
 
 ## Layout and identities
 
