@@ -502,6 +502,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
 
   Widget _savedOperation(Map<String, dynamic> operation) =>
       _card('Saved action · ${savedOperationTitle(operation)}', [
+        for (final detail in savedOperationDetails(operation)) Text(detail),
         Text(
           operation['rejected'] == true
               ? 'The server confirmed that this action was rejected. '
