@@ -1653,6 +1653,50 @@ class OrderTest extends TestCase
             'quantity' => -20,
             'reason' => "Sale deduction for Order #{$orderId}",
         ]);
+
+        $movementCountBeforeFailedEdit = DB::table('stock_movements')
+            ->where('reason', 'like', "%Order #{$orderId}%")
+            ->count();
+
+        $auditLog = \Mockery::mock(\App\Services\AuditLogService::class);
+        $auditLog->shouldReceive('record')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+        $this->app->instance(\App\Services\AuditLogService::class, $auditLog);
+
+        $failedResponse = $this->actingAs($manager)->patchJson(
+            "/api/v1/orders/{$orderId}",
+            [
+                'items' => [
+                    [
+                        'product_id' => $oldProduct->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]
+        );
+
+        $failedResponse->assertStatus(500);
+
+        $order->refresh();
+        $this->assertSame(
+            $newProduct->id,
+            $order->items()->firstOrFail()->product_id
+        );
+        $this->assertSame(
+            100.0,
+            (float) $oldIngredient->fresh()->current_stock
+        );
+        $this->assertSame(
+            80.0,
+            (float) $newIngredient->fresh()->current_stock
+        );
+        $this->assertSame(
+            $movementCountBeforeFailedEdit,
+            DB::table('stock_movements')
+                ->where('reason', 'like', "%Order #{$orderId}%")
+                ->count()
+        );
     }
     public function test_editing_order_after_recipe_change_reverses_original_inventory_usage(): void
     {
