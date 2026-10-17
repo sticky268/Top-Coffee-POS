@@ -257,8 +257,9 @@ class ReceiptActionService {
     if (Platform.isIOS) {
       final payload =
           await _printerService.prepareReceiptWithSettings(receipt, settings);
-      if (receipt.refundedTotal > 0)
+      if (receipt.refundedTotal > 0) {
         payload['documentTitle'] = 'RECEIPT · REFUND RECORDED';
+      }
       return receiptRasterPdf(payload);
     }
     final payments = receipt.payments.isNotEmpty

@@ -25,7 +25,7 @@ Future<List<int>> receiptRasterPdf(Map<String, dynamic> payload) async {
           width: contentWidth,
           height: contentHeight),
     ));
-    return document.save();
+    return await document.save();
   } finally {
     image.dispose();
   }

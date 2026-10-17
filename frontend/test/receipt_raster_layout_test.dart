@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/core/printer/receipt_raster.dart';
+import 'package:top_coffee_pos/core/printer/receipt_raster.dart';
 
 void main() {
   final payload = <String, dynamic>{

@@ -38,8 +38,9 @@ class _ReceiptRasterPreviewState extends State<ReceiptRasterPreview> {
                     'Receipt preview could not load. Reopen receipt settings to retry.'));
           }
           final data = snapshot.data;
-          if (data == null)
+          if (data == null) {
             return const Center(child: CircularProgressIndicator());
+          }
           return Semantics(
               label: 'Receipt preview using the iPhone print layout',
               image: true,

@@ -259,8 +259,9 @@ Future<ui.Image> renderReceiptImage(Map<String, dynamic> payload) async {
             '${row['variant'] ?? ''}'.isNotEmpty) {
           content = '$content - ${row['variant']}';
         }
-        if (!header && (c.key == 'unitPrice' || c.key == 'lineTotal'))
+        if (!header && (c.key == 'unitPrice' || c.key == 'lineTotal')) {
           content = money(content);
+        }
         final p = text(content, c.width - 8,
             align: c.align,
             fontSize: header ? body - 4 : body,
@@ -278,10 +279,12 @@ Future<ui.Image> renderReceiptImage(Map<String, dynamic> payload) async {
       tableRow(item as Map);
     }
     rule();
-    if (value('subtotal').isNotEmpty)
+    if (value('subtotal').isNotEmpty) {
       pair('Subtotal', money(value('subtotal')));
-    if (value('discount').isNotEmpty)
+    }
+    if (value('discount').isNotEmpty) {
       pair('Discount', money(value('discount')));
+    }
     if (value('total').isNotEmpty) {
       rule(heavy: true);
       pair('TOTAL', money(value('total')),
@@ -296,8 +299,9 @@ Future<ui.Image> renderReceiptImage(Map<String, dynamic> payload) async {
               value('supplemental').isEmpty ? '0.00' : value('supplemental')));
       pair('Refunded',
           money(value('refunded').isEmpty ? '0.00' : value('refunded')));
-      if (value('netPaid').isNotEmpty)
+      if (value('netPaid').isNotEmpty) {
         pair('Net paid', money(value('netPaid')));
+      }
     }
     final payments = payload['payments'] as List? ?? const [];
     if (value('paymentMethod').isNotEmpty ||
@@ -305,17 +309,20 @@ Future<ui.Image> renderReceiptImage(Map<String, dynamic> payload) async {
         value('changeDue').isNotEmpty ||
         (payload['showSplitPayments'] == true && payments.length > 1)) {
       rule();
-      if (value('paymentMethod').isNotEmpty)
+      if (value('paymentMethod').isNotEmpty) {
         pair('Payment', value('paymentMethod').toUpperCase());
+      }
       if (payload['showSplitPayments'] == true && payments.length > 1) {
         for (final payment in payments) {
           pair('${payment['method']}', money('${payment['amount']}'));
         }
       }
-      if (value('tendered').isNotEmpty)
+      if (value('tendered').isNotEmpty) {
         pair('Tendered', money(value('tendered')));
-      if (value('changeDue').isNotEmpty)
+      }
+      if (value('changeDue').isNotEmpty) {
         pair('Change', money(value('changeDue')));
+      }
     }
     if (value('footer').trim().isNotEmpty) {
       rule();

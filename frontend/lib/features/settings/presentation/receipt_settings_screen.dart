@@ -247,7 +247,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              key: ValueKey('logoPosition' + logoPosition),
+              key: ValueKey('logoPosition$logoPosition'),
               initialValue: logoPosition,
               decoration: const InputDecoration(
                 labelText: 'Logo position',
@@ -268,7 +268,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              key: ValueKey('logoSize' + logoSize),
+              key: ValueKey('logoSize$logoSize'),
               initialValue: logoSize,
               decoration: const InputDecoration(
                 labelText: 'Logo size',
@@ -320,7 +320,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
           icon: Icons.text_fields_outlined,
           children: [
             DropdownButtonFormField<String>(
-              key: ValueKey('fontStyle' + fontStyle),
+              key: ValueKey('fontStyle$fontStyle'),
               initialValue: fontStyle,
               decoration: const InputDecoration(
                 labelText: 'Font style',
@@ -343,7 +343,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              key: ValueKey('businessFontSize' + businessFontSize),
+              key: ValueKey('businessFontSize$businessFontSize'),
               initialValue: businessFontSize,
               decoration: const InputDecoration(
                 labelText: 'Business name size',
@@ -362,7 +362,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              key: ValueKey('bodyFontSize' + bodyFontSize),
+              key: ValueKey('bodyFontSize$bodyFontSize'),
               initialValue: bodyFontSize,
               decoration: const InputDecoration(
                 labelText: 'Body font size',
@@ -381,7 +381,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              key: ValueKey('footerFontSize' + footerFontSize),
+              key: ValueKey('footerFontSize$footerFontSize'),
               initialValue: footerFontSize,
               decoration: const InputDecoration(
                 labelText: 'Footer font size',

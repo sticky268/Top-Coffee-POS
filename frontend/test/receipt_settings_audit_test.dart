@@ -5,11 +5,11 @@ import 'dart:ui' as ui;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../lib/core/printer/printer_service.dart';
-import '../lib/core/printer/receipt_raster.dart';
-import '../lib/core/printer/receipt_raster_pdf.dart';
-import '../lib/features/pos/domain/pos_models.dart';
-import '../lib/features/settings/data/receipt_settings.dart';
+import 'package:top_coffee_pos/core/printer/printer_service.dart';
+import 'package:top_coffee_pos/core/printer/receipt_raster.dart';
+import 'package:top_coffee_pos/core/printer/receipt_raster_pdf.dart';
+import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
+import 'package:top_coffee_pos/features/settings/data/receipt_settings.dart';
 
 ReceiptSettings settings(
     {Map<String, bool> flags = const {},
@@ -262,7 +262,7 @@ void main() {
 
   test('logo sizing ignores empty white/transparent padding', () {
     final bytes = Uint8List(10 * 10 * 4)..fillRange(0, 10 * 10 * 4, 255);
-    final offset = (4 * 10 + 5) * 4;
+    const offset = (4 * 10 + 5) * 4;
     bytes[offset] = bytes[offset + 1] = bytes[offset + 2] = 0;
     expect(receiptLogoInkBounds(ByteData.sublistView(bytes), 10, 10),
         const ui.Rect.fromLTWH(5, 4, 1, 1));
