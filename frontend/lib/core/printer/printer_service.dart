@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'ios_network_printer.dart';
+
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -10,7 +12,13 @@ import '../../features/settings/data/receipt_settings.dart';
 class PrinterService {
   static const MethodChannel _channel = MethodChannel('top_coffee_pos/printer');
 
+  static final IosNetworkPrinter _iosPrinter = IosNetworkPrinter();
+
   Future<void> _invoke(String method, [Map<String, dynamic>? arguments]) async {
+    if (Platform.isIOS) {
+      await _iosPrinter.invoke(method, arguments);
+      return;
+    }
     try {
       final accepted = await _channel.invokeMethod<bool>(method, arguments);
       if (accepted != true) {

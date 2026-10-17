@@ -61,6 +61,9 @@ flutter:
   uses-material-design: true
 
   fonts:
+    - family: TopCoffeeReceiptKhmer
+      fonts:
+        - asset: assets/fonts/NotoSansKhmerUI-Regular.ttf
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter.ttf
