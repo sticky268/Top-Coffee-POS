@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -74,7 +75,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
 
     if (!user.hasPermission('branches.manage')) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Branches')),
+        appBar: const PageAppBar(title: Text('Branches')),
         body: const PageContent(
           maxWidth: 1000,
           child: Center(
@@ -93,7 +94,7 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
     final state = ref.watch(branchListControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Branches'),
         actions: [
           pos_ui.IconButton(

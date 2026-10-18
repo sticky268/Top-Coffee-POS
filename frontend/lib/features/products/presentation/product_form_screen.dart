@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -186,7 +187,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
+      appBar: PageAppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
       body: PageContent(
         maxWidth: 800,
         child: SafeArea(

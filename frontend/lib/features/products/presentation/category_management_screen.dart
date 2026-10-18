@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -264,7 +265,7 @@ class _CategoryManagementScreenState
     final canModify = SubscriptionActionGuard.canModify(ref);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Categories')),
+      appBar: const PageAppBar(title: Text('Manage Categories')),
       body: PageContent(
         maxWidth: 1000,
         child: SafeArea(

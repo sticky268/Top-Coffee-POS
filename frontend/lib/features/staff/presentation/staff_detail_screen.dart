@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -37,7 +38,7 @@ class _StaffDetailScreenState extends ConsumerState<StaffDetailScreen> {
   Widget build(BuildContext context) {
     final canModify = SubscriptionActionGuard.canModify(ref);
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Staff Profile'),
         actions: [
           pos_ui.IconButton(

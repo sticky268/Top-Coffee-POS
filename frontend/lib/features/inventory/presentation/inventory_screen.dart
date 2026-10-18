@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -60,7 +61,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         user?.hasPermission('inventory.adjust') == true;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Inventory'),
         actions: [
           pos_ui.IconButton(

@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -142,7 +143,7 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Ingredient')),
+      appBar: const PageAppBar(title: Text('Edit Ingredient')),
       body: PageContent(
         maxWidth: 800,
         child: _isLoadingUnits

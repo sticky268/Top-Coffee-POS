@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/offline/order_sync.dart';
 import 'package:top_coffee_pos/core/routing/app_shell.dart';
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/widgets/dashboard_header.dart';
@@ -59,8 +60,9 @@ void main() {
             ),
             GoRoute(
               path: '/orders',
-              builder: (context, state) => const Scaffold(
-                body: SizedBox.expand(key: ValueKey('orders-body')),
+              builder: (context, state) => Scaffold(
+                appBar: const PageAppBar(title: Text('Orders')),
+                body: const SizedBox.expand(key: ValueKey('orders-body')),
               ),
             ),
           ],
@@ -87,8 +89,8 @@ void main() {
       expect(container.read(currentBranchProvider)?.id, 2);
       final contentTop =
           tester.getTopLeft(find.byKey(const ValueKey('orders-body'))).dy;
-      final expectedTop =
-          width < 900 ? tester.getBottomLeft(find.byType(AppBar)).dy : 0.0;
+      expect(find.byType(AppBar), findsOneWidget);
+      final expectedTop = tester.getBottomLeft(find.byType(AppBar)).dy;
       expect(contentTop, expectedTop);
 
       // Offline warnings remain available without a permanent branch row.

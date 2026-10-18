@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../auth/presentation/manager_pin_prompt.dart';
@@ -55,7 +56,7 @@ class OrderDetailScreen extends ConsumerWidget {
         : 'Order';
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: Text(appBarTitle),
         actions: [
           if (state is OrderDetailLoaded && state.order.status == 'completed')

@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -15,7 +16,7 @@ class CashDrawerActivityScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(cashDrawerScopeProvider);
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Drawer activity'),
         actions: [
           if (selected != null)

@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -20,7 +21,7 @@ class ReportsScreen extends ConsumerWidget {
     final state = ref.watch(reportsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: const PageAppBar(title: Text('Reports')),
       body: PageContent(
         maxWidth: 1200,
         child: switch (state) {

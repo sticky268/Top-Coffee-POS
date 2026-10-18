@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -297,7 +298,7 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: Text(widget.selectionOnly ? 'Select Table' : 'Dine-in Tables'),
         actions: [
           pos_ui.IconButton(

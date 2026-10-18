@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -77,7 +78,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final summaryState = ref.watch(expenseSummaryControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text(
           'Expenses',
           style: TextStyle(fontWeight: FontWeight.w700),

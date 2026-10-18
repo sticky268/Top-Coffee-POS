@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -78,7 +79,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Branch')),
+      appBar: const PageAppBar(title: Text('Add Branch')),
       body: PageContent(
         maxWidth: 800,
         child: SafeArea(

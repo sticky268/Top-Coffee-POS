@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -255,7 +256,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         context.go('/home');
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Review Order')),
+        appBar: const PageAppBar(title: Text('Review Order')),
         body: switch (checkoutState) {
           CheckoutQueued(:final uuid) => Center(
               child: SingleChildScrollView(

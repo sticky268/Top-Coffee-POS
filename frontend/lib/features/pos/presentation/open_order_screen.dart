@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../auth/presentation/manager_pin_prompt.dart';
@@ -104,7 +105,7 @@ class OpenOrderScreen extends ConsumerWidget {
         : 'Open Order';
 
     return Scaffold(
-      appBar: AppBar(title: Text(appBarTitle)),
+      appBar: PageAppBar(title: Text(appBarTitle)),
       body: switch (state) {
         OrderDetailLoading() => const Center(
             child: CircularProgressIndicator(),
@@ -1247,33 +1248,40 @@ class _ProductCatalogPanel extends StatelessWidget {
         :final visibleProducts,
         :final selectedCategoryId,
       ) =>
-        Column(
-          children: [
-            const SizedBox(height: 16),
-            ProductSearchField(
-              onChanged: (query) => context
-                  .findAncestorStateOfType<_OpenOrderContentState>()
-                  ?._updateCatalogSearch(query),
-            ),
-            const SizedBox(height: 8),
-            CategorySelector(
-              categories: categories,
-              selectedCategoryId: selectedCategoryId,
-              onSelected: (id) => context
-                  .findAncestorStateOfType<_OpenOrderContentState>()
-                  ?._updateCatalogCategory(id),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: visibleProducts.isEmpty
-                  ? const Center(child: Text('No products found.'))
-                  : ProductGrid(
-                      products: visibleProducts,
-                      crossAxisCount: crossAxisCount,
-                      onProductSelected: onProductSelected,
-                      onVariantSelected: onVariantSelected,
-                    ),
-            ),
+        CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+                child: Column(children: [
+              const SizedBox(height: 8),
+              ProductSearchField(
+                onChanged: (query) => context
+                    .findAncestorStateOfType<_OpenOrderContentState>()
+                    ?._updateCatalogSearch(query),
+              ),
+              const SizedBox(height: 8),
+              CategorySelector(
+                categories: categories,
+                selectedCategoryId: selectedCategoryId,
+                onSelected: (id) => context
+                    .findAncestorStateOfType<_OpenOrderContentState>()
+                    ?._updateCatalogCategory(id),
+              ),
+              const SizedBox(height: 8),
+            ])),
+            if (visibleProducts.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: Text('No products found.')),
+              )
+            else
+              ProductGrid(
+                products: visibleProducts,
+                crossAxisCount: crossAxisCount,
+                sliver: true,
+                onProductSelected: onProductSelected,
+                onVariantSelected: onVariantSelected,
+              ),
           ],
         ),
     };

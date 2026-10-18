@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -179,7 +180,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Branch')),
+        appBar: const PageAppBar(title: Text('Edit Branch')),
         body: const PageContent(
           maxWidth: 800,
           child: Center(child: CircularProgressIndicator()),
@@ -188,7 +189,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Edit Branch'),
         actions: [
           pos_ui.IconButton(
