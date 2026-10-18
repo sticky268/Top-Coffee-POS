@@ -67,6 +67,9 @@ void main() {
     await tester.tap(find.byTooltip('Refresh'));
     await tester.pumpAndSettle();
     expect(firstPageReads, 2);
+    // Refresh may retain the reading position; search remains reachable above.
+    await tester.ensureVisible(find.byType(TextField));
+    await tester.pumpAndSettle();
     expect(find.byType(TextField).hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
