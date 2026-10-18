@@ -51,6 +51,9 @@ SalesReport salesReportFixture(
             'total': month == 1 ? total : '0.00'
           }
       ],
+      'hourly_sales': [],
+      'top_products': [],
+      'order_types': [],
       'payment_methods': [
         {
           'method': 'cash',

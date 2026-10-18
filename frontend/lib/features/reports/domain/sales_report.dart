@@ -79,6 +79,9 @@ class SalesReport {
         comparisons = Map<String, dynamic>.from(data['comparisons'] as Map),
         timeline = maps(data['timeline']),
         paymentMethods = maps(data['payment_methods']),
+        hourlySales = maps(data['hourly_sales']),
+        topProducts = maps(data['top_products']),
+        orderTypes = maps(data['order_types']),
         cashFlow = Map<String, dynamic>.from(data['cash_flow'] as Map),
         shifts = Map<String, dynamic>.from(data['shifts'] as Map) {
     for (final key in moneyKeys) {
@@ -103,6 +106,9 @@ class SalesReport {
   final Map<String, dynamic> comparisons;
   final List<Map<String, dynamic>> timeline;
   final List<Map<String, dynamic>> paymentMethods;
+  final List<Map<String, dynamic>> hourlySales;
+  final List<Map<String, dynamic>> topProducts;
+  final List<Map<String, dynamic>> orderTypes;
   final Map<String, dynamic> cashFlow;
   final Map<String, dynamic> shifts;
   ReportAmount amount(String key) => ReportAmount.parse(summary[key]);

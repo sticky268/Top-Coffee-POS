@@ -47,21 +47,23 @@ class _SalesReportDetailsScreenState
         body: FutureBuilder<Map<String, dynamic>>(
             future: request,
             builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done)
+              if (snapshot.connectionState != ConnectionState.done) {
                 return const Center(child: CircularProgressIndicator());
-              if (snapshot.hasError)
+              }
+              if (snapshot.hasError) {
                 return Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Text('Could not load source records.'),
                   TextButton(onPressed: refresh, child: const Text('Retry')),
                 ]));
+              }
               final data = snapshot.requireData;
               final rows = SalesReport.maps(data['rows']);
               final total = data['total'] as int;
               return ListView(padding: const EdgeInsets.all(16), children: [
                 Text('$total source record(s) · page $page'),
                 const Text(
-                    'Amounts below show the original order total or transaction amount. Expand an order to review its gross, discounts and tax.'),
+                    'Amounts below match the selected metric or transaction. Average order shows its source order totals. Expand a record to review the breakdown.'),
                 if (rows.isEmpty)
                   const Padding(
                       padding: EdgeInsets.all(24),
@@ -78,6 +80,7 @@ class _SalesReportDetailsScreenState
                             subtitle: Text(
                                 'UTC: ${row['occurred_at'] ?? row['legacy_created_at'] ?? ''}${row['reason'] == null ? '' : '\n${row['reason']}'}')),
                         for (final field in const {
+                          'order_total': 'Original order total',
                           'gross_sales': 'Gross',
                           'discounts': 'Discounts',
                           'tax': 'Tax',

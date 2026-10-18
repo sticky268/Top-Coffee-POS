@@ -11,8 +11,9 @@ class SalesReportsRepository {
     final response = await _api.request(
         (dio) => dio.get('/reports/sales', queryParameters: parameters));
     final data = response.data['data'];
-    if (data is! Map)
+    if (data is! Map) {
       throw const FormatException('Invalid sales report response');
+    }
     return Map<String, dynamic>.from(data);
   }
 

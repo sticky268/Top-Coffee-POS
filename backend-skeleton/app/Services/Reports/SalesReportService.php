@@ -126,6 +126,9 @@ final class SalesReportService
                 'currency' => 'USD'],
             'summary' => $summary, 'comparisons' => $comparisons,
             'timeline' => $this->timeline($c),
+            'hourly_sales' => $this->hourly($c),
+            'top_products' => $this->topProducts($orders),
+            'order_types' => $this->orderTypes($orders),
             'payment_methods' => array_map(function ($m) { unset($m['collected_cents']); return $m; }, $methods),
             'cash_flow' => $this->cashFlow($c),
             'shifts' => $this->shifts($c),
@@ -137,7 +140,7 @@ final class SalesReportService
         $refunds = DB::table('payment_refunds')->selectRaw('payment_id, SUM('.ReportMoney::sql('amount').') AS refund_cents')->groupBy('payment_id');
         return $this->payments($orders)->leftJoinSub($refunds, 'r', 'r.payment_id', '=', 'payments.id')
             ->selectRaw('payments.method, COUNT(*) AS count, SUM('.ReportMoney::sql('payments.amount').') AS collected_cents, SUM(COALESCE(r.refund_cents, 0)) AS refund_cents')
-            ->groupBy('payments.method')->orderBy('payments.method')->get()->map(fn ($r) => [
+            ->groupBy('payments.method')->orderByRaw('CAST(payments.method AS CHAR)')->get()->map(fn ($r) => [
                 'method' => $r->method, 'count' => (int) $r->count,
                 'collected_cents' => (int) $r->collected_cents,
                 'collected' => ReportMoney::decimal((int) $r->collected_cents),
@@ -169,6 +172,59 @@ final class SalesReportService
         $totals = $this->selected($c, $p->from, $p->to)->selectRaw(implode(', ', $expressions), $bindings)->first();
         return array_map(fn ($i) => ['date_from' => $buckets[$i][0], 'date_to' => $buckets[$i][1],
             'total' => ReportMoney::decimal((int) ($totals->{"bucket_$i"} ?? 0))], array_keys($buckets));
+    }
+
+    private function topProducts(Builder $orders): array
+    {
+        return DB::table('order_items')->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->whereIn('order_items.order_id', (clone $orders)->select('orders.id'))
+            ->selectRaw("order_items.product_id, COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product') AS product_name, SUM(order_items.quantity) AS quantity, SUM(".ReportMoney::sql('order_items.unit_price')." * order_items.quantity) AS cents")
+            ->groupBy('order_items.product_id', DB::raw("COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product')"))
+            ->orderByDesc('quantity')->orderBy('product_name')->limit(10)->get()->map(fn ($r) => [
+                'product_id' => $r->product_id, 'product_name' => $r->product_name,
+                'quantity' => (int) $r->quantity, 'total' => ReportMoney::decimal((int) $r->cents),
+            ])->all();
+    }
+
+    private function orderTypes(Builder $orders): array
+    {
+        return (clone $orders)->selectRaw('orders.order_type, COUNT(*) AS count, SUM('.ReportMoney::sql('orders.total').') AS cents')
+            ->groupBy('orders.order_type')->orderBy('orders.order_type')->get()->map(fn ($r) => [
+                'type' => $r->order_type, 'count' => (int) $r->count, 'total' => ReportMoney::decimal((int) $r->cents),
+            ])->all();
+    }
+
+    private function hourly(array $c): array
+    {
+        $p = $c['period'];
+        if ($p->from !== $p->to || $c['branches']->isEmpty()) return [];
+        $buckets = [];
+        foreach ($c['branches'] as $branch) {
+            $timezone = $branch->timezone ?: 'UTC';
+            [$start, $until] = ReportPeriod::window($p->from, $p->to, $timezone);
+            $windows = [];
+            for ($hour = CarbonImmutable::parse($start, 'UTC'); $hour->toDateTimeString() < $until; $hour = $hour->addHour()) {
+                $windows[] = [$hour, $hour->setTimezone($timezone)->format('H:00')];
+            }
+            $counts = array_count_values(array_column($windows, 1));
+            foreach ($windows as [$hour, $label]) {
+                // Keep both DST hours visible for one branch. Combined reports combine matching local hours.
+                if ($c['branches']->count() === 1 && $counts[$label] > 1) $label .= ' '.$hour->setTimezone($timezone)->format('P');
+                $buckets[$label][] = [$branch->id, $hour->toDateTimeString(), $hour->addHour()->toDateTimeString()];
+            }
+        }
+        $expressions = $bindings = [];
+        $labels = array_keys($buckets);
+        foreach (array_values($buckets) as $i => $windows) {
+            $conditions = [];
+            foreach ($windows as [$branch, $start, $until]) {
+                $conditions[] = '(orders.branch_id = ? AND COALESCE(orders.completed_at, orders.created_at) >= ? AND COALESCE(orders.completed_at, orders.created_at) < ?)';
+                array_push($bindings, $branch, $start, $until);
+            }
+            $expressions[] = 'SUM(CASE WHEN '.implode(' OR ', $conditions).' THEN '.ReportMoney::sql('orders.total')." ELSE 0 END) AS hour_$i";
+        }
+        $totals = $this->selected($c, $p->from, $p->to)->selectRaw(implode(', ', $expressions), $bindings)->first();
+        return array_map(fn ($i) => ['hour' => $labels[$i], 'total' => ReportMoney::decimal((int) ($totals->{"hour_$i"} ?? 0))], array_keys($labels));
     }
 
     private function eventQuery(array $c, bool $refund = false): Builder
@@ -254,15 +310,23 @@ final class SalesReportService
             if ($metric === 'supplemental_sales') $q->where('orders.supplemental_total', '>', 0);
             $q->select('orders.id AS id', 'orders.id AS order_id', 'orders.order_number', 'orders.branch_id',
                 'orders.subtotal AS gross_sales', 'orders.discount_total AS discounts', 'orders.tax_total AS tax',
-                'orders.total AS amount', 'orders.supplemental_total AS supplemental_sales',
+                'orders.total AS order_total', 'orders.supplemental_total AS supplemental_sales',
                 'orders.completed_at AS occurred_at', 'orders.created_at AS legacy_created_at');
+            $column = ['gross_sales' => 'orders.subtotal', 'discounts' => 'orders.discount_total',
+                'tax' => 'orders.tax_total', 'supplemental_sales' => 'orders.supplemental_total'][$metric] ?? 'orders.total';
+            if ($metric === 'net_sales') {
+                $q->selectRaw(ReportMoney::sql('orders.total').' + '.ReportMoney::sql('orders.supplemental_total').
+                    ' - (SELECT COALESCE(SUM('.ReportMoney::sql('payment_refunds.amount').'), 0) FROM payment_refunds JOIN payments ON payments.id = payment_refunds.payment_id WHERE payments.order_id = orders.id AND '.self::SETTLED.') AS net_cents');
+            }
+            $q->addSelect(DB::raw($column.' AS amount'));
         }
         $total = (clone $q)->count();
         $page = (int) ($input['page'] ?? 1);
         $rows = $q->orderByDesc($kind === 'refunds' ? 'payment_refunds.id' : ($kind === 'payments' ? 'payments.id' : 'orders.id'))
             ->offset(($page - 1) * 50)->limit(50)->get()->map(function ($r) {
                 $r = (array) $r;
-                foreach (['amount', 'gross_sales', 'discounts', 'tax', 'supplemental_sales'] as $key) {
+                if (isset($r['net_cents'])) { $r['amount'] = ReportMoney::decimal((int) $r['net_cents']); unset($r['net_cents']); }
+                foreach (['amount', 'order_total', 'gross_sales', 'discounts', 'tax', 'supplemental_sales'] as $key) {
                     if (isset($r[$key])) $r[$key] = ReportMoney::decimal(ReportMoney::cents((string) $r[$key]));
                 }
                 return $r;

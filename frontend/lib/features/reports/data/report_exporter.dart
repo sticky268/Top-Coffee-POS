@@ -119,7 +119,7 @@ class ReportExporter {
             '</Relationships>');
     final data = StringBuffer('<worksheet xmlns="$main"><cols>'
         '<col min="1" max="1" width="48" customWidth="1"/>'
-        '<col min="2" max="3" width="24" customWidth="1"/>'
+        '<col min="2" max="4" width="24" customWidth="1"/>'
         '</cols><sheetData>');
     for (var r = 0; r < rows.length; r++) {
       final rowNumber = r + 1;
@@ -180,7 +180,11 @@ class ReportExporter {
             pw.TableHelper.fromTextArray(
               data: data
                   .map((row) => List.generate(
-                      3, (i) => i < row.length ? row[i].toString() : ''))
+                      data.fold<int>(
+                          0,
+                          (width, row) =>
+                              row.length > width ? row.length : width),
+                      (i) => i < row.length ? row[i].toString() : ''))
                   .toList(),
               cellStyle: const pw.TextStyle(fontSize: 9),
               cellAlignment: pw.Alignment.centerLeft,

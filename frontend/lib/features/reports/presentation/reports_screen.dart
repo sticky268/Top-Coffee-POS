@@ -135,9 +135,10 @@ class _ReportContent extends ConsumerWidget {
                               DropdownMenuItem(value: y, child: Text('$y'))
                           ],
                           onChanged: (y) {
-                            if (y != null)
+                            if (y != null) {
                               controller.select(
                                   query.periodSelection('year', year: y));
+                            }
                           })),
                   OutlinedButton.icon(
                       onPressed: () => controller
@@ -241,6 +242,38 @@ class _ReportContent extends ConsumerWidget {
                           }
                         }),
                 ]),
+            if (report.hourlySales.isNotEmpty)
+              _Section(title: 'Hourly sales', children: [
+                const Text(
+                    'Branch-local hour · paid order totals before later adjustments.'),
+                ExpansionTile(
+                    title: const Text('Show hourly breakdown'),
+                    children: [
+                      for (final row in report.hourlySales)
+                        _AmountLine(row['hour'] as String, row['total']),
+                    ]),
+              ]),
+            _Section(title: 'Top-Selling Products', children: [
+              const Text(
+                  'Quantity ranking. Sales before order discounts; names follow saved sale records.'),
+              if (report.topProducts.isEmpty)
+                const Text('No product sales in this selection.'),
+              for (final row in report.topProducts)
+                ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(row['product_name'] as String),
+                    subtitle: Text(
+                        '${row['quantity']} sold · ${_money(row['total'])}')),
+            ]),
+            _Section(title: 'Order types', children: [
+              for (final row in report.orderTypes)
+                ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${row['type']} · ${row['count']} orders'),
+                    subtitle: Text(_money(row['total']))),
+              if (report.orderTypes.isEmpty)
+                const Text('No paid orders in this selection.'),
+            ]),
             _Section(title: 'Payments on selected sales', children: [
               if (report.paymentMethods.isEmpty)
                 const Text('No settled payments in this selection.'),
@@ -446,9 +479,10 @@ class _SalesExportsState extends State<_SalesExports> {
         file.name
       ], subject: 'Top Coffee POS sales report', sharePositionOrigin: origin));
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Could not export this report. Please try again.')));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -507,6 +541,26 @@ List<List<Object>> salesReportRows(SalesReport report) => [
       for (final row in report.timeline)
         [
           '${row['date_from']} – ${row['date_to']}',
+          ReportAmount.parse(row['total'])
+        ],
+      [],
+      ['Hourly sales', 'Order totals (USD)'],
+      for (final row in report.hourlySales)
+        [row['hour'] as String, ReportAmount.parse(row['total'])],
+      [],
+      ['Top products before discounts', 'Quantity', 'Sales (USD)'],
+      for (final row in report.topProducts)
+        [
+          row['product_name'] as String,
+          row['quantity'] as int,
+          ReportAmount.parse(row['total'])
+        ],
+      [],
+      ['Order type', 'Count', 'Order totals (USD)'],
+      for (final row in report.orderTypes)
+        [
+          row['type'] as String,
+          row['count'] as int,
           ReportAmount.parse(row['total'])
         ],
       [],
