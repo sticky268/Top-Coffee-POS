@@ -179,9 +179,9 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: const PageAppBar(title: Text('Edit Branch')),
-        body: const PageContent(
+      return const Scaffold(
+        appBar: PageAppBar(title: Text('Edit Branch')),
+        body: PageContent(
           maxWidth: 800,
           child: Center(child: CircularProgressIndicator()),
         ),

@@ -95,9 +95,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final user = authState.user;
 
     if (!user.hasPermission('users.manage')) {
-      return Scaffold(
-        appBar: const PageAppBar(title: Text('Staff & Permissions')),
-        body: const PageContent(
+      return const Scaffold(
+        appBar: PageAppBar(title: Text('Staff & Permissions')),
+        body: PageContent(
           maxWidth: 1000,
           child: Center(
             child: Padding(

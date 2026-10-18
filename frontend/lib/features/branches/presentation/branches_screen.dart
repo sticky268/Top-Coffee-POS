@@ -74,9 +74,9 @@ class _BranchesScreenState extends ConsumerState<BranchesScreen> {
     final user = authState.user;
 
     if (!user.hasPermission('branches.manage')) {
-      return Scaffold(
-        appBar: const PageAppBar(title: Text('Branches')),
-        body: const PageContent(
+      return const Scaffold(
+        appBar: PageAppBar(title: Text('Branches')),
+        body: PageContent(
           maxWidth: 1000,
           child: Center(
             child: Padding(

@@ -60,9 +60,9 @@ void main() {
             ),
             GoRoute(
               path: '/orders',
-              builder: (context, state) => Scaffold(
-                appBar: const PageAppBar(title: Text('Orders')),
-                body: const SizedBox.expand(key: ValueKey('orders-body')),
+              builder: (context, state) => const Scaffold(
+                appBar: PageAppBar(title: Text('Orders')),
+                body: SizedBox.expand(key: ValueKey('orders-body')),
               ),
             ),
           ],

@@ -802,9 +802,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       );
     }
     if (ref.watch(currentBranchProvider) == null) {
-      return Scaffold(
-        appBar: const PageAppBar(title: Text('Daily Operations')),
-        body: const PageContent(
+      return const Scaffold(
+        appBar: PageAppBar(title: Text('Daily Operations')),
+        body: PageContent(
           maxWidth: 1000,
           child: Center(
             child: Padding(
