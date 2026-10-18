@@ -114,7 +114,9 @@ class SalesReportsTest extends TestCase
         $this->getJson($this->url(['period' => 'custom', 'date_from' => '2026-10-20', 'date_to' => '2026-10-20']))
             ->assertOk()->assertJsonPath('data.summary.refunds', '0.00')->assertJsonPath('data.cash_flow.refunds', '4.00');
         $this->getJson($this->url(['period' => 'custom', 'date_from' => '2026-10-20', 'date_to' => '2026-10-20', 'detail' => 'event_refunds']))
-            ->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.rows.0.amount', '4.00')->assertJsonPath('data.rows.0.order_id', $order);
+            ->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.rows.0.amount', '4.00')->assertJsonPath('data.rows.0.order_id', $order)
+            ->assertJsonPath('data.rows.0.branch_name', $this->branch->name)
+            ->assertJsonPath('data.rows.0.occurred_at_local', '2026-10-20 09:00:00 +07:00');
     }
 
     public function test_drawer_uses_whole_shift_and_old_sale_refunds_without_card_money(): void
@@ -200,6 +202,8 @@ class SalesReportsTest extends TestCase
         $rows = $this->getJson($this->url($range + ['detail' => 'orders', 'metric' => 'net_sales']))
             ->assertOk()->json('data.rows');
         $this->assertSame(850, array_sum(array_map(fn ($r) => ReportMoney::cents($r['amount']), $rows)));
+        $local = collect($rows)->keyBy('order_id');
+        $this->assertSame('2026-11-01 01:30:00 -06:00', $local[$id]['occurred_at_local']);
     }
 
     public function test_month_to_date_comparison_caps_previous_month_and_permissions_are_required(): void

@@ -71,14 +71,14 @@ class _SalesReportDetailsScreenState
                 for (final row in rows)
                   ExpansionTile(
                       title: Text(
-                          'Order ${row['order_number'] ?? row['order_id']} · Branch ${row['branch_id']}'),
+                          'Order ${row['order_number'] ?? row['order_id']} · ${row['branch_name']}'),
                       subtitle: Text(
                           '${ReportAmount.parse(row['amount']).money}${row['method'] == null ? '' : ' · ${row['method']}'}'),
                       children: [
                         ListTile(
                             title: Text('Source order ID: ${row['order_id']}'),
                             subtitle: Text(
-                                'UTC: ${row['occurred_at'] ?? row['legacy_created_at'] ?? ''}${row['reason'] == null ? '' : '\n${row['reason']}'}')),
+                                '${row['occurred_at_local'] ?? ''} · ${row['timezone']}${row['reason'] == null ? '' : '\n${row['reason']}'}')),
                         for (final field in const {
                           'order_total': 'Original order total',
                           'gross_sales': 'Gross',

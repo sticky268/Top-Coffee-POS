@@ -134,6 +134,9 @@ void main() {
               'order_id': 42,
               'order_number': 7,
               'branch_id': 21,
+              'branch_name': 'Riverside',
+              'timezone': 'Asia/Phnom_Penh',
+              'occurred_at_local': '2026-10-19 08:00:00 +07:00',
               'amount': '12.34',
               'gross_sales': '12.34',
               'tax': '0.00',
@@ -170,7 +173,7 @@ void main() {
     await tester.tap(find.text('Net sales').hitTestable());
     await tester.pumpAndSettle();
     expect(find.text('Report source records'), findsOneWidget);
-    expect(find.text('Order 7 · Branch 21'), findsOneWidget);
+    expect(find.text('Order 7 · Riverside'), findsOneWidget);
     final source = verify(() => repository.details(captureAny(), any(),
         kind: 'orders',
         metric: 'net_sales',

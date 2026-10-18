@@ -338,9 +338,15 @@ final class SalesReportService
         }
         $total = (clone $q)->count();
         $page = (int) ($input['page'] ?? 1);
+        $branches = $c['branches']->keyBy('id');
         $rows = $q->orderByDesc($isRefund ? 'payment_refunds.id' : ($isPayment ? 'payments.id' : 'orders.id'))
-            ->offset(($page - 1) * 50)->limit(50)->get()->map(function ($r) {
+            ->offset(($page - 1) * 50)->limit(50)->get()->map(function ($r) use ($branches) {
                 $r = (array) $r;
+                $branch = $branches[(int) $r['branch_id']];
+                $r['branch_name'] = $branch->name;
+                $r['timezone'] = $branch->timezone ?: 'UTC';
+                $stamp = $r['occurred_at'] ?? $r['legacy_created_at'] ?? null;
+                $r['occurred_at_local'] = $stamp === null ? null : CarbonImmutable::parse($stamp, 'UTC')->setTimezone($r['timezone'])->format('Y-m-d H:i:s P');
                 if (isset($r['net_cents'])) { $r['amount'] = ReportMoney::decimal((int) $r['net_cents']); unset($r['net_cents']); }
                 foreach (['amount', 'order_total', 'gross_sales', 'discounts', 'tax', 'supplemental_sales'] as $key) {
                     if (isset($r[$key])) $r[$key] = ReportMoney::decimal(ReportMoney::cents((string) $r[$key]));
