@@ -66,6 +66,19 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    /** Content revision: includes item IDs so successive saves cannot share a timestamp. */
+    public function editRevision(): string
+    {
+        return hash('sha256', json_encode([
+            $this->id, $this->status, $this->table_id, $this->customer_id,
+            (string) $this->discount_total, (string) $this->total,
+            $this->items->sortBy('id')->map(fn ($item) => [
+                $item->id, $item->product_id, $item->product_variant_id,
+                $item->quantity, (string) $item->unit_price,
+            ])->values()->all(),
+        ], JSON_THROW_ON_ERROR));
+    }
+
     public function payments()
     {
         return $this->hasMany(Payment::class);

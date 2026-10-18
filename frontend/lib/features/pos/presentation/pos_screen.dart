@@ -39,17 +39,28 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   void initState() {
     super.initState();
     _selectedBranchId = ref.read(currentBranchProvider)?.id;
-    _selectedTable = widget.initialTable;
+    _selectedTable =
+        widget.initialTable ?? ref.read(cartControllerProvider).table;
     if (_selectedTable?.branchId != null &&
         _selectedTable!.branchId != _selectedBranchId) {
       _selectedTable = null;
     }
+    final initialTable = _selectedTable;
+    if (initialTable != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(currentBranchProvider)?.id == _selectedBranchId) {
+          ref.read(cartControllerProvider.notifier).selectTable(initialTable);
+        }
+      });
+    }
   }
 
   Future<void> _openTableSelector() async {
-    final table = await context.push<PosTable>('/pos/select-table');
+    final table = await context.push<PosTable>('/pos/select-table?select=true');
 
     if (table != null && mounted) {
+      ref.read(cartControllerProvider.notifier).selectTable(table);
       setState(() {
         _selectedTable = table;
       });
@@ -62,6 +73,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final compactToolbar = MediaQuery.sizeOf(context).width < 760;
     final catalogState = ref.watch(posCatalogControllerProvider);
     final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
+    final draft = ref.watch(cartControllerProvider);
+    _selectedTable = draft.table;
     ref.listen(currentBranchProvider, (previous, next) {
       if (previous?.id == next?.id) return;
       _selectedBranchId = next?.id;
@@ -80,7 +93,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('New Order',
+          title: Text(draft.isEmpty ? 'New Order' : 'Current Order',
               maxLines: 1, overflow: TextOverflow.ellipsis),
           leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),

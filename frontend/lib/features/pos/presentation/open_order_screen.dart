@@ -25,6 +25,8 @@ import '../domain/pos_models.dart';
 import 'widgets/category_selector.dart';
 import 'widgets/product_grid.dart';
 import 'widgets/product_search_field.dart';
+import 'widgets/cash_quick_amounts.dart';
+import 'widgets/checkout_summary.dart';
 
 class _EditableOrderLine {
   const _EditableOrderLine({
@@ -133,6 +135,47 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   late OrderDetail _order;
   bool _isBusy = false;
   bool _isShowingPayment = false;
+  bool _allowLeave = false;
+
+  bool get _hasChanges {
+    final original = _editableLinesFromOrder(_order);
+    if (original.length != _lines.length) return true;
+    return original.any((line) => !_lines.any((edited) =>
+        edited.lineKey == line.lineKey && edited.quantity == line.quantity));
+  }
+
+  Future<void> _requestLeave() async {
+    if (_isBusy || _allowLeave) return;
+    final choice = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Save changes before leaving?'),
+              content: const Text('This table has unsaved changes.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, 'keep'),
+                    child: const Text('Keep Editing')),
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, 'discard'),
+                    child: const Text('Discard Changes')),
+                FilledButton(
+                    onPressed: _lines.isEmpty
+                        ? null
+                        : () => Navigator.pop(dialogContext, 'save'),
+                    child: const Text('Save Changes')),
+              ],
+            ));
+    if (!mounted) return;
+    if (choice == 'save') {
+      await _saveOrder();
+    }
+    if (choice == 'discard') {
+      setState(() => _allowLeave = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.pop();
+      });
+    }
+  }
 
   // Merge duplicate product/variant rows into one editable bill line.
   List<_EditableOrderLine> _editableLinesFromOrder(OrderDetail order) {
@@ -256,7 +299,10 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
     if (shouldDiscard != true || !mounted) return;
 
-    context.pushReplacement('/pos/select-table');
+    setState(() => _allowLeave = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.pop();
+    });
   }
 
   Future<OrderDetail> _saveCurrentOrder() async {
@@ -272,6 +318,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
     final repository = ref.read(posRepositoryProvider);
     await repository.updateHeldOrder(
+      expectedRevision: _order.editRevision,
       orderId: _order.id,
       items: items,
       discountTotal: _discount,
@@ -307,15 +354,44 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         const SnackBar(content: Text('Order saved successfully.')),
       );
       // PopScope blocks navigation while _isBusy is true.
-      setState(() => _isBusy = false);
+      setState(() {
+        _isBusy = false;
+        _allowLeave = true;
+      });
       context.pop(true);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not save order: $error')));
+      ).showSnackBar(SnackBar(
+        content: Text(error is ApiException
+            ? error.message
+            : 'Could not save order. Check its status before retrying.'),
+        action: SnackBarAction(label: 'Reload', onPressed: _reloadOrder),
+      ));
     } finally {
       if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _reloadOrder() async {
+    final reload = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Reload latest order?'),
+              content: const Text(
+                  'Your unsaved edits will be replaced with the saved order. Review it before making changes again.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Keep Editing')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Reload')),
+              ],
+            ));
+    if (reload == true && mounted) {
+      ref.read(orderDetailControllerProvider(_order.id).notifier).refresh();
     }
   }
 
@@ -393,10 +469,15 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       if (!mounted) return;
 
       final customerBill = CustomerBill.fromOrderDetail(saved);
+      final auth = ref.read(authControllerProvider);
+      final methods = auth is AuthAuthenticated
+          ? auth.user.allowedPaymentMethods
+          : const ['cash'];
       setState(() => _isShowingPayment = true);
       final result = await showDialog<_PaymentResult>(
         context: context,
-        builder: (_) => _PaymentDialog(total: saved.total, bill: customerBill),
+        builder: (_) => _PaymentDialog(
+            total: saved.total, bill: customerBill, allowedMethods: methods),
       );
       if (!mounted) return;
       setState(() => _isShowingPayment = false);
@@ -407,6 +488,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
             orderId: saved.id,
             paymentMethod: result.method,
             tendered: result.tendered,
+            splitPayments: result.splitPayments,
             expectedTotal: saved.total,
             branchId: saved.branch?.id,
           );
@@ -433,9 +515,16 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         SnackBar(
           content: Text(
             isPaying
-                ? 'Could not complete payment: $error'
-                : 'Could not save order. Payment was not started: $error',
+                ? (error is ApiException
+                    ? error.message
+                    : 'Could not complete payment. Check the order before retrying.')
+                : (error is ApiException
+                    ? error.message
+                    : 'Could not save order. Payment was not started.'),
           ),
+          action: isPaying
+              ? null
+              : SnackBarAction(label: 'Reload', onPressed: _reloadOrder),
         ),
       );
     } finally {
@@ -514,7 +603,10 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
         authState.user.hasPermission('orders.cancel');
 
     return PopScope(
-      canPop: !_isBusy,
+      canPop: !_isBusy && (_allowLeave || !_hasChanges),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_isBusy && _hasChanges) _requestLeave();
+      },
       child: Stack(
         children: [
           AbsorbPointer(
@@ -620,6 +712,16 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                  width: double.infinity,
+                                  child: pos_ui.SecondaryButton(
+                                    onPressed:
+                                        _lines.isEmpty ? null : _saveOrder,
+                                    child: Text(_hasChanges
+                                        ? 'Save Changes'
+                                        : 'Save Order'),
+                                  )),
                             ],
                           ),
                         ),
@@ -644,17 +746,21 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 }
 
 class _PaymentResult {
-  const _PaymentResult({required this.method, this.tendered});
+  const _PaymentResult(
+      {required this.method, this.tendered, this.splitPayments});
 
   final String method;
   final double? tendered;
+  final List<Map<String, dynamic>>? splitPayments;
 }
 
 class _PaymentDialog extends StatefulWidget {
-  const _PaymentDialog({required this.total, required this.bill});
+  const _PaymentDialog(
+      {required this.total, required this.bill, required this.allowedMethods});
 
   final double total;
   final CustomerBill bill;
+  final List<String> allowedMethods;
 
   @override
   State<_PaymentDialog> createState() => _PaymentDialogState();
@@ -663,10 +769,25 @@ class _PaymentDialog extends StatefulWidget {
 class _PaymentDialogState extends State<_PaymentDialog> {
   String _method = 'cash';
   final _tenderedController = TextEditingController();
+  final _firstAmount = TextEditingController();
+  final _splitTendered = TextEditingController();
+  late String _firstMethod;
+  late String _secondMethod;
+
+  @override
+  void initState() {
+    super.initState();
+    _method = widget.allowedMethods.firstOrNull ?? '';
+    _firstMethod = _method;
+    _secondMethod =
+        widget.allowedMethods.length > 1 ? widget.allowedMethods[1] : _method;
+  }
 
   @override
   void dispose() {
     _tenderedController.dispose();
+    _firstAmount.dispose();
+    _splitTendered.dispose();
     super.dispose();
   }
 
@@ -681,6 +802,25 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   }
 
   bool get _canConfirm {
+    if (_method == 'split') {
+      final first = double.tryParse(_firstAmount.text);
+      if (first == null || !first.isFinite) return false;
+      final firstCents = (first * 100).round();
+      final totalCents = (widget.total * 100).round();
+      if (firstCents <= 0 || firstCents >= totalCents) return false;
+      if (!widget.allowedMethods.contains(_firstMethod) ||
+          !widget.allowedMethods.contains(_secondMethod)) {
+        return false;
+      }
+      final cash = _firstMethod == 'cash'
+          ? firstCents / 100
+          : (_secondMethod == 'cash' ? (totalCents - firstCents) / 100 : 0.0);
+      final tendered = double.tryParse(_splitTendered.text);
+      return cash == 0 ||
+          _splitTendered.text.trim().isEmpty ||
+          (tendered != null && tendered.isFinite && tendered >= cash);
+    }
+    if (!widget.allowedMethods.contains(_method)) return false;
     if (_method != 'cash') {
       return true;
     }
@@ -692,7 +832,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       return true;
     }
 
-    return tendered != null && tendered >= widget.total;
+    return tendered != null && tendered.isFinite && tendered >= widget.total;
   }
 
   String _formatMoney(double value) {
@@ -706,8 +846,23 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       _PaymentResult(
         method: _method,
         tendered: _method == 'cash' ? _tendered : null,
+        splitPayments: _method == 'split' ? _splitPayload() : null,
       ),
     );
+  }
+
+  List<Map<String, dynamic>> _splitPayload() {
+    final first = (double.parse(_firstAmount.text) * 100).round();
+    final second = (widget.total * 100).round() - first;
+    return [
+      for (final portion in [(_firstMethod, first), (_secondMethod, second)])
+        {
+          'method': portion.$1,
+          'amount': portion.$2 / 100,
+          if (portion.$1 == 'cash')
+            'tendered': double.tryParse(_splitTendered.text) ?? portion.$2 / 100
+        },
+    ];
   }
 
   @override
@@ -738,33 +893,91 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     ),
               ),
               const SizedBox(height: 24),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment<String>(
-                    value: 'cash',
-                    label: Text('Cash'),
-                    icon: Icon(Icons.payments_outlined),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'card',
-                    label: Text('Card'),
-                    icon: Icon(Icons.credit_card),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'qr',
-                    label: Text('QR'),
-                    icon: Icon(Icons.qr_code_2),
-                  ),
-                ],
-                selected: {_method},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _method = selection.first;
-                  });
-                },
-              ),
+              if (widget.allowedMethods.isEmpty)
+                const Text('No payment methods are enabled for this business.'),
+              if (widget.allowedMethods.isNotEmpty)
+                CheckoutChoiceSelector(
+                  choices: [
+                    for (final method in widget.allowedMethods)
+                      CheckoutChoice(
+                          method,
+                          method == 'qr'
+                              ? 'QR'
+                              : '${method[0].toUpperCase()}${method.substring(1)}',
+                          method == 'cash'
+                              ? Icons.payments_outlined
+                              : method == 'card'
+                                  ? Icons.credit_card
+                                  : Icons.qr_code_2),
+                    if (widget.allowedMethods.length > 1)
+                      const CheckoutChoice(
+                          'split', 'Split', Icons.call_split_outlined),
+                  ],
+                  selected: _method,
+                  enabled: true,
+                  onChanged: (method) => setState(() => _method = method),
+                ),
+              if (_method == 'split') ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                    key: ValueKey('first-$_firstMethod'),
+                    initialValue: _firstMethod,
+                    decoration: const InputDecoration(
+                        labelText: 'First payment method'),
+                    items: [
+                      for (final method in widget.allowedMethods)
+                        DropdownMenuItem(
+                            value: method, child: Text(method.toUpperCase()))
+                    ],
+                    onChanged: (value) => setState(() {
+                          _firstMethod = value!;
+                          if (_secondMethod == value)
+                            _secondMethod = widget.allowedMethods
+                                .firstWhere((m) => m != value);
+                        })),
+                TextField(
+                    controller: _firstAmount,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                        labelText: 'First payment amount', prefixText: '\$ '),
+                    onChanged: (_) => setState(() {})),
+                DropdownButtonFormField<String>(
+                    key: ValueKey('second-$_secondMethod'),
+                    initialValue: _secondMethod,
+                    decoration: const InputDecoration(
+                        labelText: 'Remaining payment method'),
+                    items: [
+                      for (final method in widget.allowedMethods
+                          .where((m) => m != _firstMethod))
+                        DropdownMenuItem(
+                            value: method, child: Text(method.toUpperCase()))
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _secondMethod = value!)),
+                Text(
+                    'Remaining: ${_formatMoney(widget.total - (double.tryParse(_firstAmount.text) ?? 0))}'),
+                if (_firstMethod == 'cash' || _secondMethod == 'cash')
+                  TextField(
+                      controller: _splitTendered,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Cash received for cash portion',
+                          hintText: 'Leave blank for exact amount'),
+                      onChanged: (_) => setState(() {})),
+              ],
               if (isCash) ...[
                 const SizedBox(height: 24),
+                Wrap(spacing: 8, children: [
+                  for (final amount in cashQuickAmounts(widget.total))
+                    OutlinedButton(
+                        onPressed: () => setState(() => _tenderedController
+                            .text = amount.toStringAsFixed(2)),
+                        child: Text(amount == widget.total
+                            ? 'Exact'
+                            : _formatMoney(amount))),
+                ]),
                 TextField(
                   controller: _tenderedController,
                   autofocus: true,

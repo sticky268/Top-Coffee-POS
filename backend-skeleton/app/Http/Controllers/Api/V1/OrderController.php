@@ -745,6 +745,7 @@ class OrderController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'expected_revision' => 'nullable|string|size:64',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
@@ -773,6 +774,14 @@ class OrderController extends Controller
 
                 if (! $order) {
                     abort(404, 'Held order not found.');
+                }
+
+                // Compare under the same order lock used by all held-order writers.
+                // Optional for older installed clients; updated clients always send it.
+                if ($request->filled('expected_revision')) {
+                    $order->load('items');
+                    abort_unless(hash_equals($order->editRevision(), $request->input('expected_revision')),
+                        409, 'This order changed on another device. Reload the latest order before editing.');
                 }
 
                 if (! $user->can('branches.view-all')
@@ -1772,6 +1781,7 @@ class OrderController extends Controller
             'success' => true,
             'data' => [
                 'id' => $order->id,
+                'edit_revision' => $order->editRevision(),
                 'order_number' => $order->order_number,
                 'uuid' => $order->uuid,
                 'order_type' => $order->order_type,

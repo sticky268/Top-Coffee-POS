@@ -54,6 +54,7 @@ abstract class PosRepository {
   });
 
   Future<OrderConfirmation> updateHeldOrder({
+    String? expectedRevision,
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
@@ -390,6 +391,7 @@ class ApiPosRepository implements PosRepository {
 
   @override
   Future<OrderConfirmation> updateHeldOrder({
+    String? expectedRevision,
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
@@ -400,6 +402,7 @@ class ApiPosRepository implements PosRepository {
       (dio) => dio.patch(
         '/orders/$orderId/hold',
         data: {
+          if (expectedRevision != null) 'expected_revision': expectedRevision,
           if (branchId != null) 'branch_id': branchId,
           'items': items,
           'discount_total': discountTotal,

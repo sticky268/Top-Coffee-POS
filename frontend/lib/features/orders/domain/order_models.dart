@@ -229,6 +229,7 @@ class OrderTableRef {
 /// Full order detail â€” matches GET /api/v1/orders/{id}.
 class OrderDetail {
   const OrderDetail({
+    this.editRevision,
     required this.id,
     this.orderNumber,
     required this.uuid,
@@ -248,6 +249,7 @@ class OrderDetail {
     required this.createdAt,
   });
 
+  final String? editRevision;
   final int id;
   final int? orderNumber;
   final String uuid;
@@ -280,6 +282,7 @@ class OrderDetail {
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
     return OrderDetail(
+      editRevision: json['edit_revision'] as String?,
       id: json['id'] as int,
       orderNumber: (json['order_number'] as num?)?.toInt(),
       uuid: json['uuid'] as String,

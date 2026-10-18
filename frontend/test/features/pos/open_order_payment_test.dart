@@ -170,6 +170,38 @@ void main() {
     expect(find.byTooltip('Increase quantity'), findsOneWidget);
   });
 
+  testWidgets('Back warns about edits and Keep Editing preserves quantities',
+      (tester) async {
+    await pumpBill(tester, fromList: true);
+    await tester.tap(find.byTooltip('Increase quantity'));
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Save changes before leaving?'), findsOneWidget);
+    await tester.tap(find.text('Keep Editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard Changes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Bill'), findsOneWidget);
+    verifyNever(() => pos.updateHeldOrder(
+        orderId: 42,
+        items: any(named: 'items'),
+        discountTotal: 0,
+        branchId: 11));
+  });
+
+  testWidgets('phone exposes Save Order without opening the editor',
+      (tester) async {
+    await pumpBill(tester, fromList: true, viewport: const Size(390, 700));
+    expect(find.text('Save Order').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Save Order'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Bill'), findsOneWidget);
+  });
+
   testWidgets('Pay saves edited quantities and confirms the server price', (
     tester,
   ) async {
@@ -338,18 +370,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Open Bill'), findsOneWidget);
     final items = verify(() => pos.updateHeldOrder(
-      orderId: 42,
-      items: captureAny(named: 'items'),
-      discountTotal: 0,
-      branchId: 11,
-    )).captured.single as List<Map<String, dynamic>>;
+          orderId: 42,
+          items: captureAny(named: 'items'),
+          discountTotal: 0,
+          branchId: 11,
+        )).captured.single as List<Map<String, dynamic>>;
     expect(items.single['quantity'], 2);
     verifyNever(() => pos.payHeldOrder(
-      orderId: any(named: 'orderId'),
-      paymentMethod: any(named: 'paymentMethod'),
-      expectedTotal: any(named: 'expectedTotal'),
-      branchId: any(named: 'branchId'),
-    ));
+          orderId: any(named: 'orderId'),
+          paymentMethod: any(named: 'paymentMethod'),
+          expectedTotal: any(named: 'expectedTotal'),
+          branchId: any(named: 'branchId'),
+        ));
     expect(tester.takeException(), isNull);
   });
 
@@ -360,18 +392,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Review Bill & Pay'), findsOneWidget);
     verify(() => pos.updateHeldOrder(
-      orderId: 42,
-      items: any(named: 'items'),
-      discountTotal: 0,
-      branchId: 11,
-    )).called(1);
+          orderId: 42,
+          items: any(named: 'items'),
+          discountTotal: 0,
+          branchId: 11,
+        )).called(1);
     verifyNever(() => pos.payHeldOrder(
-      orderId: any(named: 'orderId'),
-      paymentMethod: any(named: 'paymentMethod'),
-      expectedTotal: any(named: 'expectedTotal'),
-      branchId: any(named: 'branchId'),
-    ));
+          orderId: any(named: 'orderId'),
+          paymentMethod: any(named: 'paymentMethod'),
+          expectedTotal: any(named: 'expectedTotal'),
+          branchId: any(named: 'branchId'),
+        ));
     expect(tester.takeException(), isNull);
   });
-
 }
