@@ -931,9 +931,10 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                     ],
                     onChanged: (value) => setState(() {
                           _firstMethod = value!;
-                          if (_secondMethod == value)
+                          if (_secondMethod == value) {
                             _secondMethod = widget.allowedMethods
                                 .firstWhere((m) => m != value);
+                          }
                         })),
                 TextField(
                     controller: _firstAmount,

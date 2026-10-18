@@ -100,8 +100,9 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
       final tables =
           await ref.read(posRepositoryProvider).getTables(branchId: branchId);
 
-      if (!mounted || loadVersion != _loadVersion || branchId != _branchId)
+      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) {
         return;
+      }
 
       final sortedTables = [...tables]..sort((a, b) {
           final aNumber =
@@ -121,8 +122,9 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
         _isLoading = false;
       });
     } catch (_) {
-      if (!mounted || loadVersion != _loadVersion || branchId != _branchId)
+      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) {
         return;
+      }
 
       setState(() {
         _isLoading = false;
@@ -209,8 +211,9 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
                   ],
                 ));
         if (!mounted || choice == null) return;
-        if (choice == 'empty')
+        if (choice == 'empty') {
           ref.read(cartControllerProvider.notifier).clear();
+        }
       }
       ref.read(cartControllerProvider.notifier).selectTable(table);
       context.go('/pos', extra: table);

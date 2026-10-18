@@ -11,7 +11,7 @@ import '../../auth/application/auth_state.dart';
 /// cart state separate from catalog loading state") — the cart must
 /// survive a catalog reload/error/retry untouched.
 class CartController extends StateNotifier<CartState> {
-  CartController([CartState initial = const CartState()]) : super(initial);
+  CartController([super.state = const CartState()]);
 
   /// Adds one unit of [product] (with [variant] if selected). If a line
   /// for this exact product+variant combination already exists, its

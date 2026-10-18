@@ -61,7 +61,7 @@ class _SplitPaymentLine {
       'method': method,
       'amount': amount,
       if (method == 'cash')
-        'tendered': double.tryParse(tenderedController.text) ?? 0,
+        'tendered': double.tryParse(tenderedController.text) ?? amount,
     };
   }
 }
@@ -200,6 +200,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkoutState = ref.watch(checkoutControllerProvider);
     final currentBranch = ref.watch(currentBranchProvider);
     final authState = ref.watch(authControllerProvider);
+    if (authState is AuthAuthenticated &&
+        authState.user.allowedPaymentMethods.isNotEmpty) {
+      final methods = authState.user.allowedPaymentMethods;
+      if (_paymentMethod != 'split' && !methods.contains(_paymentMethod)) {
+        _paymentMethod = methods.first;
+      }
+      for (final payment in _splitPayments) {
+        if (!methods.contains(payment.method)) payment.method = methods.first;
+      }
+    }
     final cashierName =
         authState is AuthAuthenticated ? authState.user.name : null;
     final isCompleted = checkoutState is CheckoutSuccess ||
@@ -429,10 +439,12 @@ class _CheckoutForm extends StatelessWidget {
 
     final splitValid = splitPayments.length >= 2 &&
         splitPayments.every((payment) {
+          if (!allowedPaymentMethods.contains(payment.method)) return false;
           final amount = double.tryParse(payment.amountController.text) ?? 0;
           if (!amount.isFinite || amount <= 0) return false;
 
           if (payment.method == 'cash') {
+            if (payment.tenderedController.text.trim().isEmpty) return true;
             final tendered = double.tryParse(payment.tenderedController.text);
             return tendered != null && tendered.isFinite && tendered >= amount;
           }

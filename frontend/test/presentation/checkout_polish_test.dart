@@ -7,6 +7,7 @@ import 'package:top_coffee_pos/core/offline/order_outbox.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
+import 'package:top_coffee_pos/features/auth/application/auth_controller.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/pos/application/cart_controller.dart';
 import 'package:top_coffee_pos/features/pos/application/checkout_controller.dart';
@@ -96,6 +97,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    await container.read(authControllerProvider.notifier).initialization;
     container.read(cartControllerProvider.notifier).addItem(product);
     await tester.pumpWidget(
       UncontrolledProviderScope(
