@@ -24,7 +24,7 @@ Current-month views compare elapsed calendar days with the same day number in th
 
 Backend: `SalesReportsController`, `Services/Reports/{ReportMoney,ReportPeriod,SalesReportService}`, API route, transaction-date/shift indexes, `SalesReportsTest`.
 
-Flutter: `sales_report` domain, `sales_reports_repository`, `sales_reports_controller`, Reports screen, source-record screen, shared export row builder/Khmer font fallback, report/widget/export/controller regression tests and independent Excel/PDF reader checks, including the fourth net-payment column. Existing large-text Reports coverage is updated to the new API contract.
+Flutter: `sales_report` domain, `sales_reports_repository`, `sales_reports_controller`, Reports screen, source-record screen, shared export row builder/Khmer font fallback, report/widget/export/controller regression tests and independent Excel/PDF reader checks, including the fourth net-payment column. Existing large-text Reports coverage is updated to the new API contract. Button/chip text explicitly keeps the app's Inter family rather than falling back to the platform font.
 
 CI: run the new feature tests on SQLite and real MySQL alongside existing checks.
 
