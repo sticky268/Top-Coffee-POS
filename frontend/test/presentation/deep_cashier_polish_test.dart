@@ -179,7 +179,13 @@ void main() {
     await tester.tap(find.byType(ProductCard).hitTestable().first);
     await tester.pumpAndSettle();
     expect(container.read(cartControllerProvider).totalItemCount, 1);
-    expect(find.byTooltip('View cart').hitTestable(), findsOneWidget);
+    final cartSummary = find.byKey(const ValueKey('phone-cart-summary'));
+    expect(cartSummary.hitTestable(), findsOneWidget);
+    await tester.tap(cartSummary);
+    await tester.pumpAndSettle();
+    expect(find.text('Order Summary'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close cart'));
+    await tester.pumpAndSettle();
     await tester.drag(find.byType(CustomScrollView), const Offset(0, 600));
     await tester.pumpAndSettle();
     expect(find.byType(ProductSearchField).hitTestable(), findsOneWidget);
