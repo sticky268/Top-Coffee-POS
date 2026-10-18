@@ -44,7 +44,13 @@ class AppShell extends ConsumerWidget {
             body: Builder(
               builder: (shellContext) => PageNavigation(
                 openMenu: () => Scaffold.of(shellContext).openDrawer(),
-                child: content,
+                child: SafeArea(
+                  top: usingCache,
+                  bottom: false,
+                  left: false,
+                  right: false,
+                  child: content,
+                ),
               ),
             ),
           );

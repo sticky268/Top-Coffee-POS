@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:top_coffee_pos/core/routing/app_shell.dart';
 import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
+import 'package:top_coffee_pos/features/pos/data/pos_repository.dart';
 
 void main() {
   for (final width in [390.0, 800.0, 1200.0]) {
@@ -13,8 +14,10 @@ void main() {
         (tester) async {
       tester.view.physicalSize = Size(width, 844);
       tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 30);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
       final router = GoRouter(initialLocation: '/orders', routes: [
         ShellRoute(
           builder: (_, state, child) =>
@@ -44,6 +47,16 @@ void main() {
         await tester.pumpAndSettle();
       } else {
         expect(find.byTooltip('Open navigation menu'), findsNothing);
+      }
+      if (width < 900) {
+        final container =
+            ProviderScope.containerOf(tester.element(find.byType(AppShell)));
+        container.read(cachedCatalogProvider.notifier).state = true;
+        await tester.pumpAndSettle();
+        expect(
+            tester.getTopLeft(find.textContaining('Using saved catalog.')).dy,
+            greaterThanOrEqualTo(30));
+        expect(find.byType(AppBar), findsOneWidget);
       }
       unawaited(router.push<void>('/orders/1'));
       await tester.pumpAndSettle();
