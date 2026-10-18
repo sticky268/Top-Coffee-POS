@@ -21,29 +21,36 @@ class ProductGrid extends ConsumerWidget {
   final bool sliver;
   final void Function(PosProduct product)? onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)?
-      onVariantSelected;
+  onVariantSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (products.isEmpty) {
       return sliver
           ? const SliverFillRemaining(
-              hasScrollBody: false, child: _EmptyProducts())
+              hasScrollBody: false,
+              child: _EmptyProducts(),
+            )
           : const _EmptyProducts();
     }
 
     final quantities = <int, int>{};
-    for (final item
-        in ref.watch(cartControllerProvider.select((cart) => cart.items))) {
-      quantities.update(item.product.id, (value) => value + item.quantity,
-          ifAbsent: () => item.quantity);
+    for (final item in ref.watch(
+      cartControllerProvider.select((cart) => cart.items),
+    )) {
+      quantities.update(
+        item.product.id,
+        (value) => value + item.quantity,
+        ifAbsent: () => item.quantity,
+      );
     }
     Widget buildGrid(double width) {
       final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
       // Use the catalog pane's width; the tablet cart takes its own space.
-      final columns = ((width - 16) / (scale > 1.4 ? 256 : 166))
-          .floor()
-          .clamp(1, crossAxisCount);
+      final columns = ((width - 16) / (scale > 1.4 ? 256 : 166)).floor().clamp(
+        1,
+        crossAxisCount,
+      );
       final tileWidth = (width - 32 - 16 * (columns - 1)) / columns;
       // Large type needs room for names rather than a taller photo.
       final tileHeight = scale > 1.4
@@ -92,9 +99,11 @@ class ProductGrid extends ConsumerWidget {
     return sliver
         ? SliverLayoutBuilder(
             builder: (context, constraints) =>
-                buildGrid(constraints.crossAxisExtent))
+                buildGrid(constraints.crossAxisExtent),
+          )
         : LayoutBuilder(
-            builder: (context, constraints) => buildGrid(constraints.maxWidth));
+            builder: (context, constraints) => buildGrid(constraints.maxWidth),
+          );
   }
 }
 
