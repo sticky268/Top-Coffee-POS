@@ -93,50 +93,80 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(draft.isEmpty ? 'New Order' : 'Current Order',
-              maxLines: 1, overflow: TextOverflow.ellipsis),
+          toolbarHeight: compactToolbar
+              ? (MediaQuery.textScalerOf(context).scale(16) * 1.5 +
+                      MediaQuery.textScalerOf(context).scale(11) * 1.3 +
+                      8)
+                  .clamp(56, 160)
+                  .toDouble()
+              : null,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(draft.isEmpty ? 'New Order' : 'Current Order',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: compactToolbar
+                      ? Theme.of(context).textTheme.titleMedium
+                      : null),
+              if (compactToolbar)
+                Text(
+                  _selectedTable == null
+                      ? 'Takeaway'
+                      : 'Dine-in · ${_selectedTable!.name}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+            ],
+          ),
+          titleSpacing: compactToolbar ? 0 : null,
           leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
           ),
-          bottom: PreferredSize(
-            preferredSize: Size.fromHeight(
-                (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16)
-                    .clamp(56, 110)),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Row(
-                children: [
-                  Icon(
-                      _selectedTable == null
-                          ? Icons.shopping_bag_outlined
-                          : Icons.table_restaurant_outlined,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Tooltip(
-                    message: _selectedTable == null
-                        ? 'Takeaway'
-                        : 'Dine-in · ${_selectedTable!.name}',
-                    child: Text(
-                        _selectedTable == null
-                            ? 'Takeaway'
-                            : 'Dine-in · ${_selectedTable!.name}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                  )),
-                  CashDrawerButton(compact: compactToolbar),
-                ],
-              ),
-            ),
-          ),
+          bottom: compactToolbar
+              ? null
+              : PreferredSize(
+                  preferredSize: Size.fromHeight(
+                      (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16)
+                          .clamp(56, 110)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                            _selectedTable == null
+                                ? Icons.shopping_bag_outlined
+                                : Icons.table_restaurant_outlined,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Tooltip(
+                          message: _selectedTable == null
+                              ? 'Takeaway'
+                              : 'Dine-in · ${_selectedTable!.name}',
+                          child: Text(
+                              _selectedTable == null
+                                  ? 'Takeaway'
+                                  : 'Dine-in · ${_selectedTable!.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                        )),
+                        CashDrawerButton(compact: compactToolbar),
+                      ],
+                    ),
+                  ),
+                ),
           actions: [
+            if (compactToolbar) const CashDrawerButton(compact: true),
             if (drawerScope != null)
               pos_ui.IconButton(
                 tooltip: 'Drawer activity',
@@ -248,26 +278,39 @@ class _PhoneLayout extends ConsumerWidget {
     return LayoutBuilder(
         builder: (context, viewport) => Column(
               children: [
-                const SizedBox(height: 16),
-                ProductSearchField(
-                  onSubmitted: (code) => _scanProduct(context, ref, code),
-                  onChanged: (query) => ref
-                      .read(posCatalogControllerProvider.notifier)
-                      .updateSearchQuery(query),
-                ),
-                const SizedBox(height: 8),
-                CategorySelector(
-                  categories: categories,
-                  selectedCategoryId: selectedCategoryId,
-                  onSelected: (id) => ref
-                      .read(posCatalogControllerProvider.notifier)
-                      .selectCategory(id),
-                ),
-                const SizedBox(height: 8),
                 Expanded(
-                  child: ProductGrid(
-                    products: products,
-                    crossAxisCount: crossAxisCount,
+                  child: CustomScrollView(
+                    key: const PageStorageKey('phone-pos-catalog'),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ProductSearchField(
+                            onSubmitted: (code) =>
+                                _scanProduct(context, ref, code),
+                            onChanged: (query) => ref
+                                .read(posCatalogControllerProvider.notifier)
+                                .updateSearchQuery(query),
+                          ),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: CategorySelector(
+                          categories: categories,
+                          selectedCategoryId: selectedCategoryId,
+                          onSelected: (id) => ref
+                              .read(posCatalogControllerProvider.notifier)
+                              .selectCategory(id),
+                        ),
+                      ),
+                      ProductGrid(
+                        products: products,
+                        crossAxisCount: crossAxisCount,
+                        sliver: true,
+                      ),
+                    ],
                   ),
                 ),
                 const Divider(height: 1),
@@ -407,3 +450,4 @@ void _scanProduct(BuildContext context, WidgetRef ref, String code) {
     ref.read(cartControllerProvider.notifier).addItem(product);
   }
 }
+

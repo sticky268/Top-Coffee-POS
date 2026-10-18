@@ -33,7 +33,10 @@ class AppShell extends ConsumerWidget {
 
         if (!isDesktop) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Top Coffee POS')),
+            // The order screen provides its own toolbar and dashboard link.
+            appBar: selectedRoute == '/pos'
+                ? null
+                : AppBar(title: const Text('Top Coffee POS')),
             drawer: Drawer(
               child: DashboardNavigation(selectedRoute: selectedRoute),
             ),
@@ -53,3 +56,4 @@ class AppShell extends ConsumerWidget {
     );
   }
 }
+

@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/receipt/last_receipt_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
+import 'package:top_coffee_pos/core/routing/app_shell.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/pos/application/cart_controller.dart';
@@ -63,7 +64,7 @@ void main() {
 
   Future<ProviderContainer> pump(
       WidgetTester tester, Size size, double scale, bool dark,
-      {GlobalKey? preview, bool populate = true}) async {
+      {GlobalKey? preview, bool populate = true, bool shell = false}) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final repository = PolishPosRepository();
@@ -96,7 +97,12 @@ void main() {
           home: MediaQuery(
               data: MediaQueryData(
                   size: size, textScaler: TextScaler.linear(scale)),
-              child: RepaintBoundary(key: preview, child: const PosScreen()))),
+              child: RepaintBoundary(
+                  key: preview,
+                  child: shell
+                      ? const AppShell(
+                          selectedRoute: '/pos', child: PosScreen())
+                      : const PosScreen()))),
     ));
     await tester.pumpAndSettle();
     return container;
@@ -126,6 +132,28 @@ void main() {
       }
     }
   }
+
+  testWidgets('phone menu scrolls filters away and keeps cart accessible',
+      (tester) async {
+    final container = await pump(tester, const Size(390, 844), 1, false,
+        populate: false, shell: true);
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(tester.getSize(find.byType(AppBar)).height, lessThanOrEqualTo(56));
+    expect(tester.getTopLeft(find.byType(ProductCard).first).dy, lessThan(220));
+    expect(find.byType(ProductSearchField).hitTestable(), findsOneWidget);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductSearchField).hitTestable(), findsNothing);
+    expect(find.byType(CategorySelector).hitTestable(), findsNothing);
+    await tester.tap(find.byType(ProductCard).hitTestable().first);
+    await tester.pumpAndSettle();
+    expect(container.read(cartControllerProvider).totalItemCount, 1);
+    expect(find.byTooltip('View cart').hitTestable(), findsOneWidget);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 600));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductSearchField).hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('short large-text workspace keeps cart and review reachable',
       (tester) async {
@@ -200,3 +228,4 @@ void main() {
     expect(queries.last, '');
   });
 }
+
