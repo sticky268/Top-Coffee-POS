@@ -64,6 +64,37 @@ class _ReportContent extends ConsumerWidget {
     final today = DateTime.parse(report.meta['today'] as String);
     final year = query.year ?? DateTime.parse(report.from).year;
     final hasCategory = query.categoryId != null;
+    final timeline = _Section(
+        title: query.period == 'year'
+            ? 'Monthly history · $year'
+            : 'Daily breakdown',
+        children: [
+          const Text(
+              'Paid order totals, including tax, before later adjustments. Tap a period to open it.'),
+          for (final row in report.timeline)
+            ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(query.period == 'year'
+                    ? DateFormat('MMMM')
+                        .format(DateTime.parse(row['date_from'] as String))
+                    : _date(row['date_from'] as String)),
+                subtitle: Text(ReportAmount.parse(row['total']).money),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  final date = DateTime.parse(row['date_from'] as String);
+                  if (query.period == 'year') {
+                    controller.select(query.periodSelection('month',
+                        year: date.year, month: date.month));
+                  } else if (row['date_from'] == report.from &&
+                      report.from == report.to) {
+                    _details(context, ref, kind: 'orders');
+                  } else {
+                    controller.select(query.periodSelection('custom',
+                        from: row['date_from'] as String,
+                        to: row['date_to'] as String));
+                  }
+                }),
+        ]);
     return RefreshIndicator(
         onRefresh: controller.refresh,
         child: ListView(
@@ -173,6 +204,7 @@ class _ReportContent extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(report.meta['category_basis'] as String)),
             const SizedBox(height: 12),
+            if (query.period == 'year') timeline,
             LayoutBuilder(builder: (context, constraints) {
               final columns = constraints.maxWidth >= 900
                   ? 3
@@ -214,38 +246,7 @@ class _ReportContent extends ConsumerWidget {
                   'Payment reconciliation difference: ${report.amount('payment_difference').money}. Review source payments.',
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
             const SizedBox(height: 16),
-            _Section(
-                title: query.period == 'year'
-                    ? 'Monthly history · $year'
-                    : 'Daily breakdown',
-                children: [
-                  const Text(
-                      'Paid order totals, including tax, before later adjustments. Tap a period to open it.'),
-                  for (final row in report.timeline)
-                    ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(query.period == 'year'
-                            ? DateFormat('MMMM').format(
-                                DateTime.parse(row['date_from'] as String))
-                            : _date(row['date_from'] as String)),
-                        subtitle: Text(ReportAmount.parse(row['total']).money),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          final date =
-                              DateTime.parse(row['date_from'] as String);
-                          if (query.period == 'year') {
-                            controller.select(query.periodSelection('month',
-                                year: date.year, month: date.month));
-                          } else if (row['date_from'] == report.from &&
-                              report.from == report.to) {
-                            _details(context, ref, kind: 'orders');
-                          } else {
-                            controller.select(query.periodSelection('custom',
-                                from: row['date_from'] as String,
-                                to: row['date_to'] as String));
-                          }
-                        }),
-                ]),
+            if (query.period != 'year') timeline,
             if (report.hourlySales.isNotEmpty)
               _Section(title: 'Hourly sales', children: [
                 const Text(
@@ -294,8 +295,18 @@ class _ReportContent extends ConsumerWidget {
             ]),
             _Section(title: 'Cash movement by transaction date', children: [
               Text(report.meta['cash_basis'] as String),
-              _AmountLine('Collections', report.cashFlow['collected']),
-              _AmountLine('Refunds issued', report.cashFlow['refunds']),
+              ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Collections'),
+                  subtitle: Text(_money(report.cashFlow['collected'])),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _details(context, ref, kind: 'event_payments')),
+              ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Refunds issued'),
+                  subtitle: Text(_money(report.cashFlow['refunds'])),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _details(context, ref, kind: 'event_refunds')),
               _AmountLine('Net collections', report.cashFlow['net']),
               if (report.cashFlow['unassigned_cash_payments'] != 0 ||
                   report.cashFlow['unassigned_cash_refunds'] != 0)
@@ -348,7 +359,10 @@ class _ReportContent extends ConsumerWidget {
 
   void _details(BuildContext context, WidgetRef ref,
       {required String kind, String? metric, String? method}) {
-    final query = ref.read(salesReportsControllerProvider.notifier).query;
+    final query = ref
+        .read(salesReportsControllerProvider.notifier)
+        .query
+        .periodSelection('custom', from: report.from, to: report.to);
     final branch = ref.read(currentBranchProvider)?.id;
     Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => SalesReportDetailsScreen(

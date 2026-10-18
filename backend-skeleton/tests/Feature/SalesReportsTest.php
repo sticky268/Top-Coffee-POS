@@ -113,6 +113,8 @@ class SalesReportsTest extends TestCase
         $this->getJson($this->url(['detail' => 'excluded']))->assertOk()->assertJsonPath('data.rows.0.order_id', $missing);
         $this->getJson($this->url(['period' => 'custom', 'date_from' => '2026-10-20', 'date_to' => '2026-10-20']))
             ->assertOk()->assertJsonPath('data.summary.refunds', '0.00')->assertJsonPath('data.cash_flow.refunds', '4.00');
+        $this->getJson($this->url(['period' => 'custom', 'date_from' => '2026-10-20', 'date_to' => '2026-10-20', 'detail' => 'event_refunds']))
+            ->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.rows.0.amount', '4.00')->assertJsonPath('data.rows.0.order_id', $order);
     }
 
     public function test_drawer_uses_whole_shift_and_old_sale_refunds_without_card_money(): void

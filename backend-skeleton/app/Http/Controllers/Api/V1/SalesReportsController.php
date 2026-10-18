@@ -23,7 +23,7 @@ class SalesReportsController extends Controller
             'month' => 'required_if:period,month|integer|min:1|max:12',
             'date_from' => 'required_if:period,custom|date_format:Y-m-d',
             'date_to' => 'required_if:period,custom|date_format:Y-m-d|after_or_equal:date_from',
-            'detail' => 'nullable|in:orders,refunds,payments,excluded',
+            'detail' => 'nullable|in:orders,refunds,payments,excluded,event_payments,event_refunds',
             'metric' => 'nullable|in:gross_sales,discounts,tax,total_sales,supplemental_sales,refunds,net_sales,total_orders,average_order_value',
             'method' => 'nullable|in:cash,card,qr',
             'page' => 'nullable|integer|min:1|max:1000000',

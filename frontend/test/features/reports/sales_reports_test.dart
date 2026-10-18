@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,10 +14,12 @@ import 'package:top_coffee_pos/features/reports/data/sales_reports_repository.da
 import 'package:top_coffee_pos/features/reports/domain/sales_report.dart';
 import 'package:top_coffee_pos/features/reports/presentation/reports_screen.dart';
 import 'sales_report_fixture.dart';
+import '../../presentation/ui_polish_test.dart' show savePreview;
 
 class MockSalesRepository extends Mock implements SalesReportsRepository {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() => registerFallbackValue(const SalesReportQuery()));
 
   test('report money preserves large values and rejects malformed values', () {
@@ -43,6 +46,29 @@ void main() {
           [const ReportAmount(-10)]
         ]),
         contains('"-0.10"'));
+  });
+
+  test(
+      'four-column PDF and exact Excel exports remain readable by external tools',
+      () async {
+    final rows = <List<Object>>[
+      ['Top Coffee POS sales report'],
+      ['Branch', 'Riverside'],
+      ['Payment method', 'Collected', 'Refunds', 'Net'],
+      [
+        'cash',
+        const ReportAmount(1001),
+        const ReportAmount(200),
+        const ReportAmount(801)
+      ],
+      ['Negative adjustment', const ReportAmount(-10)],
+    ];
+    final directory = Directory('build/report-exports')
+      ..createSync(recursive: true);
+    for (final format in [ReportExportFormat.xlsx, ReportExportFormat.pdf]) {
+      final file = await ReportExporter.buildRows(rows, 'sales-exact', format);
+      File('${directory.path}/${file.name}').writeAsBytesSync(file.bytes);
+    }
   });
 
   ProviderContainer container(MockSalesRepository repository) =>
@@ -110,14 +136,20 @@ void main() {
     addTearDown(scope.dispose);
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    final preview = GlobalKey();
     await tester.pumpWidget(UncontrolledProviderScope(
-        container: scope, child: const MaterialApp(home: ReportsScreen())));
+        container: scope,
+        child: MaterialApp(
+            home:
+                RepaintBoundary(key: preview, child: const ReportsScreen()))));
     await tester.pumpAndSettle();
+    await savePreview(tester, preview, 'sales-report-overview-phone');
     await tester.tap(find.text('Browse all 12 months'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Monthly history · 2026'), 300);
     await tester.scrollUntilVisible(find.text('February').hitTestable(), 200);
     await tester.pumpAndSettle();
+    await savePreview(tester, preview, 'sales-report-month-history-phone');
     await tester.tap(find.text('February').hitTestable());
     await tester.pumpAndSettle();
     expect(scope.read(salesReportsControllerProvider.notifier).query.month, 2);
@@ -127,6 +159,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Report source records'), findsOneWidget);
     expect(find.text('Order 7 · Branch 21'), findsOneWidget);
+    final source = verify(() => repository.details(captureAny(), any(),
+        kind: 'orders',
+        metric: 'net_sales',
+        method: null,
+        page: 1)).captured.single as SalesReportQuery;
+    expect(source.period, 'custom');
+    expect(source.dateFrom, '2026-10-19');
+    expect(source.dateTo, '2026-10-19');
     expect(tester.takeException(), isNull);
   });
 }

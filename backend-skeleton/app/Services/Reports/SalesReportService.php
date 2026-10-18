@@ -302,15 +302,21 @@ final class SalesReportService
         $kind = $input['detail'];
         $q = $this->selected($c, $p->from, $p->to, $kind !== 'excluded');
         if ($kind === 'excluded') $q->whereNotIn('orders.id', $this->selected($c, $p->from, $p->to)->select('orders.id'));
-        if ($kind === 'refunds' || $kind === 'payments') {
-            $q = $kind === 'refunds' ? $this->refunds($q) : $this->payments($q);
-            $q->join('orders', 'orders.id', '=', 'payments.order_id');
+        $isRefund = in_array($kind, ['refunds', 'event_refunds'], true);
+        $isPayment = in_array($kind, ['payments', 'event_payments'], true);
+        if ($isRefund || $isPayment) {
+            if (str_starts_with($kind, 'event_')) {
+                $q = $this->eventQuery($c, $isRefund);
+            } else {
+                $q = $isRefund ? $this->refunds($q) : $this->payments($q);
+                $q->join('orders', 'orders.id', '=', 'payments.order_id');
+            }
             if (isset($input['method'])) $q->where('payments.method', $input['method']);
             $q->select('orders.id AS order_id', 'orders.order_number', 'orders.branch_id', 'payments.method',
-                $kind === 'refunds' ? 'payment_refunds.id AS id' : 'payments.id AS id',
-                $kind === 'refunds' ? 'payment_refunds.amount' : 'payments.amount',
-                $kind === 'refunds' ? 'payment_refunds.created_at AS occurred_at' : 'payments.created_at AS occurred_at');
-            if ($kind === 'refunds') $q->addSelect('payment_refunds.reason');
+                $isRefund ? 'payment_refunds.id AS id' : 'payments.id AS id',
+                $isRefund ? 'payment_refunds.amount' : 'payments.amount',
+                $isRefund ? 'payment_refunds.created_at AS occurred_at' : 'payments.created_at AS occurred_at');
+            if ($isRefund) $q->addSelect('payment_refunds.reason');
         } else {
             $metric = $input['metric'] ?? 'total_sales';
             if ($metric === 'discounts') $q->where('orders.discount_total', '>', 0);
@@ -330,7 +336,7 @@ final class SalesReportService
         }
         $total = (clone $q)->count();
         $page = (int) ($input['page'] ?? 1);
-        $rows = $q->orderByDesc($kind === 'refunds' ? 'payment_refunds.id' : ($kind === 'payments' ? 'payments.id' : 'orders.id'))
+        $rows = $q->orderByDesc($isRefund ? 'payment_refunds.id' : ($isPayment ? 'payments.id' : 'orders.id'))
             ->offset(($page - 1) * 50)->limit(50)->get()->map(function ($r) {
                 $r = (array) $r;
                 if (isset($r['net_cents'])) { $r['amount'] = ReportMoney::decimal((int) $r['net_cents']); unset($r['net_cents']); }

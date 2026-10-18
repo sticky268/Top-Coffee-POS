@@ -18,13 +18,13 @@ This Month compares elapsed calendar days with the same day number in the previo
 * Drawer reconciliation uses complete overlapping shifts independently of sales cashier/category filters. Opening + cash receipts - cash refunds + cash in - cash out = expected. Card/QR and printer drawer pulses do not enter the formula. It shows live ledger expected, recorded close expected, count and difference; the latest 50 overlapping shifts are shown explicitly. Shorter ranges expose earlier shifts. Event cash without a shift is flagged.
 * Cashier filtering means original sale cashier. Category filtering currently means whole orders containing a product in that **current** category, and is labelled accordingly. Historical item/category allocation belongs to Phase 2.
 * Report values use SQL DECIMAL/integer cents, exact PHP integers and fixed-decimal JSON strings. Flutter only formats values; no financial aggregation runs on the device. Monetary exports use exact numeric OOXML cells.
-* Source drill-downs repeat authorization, filters and date boundaries; return 50 rows per page. Summary and source data are live snapshots and may change after a late sync or correction. No stale aggregate cache is introduced in this phase.
+* Source drill-downs freeze the loaded calendar dates (including across midnight) and repeat authorization and filters; transaction-date collections/refunds also have source links; return 50 rows per page. Summary and source data are live snapshots and may change after a late sync or correction. No stale aggregate cache is introduced in this phase.
 
 ## Changed areas
 
 Backend: `SalesReportsController`, `Services/Reports/{ReportMoney,ReportPeriod,SalesReportService}`, API route, transaction-date/shift indexes, `SalesReportsTest`.
 
-Flutter: `sales_report` domain, `sales_reports_repository`, `sales_reports_controller`, Reports screen, source-record screen, shared export row builder/Khmer font fallback, report/widget/export/controller regression tests. Existing large-text Reports coverage is updated to the new API contract.
+Flutter: `sales_report` domain, `sales_reports_repository`, `sales_reports_controller`, Reports screen, source-record screen, shared export row builder/Khmer font fallback, report/widget/export/controller regression tests and independent Excel/PDF reader checks, including the fourth net-payment column. Existing large-text Reports coverage is updated to the new API contract.
 
 CI: run the new feature tests on SQLite and real MySQL alongside existing checks.
 
