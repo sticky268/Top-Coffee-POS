@@ -21,7 +21,7 @@ class ProductGrid extends ConsumerWidget {
   final bool sliver;
   final void Function(PosProduct product)? onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)?
-  onVariantSelected;
+      onVariantSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,9 +48,9 @@ class ProductGrid extends ConsumerWidget {
       final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
       // Use the catalog pane's width; the tablet cart takes its own space.
       final columns = ((width - 16) / (scale > 1.4 ? 256 : 166)).floor().clamp(
-        1,
-        crossAxisCount,
-      );
+            1,
+            crossAxisCount,
+          );
       final tileWidth = (width - 32 - 16 * (columns - 1)) / columns;
       // Large type needs room for names rather than a taller photo.
       final tileHeight = scale > 1.4
@@ -132,4 +132,3 @@ class _EmptyProducts extends StatelessWidget {
     );
   }
 }
-

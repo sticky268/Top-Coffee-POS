@@ -95,10 +95,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         appBar: AppBar(
           toolbarHeight: compactToolbar
               ? (MediaQuery.textScalerOf(context).scale(16) * 1.5 +
-                        MediaQuery.textScalerOf(context).scale(11) * 1.3 +
-                        8)
-                    .clamp(56, 160)
-                    .toDouble()
+                      MediaQuery.textScalerOf(context).scale(11) * 1.3 +
+                      8)
+                  .clamp(56, 160)
+                  .toDouble()
               : null,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +159,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                                   : 'Dine-in · ${_selectedTable!.name}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -183,10 +185,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 onPressed: lastReceipt == null
                     ? null
                     : () => showLastReceiptDialog(
-                        context: context,
-                        orderId: lastReceipt.id,
-                        orderReference: lastReceipt.displayOrderReference,
-                      ),
+                          context: context,
+                          orderId: lastReceipt.id,
+                          orderReference: lastReceipt.displayOrderReference,
+                        ),
                 icon: const Icon(Icons.receipt_long_outlined),
               )
             else
@@ -194,10 +196,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 onPressed: lastReceipt == null
                     ? null
                     : () => showLastReceiptDialog(
-                        context: context,
-                        orderId: lastReceipt.id,
-                        orderReference: lastReceipt.displayOrderReference,
-                      ),
+                          context: context,
+                          orderId: lastReceipt.id,
+                          orderReference: lastReceipt.displayOrderReference,
+                        ),
                 icon: const Icon(Icons.receipt_long_outlined),
                 label: const Text('Last Receipt'),
               ),
@@ -228,10 +230,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               return switch (catalogState) {
                 PosCatalogLoading() => const _CatalogLoading(),
                 PosCatalogError(:final message) => _CatalogErrorView(
-                  message: message,
-                  onRetry: () =>
-                      ref.read(posCatalogControllerProvider.notifier).refresh(),
-                ),
+                    message: message,
+                    onRetry: () => ref
+                        .read(posCatalogControllerProvider.notifier)
+                        .refresh(),
+                  ),
                 PosCatalogLoaded(
                   :final categories,
                   :final selectedCategoryId,
@@ -317,8 +320,7 @@ class _PhoneLayout extends ConsumerWidget {
           const Divider(height: 1),
           PhoneCartBar(
             selectedTable: selectedTable,
-            compact:
-                viewport.maxHeight < 420 ||
+            compact: viewport.maxHeight < 420 ||
                 MediaQuery.viewInsetsOf(context).bottom > 0,
           ),
         ],
@@ -457,4 +459,3 @@ void _scanProduct(BuildContext context, WidgetRef ref, String code) {
     ref.read(cartControllerProvider.notifier).addItem(product);
   }
 }
-

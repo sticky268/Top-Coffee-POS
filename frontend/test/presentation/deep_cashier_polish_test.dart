@@ -282,4 +282,3 @@ void main() {
     expect(queries.last, '');
   });
 }
-
