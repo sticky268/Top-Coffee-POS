@@ -68,7 +68,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(firstPageReads, 2);
     // Refresh may retain the reading position; search remains reachable above.
-    await tester.ensureVisible(find.byType(TextField));
+    await tester.scrollUntilVisible(
+      find.byType(TextField),
+      -300,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     await tester.pumpAndSettle();
     expect(find.byType(TextField).hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
