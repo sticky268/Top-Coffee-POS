@@ -6,7 +6,7 @@ The new cashier Reports page uses `GET /api/v1/reports/sales`. `/reports` remain
 
 Today, Yesterday, This Week (Monday start), This Month, Last Month, rolling 7/30 days, custom dates (at most 366 days), a year selector and all twelve calendar months. A month opens daily totals; a day opens its paid orders. Presets resolve on the server. One branch uses its own current date; a combined report chooses calendar dates using UTC and applies those dates in each authorized branch's timezone. Boundaries are inclusive local midnight through exclusive next midnight, including DST.
 
-This Month compares elapsed calendar days with the same day number in the previous month, capped at that month's end. Explicit calendar months compare full months, years compare full years, and other ranges compare the immediately preceding equal number of calendar days. Current partial-day data can change after refresh. A zero denominator displays New/no change rather than an invented percentage.
+Current-month views compare elapsed calendar days with the same day number in the previous month, capped at that month's end. Current-year views compare year-to-date with the same elapsed dates in the previous year, while retaining all twelve month rows (future months are labelled upcoming). This Week compares the same elapsed weekdays in the previous week. Closed calendar months/years compare full periods; other ranges compare the immediately preceding equal number of calendar days. Current partial-day data can change after refresh. A zero denominator displays New/no change rather than an invented percentage.
 
 ## Accounting definitions
 

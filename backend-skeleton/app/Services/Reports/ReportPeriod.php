@@ -29,11 +29,11 @@ final class ReportPeriod
             case 'last_month': $from = $today->subMonthNoOverflow()->startOfMonth(); $to = $from->endOfMonth(); break;
             case 'month':
                 $from = CarbonImmutable::create($input['year'], $input['month'], 1, 0, 0, 0, $timezone);
-                $to = $from->endOfMonth();
+                $to = $from->format('Y-m') === $today->format('Y-m') ? $today : $from->endOfMonth();
                 break;
             case 'year':
                 $from = CarbonImmutable::create($input['year'], 1, 1, 0, 0, 0, $timezone);
-                $to = $from->endOfYear();
+                $to = $from->year === $today->year ? $today : $from->endOfYear();
                 break;
             case 'custom':
                 $from = CarbonImmutable::parse($input['date_from'], $timezone)->startOfDay();
@@ -45,12 +45,15 @@ final class ReportPeriod
         $this->to = $to->toDateString();
         if (in_array($this->kind, ['month', 'last_month', 'this_month'], true)) {
             $previousFrom = $from->subMonthNoOverflow()->startOfMonth();
-            $previousTo = $this->kind === 'this_month'
+            $previousTo = $from->format('Y-m') === $today->format('Y-m')
                 ? $previousFrom->day(min($today->day, $previousFrom->daysInMonth))
                 : $previousFrom->endOfMonth();
         } elseif ($this->kind === 'year') {
             $previousFrom = $from->subYear();
-            $previousTo = $previousFrom->endOfYear();
+            $previousTo = $from->year === $today->year ? $today->subYearNoOverflow() : $previousFrom->endOfYear();
+        } elseif ($this->kind === 'week') {
+            $previousFrom = $from->subWeek();
+            $previousTo = $to->subWeek();
         } else {
             $days = (int) $from->diffInDays($to->startOfDay()) + 1;
             $previousFrom = $from->subDays($days);

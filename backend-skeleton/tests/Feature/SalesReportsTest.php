@@ -208,6 +208,14 @@ class SalesReportsTest extends TestCase
         $this->getJson($this->url(['period' => 'this_month']))->assertOk()
             ->assertJsonPath('data.meta.previous_from', '2026-02-01')
             ->assertJsonPath('data.meta.previous_to', '2026-02-28');
+        $this->getJson($this->url(['period' => 'month', 'year' => 2026, 'month' => 3]))->assertOk()
+            ->assertJsonPath('data.meta.date_to', '2026-03-31')->assertJsonPath('data.meta.previous_to', '2026-02-28');
+        $this->getJson($this->url(['period' => 'year', 'year' => 2026]))->assertOk()
+            ->assertJsonPath('data.meta.date_to', '2026-03-31')->assertJsonPath('data.meta.previous_to', '2025-03-31')
+            ->assertJsonCount(12, 'data.timeline')->assertJsonPath('data.timeline.3.upcoming', true);
+        // Tuesday compares Monday/Tuesday of the preceding week, not the preceding weekend.
+        $this->getJson($this->url(['period' => 'week']))->assertOk()
+            ->assertJsonPath('data.meta.previous_from', '2026-03-23')->assertJsonPath('data.meta.previous_to', '2026-03-24');
         $this->manager->revokePermissionTo('reports.view');
         $this->getJson($this->url())->assertForbidden();
     }

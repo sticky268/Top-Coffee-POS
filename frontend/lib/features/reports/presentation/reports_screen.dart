@@ -78,22 +78,28 @@ class _ReportContent extends ConsumerWidget {
                     ? DateFormat('MMMM')
                         .format(DateTime.parse(row['date_from'] as String))
                     : _date(row['date_from'] as String)),
-                subtitle: Text(ReportAmount.parse(row['total']).money),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  final date = DateTime.parse(row['date_from'] as String);
-                  if (query.period == 'year') {
-                    controller.select(query.periodSelection('month',
-                        year: date.year, month: date.month));
-                  } else if (row['date_from'] == report.from &&
-                      report.from == report.to) {
-                    _details(context, ref, kind: 'orders');
-                  } else {
-                    controller.select(query.periodSelection('custom',
-                        from: row['date_from'] as String,
-                        to: row['date_to'] as String));
-                  }
-                }),
+                subtitle: Text(row['upcoming'] == true
+                    ? 'Upcoming month'
+                    : ReportAmount.parse(row['total']).money),
+                trailing: Icon(row['upcoming'] == true
+                    ? Icons.schedule
+                    : Icons.chevron_right),
+                onTap: row['upcoming'] == true
+                    ? null
+                    : () {
+                        final date = DateTime.parse(row['date_from'] as String);
+                        if (query.period == 'year') {
+                          controller.select(query.periodSelection('month',
+                              year: date.year, month: date.month));
+                        } else if (row['date_from'] == report.from &&
+                            report.from == report.to) {
+                          _details(context, ref, kind: 'orders');
+                        } else {
+                          controller.select(query.periodSelection('custom',
+                              from: row['date_from'] as String,
+                              to: row['date_to'] as String));
+                        }
+                      }),
         ]);
     return RefreshIndicator(
         onRefresh: controller.refresh,

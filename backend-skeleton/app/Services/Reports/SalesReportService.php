@@ -163,7 +163,8 @@ final class SalesReportService
         $p = $c['period'];
         $monthly = $p->kind === 'year';
         $buckets = [];
-        for ($date = CarbonImmutable::parse($p->from); $date->toDateString() <= $p->to; $date = $monthly ? $date->addMonth() : $date->addDay()) {
+        $timelineEnd = $monthly ? CarbonImmutable::parse($p->from)->endOfYear()->toDateString() : $p->to;
+        for ($date = CarbonImmutable::parse($p->from); $date->toDateString() <= $timelineEnd; $date = $monthly ? $date->addMonth() : $date->addDay()) {
             $buckets[] = [$date->toDateString(), $monthly ? $date->endOfMonth()->toDateString() : $date->toDateString()];
         }
         $expressions = $bindings = [];
@@ -179,7 +180,8 @@ final class SalesReportService
         }
         $totals = $this->selected($c, $p->from, $p->to)->selectRaw(implode(', ', $expressions), $bindings)->first();
         return array_map(fn ($i) => ['date_from' => $buckets[$i][0], 'date_to' => $buckets[$i][1],
-            'total' => ReportMoney::decimal((int) ($totals->{"bucket_$i"} ?? 0))], array_keys($buckets));
+            'total' => ReportMoney::decimal((int) ($totals->{"bucket_$i"} ?? 0)),
+            'upcoming' => $monthly && $buckets[$i][0] > $p->today], array_keys($buckets));
     }
 
     private function topProducts(Builder $orders): array

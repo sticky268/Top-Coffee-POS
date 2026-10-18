@@ -25,7 +25,7 @@ class SalesReportsController extends Controller
             'date_to' => 'required_if:period,custom|date_format:Y-m-d|after_or_equal:date_from',
             'detail' => 'nullable|in:orders,refunds,payments,excluded,event_payments,event_refunds',
             'metric' => 'nullable|in:gross_sales,discounts,tax,total_sales,supplemental_sales,refunds,net_sales,total_orders,average_order_value',
-            'method' => 'nullable|in:cash,card,qr',
+            'method' => 'nullable|in:cash,card,qr,split',
             'page' => 'nullable|integer|min:1|max:1000000',
         ]);
         $user = $request->user();
