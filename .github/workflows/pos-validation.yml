@@ -75,7 +75,7 @@ jobs:
           extensions: pdo_mysql
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
-      - run: php vendor/bin/phpunit --filter CafeOperationsTest
+      - run: php vendor/bin/phpunit --filter 'CafeOperationsTest|SalesReportsTest'
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL

@@ -55,6 +55,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/reports/operations', [\App\Http\Controllers\Api\V1\OperationsReportController::class, 'report']);
         Route::get('/subscription', [SubscriptionController::class, 'show']);
         Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/reports/sales', [\App\Http\Controllers\Api\V1\SalesReportsController::class, 'index']);
         Route::get('/reports', [ReportsController::class, 'index']);
         Route::get('/units', [UnitController::class, 'index']);
 
