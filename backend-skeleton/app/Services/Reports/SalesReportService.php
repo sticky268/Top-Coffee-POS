@@ -50,8 +50,16 @@ final class SalesReportService
             // Same calendar dates in each branch's own timezone, including DST.
             foreach ($c['branches'] as $branch) {
                 [$start, $until] = ReportPeriod::window($from, $to, $branch->timezone ?: 'UTC');
-                $q->orWhere(fn ($b) => $b->where('orders.branch_id', $branch->id)
-                    ->whereRaw("$column >= ? AND $column < ?", [$start, $until]));
+                $q->orWhere(function ($b) use ($branch, $column, $start, $until) {
+                    $b->where('orders.branch_id', $branch->id);
+                    if ($column === 'COALESCE(orders.completed_at, orders.created_at)') {
+                        // Keep both completion and legacy creation indexes usable.
+                        $b->where(fn ($q) => $q->where(fn ($q) => $q->where('orders.completed_at', '>=', $start)->where('orders.completed_at', '<', $until))
+                            ->orWhere(fn ($q) => $q->whereNull('orders.completed_at')->where('orders.created_at', '>=', $start)->where('orders.created_at', '<', $until)));
+                    } else {
+                        $b->where($column, '>=', $start)->where($column, '<', $until);
+                    }
+                });
             }
             if ($c['branches']->isEmpty()) $q->whereRaw('1 = 0');
         });

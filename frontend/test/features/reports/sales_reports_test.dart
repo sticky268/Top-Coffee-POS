@@ -116,12 +116,14 @@ void main() {
     await tester.tap(find.text('Browse all 12 months'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Monthly history · 2026'), 300);
-    await tester.scrollUntilVisible(find.text('February'), 300);
-    await tester.tap(find.text('February'));
+    await tester.scrollUntilVisible(find.text('February').hitTestable(), 200);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('February').hitTestable());
     await tester.pumpAndSettle();
     expect(scope.read(salesReportsControllerProvider.notifier).query.month, 2);
-    await tester.scrollUntilVisible(find.text('Net sales'), -300);
-    await tester.tap(find.text('Net sales'));
+    await tester.scrollUntilVisible(find.text('Net sales').hitTestable(), -200);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Net sales').hitTestable());
     await tester.pumpAndSettle();
     expect(find.text('Report source records'), findsOneWidget);
     expect(find.text('Order 7 · Branch 21'), findsOneWidget);

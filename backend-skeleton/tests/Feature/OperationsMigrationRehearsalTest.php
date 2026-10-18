@@ -12,8 +12,8 @@ class OperationsMigrationRehearsalTest extends TestCase
 {
     private bool $disposable = false;
     // Cafe operations, checkout controls, completion index, receipt snapshots,
-    // drawer telemetry and manager PIN credentials are rehearsed together.
-    private const RELEASE_MIGRATIONS = 6;
+    // drawer telemetry, manager PIN credentials and report indexes are rehearsed together.
+    private const RELEASE_MIGRATIONS = 7;
 
     protected function setUp(): void
     {
@@ -23,11 +23,13 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertSame('mysql', config('database.default'));
         $this->assertSame('operations_testing', config('database.connections.mysql.database'));
         $this->disposable = true;
-        // Rehearse all six release migrations together from the populated
+        // Rehearse all seven release migrations together from the populated
         // pre-operations schema; the drawer table must not shift the baseline.
         $this->artisan('migrate:fresh', ['--force' => true])->assertExitCode(0);
         $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
         $this->assertFalse(Schema::hasTable('cashier_shifts'));
+        $this->assertFalse(Schema::hasIndex('payments', 'payments_report_event_date'));
+        $this->assertFalse(Schema::hasIndex('payment_refunds', 'refunds_report_event_date'));
         $this->assertFalse(Schema::hasColumn('users', 'manager_pin_hash'));
         $this->assertFalse(Schema::hasTable('cash_drawer_events'));
         $this->assertFalse(Schema::hasColumn('ingredients', 'average_unit_cost'));
@@ -74,6 +76,9 @@ class OperationsMigrationRehearsalTest extends TestCase
         $verify();
         $this->assertDrawerSchema();
         $this->assertTrue(Schema::hasIndex('orders', 'orders_branch_status_completed_index'));
+        $this->assertTrue(Schema::hasIndex('payments', 'payments_report_event_date'));
+        $this->assertTrue(Schema::hasIndex('payment_refunds', 'refunds_report_event_date'));
+        $this->assertTrue(Schema::hasIndex('cashier_shifts', 'shifts_report_interval'));
         $this->assertNull(DB::table('order_items')->value('product_name'));
         $this->assertNull(DB::table('order_items')->value('variant_name'));
         $this->assertNull(DB::table('ingredients')->value('average_unit_cost'));

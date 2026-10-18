@@ -181,6 +181,35 @@ class SalesReportsTest extends TestCase
         $this->getJson($this->url(['period' => 'month', 'year' => 2026, 'month' => 13]))->assertUnprocessable();
     }
 
+    public function test_source_amounts_match_the_selected_metric_and_dst_hours_keep_both_offsets(): void
+    {
+        $this->branch->update(['timezone' => 'America/Denver']);
+        $id = $this->sale('2026-11-01 07:30:00', '9.50', ['subtotal' => '10.00', 'discount_total' => '1.00', 'tax_total' => '0.50']);
+        $payment = DB::table('payments')->where('order_id', $id)->value('id');
+        $this->refund($payment, '2.00', '2026-11-02 10:00:00');
+        $this->sale('2026-11-01 08:30:00', '1.00');
+        $range = ['period' => 'custom', 'date_from' => '2026-11-01', 'date_to' => '2026-11-01'];
+        $data = $this->getJson($this->url($range))->assertOk()->assertJsonCount(25, 'data.hourly_sales')->json('data');
+        $hours = collect($data['hourly_sales'])->keyBy('hour');
+        $this->assertSame('9.50', $hours['01:00 -06:00']['total']);
+        $this->assertSame('1.00', $hours['01:00 -07:00']['total']);
+        $this->getJson($this->url($range + ['detail' => 'orders', 'metric' => 'discounts']))
+            ->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.rows.0.amount', '1.00');
+        $rows = $this->getJson($this->url($range + ['detail' => 'orders', 'metric' => 'net_sales']))
+            ->assertOk()->json('data.rows');
+        $this->assertSame(850, array_sum(array_map(fn ($r) => ReportMoney::cents($r['amount']), $rows)));
+    }
+
+    public function test_month_to_date_comparison_caps_previous_month_and_permissions_are_required(): void
+    {
+        $this->travelTo(now('UTC')->setDate(2026, 3, 31)->setTime(10, 0));
+        $this->getJson($this->url(['period' => 'this_month']))->assertOk()
+            ->assertJsonPath('data.meta.previous_from', '2026-02-01')
+            ->assertJsonPath('data.meta.previous_to', '2026-02-28');
+        $this->manager->revokePermissionTo('reports.view');
+        $this->getJson($this->url())->assertForbidden();
+    }
+
     public function test_money_has_exact_rounding_and_defined_zero_comparisons(): void
     {
         $this->assertSame('90071992547409.91', ReportMoney::decimal(ReportMoney::cents('90071992547409.91')));

@@ -77,6 +77,9 @@ class _ReportContent extends ConsumerWidget {
                         .map((b) => '${b['name']} · ${b['timezone']}')
                         .join('\n'),
                 style: Theme.of(context).textTheme.titleSmall),
+            if (branches.length > 1)
+              const Text(
+                  'Combined presets use UTC calendar dates; each branch contributes its own local day.'),
             const SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final option in const {
@@ -189,6 +192,7 @@ class _ReportContent extends ConsumerWidget {
                               : report.amount(metric.key).money,
                           comparison: Map<String, dynamic>.from(
                               report.comparisons[metric.key] as Map),
+                          isMoney: metric.key != 'total_orders',
                           onTap: () => _details(context, ref,
                               metric: metric.key,
                               kind: metric.key == 'refunds'
@@ -388,14 +392,21 @@ class _MetricCard extends StatelessWidget {
       {required this.label,
       required this.value,
       required this.comparison,
+      required this.isMoney,
       required this.onTap});
   final String label;
   final String value;
   final Map<String, dynamic> comparison;
+  final bool isMoney;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    final delta = comparison['delta'];
+    final delta = isMoney
+        ? ReportAmount.parse(comparison['delta']).money
+        : '${comparison['delta']}';
+    final previous = isMoney
+        ? ReportAmount.parse(comparison['previous']).money
+        : '${comparison['previous']}';
     final change = comparison['percent'] == null
         ? (comparison['status'] == 'new'
             ? 'New · previous period was zero'
@@ -416,6 +427,7 @@ class _MetricCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 6),
                       Text(change),
+                      Text('Previous: $previous'),
                       Text('Change: $delta'),
                       const SizedBox(height: 4),
                       const Text('View source orders',
@@ -516,8 +528,8 @@ List<List<Object>> salesReportRows(SalesReport report) => [
         'Previous period',
         '${report.meta['previous_from']} – ${report.meta['previous_to']}'
       ],
-      ['Cashier', report.meta['cashier_id']?.toString() ?? 'All'],
-      ['Category', report.meta['category_id']?.toString() ?? 'All'],
+      ['Cashier', _selectedFilterName(report, 'cashier')],
+      ['Category', _selectedFilterName(report, 'category')],
       ['Sales basis', report.meta['sales_basis'] as String],
       ['Category basis', report.meta['category_basis'] as String],
       ['Metric (USD)', 'Value', 'Change vs previous period'],
@@ -620,3 +632,11 @@ String _date(String date) =>
 String _money(Object? value) => ReportAmount.parse(value).money;
 String _method(Object? value) =>
     value == 'qr' ? 'QR' : '${value ?? ''}'.toUpperCase();
+
+String _selectedFilterName(SalesReport report, String field) {
+  final id = report.meta['${field}_id'];
+  if (id == null) return 'All';
+  final rows = SalesReport.maps(
+      report.meta[field == 'cashier' ? 'cashiers' : 'categories']);
+  return rows.firstWhere((row) => row['id'] == id)['name'] as String;
+}
