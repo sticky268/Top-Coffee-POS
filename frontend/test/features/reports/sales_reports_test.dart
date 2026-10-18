@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -20,7 +22,15 @@ class MockSalesRepository extends Mock implements SalesReportsRepository {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() => registerFallbackValue(const SalesReportQuery()));
+  setUpAll(() async {
+    registerFallbackValue(const SalesReportQuery());
+    for (final font in [
+      ('Inter', 'assets/fonts/Inter.ttf'),
+      ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
+    ]) {
+      await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
+    }
+  });
 
   test('report money preserves large values and rejects malformed values', () {
     expect(ReportAmount.parse('90071992547409.91').toString(),
@@ -140,6 +150,7 @@ void main() {
     await tester.pumpWidget(UncontrolledProviderScope(
         container: scope,
         child: MaterialApp(
+            theme: AppTheme.light,
             home:
                 RepaintBoundary(key: preview, child: const ReportsScreen()))));
     await tester.pumpAndSettle();
@@ -147,9 +158,10 @@ void main() {
     await tester.tap(find.text('Browse all 12 months'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Monthly history · 2026'), 300);
-    await tester.scrollUntilVisible(find.text('February').hitTestable(), 200);
     await tester.pumpAndSettle();
     await savePreview(tester, preview, 'sales-report-month-history-phone');
+    await tester.scrollUntilVisible(find.text('February').hitTestable(), 200);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('February').hitTestable());
     await tester.pumpAndSettle();
     expect(scope.read(salesReportsControllerProvider.notifier).query.month, 2);
