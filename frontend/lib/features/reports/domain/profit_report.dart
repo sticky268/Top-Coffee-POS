@@ -54,6 +54,7 @@ const profitLabels = {
   'additional': 'Allocated additional charges',
   'refunds': 'Refunds excluding tax',
   'refund_tax': 'Refunded tax (allocated)',
+  'non_sales_refunds': 'Refunds above sale value',
   'revenue': 'Revenue excluding tax',
   'cogs': 'Recipe COGS',
   'gross_profit': 'Gross profit',

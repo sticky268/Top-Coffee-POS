@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 /** Sale-cohort profitability. Only immutable line costs and ledger reversals are used. */
 final class ProfitReportService
 {
-    private const MONEY = ['gross', 'discounts', 'tax', 'additional', 'refunds', 'refund_tax', 'revenue'];
+    private const MONEY = ['gross', 'discounts', 'tax', 'additional', 'refunds', 'refund_tax', 'non_sales_refunds', 'revenue'];
 
     public function __construct(private SalesReportService $sales) {}
 
@@ -61,11 +61,13 @@ final class ProfitReportService
                 $tax = ReportMoney::cents((string) $order->tax_total);
                 $extra = ReportMoney::cents((string) $order->supplemental_total);
                 $refund = (int) ($refunds[$order->id]->cents ?? 0);
-                $refundTax = ReportAllocation::ratio($refund, $tax, $total + $extra);
+                $saleRefund = min($refund, max(0, $total + $extra));
+                $refundTax = ReportAllocation::ratio($saleRefund, $tax, $total + $extra);
                 $values = ['gross' => ReportMoney::cents((string) $order->subtotal),
                     'discounts' => ReportMoney::cents((string) $order->discount_total), 'tax' => $tax,
-                    'additional' => $extra, 'refunds' => $refund - $refundTax, 'refund_tax' => $refundTax,
-                    'revenue' => $total - $tax + $extra - $refund + $refundTax];
+                    'additional' => $extra, 'refunds' => $saleRefund - $refundTax, 'refund_tax' => $refundTax,
+                    'non_sales_refunds' => $refund - $saleRefund,
+                    'revenue' => $total - $tax + $extra - $saleRefund + $refundTax];
                 $allocated = array_map(fn ($amount) => ReportAllocation::split($amount, $weights), $values);
                 $restocked = (bool) ($refunds[$order->id]->restocked ?? false);
                 $movements = $ledger->get($order->id, collect());
@@ -198,7 +200,7 @@ final class ProfitReportService
             'currency' => 'USD', 'generated_at' => CarbonImmutable::now('UTC')->toIso8601String(),
             'margin_threshold_percent' => $marginThreshold === null ? null : ReportMoney::decimal($marginThreshold),
             'popularity_threshold_units' => count($selling) === 0 ? '0.00' : ReportMoney::decimal(ReportAllocation::ratio($current['summary']['quantity'], 100, count($selling))),
-            'basis' => 'Fully paid completed sales by branch-local completion date. Revenue excludes recorded tax. Order discounts, additional charges and refunds are allocated to lines by original line price × quantity using largest remainders. Refund tax is proportional to original tax; additional charges have no recorded tax. Adjustments follow the original sale. This is gross profit, before operating expenses.',
+            'basis' => 'Fully paid completed sales by branch-local completion date. Revenue excludes recorded tax. Order discounts, additional charges and refunds are allocated to lines by original line price × quantity using largest remainders. Refunds up to the sale value reduce revenue; any surplus is a non-sales refund. Refund tax is proportional to original tax; additional charges have no recorded tax. Adjustments follow the original sale. This is gross profit, before operating expenses.',
             'cost_basis' => 'Sale-time line recipe cost includes variants and modifiers. Full restock reversals require a balanced stock_movements ledger; consumed and wasted items retain their cost. Missing costs make profit and margin incomplete. Historical categories are never backfilled from today’s catalogue.',
             'unsold_basis' => 'Currently active, available catalogue products with no units sold in this selection; availability history is not recorded. A cashier filter means no sales by that cashier.'];
         return $result;

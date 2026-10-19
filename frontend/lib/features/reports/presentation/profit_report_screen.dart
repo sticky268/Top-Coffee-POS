@@ -119,22 +119,61 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                           style: Theme.of(context).textTheme.titleMedium),
                       Text(
                           'Compared with ${report.meta['previous_from']} – ${report.meta['previous_to']}'),
-                      const Text(
-                          'Uses the date, branch, cashier and category filters from Sales. Go back to change the selection. Category here means individual sale-time items; older unknown categories appear separately.'),
+                      Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.tune),
+                              label: const Text('Change report filters'))),
                       if (report.summary['unknown_cost_lines'] != 0)
                         Card(
                             child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Text(
                                     '${report.summary['unknown_cost_lines']} line(s) have missing historical costs or an unverified restock. Total COGS, profit and margin are incomplete. Known costs are not the total.'))),
-                      for (final metric in profitLabels.entries)
-                        Card(
-                            child: ListTile(
-                                title: Text(metric.value),
-                                subtitle: Text(
-                                    '${profitValue(report.summary, metric.key)}\n${_comparison(report.summary, metric.key)}'),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: _sources)),
+                      LayoutBuilder(builder: (context, constraints) {
+                        final columns = constraints.maxWidth >= 600 &&
+                                MediaQuery.textScalerOf(context).scale(14) <= 20
+                            ? 2
+                            : 1;
+                        return Wrap(spacing: 8, runSpacing: 8, children: [
+                          for (final key in [
+                            'revenue',
+                            'cogs',
+                            'gross_profit',
+                            'quantity'
+                          ])
+                            SizedBox(
+                                width:
+                                    (constraints.maxWidth - (columns - 1) * 8) /
+                                        columns,
+                                child: Card(
+                                    child: ListTile(
+                                        title: Text(profitLabels[key]!),
+                                        subtitle: Text(
+                                            '${profitValue(report.summary, key)}\n${_comparison(report.summary, key)}'),
+                                        trailing:
+                                            const Icon(Icons.chevron_right),
+                                        onTap: _sources))),
+                        ]);
+                      }),
+                      ExpansionTile(
+                          title: const Text('Sales, discounts & refunds'),
+                          children: [
+                            for (final entry in profitLabels.entries.where(
+                                (e) => ![
+                                      'revenue',
+                                      'cogs',
+                                      'gross_profit',
+                                      'quantity'
+                                    ].contains(e.key)))
+                              ListTile(
+                                  title: Text(entry.value),
+                                  subtitle: Text(
+                                      '${profitValue(report.summary, entry.key)}\n${_comparison(report.summary, entry.key)}'),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: _sources),
+                          ]),
                       Card(
                           child: ListTile(
                               title: const Text('Gross margin'),
@@ -146,6 +185,8 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                           title: const Text('Accounting & cost coverage'),
                           childrenPadding: const EdgeInsets.all(16),
                           children: [
+                            const Text(
+                                'Uses the filters from Sales. Category here means individual sale-time items; older unknown categories appear separately.'),
                             Text(report.meta['basis'] as String),
                             Text(report.meta['cost_basis'] as String),
                             Text(
@@ -290,7 +331,7 @@ class _ProfitSourcesState extends ConsumerState<_ProfitSources> {
                           for (final key in profitLabels.keys)
                             ListTile(
                                 title: Text(profitLabels[key]!),
-                                trailing: Text(profitValue(row, key))),
+                                subtitle: Text(profitValue(row, key))),
                           ListTile(
                               title: Text(row['category_name'] as String),
                               subtitle: Text(row['cost_reason']?.toString() ??

@@ -18,7 +18,7 @@ class SalesReportsController extends Controller
         $input = $request->validate([
             'report' => 'nullable|in:sales,profit',
             'product_id' => 'nullable|integer|min:0',
-            'profit_category' => 'nullable|regex:/^(legacy|none|[0-9]+)$/',
+            'profit_category' => ['nullable', 'regex:/^(legacy|none|[0-9]+)$/'],
             'branch_id' => 'nullable|integer|min:1',
             'cashier_id' => 'nullable|integer|min:1',
             'category_id' => 'nullable|integer|min:1',

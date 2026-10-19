@@ -11,7 +11,9 @@ Go back to Sales to change filters. All calculations run on the API.
   overpayments do not inflate revenue. Refunds and additional charges follow the
   original sale, even when recorded later.
 - Revenue = original total − original tax + additional charges − refunds +
-  proportionally refunded tax. Additional charges have no separate recorded tax.
+  proportionally refunded tax. Refunds above the original total plus additional
+  charges are reported separately as non-sales refunds, not negative revenue.
+  Additional charges have no separate recorded tax.
   This is ingredient gross profit, not operating/net profit or a tax return.
 - Each order's gross, discount, tax, additional charge and refund amounts are
   allocated by original `unit_price × quantity`, using exact largest remainders

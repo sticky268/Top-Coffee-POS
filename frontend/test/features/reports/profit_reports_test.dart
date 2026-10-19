@@ -27,6 +27,7 @@ Map<String, dynamic> row({bool incomplete = false}) => {
       'additional': '0.00',
       'refunds': '3.00',
       'refund_tax': '0.30',
+      'non_sales_refunds': '0.00',
       'revenue': '6.00',
       'cogs': incomplete ? null : '1.123457',
       'known_cogs': '1.123457',
@@ -170,7 +171,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await savePreview(tester, key, 'profit-report-phone-$scale.png');
-      final tile = find.text('Gross item sales');
+      final tile = find.text('Revenue excluding tax');
       await tester.scrollUntilVisible(tile, 250);
       await tester.tap(tile);
       await tester.pumpAndSettle();

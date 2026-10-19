@@ -187,9 +187,22 @@ class ProfitReportsTest extends TestCase
         $this->item($order, '1.000000', ['product_id' => $other->id, 'product_name' => 'Toast', 'unit_price' => '5.00', 'sale_category_id' => $otherCategory->id, 'sale_category_name' => 'Food']);
         $this->report(['category_id' => $this->category->id])->assertOk()->assertJsonPath('data.summary.revenue', '5.00')->assertJsonCount(1, 'data.products');
         for ($i = 0; $i < 51; $i++) $this->item($this->sale());
+        DB::enableQueryLog();
         $this->report(['detail' => 'profit', 'product_id' => $this->product->id, 'page' => 2])->assertOk()
             ->assertJsonPath('data.total', 52)->assertJsonCount(2, 'data.rows');
+        $this->assertLessThan(25, count(DB::getQueryLog()), 'Sources must bulk-load, not query per item.');
+        DB::disableQueryLog();
         $this->report(['cashier_id' => User::factory()->create()->id])->assertForbidden();
+    }
+
+    public function test_full_overpayment_refund_does_not_create_negative_sales_revenue(): void
+    {
+        $order = $this->sale(['total' => '9.90', 'subtotal' => '9.00', 'tax_total' => '0.90']);
+        $this->item($order);
+        $this->refund($order, '10.00');
+        $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '0.00')
+            ->assertJsonPath('data.summary.refunds', '9.00')->assertJsonPath('data.summary.refund_tax', '0.90')
+            ->assertJsonPath('data.summary.non_sales_refunds', '0.10');
     }
 
     public function test_allocation_handles_ties_subcent_costs_and_large_values_without_floats(): void
