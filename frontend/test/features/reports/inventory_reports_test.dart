@@ -157,8 +157,15 @@ void main() {
     final dir = Directory('build/report-exports')..createSync(recursive: true);
     for (final format in [ReportExportFormat.xlsx, ReportExportFormat.pdf]) {
       final file = await ReportExporter.buildRows(
-          rows, 'inventory-exact', format,
-          title: 'Inventory report', columnFlex: [5, 3, 3, 3]);
+          inventoryReportRows(data,
+              includeBasis: format != ReportExportFormat.pdf),
+          'inventory-exact',
+          format,
+          notes: format == ReportExportFormat.pdf
+              ? data['meta']['basis'] as String
+              : null,
+          title: 'Inventory report',
+          columnFlex: [5, 3, 3, 3]);
       File('${dir.path}/${file.name}').writeAsBytesSync(file.bytes);
     }
   });

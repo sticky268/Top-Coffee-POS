@@ -151,7 +151,7 @@ class ReportExporter {
 
   static Future<ReportExportFile> buildRows(
       List<List<Object>> data, String name, ReportExportFormat format,
-      {String title = 'Sales report', List<int>? columnFlex}) async {
+      {String title = 'Sales report', List<int>? columnFlex, String? notes}) async {
     switch (format) {
       case ReportExportFormat.csv:
         return ReportExportFile('$name.csv', 'text/csv',
@@ -195,7 +195,13 @@ class ReportExporter {
                   .toList(),
               cellStyle: const pw.TextStyle(fontSize: 9),
               cellAlignment: pw.Alignment.centerLeft,
-            )
+            ),
+            if (notes != null) ...[
+              pw.SizedBox(height: 12),
+              pw.Text('Accounting basis', style: const pw.TextStyle(fontSize: 10)),
+              pw.SizedBox(height: 4),
+              pw.Text(notes, style: const pw.TextStyle(fontSize: 9)),
+            ],
           ],
         ));
         return ReportExportFile(

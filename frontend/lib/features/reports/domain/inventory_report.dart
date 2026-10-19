@@ -71,7 +71,8 @@ String inventoryChange(Map<String, dynamic> row, String key) {
   return c['status'] == 'new' ? 'New activity' : 'No comparable baseline';
 }
 
-List<List<Object>> inventoryReportRows(Map<String, dynamic> data) {
+List<List<Object>> inventoryReportRows(Map<String, dynamic> data,
+    {bool includeBasis = true}) {
   final meta = data['meta'];
   Object value(Object? v, String key, {bool quantity = false}) => v == null
       ? 'Unavailable'
@@ -114,7 +115,7 @@ List<List<Object>> inventoryReportRows(Map<String, dynamic> data) {
     ['Sales usage cashier', meta['cashier_name'] ?? 'All'],
     ['Sales usage category (whole orders)', meta['category_name'] ?? 'All'],
     ['Stock / waste scope', 'All cashiers and categories in selected branches'],
-    ['Accounting basis', meta['basis']],
+    if (includeBasis) ['Accounting basis', meta['basis']],
     ['Generated UTC', meta['generated_at']],
     [],
     ['Branch-wide stock / waste and selected sale-usage coverage'],

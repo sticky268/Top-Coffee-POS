@@ -67,6 +67,6 @@ assert name.data_type == 's'
 assert any(c.value == 'Unavailable' for row in inventory for c in row)
 inventory_pdf = PdfReader(root / 'inventory-exact.pdf')
 inventory_text = re.sub(r'\s+', '', ''.join(page.extract_text() for page in inventory_pdf.pages))
-for expected in ['Inventory', 'Riverside', '2026-10-19', '1.999002', 'Theoretical', 'Unavailable', 'Change%']:
+for expected in ['Inventory', 'Riverside', '2026-10-19', '1.999002', 'Theoretical', 'Unavailable', 'Change%', 'Differentingredientunitsareneversummed']:
     assert expected in inventory_text, expected
 print('Inventory exports preserve numeric six-decimal costs, three-decimal quantities, unavailable history and branch/date context.')

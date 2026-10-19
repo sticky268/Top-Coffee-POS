@@ -51,6 +51,7 @@ Both phases stay on the same unmerged review branch, codex/reports-time-cashier.
   No historical snapshot is backfilled or invented.
 - Flutter: inventory_report.dart, inventory_report_screen.dart, repository method,
   Reports entry; CSV/numeric XLSX/branded four-column PDF use the shared exporter.
+  PDF accounting notes use a full-width section; CSV/Excel retain the complete metadata row.
 - Verification: InventoryReportsTest, inventory_reports_test.dart, independent export
   reader assertions, real MySQL CI selection and the populated upgrade/rollback rehearsal.
 

@@ -67,9 +67,13 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
     setState(() => exporting = true);
     try {
       final file = await ReportExporter.buildRows(
-        inventoryReportRows(data),
+        inventoryReportRows(data,
+            includeBasis: format != ReportExportFormat.pdf),
         'top-coffee-inventory-${data['meta']['date_from']}-${data['meta']['date_to']}',
         format,
+        notes: format == ReportExportFormat.pdf
+            ? data['meta']['basis'] as String
+            : null,
         title: 'Inventory report',
         columnFlex: [5, 3, 3, 3],
       );
