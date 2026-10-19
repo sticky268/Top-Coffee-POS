@@ -106,11 +106,6 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
           child: FutureBuilder<ProfitReport>(
             future: pending,
             builder: (context, state) {
-              // A changed future retains the preceding page's snapshot data.
-              // Hide it, including its paging controls, until this request ends.
-              if (state.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
-              }
               if (state.hasError) {
                 return Center(
                   child: Column(
@@ -421,6 +416,11 @@ class _ProfitSourcesState extends ConsumerState<_ProfitSources> {
           child: FutureBuilder<Map<String, dynamic>>(
             future: pending,
             builder: (context, state) {
+              // A changed future retains the preceding page's snapshot data.
+              // Hide it, including its paging controls, until this request ends.
+              if (state.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
               if (state.hasError) {
                 return Center(
                   child: FilledButton(
