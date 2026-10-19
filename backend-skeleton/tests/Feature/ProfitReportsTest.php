@@ -101,6 +101,7 @@ class ProfitReportsTest extends TestCase
         $this->category->update(['name' => 'Changed category']);
         $this->report()->assertOk()->assertJsonPath('data.summary.cogs', null)
             ->assertJsonPath('data.summary.gross_profit', null)->assertJsonPath('data.summary.margin_percent', null)
+            ->assertJsonPath('data.summary.comparisons.cogs', null)->assertJsonPath('data.summary.comparisons.gross_profit', null)
             ->assertJsonPath('data.summary.unknown_cost_lines', 1)->assertJsonPath('data.summary.known_cogs', '0.000000')
             ->assertJsonPath('data.categories.0.id', 'legacy')->assertJsonPath('data.products.0.name', 'Latte');
         $this->report(['category_id' => $this->category->id])->assertOk()->assertJsonPath('data.summary.revenue', '0.00');
@@ -238,6 +239,17 @@ class ProfitReportsTest extends TestCase
         $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '0.00')
             ->assertJsonPath('data.summary.refunds', '9.00')->assertJsonPath('data.summary.refund_tax', '0.90')
             ->assertJsonPath('data.summary.non_sales_refunds', '0.10');
+    }
+
+    public function test_one_millionth_costs_survive_database_serialization_and_comparisons(): void
+    {
+        $this->item($this->sale([], '2026-10-18 01:00:00'), '0.000001');
+        $this->item($this->sale(), '0.000001');
+        $this->item($this->sale(), '0.000001');
+        $this->report()->assertOk()->assertJsonPath('data.summary.cogs', '0.000002')
+            ->assertJsonPath('data.summary.gross_profit', '19.999998')
+            ->assertJsonPath('data.summary.comparisons.cogs.previous', '0.000001')
+            ->assertJsonPath('data.summary.comparisons.cogs.percent', '100.00');
     }
 
     public function test_allocation_handles_ties_subcent_costs_and_large_values_without_floats(): void

@@ -38,7 +38,9 @@ final class ProfitReportService
                 ->orderBy('orders.id')->limit(250)->get(['orders.*']);
             if ($orders->isEmpty()) break;
             $ids = $orders->pluck('id');
-            $items = DB::table('order_items')->whereIn('order_id', $ids)->orderBy('id')->get()->groupBy('order_id');
+            $items = DB::table('order_items')->whereIn('order_id', $ids)->orderBy('id')
+                ->select('order_items.*')->selectRaw('CASE WHEN ingredient_cost IS NULL THEN NULL ELSE CAST(ROUND(ingredient_cost * 1000000, 0) AS SIGNED) END AS historical_cost_micros')
+                ->get()->groupBy('order_id');
             $refunds = DB::table('payment_refunds')->join('payments', 'payments.id', '=', 'payment_refunds.payment_id')
                 ->whereIn('payments.order_id', $ids)->selectRaw("payments.order_id, SUM(".ReportMoney::sql('payment_refunds.amount').") AS cents, MAX(CASE WHEN inventory_disposition = 'restock' THEN 1 ELSE 0 END) AS restocked")
                 ->groupBy('payments.order_id')->get()->keyBy('order_id');
@@ -53,7 +55,7 @@ final class ProfitReportService
                 if ($rows->isEmpty()) {
                     // Corrupt/legacy sales must not silently disappear from revenue.
                     $rows = collect([(object) ['id' => 0, 'product_id' => 0, 'product_name' => 'Unattributed sale',
-                        'quantity' => 0, 'unit_price' => '0.00', 'ingredient_cost' => null,
+                        'quantity' => 0, 'unit_price' => '0.00', 'historical_cost_micros' => null,
                         'sale_category_captured' => false, 'sale_category_id' => null, 'sale_category_name' => null]]);
                 }
                 $weights = $rows->mapWithKeys(fn ($r) => [$r->id => max(0, ReportMoney::cents((string) $r->unit_price) * (int) $r->quantity)])->all();
@@ -79,7 +81,7 @@ final class ProfitReportService
                     if (isset($c['input']['category_id']) && $category !== (string) $c['input']['category_id']) continue;
                     if (isset($c['input']['product_id']) && (int) $item->product_id !== (int) $c['input']['product_id']) continue;
                     if (isset($c['input']['profit_category']) && $category !== $c['input']['profit_category']) continue;
-                    $cost = $item->ingredient_cost === null ? null : ReportAllocation::micros((string) $item->ingredient_cost);
+                    $cost = $item->historical_cost_micros === null ? null : (int) $item->historical_cost_micros;
                     $unknown = $cost === null || $cost < 0 || ($restocked && ! $verifiedRestock);
                     $line = $this->emptyRow((int) $item->product_id, $item->product_name ?: 'Archived product #'.$item->product_id);
                     foreach (self::MONEY as $key) $line[$key] = $allocated[$key][$item->id];

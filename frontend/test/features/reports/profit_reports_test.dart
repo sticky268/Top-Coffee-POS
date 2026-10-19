@@ -40,12 +40,14 @@ Map<String, dynamic> row({bool incomplete = false}) => {
       'legacy_category_lines': 1,
       'comparisons': {
         for (final key in profitLabels.keys)
-          key: {
-            'previous': '1.00',
-            'delta': '1.00',
-            'percent': '100.00',
-            'status': 'comparable'
-          }
+          key: incomplete && ['cogs', 'gross_profit'].contains(key)
+              ? null
+              : {
+                  'previous': key == 'quantity' ? 1 : '1.00',
+                  'delta': '1.00',
+                  'percent': '100.00',
+                  'status': 'comparable'
+                }
       },
       'popularity_percent': '100.00',
       'performance': incomplete ? 'cost_missing' : 'star',
