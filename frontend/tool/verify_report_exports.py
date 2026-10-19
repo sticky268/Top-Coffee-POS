@@ -34,6 +34,7 @@ profit_text = "".join(page.extract_text() for page in PdfReader(root / "profit-e
 assert "Profitability" in profit_text and "1.123457" in profit_text and "4.876543" in profit_text
 assert "Riverside" in profit_text and "2026-10-19" in profit_text
 profit_rows = list(profit.iter_rows())
+compact_profit_text = re.sub(r"\s+", "", profit_text)
 for group in ["Products", "Categories", "Branches"]:
     start = next(i for i, row in enumerate(profit_rows) if row[0].value == f"{group} comparisons")
     assert [c.value for c in profit_rows[start + 1][:4]] == ["Name", "Metric", "Previous", "Change %"]
@@ -41,6 +42,6 @@ for group in ["Products", "Categories", "Branches"]:
     assert profit_rows[start + 2][2].value == 1 and profit_rows[start + 2][2].data_type == "n"
     assert profit_rows[start + 3][1].value == "Recipe COGS"
     assert profit_rows[start + 3][2].value == 1 and profit_rows[start + 3][2].data_type == "n"
-    assert f"{group} comparisons" in profit_text
-assert "Change (percentage points)" in profit_text
+    assert f"{group}comparisons" in compact_profit_text
+assert "Change(percentagepoints)" in compact_profit_text
 print("Profit exports preserve six-decimal COGS, profit, branch and dates.")
