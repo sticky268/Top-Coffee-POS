@@ -62,7 +62,11 @@ abstract final class AppTheme {
       ),
       shape: WidgetStatePropertyAll(controlShape),
       textStyle: WidgetStatePropertyAll(
-        TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       animationDuration: Duration(milliseconds: 180),
       tapTargetSize: MaterialTapTargetSize.padded,
@@ -205,6 +209,7 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         labelStyle: TextStyle(
+          fontFamily: 'Inter',
           color: scheme.onSurface,
           fontWeight: FontWeight.w600,
         ),

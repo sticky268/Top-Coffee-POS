@@ -18,3 +18,11 @@ text = "\n".join(page.extract_text() for page in reader.pages)
 compact = re.sub(r"\s+", "", text)
 assert "TopCoffee" in compact and "12.5" in compact, repr(text)
 print("Excel opens correctly, amounts are numeric, formula names are text, and PDF contains report data.")
+
+# New report money stays numeric and the fourth (net) PDF column is retained.
+exact = load_workbook(root / "sales-exact.xlsx", data_only=False)["Sales report"]
+assert exact["D4"].value == 8.01 and exact["D4"].data_type == "n"
+assert exact["B5"].value == -0.1 and exact["B5"].data_type == "n"
+exact_text = "".join(page.extract_text() for page in PdfReader(root / "sales-exact.pdf").pages)
+assert "8.01" in exact_text and "-0.10" in exact_text, repr(exact_text)
+print("Exact-money workbook and four-column PDF preserve net and negative amounts.")
