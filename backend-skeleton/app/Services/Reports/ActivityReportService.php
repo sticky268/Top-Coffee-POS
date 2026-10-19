@@ -163,6 +163,7 @@ final class ActivityReportService
                 'cashier_name' => isset($c['input']['cashier_id']) ? $c['cashiers']->firstWhere('id', $c['input']['cashier_id'])->name : null,
                 'category_name' => isset($c['input']['category_id']) ? $c['categories']->firstWhere('id', $c['input']['category_id'])->name : null,
                 'basis' => 'Paid completed sales, including tax and additional charges. Refunds follow the original sale even when processed later. Whole orders use the selected current catalogue category. Cashiers are original order owners, not necessarily refund/void actors. Voids use the first recorded cancellation audit event; legacy cancellations without audit evidence have no reliable event date and are excluded. Heatmaps combine repeated DST hours and keep missing hours at zero; comparisons are totals, not normalised for weekday exposure. Unsynced offline orders are absent.',
+                'heatmap_max_net_cents' => max(1, max(array_map(fn ($r) => abs($r['net_sales']), $current['cells']))),
                 'heatmap_max_orders' => max(1, max(array_column($cells, 'orders'))),
                 'flag_basis' => 'Review prompts only: at least 20 own and 20 peer observations, rate at least 10% and greater than twice the other cashiers rate. Discounts/refunds use paid orders; voids use paid orders plus voids. Peer scope preserves branch/category filters and ignores the cashier filter. No flag is a fraud finding.',
                 'generated_at' => CarbonImmutable::now('UTC')->toIso8601String()]];
