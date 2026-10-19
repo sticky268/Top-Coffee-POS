@@ -199,10 +199,7 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
                     const Text(
                       'Shade shows relative magnitude; negative net sales use red. New means no previous activity; - means no comparable baseline.',
                     ),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: _heatmap(data),
-                    ),
+                    _heatmap(data),
                     const SizedBox(height: 20),
                     Text(
                       'Cashier performance',
@@ -285,63 +282,92 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
     int magnitude(Map<String, dynamic> cell) => heatMetric == 'orders'
         ? cell['orders'] as int
         : ReportAmount.parse(cell['net_sales']).cents;
-    Widget label(String s) => SizedBox(
-          width: width,
-          child: Padding(padding: const EdgeInsets.all(8), child: Text(s)),
-        );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            label('Local day'),
-            for (var h = 0; h < 24; h++)
-              label('${h.toString().padLeft(2, '0')}:00'),
-          ],
-        ),
+    final rowHeight = 72 * scale;
+    final headerHeight = 48 * scale;
+    Widget label(String text, double height, double labelWidth, {Key? key}) =>
+        SizedBox(
+            key: key,
+            width: labelWidth,
+            height: height,
+            child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                    padding: const EdgeInsets.all(4), child: Text(text))));
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Column(children: [
+        label('Day', headerHeight, 56 * scale),
         for (var d = 1; d <= 7; d++)
-          Row(
-            children: [
-              label(activityDays[d - 1]),
-              for (final cell in cells.where((c) => c['weekday'] == d))
-                SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Material(
-                      color: (magnitude(cell) < 0
-                              ? Theme.of(context).colorScheme.errorContainer
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.primaryContainer)
-                          .withValues(
-                        alpha: 0.15 + 0.85 * magnitude(cell).abs() / maximum,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      child: InkWell(
-                        key: ValueKey('activity-cell-$d-${cell['hour']}'),
-                        onTap: () =>
-                            sources(weekday: d, hour: cell['hour'] as int),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            children: [
-                              Text(activityValue(cell, heatMetric)),
-                              Text(
-                                activityCellChange(cell, heatMetric),
-                                style: Theme.of(context).textTheme.labelSmall,
+          label(activityDays[d - 1], rowHeight, 56 * scale,
+              key: ValueKey('activity-day-$d')),
+      ]),
+      Expanded(
+          child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      for (var h = 0; h < 24; h++)
+                        label('${h.toString().padLeft(2, '0')}:00',
+                            headerHeight, width),
+                    ]),
+                    for (var d = 1; d <= 7; d++)
+                      Row(children: [
+                        for (final cell
+                            in cells.where((c) => c['weekday'] == d))
+                          SizedBox(
+                            width: width,
+                            height: rowHeight,
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: Material(
+                                color: (magnitude(cell) < 0
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .errorContainer
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer)
+                                    .withValues(
+                                        alpha: 0.15 +
+                                            0.85 *
+                                                magnitude(cell).abs() /
+                                                maximum),
+                                borderRadius: BorderRadius.circular(8),
+                                child: InkWell(
+                                  key: ValueKey(
+                                      'activity-cell-$d-${cell['hour']}'),
+                                  onTap: () => sources(
+                                      weekday: d, hour: cell['hour'] as int),
+                                  child: Tooltip(
+                                      message:
+                                          '${activityPoint(cell)} / ${activityLabels[heatMetric]}: ${activityValue(cell, heatMetric)}',
+                                      child: Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                    activityValue(
+                                                        cell, heatMetric),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis),
+                                                Text(
+                                                    activityCellChange(
+                                                        cell, heatMetric),
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .labelSmall),
+                                              ]))),
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-      ],
-    );
+                      ]),
+                  ]))),
+    ]);
   }
 }
 

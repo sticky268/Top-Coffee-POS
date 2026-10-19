@@ -225,6 +225,15 @@ void main() {
         expect(tester.getCenter(cell).dy, inInclusiveRange(56, 650));
         expect(cell.hitTestable(), findsOneWidget);
         await savePreview(tester, key, 'activity-heatmap-$scale.png');
+        final horizontal = tester
+            .state<ScrollableState>(find.byType(Scrollable).last)
+            .position;
+        horizontal.jumpTo(800);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('activity-day-1')).hitTestable(),
+            findsOneWidget);
+        horizontal.jumpTo(0);
+        await tester.pumpAndSettle();
         await tester.tap(cell);
         await tester.pumpAndSettle();
         expect(find.text('Order 1'), findsOneWidget);
