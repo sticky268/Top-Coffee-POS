@@ -253,7 +253,8 @@ final class ProfitReportService
         }
         uasort($rows, fn ($a, $b) => (ReportMoney::cents($b['revenue']) <=> ReportMoney::cents($a['revenue'])) ?: ($a['id'] <=> $b['id']));
         $total = $current['summary']['revenue'];
-        $shares = $total > 0 ? ReportAllocation::split(10000, array_map(fn ($r) => ReportMoney::cents($r['revenue']), $rows)) : [];
+        $weights = array_map(fn ($r) => ReportMoney::cents($r['revenue']), $rows);
+        $shares = $total > 0 && min($weights) >= 0 ? ReportAllocation::split(10000, $weights) : [];
         $position = 0; $rank = 0; $lastRevenue = null;
         foreach ($rows as $id => &$row) {
             $position++;
@@ -264,7 +265,7 @@ final class ProfitReportService
         }
         unset($row);
         return ['summary' => $this->present($current['summary'], $previous['summary']), 'branches' => array_values($rows),
-            'meta' => $this->meta($c) + ['comparison_basis' => 'Accessible branches include zero-activity and archived branches. Revenue rank is descending with tied ranks; revenue shares sum to 100% after largest-remainder rounding, or are unavailable when total revenue is zero. Growth compares selected calendar dates in each branch timezone with pinned previous dates; it is not same-store or trading-day-normalised growth. Cashier and historical item-category filters apply. Zero previous revenue is new activity, not infinite growth. Margin changes are percentage points. Missing historical costs make COGS, profit and margin unavailable. Synced sales only.']];
+            'meta' => $this->meta($c) + ['comparison_basis' => 'Accessible branches include zero-activity and archived branches. Revenue rank is descending with tied ranks; revenue shares sum to 100% after largest-remainder rounding, or are unavailable when total revenue is non-positive or a branch has negative legacy net revenue. Growth compares selected calendar dates in each branch timezone with pinned previous dates; it is not same-store or trading-day-normalised growth. Cashier and historical item-category filters apply. Zero previous revenue is new activity, not infinite growth. Margin changes are percentage points. Missing historical costs make COGS, profit and margin unavailable. Synced sales only.']];
     }
 
     public function details(array $c, int $page): array

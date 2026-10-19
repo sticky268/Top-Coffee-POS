@@ -146,6 +146,9 @@ class BranchComparisonReportsTest extends TestCase
         $this->report(['branch_id' => $hidden->id])->assertForbidden();
         $this->report(['branch_id' => $foreign->id])->assertForbidden();
         $this->report(['cashier_id' => User::factory()->create()->id])->assertForbidden();
+        $this->actor->givePermissionTo(Permission::findOrCreate('branches.view-all'));
+        $this->report()->assertOk()->assertJsonCount(2, 'data.branches');
+        $this->report(['branch_id' => $foreign->id])->assertForbidden();
         $this->report(['detail' => 'profit'])->assertUnprocessable();
         $this->report(['comparison_from' => '2026-10-19', 'comparison_to' => '2026-10-19'])->assertUnprocessable();
         $this->actor->revokePermissionTo('reports.view');
@@ -162,6 +165,19 @@ class BranchComparisonReportsTest extends TestCase
             ->assertJsonPath('data.summary.margin_percent', null);
         $this->actor->branches()->detach();
         $this->report()->assertOk()->assertJsonCount(0, 'data.branches')->assertJsonPath('data.summary.revenue', '0.00');
+    }
+
+    public function test_negative_legacy_revenue_does_not_generate_misleading_shares(): void
+    {
+        $this->item($this->sale(['tax_total' => '20.00']));
+        $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '-10.00')
+            ->assertJsonPath('data.branches.0.revenue_share_percent', null);
+        $other = $this->branch('Positive');
+        $this->item($this->sale(['branch_id' => $other->id]));
+        $this->item($this->sale(['branch_id' => $other->id]));
+        $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '10.00')
+            ->assertJsonPath('data.branches.0.revenue_share_percent', null)
+            ->assertJsonPath('data.branches.1.revenue_share_percent', null);
     }
 
     public function test_many_branches_are_batched_without_per_branch_queries(): void

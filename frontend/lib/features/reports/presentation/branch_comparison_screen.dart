@@ -184,17 +184,21 @@ class _BranchComparisonScreenState
               subtitle:
                   Text('${profitValue(row, key)}\n${branchChange(row, key)}'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                _sources(branch);
-              }),
+              onTap: row['lines'] == 0
+                  ? null
+                  : () {
+                      _sources(branch);
+                    }),
         ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Gross margin'),
             subtitle: Text(
                 '${row['margin_percent'] == null ? 'Unavailable' : '${row['margin_percent']}%'}\n${row['margin_change_points'] == null ? 'No comparable baseline' : '${row['margin_change_points']} percentage points vs previous'}'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              _sources(branch);
-            }),
+            onTap: row['lines'] == 0
+                ? null
+                : () {
+                    _sources(branch);
+                  }),
       ]);
 }

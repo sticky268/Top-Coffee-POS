@@ -45,7 +45,7 @@ class SalesReportsController extends Controller
         abort_if(isset($input['comparison_from']) && (!in_array($input['report'] ?? 'sales', ['profit', 'activity', 'inventory', 'branches'], true) || ($input['period'] ?? 'today') !== 'custom'), 422, 'Pinned comparisons require a custom analytical period.');
         $user = $request->user();
         $branches = Branch::withTrashed()->where('business_id', $user->business_id)
-            ->when(! $user->can('branches.view-all'), fn ($q) => $q->whereIn('id', $user->branches()->select('branches.id')))
+            ->when(! $user->can('branches.view-all'), fn ($q) => $q->whereIn('id', $user->branches()->withTrashed()->select('branches.id')))
             ->orderBy('id')->get(['id', 'name', 'timezone']);
         if (isset($input['branch_id'])) {
             abort_unless($branches->contains('id', $input['branch_id']), 403, 'Branch access denied.');
