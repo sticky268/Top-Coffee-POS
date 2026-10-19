@@ -115,7 +115,8 @@ void main() {
               : rows,
           'profit-exact',
           format,
-          title: 'Profitability report');
+          title: 'Profitability report',
+          columnFlex: [4, 3, 3, 3]);
       File('${directory.path}/${file.name}').writeAsBytesSync(file.bytes);
     }
   });

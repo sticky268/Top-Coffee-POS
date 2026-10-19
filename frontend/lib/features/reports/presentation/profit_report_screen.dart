@@ -51,7 +51,8 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
               : profitReportRows(report),
           'top-coffee-profit-${report.meta['date_from']}-${report.meta['date_to']}',
           format,
-          title: 'Profitability report');
+          title: 'Profitability report',
+          columnFlex: [4, 3, 3, 3]);
       if (!mounted) return;
       await SharePlus.instance.share(ShareParams(
           files: [

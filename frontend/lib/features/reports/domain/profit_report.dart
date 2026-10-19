@@ -104,8 +104,7 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
         [
           entry.value,
           _exportValue(report.summary, entry.key),
-          report.summary['comparisons'][entry.key]?['previous']?.toString() ??
-              'Incomplete',
+          _previousValue(report.summary, entry.key),
           report.summary['comparisons'][entry.key]?['percent']?.toString() ??
               'No comparable baseline'
         ],
@@ -162,7 +161,7 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
           for (final key in ['quantity', 'cogs', 'gross_profit'])
             [
               '${row['name']} · ${profitLabels[key]} change',
-              row['comparisons'][key]?['previous']?.toString() ?? 'Incomplete',
+              _previousValue(row, key),
               row['comparisons'][key]?['percent']?.toString() ??
                   'No comparable baseline'
             ],
@@ -202,3 +201,16 @@ List<List<Object>> profitReportPdfRows(ProfitReport report) => [
           ['Performance', row[8]],
         ],
     ];
+
+Object _previousValue(Map<String, dynamic> row, String key) {
+  final value = row['comparisons'][key]?['previous'];
+  if (value == null) {
+    return 'Incomplete';
+  }
+  if (key == 'quantity') {
+    return int.tryParse(value.toString()) ?? value.toString();
+  }
+  return key == 'cogs' || key == 'gross_profit'
+      ? ReportCost.parse(value)
+      : ReportAmount.parse(value);
+}
