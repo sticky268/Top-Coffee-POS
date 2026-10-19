@@ -209,6 +209,16 @@ void main() {
           200,
           scrollable: find.byType(Scrollable).first,
         );
+        // Nested horizontal ensureVisible can leave the row below the viewport.
+        // Scroll the actual vertical list until the cell can receive a tap.
+        for (var attempt = 0;
+            attempt < 10 && tester.getCenter(cell).dy > 650;
+            attempt++) {
+          await tester.drag(find.byType(ListView).first, const Offset(0, -200));
+          await tester.pumpAndSettle();
+        }
+        expect(tester.getCenter(cell).dy, inInclusiveRange(56, 650));
+        expect(cell.hitTestable(), findsOneWidget);
         await savePreview(tester, key, 'activity-heatmap-$scale.png');
         await tester.tap(cell);
         await tester.pumpAndSettle();
