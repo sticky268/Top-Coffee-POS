@@ -30,7 +30,9 @@ class SalesReportQuery {
       this.dateFrom,
       this.dateTo,
       this.cashierId,
-      this.categoryId});
+      this.categoryId,
+      this.comparisonFrom,
+      this.comparisonTo});
   final String period;
   final int? year;
   final int? month;
@@ -38,9 +40,13 @@ class SalesReportQuery {
   final String? dateTo;
   final int? cashierId;
   final int? categoryId;
+  final String? comparisonFrom;
+  final String? comparisonTo;
 
   Map<String, Object> parameters(int? branchId) => {
         'period': period,
+        if (comparisonFrom != null) 'comparison_from': comparisonFrom!,
+        if (comparisonTo != null) 'comparison_to': comparisonTo!,
         if (branchId != null) 'branch_id': branchId,
         if (year != null) 'year': year!,
         if (month != null) 'month': month!,
@@ -49,6 +55,15 @@ class SalesReportQuery {
         if (cashierId != null) 'cashier_id': cashierId!,
         if (categoryId != null) 'category_id': categoryId!,
       };
+
+  SalesReportQuery forProfit(SalesReport report) => SalesReportQuery(
+      period: 'custom',
+      dateFrom: report.from,
+      dateTo: report.to,
+      comparisonFrom: report.meta['previous_from'] as String,
+      comparisonTo: report.meta['previous_to'] as String,
+      cashierId: cashierId,
+      categoryId: categoryId);
 
   SalesReportQuery periodSelection(String value,
           {int? year, int? month, String? from, String? to}) =>
@@ -63,6 +78,8 @@ class SalesReportQuery {
 
   SalesReportQuery filters({int? cashierId, int? categoryId}) =>
       SalesReportQuery(
+          comparisonFrom: comparisonFrom,
+          comparisonTo: comparisonTo,
           period: period,
           year: year,
           month: month,

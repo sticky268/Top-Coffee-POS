@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../auth/data/auth_repository.dart' show apiClientProvider;
 import '../domain/sales_report.dart';
+import '../domain/profit_report.dart';
 
 class SalesReportsRepository {
   SalesReportsRepository(this._api);
@@ -16,6 +17,22 @@ class SalesReportsRepository {
     }
     return Map<String, dynamic>.from(data);
   }
+
+  Future<ProfitReport> profit(SalesReportQuery query, int? branchId) async =>
+      ProfitReport(
+          await _get({...query.parameters(branchId), 'report': 'profit'}));
+
+  Future<Map<String, dynamic>> profitDetails(
+          SalesReportQuery query, int? branchId,
+          {int? productId, String? category, int page = 1}) =>
+      _get({
+        ...query.parameters(branchId),
+        'report': 'profit',
+        'detail': 'profit',
+        'page': page,
+        if (productId != null) 'product_id': productId,
+        if (category != null) 'profit_category': category
+      });
 
   Future<SalesReport> load(SalesReportQuery query, int? branchId) async =>
       SalesReport(await _get(query.parameters(branchId)));

@@ -150,7 +150,8 @@ class ReportExporter {
   }
 
   static Future<ReportExportFile> buildRows(
-      List<List<Object>> data, String name, ReportExportFormat format) async {
+      List<List<Object>> data, String name, ReportExportFormat format,
+      {String title = 'Sales report', List<int>? columnFlex}) async {
     switch (format) {
       case ReportExportFormat.csv:
         return ReportExportFile('$name.csv', 'text/csv',
@@ -171,13 +172,19 @@ class ReportExporter {
           maxPages: 100,
           theme: pw.ThemeData.withFont(
               base: font, bold: font, fontFallback: [khmer]),
-          header: (_) => pw.Text('Top Coffee POS - Sales report'),
+          header: (_) => pw.Text('Top Coffee POS - $title'),
           footer: (context) => pw.Align(
               alignment: pw.Alignment.centerRight,
               child: pw.Text(
                   'Page ${context.pageNumber} of ${context.pagesCount}')),
           build: (_) => [
             pw.TableHelper.fromTextArray(
+              columnWidths: columnFlex == null
+                  ? null
+                  : {
+                      for (var i = 0; i < columnFlex.length; i++)
+                        i: pw.FlexColumnWidth(columnFlex[i].toDouble()),
+                    },
               data: data
                   .map((row) => List.generate(
                       data.fold<int>(

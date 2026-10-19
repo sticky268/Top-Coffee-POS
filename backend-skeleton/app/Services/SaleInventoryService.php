@@ -66,7 +66,7 @@ class SaleInventoryService
      */
     public function deductForOrder(Order $order, int $createdBy): void
     {
-        $order->loadMissing(['items.variant', 'items.modifiers']);
+        $order->loadMissing(['items.variant', 'items.modifiers', 'items.product.category']);
 
         foreach ($order->items as $orderItem) {
             $modifierIds = $orderItem->modifiers->pluck('modifier_id');
@@ -107,7 +107,10 @@ class SaleInventoryService
                 $costKnown = $costKnown && $movement->unit_cost !== null;
                 $cost += $quantity * (float) $movement->unit_cost;
             }
-            $orderItem->forceFill(['ingredient_cost' => $costKnown ? $cost : null])->save();
+            $orderItem->forceFill(['ingredient_cost' => $costKnown ? $cost : null,
+                'sale_category_id' => $orderItem->product?->category_id,
+                'sale_category_name' => $orderItem->product?->category?->name,
+                'sale_category_captured' => true])->save();
         }
     }
 }

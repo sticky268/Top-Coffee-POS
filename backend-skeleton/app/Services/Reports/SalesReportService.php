@@ -25,7 +25,7 @@ final class SalesReportService
             ->orderBy('name')->get(['id', 'name']);
         abort_if(isset($input['cashier_id']) && ! $cashiers->contains('id', $input['cashier_id']), 403, 'Cashier access denied.');
         abort_if(isset($input['category_id']) && ! $categories->contains('id', $input['category_id']), 403, 'Category access denied.');
-        return compact('branches', 'period', 'input', 'cashiers', 'categories');
+        return compact('branches', 'period', 'input', 'cashiers', 'categories') + ['business_id' => $user->business_id];
     }
 
     /** All raw builders begin with the authorized branch IDs, including detail queries. */
@@ -65,7 +65,7 @@ final class SalesReportService
         });
     }
 
-    private function selected(array $c, string $from, string $to, bool $paid = true): Builder
+    public function selected(array $c, string $from, string $to, bool $paid = true): Builder
     {
         return $this->interval($this->orders($c, $paid), $c, 'COALESCE(orders.completed_at, orders.created_at)', $from, $to);
     }

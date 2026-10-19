@@ -1,0 +1,310 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\{Branch, Business, Category, Product, User, Order, OrderItem, RecipeItem, Unit, Ingredient, ProductVariant, Modifier, ModifierGroup, OrderItemModifier};
+use App\Services\{SaleInventoryService, StockMovementService};
+use App\Services\Reports\ReportAllocation;
+use App\Services\Reports\ReportMoney;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+use Tests\TestCase;
+
+class ProfitReportsTest extends TestCase
+{
+    use RefreshDatabase;
+    private Branch $branch;
+    private User $actor;
+    private Category $category;
+    private Product $product;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->travelTo(now()->setTimezone('UTC')->setDate(2026, 10, 19)->setTime(2, 0));
+        $business = Business::factory()->create();
+        $this->branch = Branch::factory()->create(['business_id' => $business->id, 'timezone' => 'Asia/Phnom_Penh']);
+        $this->actor = User::factory()->create(['business_id' => $business->id]);
+        $this->actor->branches()->attach($this->branch->id);
+        $this->actor->givePermissionTo(Permission::findOrCreate('reports.view'));
+        $this->actingAs($this->actor);
+        $this->category = Category::create(['business_id' => $business->id, 'name' => 'Coffee', 'is_active' => true]);
+        $this->product = $this->product('Latte');
+    }
+
+    private function product(string $name): Product
+    {
+        $product = Product::create(['business_id' => $this->actor->business_id, 'category_id' => $this->category->id,
+            'name' => $name, 'base_price' => '10.00', 'is_active' => true]);
+        $product->branches()->attach($this->branch->id, ['is_available' => true]);
+        return $product;
+    }
+
+    private function sale(array $values = [], string $at = '2026-10-19 01:00:00', bool $paid = true): int
+    {
+        $id = DB::table('orders')->insertGetId($values + ['uuid' => (string) Str::uuid(), 'branch_id' => $this->branch->id,
+            'user_id' => $this->actor->id, 'order_type' => 'takeaway', 'status' => 'completed', 'subtotal' => '10.00',
+            'discount_total' => '0.00', 'tax_total' => '0.00', 'total' => '10.00', 'supplemental_total' => '0.00',
+            'completed_at' => $at, 'created_at' => $at, 'updated_at' => $at]);
+        if ($paid) DB::table('payments')->insert(['order_id' => $id, 'method' => 'cash', 'amount' => $values['paid'] ?? '10.00',
+            'status' => 'completed', 'processed_by' => $this->actor->id, 'created_at' => $at, 'updated_at' => $at]);
+        return $id;
+    }
+
+    private function item(int $order, ?string $cost = '2.000000', array $values = []): int
+    {
+        return DB::table('order_items')->insertGetId($values + ['order_id' => $order, 'product_id' => $this->product->id,
+            'product_name' => 'Latte', 'quantity' => 1, 'unit_price' => '10.00', 'ingredient_cost' => $cost,
+            'sale_category_captured' => true, 'sale_category_id' => $this->category->id, 'sale_category_name' => 'Coffee']);
+    }
+
+    private function report(array $filters = [])
+    {
+        return $this->getJson('/api/v1/reports/sales?'.http_build_query($filters + ['branch_id' => $this->branch->id, 'report' => 'profit']));
+    }
+
+    private function refund(int $order, string $amount, string $disposition = 'consumed'): void
+    {
+        $payment = DB::table('payments')->where('order_id', $order)->value('id');
+        DB::table('payments')->where('id', $payment)->update(['status' => 'partially_refunded']);
+        DB::table('payment_refunds')->insert(['payment_id' => $payment, 'amount' => $amount,
+            'reason' => 'Correction', 'inventory_disposition' => $disposition, 'processed_by' => $this->actor->id,
+            'created_at' => '2026-10-20 01:00:00', 'updated_at' => '2026-10-20 01:00:00']);
+    }
+
+    public function test_exact_allocations_reconcile_tax_discount_refunds_and_all_groupings(): void
+    {
+        $order = $this->sale(['subtotal' => '10.00', 'discount_total' => '1.00', 'tax_total' => '0.90', 'total' => '9.90']);
+        // Original payment deliberately includes a 0.10 overcollection: never revenue.
+        $this->item($order, '0.123456', ['unit_price' => '3.33']);
+        $this->item($order, '1.000001', ['product_id' => $this->product('Tea')->id, 'product_name' => 'Tea', 'unit_price' => '6.67']);
+        $this->refund($order, '3.30');
+        $report = $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '6.00')
+            ->assertJsonPath('data.summary.refunds', '3.00')->assertJsonPath('data.summary.refund_tax', '0.30')
+            ->assertJsonPath('data.summary.cogs', '1.123457')->assertJsonPath('data.summary.gross_profit', '4.876543');
+        foreach (['products', 'categories', 'branches'] as $group) {
+            $rows = $report->json('data.'.$group);
+            $this->assertSame(600, array_sum(array_map(fn ($r) => \App\Services\Reports\ReportMoney::cents($r['revenue']), $rows)));
+            $this->assertSame(1123457, array_sum(array_map(fn ($r) => ReportAllocation::micros($r['cogs']), $rows)));
+        }
+        $this->report(['detail' => 'profit'])->assertOk()->assertJsonCount(2, 'data.rows')
+            ->assertJsonPath('data.rows.0.branch_name', $this->branch->name)
+            ->assertJsonPath('data.rows.0.occurred_at_local', '2026-10-19 08:00:00 +07:00');
+    }
+
+    public function test_tied_discount_cents_reconcile_each_product_category_and_source_before_and_after_refunds(): void
+    {
+        $order = $this->sale(['subtotal' => '2.00', 'discount_total' => '0.01', 'tax_total' => '0.01', 'total' => '2.00']);
+        $other = $this->product('Tea');
+        $category = Category::create(['business_id' => $this->actor->business_id, 'name' => 'Tea', 'is_active' => true]);
+        $this->item($order, '0.000001', ['unit_price' => '1.00']);
+        $this->item($order, '0.000001', ['product_id' => $other->id, 'product_name' => 'Tea', 'unit_price' => '1.00',
+            'sale_category_id' => $category->id, 'sale_category_name' => 'Tea']);
+        foreach ([null, '0.01', '1.99'] as $refund) {
+            if ($refund !== null) $this->refund($order, $refund);
+            $data = $this->report()->assertOk()->json('data');
+            $sources = $this->report(['detail' => 'profit'])->assertOk()->json('data.rows');
+            foreach ([$data['products'], $data['categories'], $data['branches'], $sources] as $rows) {
+                foreach ($rows as $row) {
+                    $this->assertSame(ReportMoney::cents($row['revenue']), ReportMoney::cents($row['gross'])
+                        - ReportMoney::cents($row['discounts']) + ReportMoney::cents($row['reconciliation'])
+                        + ReportMoney::cents($row['additional']) - ReportMoney::cents($row['refunds']));
+                    $this->assertSame(0, ReportMoney::cents($row['reconciliation']));
+                    if ($refund === '1.99') $this->assertSame('0.00', $row['revenue']);
+                }
+                foreach (['gross', 'discounts', 'reconciliation', 'additional', 'refunds', 'refund_tax', 'revenue'] as $key) {
+                    $this->assertSame(ReportMoney::cents($data['summary'][$key]),
+                        array_sum(array_map(fn ($r) => ReportMoney::cents($r[$key]), $rows)));
+                }
+            }
+            if ($refund === null) {
+                $this->assertSame('0.01', $sources[0]['discounts']);
+                $this->assertSame('0.99', $sources[0]['revenue']);
+                $this->report(['category_id' => $category->id])->assertOk()->assertJsonPath('data.summary.revenue', '1.00');
+            }
+        }
+    }
+
+    public function test_legacy_recorded_total_residual_is_explicit_and_full_refunds_cancel_each_line(): void
+    {
+        $order = $this->sale(['subtotal' => '2.00', 'discount_total' => '0.01', 'total' => '1.98']);
+        $this->item($order, '0.000001', ['unit_price' => '1.00']);
+        $this->item($order, '0.000001', ['unit_price' => '1.00']);
+        $this->report()->assertOk()->assertJsonPath('data.summary.reconciliation', '-0.01')
+            ->assertJsonPath('data.summary.revenue', '1.98');
+        $this->refund($order, '1.98');
+        $rows = $this->report(['detail' => 'profit'])->assertOk()->json('data.rows');
+        foreach ($rows as $row) $this->assertSame('0.00', $row['revenue']);
+    }
+
+    public function test_old_categories_and_unknown_costs_are_never_repriced_or_zero_filled(): void
+    {
+        $order = $this->sale();
+        $this->item($order, null, ['sale_category_captured' => false, 'sale_category_id' => null]);
+        $this->product->update(['base_price' => '99.00', 'name' => 'Changed product']);
+        $this->category->update(['name' => 'Changed category']);
+        $this->report()->assertOk()->assertJsonPath('data.summary.cogs', null)
+            ->assertJsonPath('data.summary.gross_profit', null)->assertJsonPath('data.summary.margin_percent', null)
+            ->assertJsonPath('data.summary.comparisons.cogs', null)->assertJsonPath('data.summary.comparisons.gross_profit', null)
+            ->assertJsonPath('data.summary.unknown_cost_lines', 1)->assertJsonPath('data.summary.known_cogs', '0.000000')
+            ->assertJsonPath('data.categories.0.id', 'legacy')->assertJsonPath('data.products.0.name', 'Latte');
+        $this->report(['category_id' => $this->category->id])->assertOk()->assertJsonPath('data.summary.revenue', '0.00');
+        $this->report(['detail' => 'profit', 'profit_category' => 'legacy'])->assertOk()->assertJsonCount(1, 'data.rows');
+    }
+
+    public function test_paid_selection_and_branch_local_boundaries_and_previous_comparisons(): void
+    {
+        $this->item($this->sale([], '2026-10-18 16:59:59'), '1.000001');
+        $this->item($this->sale([], '2026-10-18 17:00:00'), '2.000002');
+        $this->item($this->sale([], '2026-10-19 01:00:00', false), '9.000000');
+        $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '10.00')
+            ->assertJsonPath('data.summary.cogs', '2.000002')->assertJsonPath('data.summary.comparisons.cogs.percent', '100.00')
+            ->assertJsonPath('data.summary.comparisons.cogs.previous', '1.000001');
+        $other = Branch::factory()->create();
+        $this->report(['branch_id' => $other->id])->assertForbidden();
+        $this->actor->revokePermissionTo('reports.view');
+        $this->report()->assertForbidden();
+    }
+
+    public function test_full_restock_requires_balanced_ledger_and_waste_retains_cost(): void
+    {
+        $unit = Unit::create(['name' => 'Kilogram', 'abbreviation' => 'kg', 'conversion_factor' => 1]);
+        $ingredient = Ingredient::create(['branch_id' => $this->branch->id, 'unit_id' => $unit->id, 'name' => 'Beans', 'is_active' => true]);
+        $order = $this->sale(['inventory_disposed_at' => now()]);
+        $this->item($order);
+        $this->refund($order, '10.00', 'restock');
+        $this->report()->assertOk()->assertJsonPath('data.summary.cogs', null);
+        foreach (['-1.000', '1.000'] as $quantity) DB::table('stock_movements')->insert([
+            'ingredient_id' => $ingredient->id, 'branch_id' => $this->branch->id, 'type' => 'sale_deduction',
+            'quantity' => $quantity, 'balance_after' => 0, 'unit_cost' => '2.000000', 'created_by' => $this->actor->id,
+            'reference_type' => (new Order)->getMorphClass(), 'reference_id' => $order]);
+        $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '0.00')
+            ->assertJsonPath('data.summary.cogs', '0.000000')->assertJsonPath('data.summary.reversed_cogs', '2.000000');
+        DB::table('payment_refunds')->update(['inventory_disposition' => 'wastage']);
+        $this->report()->assertOk()->assertJsonPath('data.summary.cogs', '2.000000')->assertJsonPath('data.summary.gross_profit', '-2.000000');
+    }
+
+    public function test_rankings_include_slow_zero_and_disappeared_sellers_with_missing_cost_flags(): void
+    {
+        $this->item($this->sale(), '2.000000', ['quantity' => 3]);
+        $tea = $this->product('Tea');
+        $this->item($this->sale(), null, ['product_id' => $tea->id, 'product_name' => 'Tea']);
+        $zero = $this->product('Unsold');
+        $previous = $this->product('Previous only');
+        $this->item($this->sale([], '2026-10-18 01:00:00'), '1.000000', ['product_id' => $previous->id, 'product_name' => 'Previous only']);
+        $r = $this->report()->assertOk()->assertJsonPath('data.best_sellers.0.id', $this->product->id)
+            ->assertJsonPath('data.slow_sellers.0.id', $tea->id)->assertJsonCount(2, 'data.unsold_products');
+        $products = collect($r->json('data.products'))->keyBy('id');
+        $this->assertSame('cost_missing', $products[$tea->id]['performance']);
+        $this->assertSame('no_sales', $products[$previous->id]['performance']);
+        $this->assertSame('-100.00', $products[$previous->id]['comparisons']['revenue']['percent']);
+    }
+
+
+    public function test_completed_sale_snapshots_variant_modifier_cost_and_category_before_recipe_changes(): void
+    {
+        $unit = Unit::create(['name' => 'Kilogram', 'abbreviation' => 'kg', 'conversion_factor' => 1]);
+        $ingredient = Ingredient::create(['branch_id' => $this->branch->id, 'unit_id' => $unit->id, 'name' => 'Beans', 'is_active' => true]);
+        app(StockMovementService::class)->record($ingredient, 'purchase', 5, $this->actor->id, null, null, 10);
+        $variant = ProductVariant::create(['product_id' => $this->product->id, 'name' => 'Large', 'price_delta' => 0, 'recipe_multiplier' => 2, 'is_active' => true]);
+        $group = ModifierGroup::create(['name' => 'Extras']);
+        $modifier = Modifier::create(['modifier_group_id' => $group->id, 'name' => 'Extra beans', 'price_delta' => 0, 'is_active' => true]);
+        RecipeItem::create(['branch_id' => $this->branch->id, 'product_id' => $this->product->id, 'ingredient_id' => $ingredient->id, 'quantity_used' => '0.100']);
+        RecipeItem::create(['branch_id' => $this->branch->id, 'modifier_id' => $modifier->id, 'ingredient_id' => $ingredient->id, 'quantity_used' => '0.050']);
+        $order = $this->sale();
+        $item = $this->item($order, null, ['product_variant_id' => $variant->id, 'quantity' => 2, 'sale_category_captured' => false]);
+        OrderItemModifier::create(['order_item_id' => $item, 'modifier_id' => $modifier->id, 'price_delta' => 0]);
+        DB::transaction(fn () => app(SaleInventoryService::class)->deductForOrder(Order::findOrFail($order), $this->actor->id));
+        $this->assertDatabaseHas('order_items', ['id' => $item, 'sale_category_captured' => true, 'sale_category_name' => 'Coffee', 'ingredient_cost' => '5.000000']);
+        RecipeItem::query()->update(['quantity_used' => '0.900']);
+        $ingredient->forceFill(['average_unit_cost' => '99.000000'])->save();
+        $this->category->update(['name' => 'Changed']);
+        $this->report()->assertOk()->assertJsonPath('data.summary.cogs', '5.000000')
+            ->assertJsonPath('data.categories.0.name', 'Coffee')->assertJsonPath('data.summary.gross_profit', '5.000000');
+    }
+
+    public function test_details_paginate_and_filters_attribute_only_selected_items(): void
+    {
+        $otherCategory = Category::create(['name' => 'Food', 'is_active' => true]);
+        $other = $this->product('Toast');
+        $order = $this->sale();
+        $this->item($order, '1.000000', ['unit_price' => '5.00']);
+        $this->item($order, '1.000000', ['product_id' => $other->id, 'product_name' => 'Toast', 'unit_price' => '5.00', 'sale_category_id' => $otherCategory->id, 'sale_category_name' => 'Food']);
+        $this->report(['category_id' => $this->category->id])->assertOk()->assertJsonPath('data.summary.revenue', '5.00')->assertJsonCount(1, 'data.products');
+        for ($i = 0; $i < 51; $i++) $this->item($this->sale());
+        DB::enableQueryLog();
+        $this->report(['detail' => 'profit', 'product_id' => $this->product->id, 'page' => 2])->assertOk()
+            ->assertJsonPath('data.total', 52)->assertJsonCount(2, 'data.rows');
+        $this->assertLessThan(25, count(DB::getQueryLog()), 'Sources must bulk-load, not query per item.');
+        DB::disableQueryLog();
+        $this->report(['cashier_id' => User::factory()->create()->id])->assertForbidden();
+    }
+
+    public function test_additional_split_collections_and_branch_cashier_groups_reconcile(): void
+    {
+        $this->travelTo(now()->setTime(12, 0));
+        $second = Branch::factory()->create(['business_id' => $this->actor->business_id, 'timezone' => 'America/New_York']);
+        $this->actor->branches()->attach($second->id);
+        $order = $this->sale(['supplemental_total' => '2.00']);
+        $this->item($order, '2.000000');
+        DB::table('payments')->where('order_id', $order)->update(['amount' => '7.00']);
+        DB::table('payments')->insert(['order_id' => $order, 'amount' => '5.00', 'method' => 'card', 'status' => 'completed', 'processed_by' => $this->actor->id]);
+        $other = User::factory()->create(['business_id' => $this->actor->business_id]);
+        $other->branches()->attach($second->id);
+        $this->item($this->sale(['branch_id' => $second->id, 'user_id' => $other->id], '2026-10-19 05:00:00'), '3.000000');
+        $this->getJson('/api/v1/reports/sales?report=profit')->assertOk()
+            ->assertJsonPath('data.summary.revenue', '22.00')->assertJsonPath('data.summary.additional', '2.00')
+            ->assertJsonPath('data.summary.cogs', '5.000000')->assertJsonCount(2, 'data.branches');
+        $this->getJson('/api/v1/reports/sales?report=profit&cashier_id='.$other->id)->assertOk()
+            ->assertJsonPath('data.summary.revenue', '10.00')->assertJsonPath('data.meta.cashier_name', $other->name)
+            ->assertJsonCount(1, 'data.branches');
+    }
+
+    public function test_pinned_profit_period_retains_month_to_date_comparison_and_validates_bounds(): void
+    {
+        $this->item($this->sale([], '2026-09-05 01:00:00'));
+        $this->item($this->sale());
+        $this->report(['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-19',
+            'comparison_from' => '2026-09-01', 'comparison_to' => '2026-09-19'])->assertOk()
+            ->assertJsonPath('data.meta.previous_from', '2026-09-01')
+            ->assertJsonPath('data.summary.comparisons.revenue.previous', '10.00');
+        $this->report(['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-19',
+            'comparison_from' => '2026-10-01', 'comparison_to' => '2026-10-19'])->assertUnprocessable();
+        $this->report(['comparison_from' => '2026-09-01'])->assertUnprocessable();
+        $this->report(['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-19',
+            'comparison_from' => '2024-01-01', 'comparison_to' => '2026-09-19'])->assertUnprocessable();
+    }
+
+    public function test_full_overpayment_refund_does_not_create_negative_sales_revenue(): void
+    {
+        $order = $this->sale(['total' => '9.90', 'subtotal' => '9.00', 'tax_total' => '0.90']);
+        $this->item($order);
+        $this->refund($order, '10.00');
+        $this->report()->assertOk()->assertJsonPath('data.summary.revenue', '0.00')
+            ->assertJsonPath('data.summary.refunds', '9.00')->assertJsonPath('data.summary.refund_tax', '0.90')
+            ->assertJsonPath('data.summary.non_sales_refunds', '0.10');
+    }
+
+    public function test_one_millionth_costs_survive_database_serialization_and_comparisons(): void
+    {
+        $this->item($this->sale([], '2026-10-18 01:00:00'), '0.000001');
+        $this->item($this->sale(), '0.000001');
+        $this->item($this->sale(), '0.000001');
+        $this->report()->assertOk()->assertJsonPath('data.summary.cogs', '0.000002')
+            ->assertJsonPath('data.summary.gross_profit', '19.999998')
+            ->assertJsonPath('data.summary.comparisons.cogs.previous', '0.000001')
+            ->assertJsonPath('data.summary.comparisons.cogs.percent', '100.00');
+    }
+
+    public function test_allocation_handles_ties_subcent_costs_and_large_values_without_floats(): void
+    {
+        $this->assertSame([1, 1, 0], ReportAllocation::split(2, [1, 1, 1]));
+        $this->assertSame([-1, -1, 0], ReportAllocation::split(-2, [1, 1, 1]));
+        $this->assertSame([1, 0], ReportAllocation::split(1, [0, 0]));
+        $this->assertSame([999999999999, 0], ReportAllocation::quotient(999999999999, 999999999999, 999999999999));
+        $this->assertSame(-2, ReportAllocation::ratio(-1, 3, 2));
+        $this->assertSame('0.000001', ReportAllocation::decimal(ReportAllocation::micros('0.000001')));
+    }
+}
