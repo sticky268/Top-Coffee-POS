@@ -70,3 +70,14 @@ inventory_text = re.sub(r'\s+', '', ''.join(page.extract_text() for page in inve
 for expected in ['Inventory', 'Riverside', '2026-10-19', '1.999002', 'Theoretical', 'Unavailable', 'Change%', 'Differentingredientunitsareneversummed']:
     assert expected in inventory_text, expected
 print('Inventory exports preserve numeric six-decimal costs, three-decimal quantities, unavailable history and branch/date context.')
+
+# Phase 5 comparisons retain exact finance and literal names across all branches.
+branches = load_workbook(root / 'branches-exact.xlsx', data_only=False)['Sales report']
+for value in [1.123457, 4.876543]:
+    assert any(c.value == value and c.data_type == 'n' for row in branches for c in row)
+name = next(c for row in branches for c in row if c.value == '=Riverside')
+assert name.data_type == 's'
+branch_text = re.sub(r'\s+', '', ''.join(page.extract_text() for page in PdfReader(root / 'branches-exact.pdf').pages))
+for expected in ['Branchcomparison', 'Riverside', 'Airport', '2026-10-19', '1.123457', '4.876543', 'Unavailable', 'percentagepoints', 'trading-day-normalised']:
+    assert expected in branch_text, expected
+print('Branch comparison exports retain numeric costs, literal names, both branches, unavailable history and growth rules.')

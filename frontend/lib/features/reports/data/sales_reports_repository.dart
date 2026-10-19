@@ -18,6 +18,9 @@ class SalesReportsRepository {
     return Map<String, dynamic>.from(data);
   }
 
+  Future<Map<String, dynamic>> branchComparison(SalesReportQuery query, int? branchId) =>
+      _get({...query.parameters(branchId), 'report': 'branches'});
+
   Future<ProfitReport> profit(SalesReportQuery query, int? branchId) async =>
       ProfitReport(
           await _get({...query.parameters(branchId), 'report': 'profit'}));

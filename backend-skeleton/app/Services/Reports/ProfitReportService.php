@@ -123,13 +123,13 @@ final class ProfitReportService
         }
     }
 
-    private function aggregate(array $c, string $from, string $to): array
+    private function aggregate(array $c, string $from, string $to, bool $branchesOnly = false): array
     {
         $summary = $this->emptyRow('all', 'All selected sales');
         $products = $categories = $branches = [];
         foreach ($this->lines($c, $from, $to) as $line) {
             $this->add($summary, $line);
-            foreach (['products' => [$line['id'], $line['name']], 'categories' => [$line['category_key'], $line['category_name']], 'branches' => [$line['branch_id'], $line['branch_name']]] as $kind => [$id, $name]) {
+            foreach (($branchesOnly ? ['branches' => [$line['branch_id'], $line['branch_name']]] : ['products' => [$line['id'], $line['name']], 'categories' => [$line['category_key'], $line['category_name']], 'branches' => [$line['branch_id'], $line['branch_name']]]) as $kind => [$id, $name]) {
                 ${$kind}[$id] ??= $this->emptyRow($id, $name);
                 $this->add(${$kind}[$id], $line);
             }
@@ -217,7 +217,14 @@ final class ProfitReportService
             ->where('products.business_id', $c['business_id'])->where('products.is_active', true)->whereNull('products.deleted_at')->whereNotIn('products.id', $soldIds)
             ->when(isset($c['input']['category_id']), fn ($q) => $q->where('products.category_id', $c['input']['category_id']))
             ->distinct()->orderBy('products.id')->get(['products.id', 'products.name'])->all();
-        $result['meta'] = ['date_from' => $p->from, 'date_to' => $p->to, 'previous_from' => $p->previousFrom, 'previous_to' => $p->previousTo,
+        $result['meta'] = $this->meta($c, $marginThreshold, count($selling), $current['summary']['quantity']);
+        return $result;
+    }
+
+    private function meta(array $c, ?int $marginThreshold = null, int $sellingCount = 0, int $quantity = 0): array
+    {
+        $p = $c['period'];
+        return ['date_from' => $p->from, 'date_to' => $p->to, 'previous_from' => $p->previousFrom, 'previous_to' => $p->previousTo,
             'branches' => $c['branches']->map(fn ($b) => ['id' => (int) $b->id, 'name' => $b->name, 'timezone' => $b->timezone ?: 'UTC'])->values(),
             'cashier_id' => $c['input']['cashier_id'] ?? null,
             'cashier_name' => isset($c['input']['cashier_id']) ? $c['cashiers']->firstWhere('id', $c['input']['cashier_id'])->name : null,
@@ -225,11 +232,39 @@ final class ProfitReportService
             'category_name' => isset($c['input']['category_id']) ? $c['categories']->firstWhere('id', $c['input']['category_id'])->name : null,
             'currency' => 'USD', 'generated_at' => CarbonImmutable::now('UTC')->toIso8601String(),
             'margin_threshold_percent' => $marginThreshold === null ? null : ReportMoney::decimal($marginThreshold),
-            'popularity_threshold_units' => count($selling) === 0 ? 0 : intdiv($current['summary']['quantity'] + count($selling) - 1, count($selling)),
+            'popularity_threshold_units' => $sellingCount === 0 ? 0 : intdiv($quantity + $sellingCount - 1, $sellingCount),
             'basis' => 'Fully paid completed sales by branch-local completion date. Revenue excludes recorded tax. Gross, tax and additional charges use original line price × quantity weights with largest remainders. Discounts use allocated gross weights; revenue is derived from allocated components. Recorded total reconciliation preserves legacy discrepancies. Partial refunds excluding tax use net sale weights; full refunds cancel each line net sale. Refunds up to the sale value reduce revenue; any surplus is a non-sales refund. Refund tax is proportional to original tax; additional charges have no recorded tax. Adjustments follow the original sale. This is gross profit, before operating expenses.',
             'cost_basis' => 'Sale-time line recipe cost includes variants and modifiers. Full restock reversals require a balanced stock_movements ledger; consumed and wasted items retain their cost. Missing costs make profit and margin incomplete. Historical categories are never backfilled from today’s catalogue.',
             'unsold_basis' => 'Currently active, available catalogue products with no units sold in this selection; availability history is not recorded. A cashier filter means no sales by that cashier.'];
-        return $result;
+    }
+
+    /** Shared allocation engine without catalogue queries or product ranking. */
+    public function branchComparison(array $c): array
+    {
+        $p = $c['period'];
+        $current = $this->aggregate($c, $p->from, $p->to, true);
+        $previous = $this->aggregate($c, $p->previousFrom, $p->previousTo, true);
+        $rows = [];
+        foreach ($c['branches'] as $branch) {
+            $id = (int) $branch->id;
+            $rows[$id] = $this->present($current['branches'][$id] ?? $this->emptyRow($id, $branch->name),
+                $previous['branches'][$id] ?? $this->emptyRow($id, $branch->name));
+            $rows[$id]['timezone'] = $branch->timezone ?: 'UTC';
+        }
+        uasort($rows, fn ($a, $b) => (ReportMoney::cents($b['revenue']) <=> ReportMoney::cents($a['revenue'])) ?: ($a['id'] <=> $b['id']));
+        $total = $current['summary']['revenue'];
+        $shares = $total > 0 ? ReportAllocation::split(10000, array_map(fn ($r) => ReportMoney::cents($r['revenue']), $rows)) : [];
+        $position = 0; $rank = 0; $lastRevenue = null;
+        foreach ($rows as $id => &$row) {
+            $position++;
+            if ($row['revenue'] !== $lastRevenue) $rank = $position;
+            $row['revenue_rank'] = $total > 0 ? $rank : null;
+            $row['revenue_share_percent'] = isset($shares[$id]) ? ReportMoney::decimal($shares[$id]) : null;
+            $lastRevenue = $row['revenue'];
+        }
+        unset($row);
+        return ['summary' => $this->present($current['summary'], $previous['summary']), 'branches' => array_values($rows),
+            'meta' => $this->meta($c) + ['comparison_basis' => 'Accessible branches include zero-activity and archived branches. Revenue rank is descending with tied ranks; revenue shares sum to 100% after largest-remainder rounding, or are unavailable when total revenue is zero. Growth compares selected calendar dates in each branch timezone with pinned previous dates; it is not same-store or trading-day-normalised growth. Cashier and historical item-category filters apply. Zero previous revenue is new activity, not infinite growth. Margin changes are percentage points. Missing historical costs make COGS, profit and margin unavailable. Synced sales only.']];
     }
 
     public function details(array $c, int $page): array

@@ -13,6 +13,7 @@ import 'sales_report_details_screen.dart';
 import 'profit_report_screen.dart';
 import 'activity_report_screen.dart';
 import 'inventory_report_screen.dart';
+import 'branch_comparison_screen.dart';
 
 const reportMetricLabels = {
   'net_sales': 'Net sales',
@@ -229,6 +230,11 @@ class _ReportContent extends ConsumerWidget {
                         builder: (_) => ActivityReportScreen(
                             query: query.forProfit(report),
                             branchId: ref.read(currentBranchProvider)?.id)))),
+            OutlinedButton.icon(
+                icon: const Icon(Icons.store_outlined),
+                label: const Text('Compare branches'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => BranchComparisonScreen(query: query.forProfit(report))))),
             OutlinedButton.icon(
                 icon: const Icon(Icons.inventory_2_outlined),
                 label: const Text('Inventory report'),

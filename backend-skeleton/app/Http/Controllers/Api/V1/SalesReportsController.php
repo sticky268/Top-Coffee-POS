@@ -18,7 +18,7 @@ class SalesReportsController extends Controller
     {
         abort_unless($request->user()->can('reports.view'), 403, 'You do not have permission to view reports.');
         $input = $request->validate([
-            'report' => 'nullable|in:sales,profit,activity,inventory',
+            'report' => 'nullable|in:sales,profit,activity,inventory,branches',
             'weekday' => 'nullable|integer|min:1|max:7',
             'hour' => 'nullable|integer|min:0|max:23',
             'source_cashier' => 'nullable|integer|min:1',
@@ -42,7 +42,7 @@ class SalesReportsController extends Controller
             'method' => 'nullable|in:cash,card,qr,split',
             'page' => 'nullable|integer|min:1|max:1000000',
         ]);
-        abort_if(isset($input['comparison_from']) && (!in_array($input['report'] ?? 'sales', ['profit', 'activity', 'inventory'], true) || ($input['period'] ?? 'today') !== 'custom'), 422, 'Pinned comparisons require a custom analytical period.');
+        abort_if(isset($input['comparison_from']) && (!in_array($input['report'] ?? 'sales', ['profit', 'activity', 'inventory', 'branches'], true) || ($input['period'] ?? 'today') !== 'custom'), 422, 'Pinned comparisons require a custom analytical period.');
         $user = $request->user();
         $branches = Branch::withTrashed()->where('business_id', $user->business_id)
             ->when(! $user->can('branches.view-all'), fn ($q) => $q->whereIn('id', $user->branches()->select('branches.id')))
@@ -53,6 +53,10 @@ class SalesReportsController extends Controller
         }
         $period = new ReportPeriod($input, $branches->count() === 1 ? ($branches->first()->timezone ?: 'UTC') : 'UTC');
         $context = $service->context($branches, $period, $input, $user);
+        if (($input['report'] ?? 'sales') === 'branches') {
+            abort_if(isset($input['detail']), 422, 'Use profit sources with a selected branch.');
+            return response()->json(['success' => true, 'data' => DB::transaction(fn () => $profit->branchComparison($context))]);
+        }
         if (($input['report'] ?? 'sales') === 'inventory') {
             abort_if(isset($input['detail']) && $input['detail'] !== 'inventory', 422, 'Invalid inventory source selection.');
             return response()->json(['success' => true, 'data' => DB::transaction(fn () => isset($input['detail'])
