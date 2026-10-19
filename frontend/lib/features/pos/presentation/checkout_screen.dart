@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -61,7 +62,7 @@ class _SplitPaymentLine {
       'method': method,
       'amount': amount,
       if (method == 'cash')
-        'tendered': double.tryParse(tenderedController.text) ?? 0,
+        'tendered': double.tryParse(tenderedController.text) ?? amount,
     };
   }
 }
@@ -81,9 +82,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedTable = widget.initialTable;
+    _selectedTable =
+        widget.initialTable ?? ref.read(cartControllerProvider).table;
     if (_selectedTable != null) {
       _orderType = 'dine_in';
+    }
+    final auth = ref.read(authControllerProvider);
+    final methods = auth is AuthAuthenticated
+        ? auth.user.allowedPaymentMethods
+        : const ['cash', 'card', 'qr'];
+    if (methods.isNotEmpty) {
+      _paymentMethod = methods.first;
+      _splitPayments[0].method = methods.first;
+      _splitPayments[1].method =
+          methods.length > 1 ? methods[1] : methods.first;
     }
   }
 
@@ -96,6 +108,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     super.dispose();
+  }
+
+  Future<void> _chooseTable() async {
+    final table = await context.push<PosTable>('/pos/select-table?select=true');
+    if (!mounted || table == null) return;
+    ref.read(cartControllerProvider.notifier).selectTable(table);
+    setState(() {
+      _selectedTable = table;
+      _orderType = 'dine_in';
+    });
   }
 
   double? get _tenderedAmount => double.tryParse(_tenderedController.text);
@@ -179,6 +201,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkoutState = ref.watch(checkoutControllerProvider);
     final currentBranch = ref.watch(currentBranchProvider);
     final authState = ref.watch(authControllerProvider);
+    if (authState is AuthAuthenticated &&
+        authState.user.allowedPaymentMethods.isNotEmpty) {
+      final methods = authState.user.allowedPaymentMethods;
+      if (_paymentMethod != 'split' && !methods.contains(_paymentMethod)) {
+        _paymentMethod = methods.first;
+      }
+      for (final payment in _splitPayments) {
+        if (!methods.contains(payment.method)) payment.method = methods.first;
+      }
+    }
     final cashierName =
         authState is AuthAuthenticated ? authState.user.name : null;
     final isCompleted = checkoutState is CheckoutSuccess ||
@@ -224,7 +256,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         context.go('/home');
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Review Order')),
+        appBar: const PageAppBar(title: Text('Review Order')),
         body: switch (checkoutState) {
           CheckoutQueued(:final uuid) => Center(
               child: SingleChildScrollView(
@@ -276,14 +308,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               onCustomerTap: _openCustomerPicker,
               splitPayments: _splitPayments,
               onTableChanged: (table) => setState(() => _selectedTable = table),
+              onChooseTable: _chooseTable,
               onOrderTypeChanged: (type) {
                 setState(() {
                   _orderType = type;
 
                   if (type == 'takeaway') {
                     _selectedTable = null;
+                    ref.read(cartControllerProvider.notifier).selectTable(null);
                   }
                 });
+                if (type == 'dine_in' && _selectedTable == null) _chooseTable();
               },
               onPaymentMethodChanged: (method) =>
                   setState(() => _paymentMethod = method),
@@ -350,6 +385,7 @@ class _CheckoutForm extends StatelessWidget {
     required this.onCustomerTap,
     required this.splitPayments,
     required this.onTableChanged,
+    required this.onChooseTable,
     required this.onOrderTypeChanged,
     required this.onPaymentMethodChanged,
     required this.tenderedController,
@@ -375,6 +411,7 @@ class _CheckoutForm extends StatelessWidget {
   final VoidCallback onCustomerTap;
   final List<_SplitPaymentLine> splitPayments;
   final ValueChanged<PosTable> onTableChanged;
+  final VoidCallback onChooseTable;
   final ValueChanged<String> onOrderTypeChanged;
   final ValueChanged<String> onPaymentMethodChanged;
   final TextEditingController tenderedController;
@@ -403,10 +440,12 @@ class _CheckoutForm extends StatelessWidget {
 
     final splitValid = splitPayments.length >= 2 &&
         splitPayments.every((payment) {
+          if (!allowedPaymentMethods.contains(payment.method)) return false;
           final amount = double.tryParse(payment.amountController.text) ?? 0;
           if (!amount.isFinite || amount <= 0) return false;
 
           if (payment.method == 'cash') {
+            if (payment.tenderedController.text.trim().isEmpty) return true;
             final tendered = double.tryParse(payment.tenderedController.text);
             return tendered != null && tendered.isFinite && tendered >= amount;
           }
@@ -443,9 +482,7 @@ class _CheckoutForm extends StatelessWidget {
     final canConfirm = !isSubmitting &&
         (allowedPaymentMethods.contains(paymentMethod) ||
             (paymentMethod == 'split' &&
-                allowedPaymentMethods
-                    .toSet()
-                    .containsAll(['cash', 'card', 'qr']))) &&
+                allowedPaymentMethods.toSet().length > 1)) &&
         cart.items.isNotEmpty &&
         (orderType == 'takeaway' || selectedTable != null) &&
         (paymentMethod == 'split'
@@ -550,6 +587,16 @@ class _CheckoutForm extends StatelessWidget {
                         enabled: !isSubmitting,
                         onChanged: onOrderTypeChanged,
                       ),
+                      if (orderType == 'dine_in') ...[
+                        const SizedBox(height: 8),
+                        pos_ui.SecondaryButton.icon(
+                          onPressed: isSubmitting ? null : onChooseTable,
+                          icon: const Icon(Icons.table_restaurant),
+                          label: Text(selectedTable == null
+                              ? 'Select Table'
+                              : 'Change ${selectedTable!.name}'),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       Text(
                         'Customer',
@@ -796,9 +843,7 @@ class _CheckoutForm extends StatelessWidget {
                           if (allowedPaymentMethods.contains('qr'))
                             const CheckoutChoice(
                                 'qr', 'QR', Icons.qr_code_2_outlined),
-                          if (allowedPaymentMethods
-                              .toSet()
-                              .containsAll(['cash', 'card', 'qr']))
+                          if (allowedPaymentMethods.toSet().length > 1)
                             const CheckoutChoice(
                                 'split', 'Split', Icons.call_split_outlined),
                         ],
@@ -869,19 +914,25 @@ class _CheckoutForm extends StatelessWidget {
                                                           BorderSide.none,
                                                     ),
                                                   ),
-                                                  items: const [
-                                                    DropdownMenuItem(
-                                                      value: 'cash',
-                                                      child: Text('Cash'),
-                                                    ),
-                                                    DropdownMenuItem(
-                                                      value: 'card',
-                                                      child: Text('Card'),
-                                                    ),
-                                                    DropdownMenuItem(
-                                                      value: 'qr',
-                                                      child: Text('QR'),
-                                                    ),
+                                                  items: [
+                                                    if (allowedPaymentMethods
+                                                        .contains('cash'))
+                                                      const DropdownMenuItem(
+                                                        value: 'cash',
+                                                        child: Text('Cash'),
+                                                      ),
+                                                    if (allowedPaymentMethods
+                                                        .contains('card'))
+                                                      const DropdownMenuItem(
+                                                        value: 'card',
+                                                        child: Text('Card'),
+                                                      ),
+                                                    if (allowedPaymentMethods
+                                                        .contains('qr'))
+                                                      const DropdownMenuItem(
+                                                        value: 'qr',
+                                                        child: Text('QR'),
+                                                      ),
                                                   ],
                                                   onChanged: isSubmitting
                                                       ? null
@@ -977,7 +1028,9 @@ class _CheckoutForm extends StatelessWidget {
                                       ? null
                                       : () {
                                           splitPayments.add(
-                                            _SplitPaymentLine(method: 'qr'),
+                                            _SplitPaymentLine(
+                                                method: allowedPaymentMethods
+                                                    .first),
                                           );
                                           onTenderedChanged();
                                         },
@@ -1174,22 +1227,6 @@ class _CheckoutForm extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 32),
-                      if (selectedTable != null)
-                        pos_ui.OutlinedButton(
-                          onPressed: canSaveOrder ? onHold : null,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
-                            side: BorderSide.none,
-                            backgroundColor:
-                                theme.colorScheme.surfaceContainerLow,
-                            foregroundColor: theme.colorScheme.onSurface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Text('Save for Later'),
-                        ),
-                      if (selectedTable != null) const SizedBox(height: 8),
                       const Text(
                         'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
                       ),
@@ -1197,6 +1234,7 @@ class _CheckoutForm extends StatelessWidget {
                   ),
                 ),
                 CheckoutActions(
+                  onSave: canSaveOrder ? onHold : null,
                   maxHeight: viewport.maxHeight * 0.5,
                   totalLabel: currency.format(cart.total),
                   secondaryTotalLabel:

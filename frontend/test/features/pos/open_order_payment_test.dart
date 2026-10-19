@@ -11,12 +11,19 @@ import 'package:top_coffee_pos/features/orders/domain/orders_list_filters.dart';
 import 'package:top_coffee_pos/features/pos/data/pos_repository.dart';
 import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
 import 'package:top_coffee_pos/features/pos/presentation/open_order_screen.dart';
+import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
+import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
+
+class MockBillAuth extends Mock implements AuthRepository {}
 
 class MockPosRepository extends Mock implements PosRepository {}
 
 class MockOrdersRepository extends Mock implements OrdersRepository {}
 
-OrderDetail bill({int quantity = 1, double unitPrice = 3.50}) => OrderDetail(
+OrderDetail bill(
+        {int quantity = 1, double unitPrice = 3.50, String? revision}) =>
+    OrderDetail(
+      editRevision: revision,
       id: 42,
       uuid: 'held-42',
       orderType: 'dine_in',
@@ -97,6 +104,7 @@ void main() {
 
   Future<void> pumpBill(
     WidgetTester tester, {
+    List<String>? allowedMethods,
     bool fromList = false,
     Size viewport = const Size(1200, 900),
   }) async {
@@ -127,11 +135,24 @@ void main() {
       ],
     );
     addTearDown(router.dispose);
+    final auth = MockBillAuth();
+    when(() => auth.hasStoredToken()).thenAnswer((_) async => true);
+    when(() => auth.getCurrentUser()).thenAnswer((_) async => AuthenticatedUser(
+          id: 1,
+          name: 'Cashier',
+          email: 'cashier@example.invalid',
+          roles: const ['cashier'],
+          permissions: const ['orders.create', 'orders.view'],
+          branches: const [],
+          allowedPaymentMethods: allowedMethods ?? const ['cash'],
+        ));
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           posRepositoryProvider.overrideWithValue(pos),
           ordersRepositoryProvider.overrideWithValue(orders),
+          if (allowedMethods != null)
+            authRepositoryProvider.overrideWithValue(auth),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -168,6 +189,38 @@ void main() {
     expect(find.text('\$8.00'), findsWidgets);
     expect(find.text('2'), findsOneWidget);
     expect(find.byTooltip('Increase quantity'), findsOneWidget);
+  });
+
+  testWidgets('Back warns about edits and Keep Editing preserves quantities',
+      (tester) async {
+    await pumpBill(tester, fromList: true);
+    await tester.tap(find.byTooltip('Increase quantity'));
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Save changes before leaving?'), findsOneWidget);
+    await tester.tap(find.text('Keep Editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard Changes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Bill'), findsOneWidget);
+    verifyNever(() => pos.updateHeldOrder(
+        orderId: 42,
+        items: any(named: 'items'),
+        discountTotal: 0,
+        branchId: 11));
+  });
+
+  testWidgets('phone exposes Save Order without opening the editor',
+      (tester) async {
+    await pumpBill(tester, fromList: true, viewport: const Size(390, 700));
+    expect(find.text('Save Order').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Save Order'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Bill'), findsOneWidget);
   });
 
   testWidgets('Pay saves edited quantities and confirms the server price', (
@@ -227,6 +280,78 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Tables'), findsOneWidget);
+  });
+
+  testWidgets(
+      'held payment only offers enabled methods and splits exact cash correctly',
+      (tester) async {
+    when(() =>
+        pos.payHeldOrder(
+            orderId: 42,
+            paymentMethod: 'split',
+            splitPayments: any(named: 'splitPayments'),
+            expectedTotal: 8,
+            branchId: 11)).thenAnswer((_) async =>
+        const OrderConfirmation(orderId: 42, total: 8, paymentMethod: 'split'));
+    await pumpBill(tester, allowedMethods: ['cash', 'card']);
+    await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    expect(find.text('QR'), findsNothing);
+    await tester.tap(find.text('Split'));
+    await tester.pumpAndSettle();
+    final amount = find.byWidgetPredicate((w) =>
+        w is TextField && w.decoration?.labelText == 'First payment amount');
+    await tester.ensureVisible(amount);
+    await tester.enterText(amount, '3');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Payment'));
+    await tester.pumpAndSettle();
+    final portions = verify(() => pos.payHeldOrder(
+        orderId: 42,
+        paymentMethod: 'split',
+        splitPayments: captureAny(named: 'splitPayments'),
+        expectedTotal: 8,
+        branchId: 11)).captured.single;
+    expect(portions, [
+      {'method': 'cash', 'amount': 3.0, 'tendered': 3.0},
+      {'method': 'card', 'amount': 5.0}
+    ]);
+    expect(find.text('Payment completed'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('cash-only held order does not offer disabled payment methods',
+      (tester) async {
+    await pumpBill(tester, allowedMethods: ['cash']);
+    await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Card'), findsNothing);
+    expect(find.text('QR'), findsNothing);
+    expect(find.text('Split'), findsNothing);
+    expect(find.text('Exact'), findsOneWidget);
+  });
+
+  testWidgets('held edits send the revision that was originally opened',
+      (tester) async {
+    when(() => orders.getOrder(42))
+        .thenAnswer((_) async => bill(revision: 'revision-one'));
+    when(() =>
+        pos.updateHeldOrder(
+            expectedRevision: 'revision-one',
+            orderId: 42,
+            items: any(named: 'items'),
+            discountTotal: 0,
+            branchId: 11)).thenAnswer((_) async =>
+        const OrderConfirmation(orderId: 42, total: 3.5, paymentMethod: ''));
+    await pumpBill(tester, fromList: true);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    verify(() => pos.updateHeldOrder(
+        expectedRevision: 'revision-one',
+        orderId: 42,
+        items: any(named: 'items'),
+        discountTotal: 0,
+        branchId: 11)).called(1);
   });
 
   testWidgets('a failed save never opens payment', (tester) async {
@@ -338,18 +463,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Open Bill'), findsOneWidget);
     final items = verify(() => pos.updateHeldOrder(
-      orderId: 42,
-      items: captureAny(named: 'items'),
-      discountTotal: 0,
-      branchId: 11,
-    )).captured.single as List<Map<String, dynamic>>;
+          orderId: 42,
+          items: captureAny(named: 'items'),
+          discountTotal: 0,
+          branchId: 11,
+        )).captured.single as List<Map<String, dynamic>>;
     expect(items.single['quantity'], 2);
     verifyNever(() => pos.payHeldOrder(
-      orderId: any(named: 'orderId'),
-      paymentMethod: any(named: 'paymentMethod'),
-      expectedTotal: any(named: 'expectedTotal'),
-      branchId: any(named: 'branchId'),
-    ));
+          orderId: any(named: 'orderId'),
+          paymentMethod: any(named: 'paymentMethod'),
+          expectedTotal: any(named: 'expectedTotal'),
+          branchId: any(named: 'branchId'),
+        ));
     expect(tester.takeException(), isNull);
   });
 
@@ -360,18 +485,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Review Bill & Pay'), findsOneWidget);
     verify(() => pos.updateHeldOrder(
-      orderId: 42,
-      items: any(named: 'items'),
-      discountTotal: 0,
-      branchId: 11,
-    )).called(1);
+          orderId: 42,
+          items: any(named: 'items'),
+          discountTotal: 0,
+          branchId: 11,
+        )).called(1);
     verifyNever(() => pos.payHeldOrder(
-      orderId: any(named: 'orderId'),
-      paymentMethod: any(named: 'paymentMethod'),
-      expectedTotal: any(named: 'expectedTotal'),
-      branchId: any(named: 'branchId'),
-    ));
+          orderId: any(named: 'orderId'),
+          paymentMethod: any(named: 'paymentMethod'),
+          expectedTotal: any(named: 'expectedTotal'),
+          branchId: any(named: 'branchId'),
+        ));
     expect(tester.takeException(), isNull);
   });
-
 }

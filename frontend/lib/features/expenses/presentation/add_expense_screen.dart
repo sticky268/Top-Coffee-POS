@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -194,7 +195,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final categoryState = ref.watch(expenseCategoriesControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: Text(widget.expense == null ? 'Add Expense' : 'Edit Expense'),
       ),
       body: PageContent(

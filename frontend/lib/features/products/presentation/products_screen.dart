@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -28,7 +29,7 @@ class ProductsScreen extends ConsumerWidget {
     final state = ref.watch(productsControllerProvider);
     final canModify = SubscriptionActionGuard.canModify(ref);
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Products'),
         actions: [
           if (state is ProductsLoaded)

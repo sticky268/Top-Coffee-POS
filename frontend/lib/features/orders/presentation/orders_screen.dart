@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -71,7 +72,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     final state = ref.watch(ordersListControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Orders'),
         actions: [
           pos_ui.IconButton(
@@ -155,131 +156,146 @@ class _OrdersContentState extends ConsumerState<_OrdersContent> {
   Widget build(BuildContext context) {
     final filters = widget.state.filters;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: widget.searchController,
-                onChanged: (_) => setState(() {}),
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => widget.onSearch(),
-                decoration: InputDecoration(
-                  hintText: 'Search receipt number',
-                  helperText: 'Use the number printed on the receipt.',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: widget.searchController.text.isNotEmpty
-                      ? pos_ui.IconButton(
-                          tooltip: 'Clear search',
-                          onPressed: () {
-                            widget.searchController.clear();
-                            widget.onSearch();
-                            setState(() {});
-                          },
-                          icon: const Icon(Icons.clear),
-                        )
-                      : null,
-                  border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(14)),
-                  ),
-                  isDense: true,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: pos_ui.OutlinedButton.icon(
-                  onPressed: widget.onOpenFilters,
-                  icon: const Icon(Icons.tune),
-                  label: const Text('Filter'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (filters.hasFilters)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        if (filters.orderNumber?.trim().isNotEmpty ?? false)
-                          _FilterChip(
-                            label: 'Order #${filters.orderNumber!.trim()}',
-                          ),
-                        if (filters.status != null)
-                          _FilterChip(label: orderStatusLabel(filters.status!)),
-                        if (filters.paymentMethod != null)
-                          _FilterChip(
-                            label: paymentMethodLabel(filters.paymentMethod!),
-                          ),
-                        if (filters.dateFrom != null)
-                          _FilterChip(
-                            label:
-                                'From ${DateFormat('MMM d, yyyy').format(filters.dateFrom!)}',
-                          ),
-                        if (filters.dateTo != null)
-                          _FilterChip(
-                            label:
-                                'To ${DateFormat('MMM d, yyyy').format(filters.dateTo!)}',
-                          ),
-                      ],
+    return RefreshIndicator(
+      onRefresh: () =>
+          ref.read(ordersListControllerProvider.notifier).refresh(),
+      child: CustomScrollView(
+        controller: _scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: widget.searchController,
+                      onChanged: (_) => setState(() {}),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => widget.onSearch(),
+                      decoration: InputDecoration(
+                        hintText: 'Search receipt number',
+                        helperText: 'Use the number printed on the receipt.',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: widget.searchController.text.isNotEmpty
+                            ? pos_ui.IconButton(
+                                tooltip: 'Clear search',
+                                onPressed: () {
+                                  widget.searchController.clear();
+                                  widget.onSearch();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.clear),
+                              )
+                            : null,
+                        border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(14)),
+                        ),
+                        isDense: true,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: pos_ui.OutlinedButton.icon(
+                        onPressed: widget.onOpenFilters,
+                        icon: const Icon(Icons.tune),
+                        label: const Text('Filter'),
+                      ),
+                    ),
+                  ],
                 ),
-                pos_ui.SecondaryButton(
-                  onPressed: widget.onClearFilters,
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
-          ),
-        Expanded(
-          child: widget.state.orders.isEmpty
-              ? _FilteredEmptyOrders(
-                  hasFilters: filters.hasFilters,
-                  onClear: widget.onClearFilters,
-                )
-              : RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(ordersListControllerProvider.notifier).refresh(),
-                  child: ListView.separated(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: widget.state.orders.length +
-                        (widget.state.hasMore ? 1 : 0),
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      if (index >= widget.state.orders.length) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Center(
-                            child: widget.state.isLoadingMore
-                                ? const CircularProgressIndicator()
-                                : const SizedBox.shrink(),
+              ),
+              if (filters.hasFilters)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              if (filters.orderNumber?.trim().isNotEmpty ??
+                                  false)
+                                _FilterChip(
+                                  label:
+                                      'Order #${filters.orderNumber!.trim()}',
+                                ),
+                              if (filters.status != null)
+                                _FilterChip(
+                                    label: orderStatusLabel(filters.status!)),
+                              if (filters.paymentMethod != null)
+                                _FilterChip(
+                                  label: paymentMethodLabel(
+                                      filters.paymentMethod!),
+                                ),
+                              if (filters.dateFrom != null)
+                                _FilterChip(
+                                  label:
+                                      'From ${DateFormat('MMM d, yyyy').format(filters.dateFrom!)}',
+                                ),
+                              if (filters.dateTo != null)
+                                _FilterChip(
+                                  label:
+                                      'To ${DateFormat('MMM d, yyyy').format(filters.dateTo!)}',
+                                ),
+                            ],
                           ),
-                        );
-                      }
-
-                      final order = widget.state.orders[index];
-
-                      return OrderListTile(
-                        order: order,
-                        onTap: () => context.push('/orders/${order.id}'),
-                      );
-                    },
+                        ),
+                      ),
+                      pos_ui.SecondaryButton(
+                        onPressed: widget.onClearFilters,
+                        child: const Text('Clear'),
+                      ),
+                    ],
                   ),
                 ),
-        ),
-      ],
+            ]),
+          ),
+          if (widget.state.orders.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _FilteredEmptyOrders(
+                hasFilters: filters.hasFilters,
+                onClear: widget.onClearFilters,
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index >= widget.state.orders.length) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: widget.state.isLoadingMore
+                            ? const CircularProgressIndicator()
+                            : const SizedBox.shrink(),
+                      ),
+                    );
+                  }
+
+                  final order = widget.state.orders[index];
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: OrderListTile(
+                      order: order,
+                      onTap: () => context.push('/orders/${order.id}'),
+                    ),
+                  );
+                },
+                    childCount: widget.state.orders.length +
+                        (widget.state.hasMore ? 1 : 0)),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

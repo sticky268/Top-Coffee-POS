@@ -489,14 +489,18 @@ class ExpenseTest extends TestCase
             'name' => 'Supplies',
         ]);
 
+        // A branch's business date can be ahead of the server's UTC date.
+        $this->travelTo(\Carbon\Carbon::create(2026, 9, 23, 19, 0, 0, 'UTC'));
+        $today = now($branch->refresh()->timezone ?: 'UTC')->toDateString();
+
         $this->makeExpense($branch, $user, $category, [
             'amount' => 30.00,
-            'spent_at' => now()->toDateString(),
+            'spent_at' => $today,
         ]);
 
         $this->makeExpense($otherBranch, $otherUser, $category, [
             'amount' => 999.00,
-            'spent_at' => now()->toDateString(),
+            'spent_at' => $today,
         ]);
 
         $response = $this->actingAs($user)

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/pos/data/pos_repository.dart';
 
 import '../../features/dashboard/presentation/widgets/dashboard_navigation.dart';
+import '../widgets/page_app_bar.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child, required this.selectedRoute});
@@ -33,11 +34,25 @@ class AppShell extends ConsumerWidget {
 
         if (!isDesktop) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Top Coffee POS')),
+            // Dashboard has no page toolbar; all other routes provide one.
+            appBar: selectedRoute == '/home'
+                ? AppBar(title: const Text('Top Coffee POS'))
+                : null,
             drawer: Drawer(
               child: DashboardNavigation(selectedRoute: selectedRoute),
             ),
-            body: content,
+            body: Builder(
+              builder: (shellContext) => PageNavigation(
+                openMenu: () => Scaffold.of(shellContext).openDrawer(),
+                child: SafeArea(
+                  top: usingCache,
+                  bottom: false,
+                  left: false,
+                  right: false,
+                  child: content,
+                ),
+              ),
+            ),
           );
         }
 

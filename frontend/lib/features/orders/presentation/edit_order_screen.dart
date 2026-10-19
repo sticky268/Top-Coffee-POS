@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -31,7 +32,7 @@ class EditOrderScreen extends ConsumerWidget {
         : 'Adjust Completed Order';
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: PageAppBar(title: Text(title)),
       body: PageContent(
         maxWidth: 800,
         child: switch (orderState) {

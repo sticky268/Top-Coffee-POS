@@ -11,12 +11,14 @@ class ProductGrid extends ConsumerWidget {
     super.key,
     required this.products,
     required this.crossAxisCount,
+    this.sliver = false,
     this.onProductSelected,
     this.onVariantSelected,
   });
 
   final List<PosProduct> products;
   final int crossAxisCount;
+  final bool sliver;
   final void Function(PosProduct product)? onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)?
       onVariantSelected;
@@ -24,62 +26,84 @@ class ProductGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (products.isEmpty) {
-      return const _EmptyProducts();
+      return sliver
+          ? const SliverFillRemaining(
+              hasScrollBody: false,
+              child: _EmptyProducts(),
+            )
+          : const _EmptyProducts();
     }
 
     final quantities = <int, int>{};
-    for (final item
-        in ref.watch(cartControllerProvider.select((cart) => cart.items))) {
-      quantities.update(item.product.id, (value) => value + item.quantity,
-          ifAbsent: () => item.quantity);
+    for (final item in ref.watch(
+      cartControllerProvider.select((cart) => cart.items),
+    )) {
+      quantities.update(
+        item.product.id,
+        (value) => value + item.quantity,
+        ifAbsent: () => item.quantity,
+      );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
-        // Use the catalog pane's width; the tablet cart takes its own space.
-        final columns =
-            ((constraints.maxWidth - 16) / (scale > 1.4 ? 256 : 166))
-                .floor()
-                .clamp(1, crossAxisCount);
-        final tileWidth =
-            (constraints.maxWidth - 32 - 16 * (columns - 1)) / columns;
-        // Large type needs room for names rather than a taller photo.
-        final tileHeight = scale > 1.4
-            ? 132 + scale * 68
-            : (tileWidth / 1.05).clamp(180.0, 280.0);
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            mainAxisExtent: tileHeight,
-          ),
-          itemCount: products.length,
-          itemBuilder: (context, index) {
-            final product = products[index];
-            return ProductCard(
-              product: product,
-              quantityInCart: quantities[product.id] ?? 0,
-              onTap: () {
-                if (product.hasVariants) {
-                  showVariantSelector(
-                    context,
-                    ref,
-                    product,
-                    onVariantSelected: onVariantSelected,
-                  );
-                } else if (onProductSelected != null) {
-                  onProductSelected!(product);
-                } else {
-                  ref.read(cartControllerProvider.notifier).addItem(product);
-                }
-              },
-            );
+    Widget buildGrid(double width) {
+      final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+      // Use the catalog pane's width; the tablet cart takes its own space.
+      final columns = ((width - 16) / (scale > 1.4 ? 256 : 166)).floor().clamp(
+            1,
+            crossAxisCount,
+          );
+      final tileWidth = (width - 32 - 16 * (columns - 1)) / columns;
+      // Large type needs room for names rather than a taller photo.
+      final tileHeight = scale > 1.4
+          ? 132 + scale * 68
+          : (tileWidth / 1.05).clamp(180.0, 280.0);
+      final gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        mainAxisExtent: tileHeight,
+      );
+      final children = SliverChildBuilderDelegate((context, index) {
+        final product = products[index];
+        return ProductCard(
+          product: product,
+          quantityInCart: quantities[product.id] ?? 0,
+          onTap: () {
+            if (product.hasVariants) {
+              showVariantSelector(
+                context,
+                ref,
+                product,
+                onVariantSelected: onVariantSelected,
+              );
+            } else if (onProductSelected != null) {
+              onProductSelected!(product);
+            } else {
+              ref.read(cartControllerProvider.notifier).addItem(product);
+            }
           },
         );
-      },
-    );
+      }, childCount: products.length);
+      if (sliver) {
+        return SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: SliverGrid(gridDelegate: gridDelegate, delegate: children),
+        );
+      }
+      return GridView.custom(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: gridDelegate,
+        childrenDelegate: children,
+      );
+    }
+
+    return sliver
+        ? SliverLayoutBuilder(
+            builder: (context, constraints) =>
+                buildGrid(constraints.crossAxisExtent),
+          )
+        : LayoutBuilder(
+            builder: (context, constraints) => buildGrid(constraints.maxWidth),
+          );
   }
 }
 

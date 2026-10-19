@@ -2715,6 +2715,32 @@ class OrderTest extends TestCase
         $this->assertSame('occupied', $table->fresh()->status);
     }
 
+    public function test_stale_held_edit_cannot_replace_another_cashiers_saved_items(): void
+    {
+        [$orderId, $product, $table, $customer, $ingredient] = $this->makeHeldBillForPaymentReview();
+        $revision = $this->getJson("/api/v1/orders/{$orderId}")->assertOk()->json('data.edit_revision');
+        $this->assertSame(64, strlen($revision));
+        $this->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'expected_revision' => $revision,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ])->assertOk();
+        $latest = $this->getJson("/api/v1/orders/{$orderId}")->assertOk()->json('data.edit_revision');
+        $this->assertNotSame($revision, $latest);
+        $this->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'expected_revision' => $revision,
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ])->assertStatus(409);
+        $this->assertSame(2, (int) Order::findOrFail($orderId)->items->sum('quantity'));
+        $this->assertDatabaseMissing('payments', ['order_id' => $orderId]);
+        $this->assertSame('occupied', $table->fresh()->status);
+        $this->assertSame(100.0, (float) $ingredient->fresh()->current_stock);
+        // Reloading permits a deliberate edit, even within the same timestamp second.
+        $this->patchJson("/api/v1/orders/{$orderId}/hold", [
+            'expected_revision' => $latest,
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ])->assertOk();
+    }
+
     public function test_kitchen_cleanup_preserves_existing_orders_items_payments_and_stock(): void
     {
         [$orderId] = $this->makeHeldBillForPaymentReview();

@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import '../../auth/presentation/manager_pin_prompt.dart';
 import 'package:flutter/material.dart';
 
@@ -801,9 +802,9 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       );
     }
     if (ref.watch(currentBranchProvider) == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Daily Operations')),
-        body: const PageContent(
+      return const Scaffold(
+        appBar: PageAppBar(title: Text('Daily Operations')),
+        body: PageContent(
           maxWidth: 1000,
           child: Center(
             child: Padding(
@@ -826,7 +827,7 @@ class _OperationsScreenState extends ConsumerState<OperationsScreen> {
       if (auth.user.hasPermission('reports.view')) 'Owner report',
     ];
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Daily Operations'),
         actions: [
           IconButton(

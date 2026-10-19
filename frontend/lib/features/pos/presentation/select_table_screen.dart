@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,10 +8,13 @@ import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../data/pos_repository.dart';
+import '../application/cart_controller.dart';
 import '../domain/pos_models.dart';
 
 class SelectTableScreen extends ConsumerStatefulWidget {
-  const SelectTableScreen({super.key});
+  const SelectTableScreen({super.key, this.selectionOnly = false});
+
+  final bool selectionOnly;
 
   @override
   ConsumerState<SelectTableScreen> createState() => _SelectTableScreenState();
@@ -94,12 +98,14 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     });
 
     try {
-      final tables = await ref.read(posRepositoryProvider).getTables(branchId: branchId);
+      final tables =
+          await ref.read(posRepositoryProvider).getTables(branchId: branchId);
 
-      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) return;
+      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) {
+        return;
+      }
 
-      final sortedTables = [...tables]
-        ..sort((a, b) {
+      final sortedTables = [...tables]..sort((a, b) {
           final aNumber =
               int.tryParse(a.name.replaceFirst(RegExp(r'^\D+'), '')) ?? 0;
           final bNumber =
@@ -117,7 +123,9 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
         _isLoading = false;
       });
     } catch (_) {
-      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) return;
+      if (!mounted || loadVersion != _loadVersion || branchId != _branchId) {
+        return;
+      }
 
       setState(() {
         _isLoading = false;
@@ -177,13 +185,51 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     }
   }
 
-  void _selectTable(PosTable table) {
+  Future<void> _selectTable(PosTable table) async {
     if (table.status == 'available') {
+      if (widget.selectionOnly) {
+        context.pop(table);
+        return;
+      }
+      final draft = ref.read(cartControllerProvider);
+      if (!draft.isEmpty && draft.table?.id != table.id) {
+        final choice = await showDialog<String>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+                  title: const Text('You have an unfinished order'),
+                  content: Text(
+                      'Use its items for ${table.name}, or start an empty order? Starting empty discards the unfinished cart.'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Cancel')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, 'empty'),
+                        child: const Text('Start Empty')),
+                    FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, 'use'),
+                        child: const Text('Use Current Draft')),
+                  ],
+                ));
+        if (!mounted || choice == null) return;
+        if (choice == 'empty') {
+          ref.read(cartControllerProvider.notifier).clear();
+        }
+      }
+      ref.read(cartControllerProvider.notifier).selectTable(table);
       context.go('/pos', extra: table);
       return;
     }
 
     if (table.status == 'occupied' && table.activeOrderId != null) {
+      if (widget.selectionOnly) {
+        _showTableMessage(
+            title: 'Table already has an order',
+            message:
+                'Choose an available table. Open occupied tables from Dine-in to edit their saved order.',
+            icon: Icons.info_outline);
+        return;
+      }
       context.push('/pos/open-order/${table.activeOrderId}');
       return;
     }
@@ -252,8 +298,8 @@ class _SelectTableScreenState extends ConsumerState<SelectTableScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Table'),
+      appBar: PageAppBar(
+        title: Text(widget.selectionOnly ? 'Select Table' : 'Dine-in Tables'),
         actions: [
           pos_ui.IconButton(
             tooltip: 'Refresh',
@@ -494,13 +540,17 @@ class _SelectTableCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   table.name,
-                  style: Theme.of(context).textTheme.titleLarge
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${table.capacity} ${table.capacity == 1 ? 'seat' : 'seats'}',
-                  style: Theme.of(context).textTheme.bodyMedium
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
                       ?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
                 if (table.section != null &&
@@ -509,9 +559,9 @@ class _SelectTableCard extends StatelessWidget {
                   Text(
                     table.section!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -536,9 +586,9 @@ class _SelectTableCard extends StatelessWidget {
                 Text(
                   actionLabel,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
                 ),
               ],
             ),

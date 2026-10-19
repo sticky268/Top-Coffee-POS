@@ -13,6 +13,7 @@ class CheckoutActions extends StatelessWidget {
     required this.enabled,
     required this.isSubmitting,
     required this.onComplete,
+    this.onSave,
   });
 
   final String totalLabel;
@@ -21,6 +22,7 @@ class CheckoutActions extends StatelessWidget {
   final bool enabled;
   final bool isSubmitting;
   final ValueChanged<bool> onComplete;
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +58,14 @@ class CheckoutActions extends StatelessWidget {
                   if (secondaryTotalLabel != null)
                     Text(secondaryTotalLabel!, textAlign: TextAlign.end),
                   const SizedBox(height: 8),
+                  if (onSave != null) ...[
+                    pos_ui.SecondaryButton.icon(
+                      onPressed: isSubmitting ? null : onSave,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Save Order · Pay Later'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   pos_ui.PosActionButton.icon(
                     onPressed: enabled && !isSubmitting
                         ? () => onComplete(true)

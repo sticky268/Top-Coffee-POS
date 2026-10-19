@@ -43,6 +43,28 @@ void main() {
     expect(state.total, 0);
   });
 
+  test('draft keeps its table through item edits and clears it with the cart',
+      () {
+    const table = PosTable(
+        id: 7,
+        name: 'T7',
+        capacity: 4,
+        status: 'available',
+        activeOrderId: null);
+    controller.selectTable(table);
+    controller.addItem(_americano);
+    controller.incrementQuantity(
+        container.read(cartControllerProvider).items.single.lineKey);
+    expect(container.read(cartControllerProvider).table?.id, 7);
+    controller.selectTable(null);
+    expect(container.read(cartControllerProvider).table, isNull);
+    expect(container.read(cartControllerProvider).totalItemCount, 2);
+    controller.selectTable(table);
+    controller.clear();
+    expect(container.read(cartControllerProvider).isEmpty, isTrue);
+    expect(container.read(cartControllerProvider).table, isNull);
+  });
+
   test('adding a product with no variant creates one line', () {
     controller.addItem(_americano);
 
@@ -52,7 +74,9 @@ void main() {
     expect(state.subtotal, 2.50);
   });
 
-  test('adding the same product+variant twice increases quantity instead of duplicating the line', () {
+  test(
+      'adding the same product+variant twice increases quantity instead of duplicating the line',
+      () {
     controller.addItem(_latte, variant: _latte.variants[0]); // Medium
     controller.addItem(_latte, variant: _latte.variants[0]); // Medium again
 
@@ -80,7 +104,11 @@ void main() {
     controller.addItem(_americano);
     controller.addItem(_latte, variant: _latte.variants[0]);
 
-    final americanoKey = container.read(cartControllerProvider).items.firstWhere((i) => i.product.id == 2).lineKey;
+    final americanoKey = container
+        .read(cartControllerProvider)
+        .items
+        .firstWhere((i) => i.product.id == 2)
+        .lineKey;
     controller.incrementQuantity(americanoKey);
 
     final state = container.read(cartControllerProvider);

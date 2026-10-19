@@ -39,17 +39,28 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   void initState() {
     super.initState();
     _selectedBranchId = ref.read(currentBranchProvider)?.id;
-    _selectedTable = widget.initialTable;
+    _selectedTable =
+        widget.initialTable ?? ref.read(cartControllerProvider).table;
     if (_selectedTable?.branchId != null &&
         _selectedTable!.branchId != _selectedBranchId) {
       _selectedTable = null;
     }
+    final initialTable = _selectedTable;
+    if (initialTable != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(currentBranchProvider)?.id == _selectedBranchId) {
+          ref.read(cartControllerProvider.notifier).selectTable(initialTable);
+        }
+      });
+    }
   }
 
   Future<void> _openTableSelector() async {
-    final table = await context.push<PosTable>('/pos/select-table');
+    final table = await context.push<PosTable>('/pos/select-table?select=true');
 
     if (table != null && mounted) {
+      ref.read(cartControllerProvider.notifier).selectTable(table);
       setState(() {
         _selectedTable = table;
       });
@@ -62,6 +73,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final compactToolbar = MediaQuery.sizeOf(context).width < 760;
     final catalogState = ref.watch(posCatalogControllerProvider);
     final lastReceipt = ref.watch(lastCompletedOrderProvider).asData?.value;
+    final draft = ref.watch(cartControllerProvider);
+    _selectedTable = draft.table;
     ref.listen(currentBranchProvider, (previous, next) {
       if (previous?.id == next?.id) return;
       _selectedBranchId = next?.id;
@@ -80,50 +93,86 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('New Order',
-              maxLines: 1, overflow: TextOverflow.ellipsis),
+          toolbarHeight: compactToolbar
+              ? (MediaQuery.textScalerOf(context).scale(16) * 1.5 +
+                      MediaQuery.textScalerOf(context).scale(11) * 1.3 +
+                      8)
+                  .clamp(56, 160)
+                  .toDouble()
+              : null,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                draft.isEmpty ? 'New Order' : 'Current Order',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: compactToolbar
+                    ? Theme.of(context).textTheme.titleMedium
+                    : null,
+              ),
+              if (compactToolbar)
+                Text(
+                  _selectedTable == null
+                      ? 'Takeaway'
+                      : 'Dine-in · ${_selectedTable!.name}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+            ],
+          ),
+          titleSpacing: compactToolbar ? 0 : null,
           leading: pos_ui.IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Back to Dashboard',
             onPressed: () => context.go('/home'),
           ),
-          bottom: PreferredSize(
-            preferredSize: Size.fromHeight(
-                (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16)
-                    .clamp(56, 110)),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Row(
-                children: [
-                  Icon(
-                      _selectedTable == null
-                          ? Icons.shopping_bag_outlined
-                          : Icons.table_restaurant_outlined,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Tooltip(
-                    message: _selectedTable == null
-                        ? 'Takeaway'
-                        : 'Dine-in · ${_selectedTable!.name}',
-                    child: Text(
-                        _selectedTable == null
-                            ? 'Takeaway'
-                            : 'Dine-in · ${_selectedTable!.name}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                  )),
-                  CashDrawerButton(compact: compactToolbar),
-                ],
-              ),
-            ),
-          ),
+          bottom: compactToolbar
+              ? null
+              : PreferredSize(
+                  preferredSize: Size.fromHeight(
+                    (MediaQuery.textScalerOf(context).scale(14) * 1.5 + 16)
+                        .clamp(56, 110),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _selectedTable == null
+                              ? Icons.shopping_bag_outlined
+                              : Icons.table_restaurant_outlined,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Tooltip(
+                            message: _selectedTable == null
+                                ? 'Takeaway'
+                                : 'Dine-in · ${_selectedTable!.name}',
+                            child: Text(
+                              _selectedTable == null
+                                  ? 'Takeaway'
+                                  : 'Dine-in · ${_selectedTable!.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        CashDrawerButton(compact: compactToolbar),
+                      ],
+                    ),
+                  ),
+                ),
           actions: [
+            if (compactToolbar) const CashDrawerButton(compact: true),
             if (drawerScope != null)
               pos_ui.IconButton(
                 tooltip: 'Drawer activity',
@@ -233,38 +282,50 @@ class _PhoneLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return LayoutBuilder(
-        builder: (context, viewport) => Column(
-              children: [
-                const SizedBox(height: 16),
-                ProductSearchField(
-                  onSubmitted: (code) => _scanProduct(context, ref, code),
-                  onChanged: (query) => ref
-                      .read(posCatalogControllerProvider.notifier)
-                      .updateSearchQuery(query),
-                ),
-                const SizedBox(height: 8),
-                CategorySelector(
-                  categories: categories,
-                  selectedCategoryId: selectedCategoryId,
-                  onSelected: (id) => ref
-                      .read(posCatalogControllerProvider.notifier)
-                      .selectCategory(id),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: ProductGrid(
-                    products: products,
-                    crossAxisCount: crossAxisCount,
+      builder: (context, viewport) => Column(
+        children: [
+          Expanded(
+            child: CustomScrollView(
+              key: const PageStorageKey('phone-pos-catalog'),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: ProductSearchField(
+                      onSubmitted: (code) => _scanProduct(context, ref, code),
+                      onChanged: (query) => ref
+                          .read(posCatalogControllerProvider.notifier)
+                          .updateSearchQuery(query),
+                    ),
                   ),
                 ),
-                const Divider(height: 1),
-                PhoneCartBar(
-                  selectedTable: selectedTable,
-                  compact: viewport.maxHeight < 420 ||
-                      MediaQuery.viewInsetsOf(context).bottom > 0,
+                SliverToBoxAdapter(
+                  child: CategorySelector(
+                    categories: categories,
+                    selectedCategoryId: selectedCategoryId,
+                    onSelected: (id) => ref
+                        .read(posCatalogControllerProvider.notifier)
+                        .selectCategory(id),
+                  ),
+                ),
+                ProductGrid(
+                  products: products,
+                  crossAxisCount: crossAxisCount,
+                  sliver: true,
                 ),
               ],
-            ));
+            ),
+          ),
+          const Divider(height: 1),
+          PhoneCartBar(
+            selectedTable: selectedTable,
+            compact: viewport.maxHeight < 420 ||
+                MediaQuery.viewInsetsOf(context).bottom > 0,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -319,8 +380,9 @@ class _TabletLayout extends ConsumerWidget {
         ),
         const VerticalDivider(width: 1),
         SizedBox(
-            width: MediaQuery.sizeOf(context).width >= 1200 ? 380 : 340,
-            child: CartPanel(selectedTable: selectedTable)),
+          width: MediaQuery.sizeOf(context).width >= 1200 ? 380 : 340,
+          child: CartPanel(selectedTable: selectedTable),
+        ),
       ],
     );
   }
@@ -379,12 +441,15 @@ void _scanProduct(BuildContext context, WidgetRef ref, String code) {
   final catalog = ref.read(posCatalogControllerProvider);
   if (catalog is! PosCatalogLoaded) return;
   final matches = catalog.products
-      .where((product) =>
-          product.sku?.trim().toLowerCase() == code.trim().toLowerCase())
+      .where(
+        (product) =>
+            product.sku?.trim().toLowerCase() == code.trim().toLowerCase(),
+      )
       .toList();
   if (matches.length != 1) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('SKU not found. Search by product name.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('SKU not found. Search by product name.')),
+    );
     return;
   }
   final product = matches.single;

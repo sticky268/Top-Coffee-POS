@@ -5,7 +5,9 @@ import '../domain/pos_models.dart';
 /// cart has no "loading" concept, it's pure local state mutated by user
 /// actions, so that machinery would be unnecessary here.
 class CartState {
-  const CartState({this.items = const [], this.discountTotal = 0});
+  const CartState({this.items = const [], this.discountTotal = 0, this.table});
+
+  final PosTable? table;
 
   final List<CartItem> items;
 
@@ -27,10 +29,15 @@ class CartState {
     return result < 0 ? 0 : result;
   }
 
-  CartState copyWith({List<CartItem>? items, double? discountTotal}) {
+  CartState copyWith(
+      {List<CartItem>? items,
+      double? discountTotal,
+      PosTable? table,
+      bool clearTable = false}) {
     return CartState(
       items: items ?? this.items,
       discountTotal: discountTotal ?? this.discountTotal,
+      table: clearTable ? null : table ?? this.table,
     );
   }
 }

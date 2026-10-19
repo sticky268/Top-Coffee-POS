@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -94,9 +95,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final user = authState.user;
 
     if (!user.hasPermission('users.manage')) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Staff & Permissions')),
-        body: const PageContent(
+      return const Scaffold(
+        appBar: PageAppBar(title: Text('Staff & Permissions')),
+        body: PageContent(
           maxWidth: 1000,
           child: Center(
             child: Padding(
@@ -115,7 +116,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
     final state = ref.watch(staffListControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Staff & Permissions'),
         actions: [
           pos_ui.IconButton(

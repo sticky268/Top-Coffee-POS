@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -163,7 +164,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: Text(
           currentBranch == null
               ? 'Receipt Settings'

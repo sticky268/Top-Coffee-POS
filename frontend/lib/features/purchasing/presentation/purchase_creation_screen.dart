@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -161,7 +162,7 @@ class _PurchaseCreationScreenState
     final state = ref.watch(purchaseCreationControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('New Purchase'),
         actions: [
           pos_ui.IconButton(

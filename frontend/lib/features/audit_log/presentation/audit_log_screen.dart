@@ -1,3 +1,4 @@
+import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/page_content.dart';
@@ -65,7 +66,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
     final state = ref.watch(auditLogListControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: PageAppBar(
         title: const Text('Audit Log'),
         actions: [
           pos_ui.IconButton(
