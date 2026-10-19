@@ -19,16 +19,16 @@ class MockInventoryRepository extends Mock implements SalesReportsRepository {}
 
 Map<String, dynamic> inventoryFixture() {
   final row = <String, dynamic>{
-    for (final key in inventoryLabels.keys)
-      key: inventoryCostKeys.contains(key) ? '1.999002' : '1.999',
-    'comparisons': {
-      for (final key in inventoryLabels.keys)
-        key: {
-          'previous': inventoryCostKeys.contains(key) ? '1.000001' : '1.000',
-          'percent': '99.90',
-          'status': 'comparable'
-        }
-    },
+    'opening': '0.000',
+    'closing': '1.999',
+    'value': '1.999002',
+    'waste': '0.001',
+    'waste_cost': '0.001000',
+    'adjustments': '0.000',
+    'deducted': '1.999',
+    'expected': '1.998',
+    'variance': '0.001',
+    'returned': '0.000',
     'id': 9,
     'name': '=Coffee',
     'branch_name': 'Riverside',
@@ -38,21 +38,40 @@ Map<String, dynamic> inventoryFixture() {
     'low_stock': true,
     'ledger_review': false,
     'threshold': '2.000',
-    'known_expected': '1.999',
+    'known_expected': '1.998',
     'known_waste_cost': '0.001000',
   };
   final summary = <String, dynamic>{
-    for (final key in inventorySummaryLabels.keys)
-      key: inventoryCostKeys.contains(key) ? '1.999002' : 1,
-    'comparisons': {
-      for (final key in inventorySummaryLabels.keys)
-        key: {
-          'previous': inventoryCostKeys.contains(key) ? '1.000001' : '0',
-          'percent': '99.90',
-          'status': 'comparable'
-        }
-    },
+    'value': '1.999002',
+    'known_value': '1.999002',
+    'waste_cost': '0.001000',
+    'known_waste_cost': '0.001000',
+    'low_stock_items': 1,
+    'unknown_value_items': 0,
+    'variance_items': 1,
+    'missing_recipe_lines': 0,
+    'ledger_review_items': 0,
+    'sales': 1,
   };
+  for (final source in [row, summary]) {
+    final keys = identical(source, row)
+        ? inventoryLabels.keys
+        : inventorySummaryLabels.keys;
+    source['comparisons'] = {
+      for (final key in keys)
+        key: {
+          'previous': inventoryCostKeys.contains(key)
+              ? '0.000000'
+              : identical(source, row)
+                  ? '0.000'
+                  : '0',
+          'percent': null,
+          'status': RegExp(r'^0(?:\.0+)?$').hasMatch(source[key].toString())
+              ? 'unchanged'
+              : 'new',
+        }
+    };
+  }
   return {
     'meta': {
       'branches': [
@@ -65,7 +84,7 @@ Map<String, dynamic> inventoryFixture() {
       'cashier_name': 'Cashier',
       'category_name': 'Drinks',
       'basis':
-          'Branch-wide ledger stock. Selected paid-sale usage; legacy recipes unavailable.',
+          'Stock balances and recorded-cost valuation replay stock_movements through each branch-local end date; current_stock and average_unit_cost caches are not used. Unknown movement costs make valuation unknown until stock is exhausted. Cost-only edits outside the ledger do not revalue historical stock. Low-stock flags use current active status and reorder thresholds. Waste and adjustments/transfers are branch-wide event-date movements. Sales usage alone follows the selected fully paid completed whole orders (current catalogue category), comparing original gross sale deductions against immutable recipe quantities captured at completion. Returns through the end date are shown separately, not deducted from gross usage. Missing historical recipe lines make complete theory and variance unavailable; known expected quantities remain visible. This is a ledger/recipe discrepancy, not a physical stocktake or a fraud finding. Different ingredient units are never summed. Unsynced offline sales are absent.',
       'generated_at': '2026-10-19T02:00:00Z'
     },
     'summary': summary,
@@ -88,7 +107,7 @@ Map<String, dynamic> inventorySources(int page) => {
         {
           'order_id': page,
           'order_number': page,
-          'expected': '1.999',
+          'expected': '1.998',
           'deducted': '1.999',
           'returned': '0.000',
           'missing_recipe_lines': 0
@@ -118,6 +137,11 @@ void main() {
     final data = inventoryFixture();
     (data['ingredients'] as List).first['expected'] = null;
     (data['ingredients'] as List).first['variance'] = null;
+    (data['ingredients'] as List).first['comparisons']['expected'] = null;
+    (data['ingredients'] as List).first['comparisons']['variance'] = null;
+    data['summary']['missing_recipe_lines'] = 1;
+    data['summary']['variance_items'] = null;
+    data['summary']['comparisons']['variance_items'] = null;
     final rows = inventoryReportRows(data);
     final sheet = utf8.decode(ZipDecoder()
         .decodeBytes(ReportExporter.xlsx(rows))
