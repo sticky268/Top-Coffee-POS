@@ -19,8 +19,11 @@ const performanceLabels = {
 };
 
 class ProfitReportScreen extends ConsumerStatefulWidget {
-  const ProfitReportScreen(
-      {super.key, required this.query, required this.branchId});
+  const ProfitReportScreen({
+    super.key,
+    required this.query,
+    required this.branchId,
+  });
   final SalesReportQuery query;
   final int? branchId;
   @override
@@ -46,27 +49,36 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
     setState(() => exporting = true);
     try {
       final file = await ReportExporter.buildRows(
-          format == ReportExportFormat.pdf
-              ? profitReportPdfRows(report)
-              : profitReportRows(report),
-          'top-coffee-profit-${report.meta['date_from']}-${report.meta['date_to']}',
-          format,
-          title: 'Profitability report',
-          columnFlex: [4, 3, 3, 3]);
+        format == ReportExportFormat.pdf
+            ? profitReportPdfRows(report)
+            : profitReportRows(report),
+        'top-coffee-profit-${report.meta['date_from']}-${report.meta['date_to']}',
+        format,
+        title: 'Profitability report',
+        columnFlex: [4, 3, 3, 3],
+      );
       if (!mounted) return;
-      await SharePlus.instance.share(ShareParams(
+      await SharePlus.instance.share(
+        ShareParams(
           files: [
-            XFile.fromData(file.bytes, mimeType: file.mimeType, name: file.name)
+            XFile.fromData(
+              file.bytes,
+              mimeType: file.mimeType,
+              name: file.name,
+            ),
           ],
-          fileNameOverrides: [
-            file.name
-          ],
+          fileNameOverrides: [file.name],
           subject: 'Top Coffee POS profitability report',
-          sharePositionOrigin: origin));
+          sharePositionOrigin: origin,
+        ),
+      );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Could not export profitability. Please retry.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not export profitability. Please retry.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => exporting = false);
@@ -74,208 +86,292 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
   }
 
   void _sources({int? product, String? category, int? branch}) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
         builder: (_) => _ProfitSources(
-            query: widget.query,
-            branchId: branch ?? widget.branchId,
-            productId: product,
-            category: category)));
+          query: widget.query,
+          branchId: branch ?? widget.branchId,
+          productId: product,
+          category: category,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: const PageAppBar(title: Text('Profit & performance')),
-      body: PageContent(
+        appBar: const PageAppBar(title: Text('Profit & performance')),
+        body: PageContent(
           maxWidth: 1100,
           child: FutureBuilder<ProfitReport>(
-              future: pending,
-              builder: (context, state) {
-                if (state.hasError) {
-                  return Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Text(
-                        'Could not load profitability. Check the connection.'),
-                    FilledButton(
+            future: pending,
+            builder: (context, state) {
+              // A changed future retains the preceding page's snapshot data.
+              // Hide it, including its paging controls, until this request ends.
+              if (state.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Could not load profitability. Check the connection.',
+                      ),
+                      FilledButton(
                         onPressed: () => setState(() => pending = _load()),
-                        child: const Text('Retry'))
-                  ]));
-                }
-                final report = state.data;
-                if (report == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return RefreshIndicator(
-                    onRefresh: () async {
-                      final next = _load();
-                      setState(() => pending = next);
-                      await next;
-                    },
-                    child:
-                        ListView(padding: const EdgeInsets.all(16), children: [
-                      Text(SalesReport.maps(report.meta['branches'])
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final report = state.data;
+              if (report == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return RefreshIndicator(
+                onRefresh: () async {
+                  final next = _load();
+                  setState(() => pending = next);
+                  await next;
+                },
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Text(
+                      SalesReport.maps(
+                        report.meta['branches'],
+                      )
                           .map((b) => '${b['name']} · ${b['timezone']}')
-                          .join('\n')),
-                      Text(
-                          '${report.meta['date_from']} – ${report.meta['date_to']}',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      Text(
-                          'Compared with ${report.meta['previous_from']} – ${report.meta['previous_to']}'),
-                      Text(
-                          'Cashier: ${report.meta['cashier_name'] ?? 'All sale cashiers'} · Category: ${report.meta['category_name'] ?? 'All historical categories'}'),
-                      if (report.meta['category_id'] != null)
-                        const Text(
-                            'This category filter excludes older items with no category snapshot.'),
-                      if (ReportAmount.parse(
-                                  report.summary['non_sales_refunds'])
-                              .cents >
-                          0)
-                        const Text(
-                            'Refunds exceed recorded sale value. Review the separate non-sales refund amount in Sales, discounts & refunds.'),
-                      Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: const Icon(Icons.tune),
-                              label: const Text('Change report filters'))),
-                      if (report.summary['unknown_cost_lines'] != 0)
-                        Card(
-                            child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Text(
-                                    '${report.summary['unknown_cost_lines']} line(s) have missing historical costs or an unverified restock. Total COGS, profit and margin are incomplete. Known costs are not the total.'))),
-                      LayoutBuilder(builder: (context, constraints) {
+                          .join('\n'),
+                    ),
+                    Text(
+                      '${report.meta['date_from']} – ${report.meta['date_to']}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Compared with ${report.meta['previous_from']} – ${report.meta['previous_to']}',
+                    ),
+                    Text(
+                      'Cashier: ${report.meta['cashier_name'] ?? 'All sale cashiers'} · Category: ${report.meta['category_name'] ?? 'All historical categories'}',
+                    ),
+                    if (report.meta['category_id'] != null)
+                      const Text(
+                        'This category filter excludes older items with no category snapshot.',
+                      ),
+                    if (ReportAmount.parse(
+                          report.summary['non_sales_refunds'],
+                        ).cents >
+                        0)
+                      const Text(
+                        'Refunds exceed recorded sale value. Review the separate non-sales refund amount in Sales, discounts & refunds.',
+                      ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.tune),
+                        label: const Text('Change report filters'),
+                      ),
+                    ),
+                    if (report.summary['unknown_cost_lines'] != 0)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            '${report.summary['unknown_cost_lines']} line(s) have missing historical costs or an unverified restock. Total COGS, profit and margin are incomplete. Known costs are not the total.',
+                          ),
+                        ),
+                      ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
                         final columns = constraints.maxWidth >= 600 &&
                                 MediaQuery.textScalerOf(context).scale(14) <= 20
                             ? 2
                             : 1;
-                        return Wrap(spacing: 8, runSpacing: 8, children: [
-                          for (final key in [
-                            'revenue',
-                            'cogs',
-                            'gross_profit',
-                            'quantity'
-                          ])
-                            SizedBox(
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final key in [
+                              'revenue',
+                              'cogs',
+                              'gross_profit',
+                              'quantity',
+                            ])
+                              SizedBox(
                                 width:
                                     (constraints.maxWidth - (columns - 1) * 8) /
                                         columns,
                                 child: Card(
-                                    child: ListTile(
-                                        title: Text(profitLabels[key]!),
-                                        subtitle: Text(
-                                            '${profitValue(report.summary, key)}\n${_comparison(report.summary, key)}'),
-                                        trailing:
-                                            const Icon(Icons.chevron_right),
-                                        onTap: _sources))),
-                        ]);
-                      }),
-                      ExpansionTile(
-                          title: const Text('Sales, discounts & refunds'),
-                          children: [
-                            for (final entry in profitLabels.entries.where(
-                                (e) => ![
-                                      'revenue',
-                                      'cogs',
-                                      'gross_profit',
-                                      'quantity'
-                                    ].contains(e.key)))
-                              ListTile(
-                                  title: Text(entry.value),
-                                  subtitle: Text(
-                                      '${profitValue(report.summary, entry.key)}\n${_comparison(report.summary, entry.key)}'),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: _sources),
-                          ]),
-                      Card(
-                          child: ListTile(
-                              title: const Text('Gross margin'),
-                              subtitle: Text(
-                                  '${report.summary['margin_percent'] == null ? 'Unavailable' : '${report.summary['margin_percent']}%'}\n${report.summary['margin_change_points'] == null ? 'No comparable margin baseline' : '${report.summary['margin_change_points']} percentage points vs previous'}'),
-                              onTap: _sources,
-                              trailing: const Icon(Icons.chevron_right))),
-                      ExpansionTile(
-                          title: const Text('Accounting & cost coverage'),
-                          childrenPadding: const EdgeInsets.all(16),
-                          children: [
-                            const Text(
-                                'Uses the filters from Sales. Category here means individual sale-time items; older unknown categories appear separately.'),
-                            Text(report.meta['basis'] as String),
-                            Text(report.meta['cost_basis'] as String),
-                            Text(
-                                'Known COGS only: ${ReportCost.parse(report.summary['known_cogs']).money}. Restocked COGS reversed: ${ReportCost.parse(report.summary['reversed_cogs']).money}.'),
-                            Text(
-                                '${report.summary['legacy_category_lines']} line(s) have no historical category.')
-                          ]),
-                      _group('Best sellers · units', report.best,
-                          (r) => _sources(product: r['id'] as int)),
-                      _group(
-                          'Slow sellers · units (sold at least once)',
-                          report.slow,
-                          (r) => _sources(product: r['id'] as int)),
-                      ExpansionTile(
-                          title: const Text('Popularity versus margin'),
-                          childrenPadding: const EdgeInsets.all(12),
-                          children: [
-                            Text(
-                                'Higher popularity: at least ${report.meta['popularity_threshold_units']} units (average per selling product, rounded up). Higher margin: at least ${report.meta['margin_threshold_percent'] ?? 'unavailable'}%, weighted across known-cost products with positive revenue. Refunded units remain sold units.'),
-                            for (final row in report.products)
-                              ListTile(
-                                  title: Text(row['name'] as String),
-                                  subtitle: Text(
-                                      '${performanceLabels[row['performance']] ?? row['performance']}\n${row['popularity_percent']}% of units · ${row['margin_percent'] ?? 'Unavailable'}% margin'),
-                                  onTap: () =>
-                                      _sources(product: row['id'] as int))
-                          ]),
-                      _group('All products · profitability', report.products,
-                          (r) => _sources(product: r['id'] as int)),
-                      _group(
-                          'Categories · sale-time classification',
-                          report.categories,
-                          (r) => _sources(category: r['id'].toString())),
-                      _group('Branches · profitability', report.branches,
-                          (r) => _sources(branch: r['id'] as int)),
-                      ExpansionTile(
-                          title: Text(
-                              'Currently available, no sales · ${report.unsold.length}'),
-                          childrenPadding: const EdgeInsets.all(16),
-                          children: [
-                            Text(report.meta['unsold_basis'] as String),
-                            if (report.unsold.isEmpty)
-                              const Text(
-                                  'No available products without sales in this selection.'),
-                            for (final row in report.unsold)
-                              ListTile(title: Text(row['name'] as String))
-                          ]),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
+                                  child: ListTile(
+                                    title: Text(profitLabels[key]!),
+                                    subtitle: Text(
+                                      '${profitValue(report.summary, key)}\n${_comparison(report.summary, key)}',
+                                    ),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: _sources,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    ExpansionTile(
+                      title: const Text('Sales, discounts & refunds'),
+                      children: [
+                        for (final entry in profitLabels.entries.where(
+                          (e) => ![
+                            'revenue',
+                            'cogs',
+                            'gross_profit',
+                            'quantity',
+                          ].contains(e.key),
+                        ))
+                          ListTile(
+                            title: Text(entry.value),
+                            subtitle: Text(
+                              '${profitValue(report.summary, entry.key)}\n${_comparison(report.summary, entry.key)}',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: _sources,
+                          ),
+                      ],
+                    ),
+                    Card(
+                      child: ListTile(
+                        title: const Text('Gross margin'),
+                        subtitle: Text(
+                          '${report.summary['margin_percent'] == null ? 'Unavailable' : '${report.summary['margin_percent']}%'}\n${report.summary['margin_change_points'] == null ? 'No comparable margin baseline' : '${report.summary['margin_change_points']} percentage points vs previous'}',
+                        ),
+                        onTap: _sources,
+                        trailing: const Icon(Icons.chevron_right),
+                      ),
+                    ),
+                    ExpansionTile(
+                      title: const Text('Accounting & cost coverage'),
+                      childrenPadding: const EdgeInsets.all(16),
+                      children: [
+                        const Text(
+                          'Uses the filters from Sales. Category here means individual sale-time items; older unknown categories appear separately.',
+                        ),
+                        Text(report.meta['basis'] as String),
+                        Text(report.meta['cost_basis'] as String),
+                        Text(
+                          'Known COGS only: ${ReportCost.parse(report.summary['known_cogs']).money}. Restocked COGS reversed: ${ReportCost.parse(report.summary['reversed_cogs']).money}.',
+                        ),
+                        Text(
+                          '${report.summary['legacy_category_lines']} line(s) have no historical category.',
+                        ),
+                      ],
+                    ),
+                    _group(
+                      'Best sellers · units',
+                      report.best,
+                      (r) => _sources(product: r['id'] as int),
+                    ),
+                    _group(
+                      'Slow sellers · units (sold at least once)',
+                      report.slow,
+                      (r) => _sources(product: r['id'] as int),
+                    ),
+                    ExpansionTile(
+                      title: const Text('Popularity versus margin'),
+                      childrenPadding: const EdgeInsets.all(12),
+                      children: [
+                        Text(
+                          'Higher popularity: at least ${report.meta['popularity_threshold_units']} units (average per selling product, rounded up). Higher margin: at least ${report.meta['margin_threshold_percent'] ?? 'unavailable'}%, weighted across known-cost products with positive revenue. Refunded units remain sold units.',
+                        ),
+                        for (final row in report.products)
+                          ListTile(
+                            title: Text(row['name'] as String),
+                            subtitle: Text(
+                              '${performanceLabels[row['performance']] ?? row['performance']}\n${row['popularity_percent']}% of units · ${row['margin_percent'] ?? 'Unavailable'}% margin',
+                            ),
+                            onTap: () => _sources(product: row['id'] as int),
+                          ),
+                      ],
+                    ),
+                    _group(
+                      'All products · profitability',
+                      report.products,
+                      (r) => _sources(product: r['id'] as int),
+                    ),
+                    _group(
+                      'Categories · sale-time classification',
+                      report.categories,
+                      (r) => _sources(category: r['id'].toString()),
+                    ),
+                    _group(
+                      'Branches · profitability',
+                      report.branches,
+                      (r) => _sources(branch: r['id'] as int),
+                    ),
+                    ExpansionTile(
+                      title: Text(
+                        'Currently available, no sales · ${report.unsold.length}',
+                      ),
+                      childrenPadding: const EdgeInsets.all(16),
+                      children: [
+                        Text(report.meta['unsold_basis'] as String),
+                        if (report.unsold.isEmpty)
+                          const Text(
+                            'No available products without sales in this selection.',
+                          ),
+                        for (final row in report.unsold)
+                          ListTile(title: Text(row['name'] as String)),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
                         for (final format in ReportExportFormat.values)
                           OutlinedButton.icon(
-                              onPressed: exporting
-                                  ? null
-                                  : () => _export(report, format),
-                              icon: const Icon(Icons.download),
-                              label: Text(format.name.toUpperCase()))
-                      ]),
-                      const Text(
-                          'Offline sales appear after successful sync and refresh. Gross profit excludes operating expenses; this is not net profit.'),
-                    ]));
-              })));
+                            onPressed: exporting
+                                ? null
+                                : () => _export(report, format),
+                            icon: const Icon(Icons.download),
+                            label: Text(format.name.toUpperCase()),
+                          ),
+                      ],
+                    ),
+                    const Text(
+                      'Offline sales appear after successful sync and refresh. Gross profit excludes operating expenses; this is not net profit.',
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
 
-  Widget _group(String title, List<Map<String, dynamic>> rows,
-          void Function(Map<String, dynamic>) onTap) =>
+  Widget _group(
+    String title,
+    List<Map<String, dynamic>> rows,
+    void Function(Map<String, dynamic>) onTap,
+  ) =>
       ExpansionTile(
-          title: Text(title),
-          childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
-          children: [
-            if (rows.isEmpty)
-              const ListTile(title: Text('No paid sales in this selection.')),
-            for (final row in rows)
-              ListTile(
-                  title: Text(row['name'] as String),
-                  subtitle: Text(
-                      '${row['quantity']} units · revenue ${profitValue(row, 'revenue')}\nCOGS ${profitValue(row, 'cogs')} · profit ${profitValue(row, 'gross_profit')}\nMargin ${row['margin_percent'] ?? 'Unavailable'}% · ${_comparison(row, 'revenue')}\nCOGS ${_comparison(row, 'cogs')}\nProfit ${_comparison(row, 'gross_profit')}\nUnits ${_comparison(row, 'quantity')}\nMargin change ${row['margin_change_points'] ?? 'unavailable'} points'),
-                  onTap: () => onTap(row),
-                  trailing: const Icon(Icons.chevron_right))
-          ]);
+        title: Text(title),
+        childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
+        children: [
+          if (rows.isEmpty)
+            const ListTile(title: Text('No paid sales in this selection.')),
+          for (final row in rows)
+            ListTile(
+              title: Text(row['name'] as String),
+              subtitle: Text(
+                '${row['quantity']} units · revenue ${profitValue(row, 'revenue')}\nCOGS ${profitValue(row, 'cogs')} · profit ${profitValue(row, 'gross_profit')}\nMargin ${row['margin_percent'] ?? 'Unavailable'}% · ${_comparison(row, 'revenue')}\nCOGS ${_comparison(row, 'cogs')}\nProfit ${_comparison(row, 'gross_profit')}\nUnits ${_comparison(row, 'quantity')}\nMargin change ${row['margin_change_points'] ?? 'unavailable'} points',
+              ),
+              onTap: () => onTap(row),
+              trailing: const Icon(Icons.chevron_right),
+            ),
+        ],
+      );
 }
 
 String _comparison(Map<String, dynamic> row, String key) {
@@ -286,11 +382,12 @@ String _comparison(Map<String, dynamic> row, String key) {
 }
 
 class _ProfitSources extends ConsumerStatefulWidget {
-  const _ProfitSources(
-      {required this.query,
-      required this.branchId,
-      this.productId,
-      this.category});
+  const _ProfitSources({
+    required this.query,
+    required this.branchId,
+    this.productId,
+    this.category,
+  });
   final SalesReportQuery query;
   final int? branchId;
   final int? productId;
@@ -302,10 +399,14 @@ class _ProfitSources extends ConsumerStatefulWidget {
 class _ProfitSourcesState extends ConsumerState<_ProfitSources> {
   int page = 1;
   late Future<Map<String, dynamic>> pending;
-  Future<Map<String, dynamic>> _load() => ref
-      .read(salesReportsRepositoryProvider)
-      .profitDetails(widget.query, widget.branchId,
-          productId: widget.productId, category: widget.category, page: page);
+  Future<Map<String, dynamic>> _load() =>
+      ref.read(salesReportsRepositoryProvider).profitDetails(
+            widget.query,
+            widget.branchId,
+            productId: widget.productId,
+            category: widget.category,
+            page: page,
+          );
   @override
   void initState() {
     super.initState();
@@ -314,59 +415,80 @@ class _ProfitSourcesState extends ConsumerState<_ProfitSources> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: const PageAppBar(title: Text('Profit source items')),
-      body: PageContent(
+        appBar: const PageAppBar(title: Text('Profit source items')),
+        body: PageContent(
           maxWidth: 1000,
           child: FutureBuilder<Map<String, dynamic>>(
-              future: pending,
-              builder: (context, state) {
-                if (state.hasError) {
-                  return Center(
-                      child: FilledButton(
-                          onPressed: () => setState(() => pending = _load()),
-                          child: const Text('Retry source items')));
-                }
-                if (!state.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final data = state.data!;
-                return ListView(padding: const EdgeInsets.all(16), children: [
+            future: pending,
+            builder: (context, state) {
+              if (state.hasError) {
+                return Center(
+                  child: FilledButton(
+                    onPressed: () => setState(() => pending = _load()),
+                    child: const Text('Retry source items'),
+                  ),
+                );
+              }
+              if (!state.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final data = state.data!;
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
                   Text(
-                      '${widget.query.dateFrom} – ${widget.query.dateTo} · Page $page · ${data['total']} source lines'),
+                    '${widget.query.dateFrom} – ${widget.query.dateTo} · Page ${data['page']} · ${data['total']} source lines',
+                  ),
                   for (final row in SalesReport.maps(data['rows']))
                     ExpansionTile(
-                        title: Text(
-                            'Order ${row['order_number'] ?? row['order_id']} · ${row['name']}'),
-                        subtitle: Text(
-                            '${row['branch_name']} · ${row['occurred_at_local']}\nRevenue ${profitValue(row, 'revenue')} · profit ${profitValue(row, 'gross_profit')}'),
-                        children: [
-                          for (final key in profitLabels.keys)
-                            ListTile(
-                                title: Text(profitLabels[key]!),
-                                subtitle: Text(profitValue(row, key))),
+                      title: Text(
+                        'Order ${row['order_number'] ?? row['order_id']} · ${row['name']}',
+                      ),
+                      subtitle: Text(
+                        '${row['branch_name']} · ${row['occurred_at_local']}\nRevenue ${profitValue(row, 'revenue')} · profit ${profitValue(row, 'gross_profit')}',
+                      ),
+                      children: [
+                        for (final key in profitLabels.keys)
                           ListTile(
-                              title: Text(row['category_name'] as String),
-                              subtitle: Text(row['cost_reason']?.toString() ??
-                                  'Historical recipe cost recorded'))
-                        ]),
-                  Wrap(spacing: 12, children: [
-                    OutlinedButton(
+                            title: Text(profitLabels[key]!),
+                            subtitle: Text(profitValue(row, key)),
+                          ),
+                        ListTile(
+                          title: Text(row['category_name'] as String),
+                          subtitle: Text(
+                            row['cost_reason']?.toString() ??
+                                'Historical recipe cost recorded',
+                          ),
+                        ),
+                      ],
+                    ),
+                  Wrap(
+                    spacing: 12,
+                    children: [
+                      OutlinedButton(
                         onPressed: page <= 1
                             ? null
                             : () => setState(() {
                                   page--;
                                   pending = _load();
                                 }),
-                        child: const Text('Previous')),
-                    OutlinedButton(
+                        child: const Text('Previous'),
+                      ),
+                      OutlinedButton(
                         onPressed: page * 50 >= (data['total'] as int)
                             ? null
                             : () => setState(() {
                                   page++;
                                   pending = _load();
                                 }),
-                        child: const Text('Next'))
-                  ])
-                ]);
-              })));
+                        child: const Text('Next'),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
 }

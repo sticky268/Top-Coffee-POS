@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\{Branch, Business, Category, Product, User, Order, OrderItem, RecipeItem, Unit, Ingredient, ProductVariant, Modifier, ModifierGroup, OrderItemModifier};
 use App\Services\{SaleInventoryService, StockMovementService};
 use App\Services\Reports\ReportAllocation;
+use App\Services\Reports\ReportMoney;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -91,6 +92,51 @@ class ProfitReportsTest extends TestCase
         $this->report(['detail' => 'profit'])->assertOk()->assertJsonCount(2, 'data.rows')
             ->assertJsonPath('data.rows.0.branch_name', $this->branch->name)
             ->assertJsonPath('data.rows.0.occurred_at_local', '2026-10-19 08:00:00 +07:00');
+    }
+
+    public function test_tied_discount_cents_reconcile_each_product_category_and_source_before_and_after_refunds(): void
+    {
+        $order = $this->sale(['subtotal' => '2.00', 'discount_total' => '0.01', 'tax_total' => '0.01', 'total' => '2.00']);
+        $other = $this->product('Tea');
+        $category = Category::create(['business_id' => $this->actor->business_id, 'name' => 'Tea', 'is_active' => true]);
+        $this->item($order, '0.000001', ['unit_price' => '1.00']);
+        $this->item($order, '0.000001', ['product_id' => $other->id, 'product_name' => 'Tea', 'unit_price' => '1.00',
+            'sale_category_id' => $category->id, 'sale_category_name' => 'Tea']);
+        foreach ([null, '0.01', '1.99'] as $refund) {
+            if ($refund !== null) $this->refund($order, $refund);
+            $data = $this->report()->assertOk()->json('data');
+            $sources = $this->report(['detail' => 'profit'])->assertOk()->json('data.rows');
+            foreach ([$data['products'], $data['categories'], $data['branches'], $sources] as $rows) {
+                foreach ($rows as $row) {
+                    $this->assertSame(ReportMoney::cents($row['revenue']), ReportMoney::cents($row['gross'])
+                        - ReportMoney::cents($row['discounts']) + ReportMoney::cents($row['reconciliation'])
+                        + ReportMoney::cents($row['additional']) - ReportMoney::cents($row['refunds']));
+                    $this->assertSame(0, ReportMoney::cents($row['reconciliation']));
+                    if ($refund === '1.99') $this->assertSame('0.00', $row['revenue']);
+                }
+                foreach (['gross', 'discounts', 'reconciliation', 'additional', 'refunds', 'refund_tax', 'revenue'] as $key) {
+                    $this->assertSame(ReportMoney::cents($data['summary'][$key]),
+                        array_sum(array_map(fn ($r) => ReportMoney::cents($r[$key]), $rows)));
+                }
+            }
+            if ($refund === null) {
+                $this->assertSame('0.01', $sources[0]['discounts']);
+                $this->assertSame('0.99', $sources[0]['revenue']);
+                $this->report(['category_id' => $category->id])->assertOk()->assertJsonPath('data.summary.revenue', '1.00');
+            }
+        }
+    }
+
+    public function test_legacy_recorded_total_residual_is_explicit_and_full_refunds_cancel_each_line(): void
+    {
+        $order = $this->sale(['subtotal' => '2.00', 'discount_total' => '0.01', 'total' => '1.98']);
+        $this->item($order, '0.000001', ['unit_price' => '1.00']);
+        $this->item($order, '0.000001', ['unit_price' => '1.00']);
+        $this->report()->assertOk()->assertJsonPath('data.summary.reconciliation', '-0.01')
+            ->assertJsonPath('data.summary.revenue', '1.98');
+        $this->refund($order, '1.98');
+        $rows = $this->report(['detail' => 'profit'])->assertOk()->json('data.rows');
+        foreach ($rows as $row) $this->assertSame('0.00', $row['revenue']);
     }
 
     public function test_old_categories_and_unknown_costs_are_never_repriced_or_zero_filled(): void

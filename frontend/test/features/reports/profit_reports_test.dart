@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ Map<String, dynamic> row({bool incomplete = false}) => {
       'lines': 1,
       'gross': '10.00',
       'discounts': '1.00',
+      'reconciliation': '0.00',
       'tax': '0.90',
       'additional': '0.00',
       'refunds': '3.00',
@@ -46,8 +48,8 @@ Map<String, dynamic> row({bool incomplete = false}) => {
                   'previous': key == 'quantity' ? 1 : '1.00',
                   'delta': '1.00',
                   'percent': '100.00',
-                  'status': 'comparable'
-                }
+                  'status': 'comparable',
+                },
       },
       'popularity_percent': '100.00',
       'performance': incomplete ? 'cost_missing' : 'star',
@@ -60,7 +62,7 @@ ProfitReport fixture({bool incomplete = false}) => ProfitReport({
         'previous_from': '2026-10-18',
         'previous_to': '2026-10-18',
         'branches': [
-          {'id': 21, 'name': 'Riverside', 'timezone': 'Asia/Phnom_Penh'}
+          {'id': 21, 'name': 'Riverside', 'timezone': 'Asia/Phnom_Penh'},
         ],
         'basis':
             'Revenue excludes tax. Refunds are proportional allocations to original sale items.',
@@ -69,7 +71,7 @@ ProfitReport fixture({bool incomplete = false}) => ProfitReport({
             'Currently available catalogue products, not historical availability.',
         'generated_at': '2026-10-19T02:00:00Z',
         'margin_threshold_percent': '81.28',
-        'popularity_threshold_units': '2.00'
+        'popularity_threshold_units': '2.00',
       },
       'summary': row(incomplete: incomplete),
       'products': [row(incomplete: incomplete)],
@@ -78,7 +80,7 @@ ProfitReport fixture({bool incomplete = false}) => ProfitReport({
       'best_sellers': [row()],
       'slow_sellers': [row()],
       'unsold_products': [
-        {'id': 2, 'name': 'No sales product'}
+        {'id': 2, 'name': 'No sales product'},
       ],
     });
 
@@ -88,67 +90,194 @@ void main() {
     registerFallbackValue(const SalesReportQuery());
     for (final font in [
       ('Inter', 'assets/fonts/Inter.ttf'),
-      ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf')
+      ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
     ]) {
       await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
     }
   });
 
   test(
-      'profit pins current and previous ranges without changing calendar comparison',
-      () {
-    final query = const SalesReportQuery(period: 'this_month', cashierId: 5)
-        .forProfit(salesReportFixture());
-    expect(query.parameters(21)['comparison_from'],
-        salesReportFixture().meta['previous_from']);
-    expect(query.dateFrom, salesReportFixture().from);
-    expect(query.cashierId, 5);
-  });
+    'profit pins current and previous ranges without changing calendar comparison',
+    () {
+      final query = const SalesReportQuery(
+        period: 'this_month',
+        cashierId: 5,
+      ).forProfit(salesReportFixture());
+      expect(
+        query.parameters(21)['comparison_from'],
+        salesReportFixture().meta['previous_from'],
+      );
+      expect(query.dateFrom, salesReportFixture().from);
+      expect(query.cashierId, 5);
+    },
+  );
 
   test(
-      'costs retain six decimals and exports stay numeric without float conversion',
-      () async {
-    expect(ReportCost.parse('-0.005000').money, '-\$0.01');
-    expect(ReportCost.parse('0.000001').toString(), '0.000001');
-    expect(() => ReportCost.parse('1.0000001'), throwsFormatException);
-    final rows = profitReportRows(fixture());
-    final archive = ZipDecoder().decodeBytes(ReportExporter.xlsx(rows));
-    final sheet =
-        utf8.decode(archive.findFile('xl/worksheets/sheet1.xml')!.content);
-    expect(sheet, contains('t="n"><v>1.123457</v>'));
-    expect(sheet, contains('t="n"><v>4.876543</v>'));
-    expect(sheet, contains('Riverside'));
-    expect(ReportExporter.csv(profitReportRows(fixture(incomplete: true))),
-        contains('Incomplete'));
-    final directory = Directory('build/report-exports')
-      ..createSync(recursive: true);
-    for (final format in [ReportExportFormat.xlsx, ReportExportFormat.pdf]) {
-      final file = await ReportExporter.buildRows(
+    'costs retain six decimals and exports stay numeric without float conversion',
+    () async {
+      expect(ReportCost.parse('-0.005000').money, '-\$0.01');
+      expect(ReportCost.parse('0.000001').toString(), '0.000001');
+      expect(() => ReportCost.parse('1.0000001'), throwsFormatException);
+      final rows = profitReportRows(fixture());
+      final archive = ZipDecoder().decodeBytes(ReportExporter.xlsx(rows));
+      final sheet = utf8.decode(
+        archive.findFile('xl/worksheets/sheet1.xml')!.content,
+      );
+      expect(sheet, contains('t="n"><v>1.123457</v>'));
+      expect(sheet, contains('t="n"><v>4.876543</v>'));
+      expect(sheet, contains('Riverside'));
+      expect(
+        ReportExporter.csv(profitReportRows(fixture(incomplete: true))),
+        contains('Incomplete'),
+      );
+      final directory = Directory('build/report-exports')
+        ..createSync(recursive: true);
+      for (final format in [ReportExportFormat.xlsx, ReportExportFormat.pdf]) {
+        final file = await ReportExporter.buildRows(
           format == ReportExportFormat.pdf
               ? profitReportPdfRows(fixture())
               : rows,
           'profit-exact',
           format,
           title: 'Profitability report',
-          columnFlex: [4, 3, 3, 3]);
-      File('${directory.path}/${file.name}').writeAsBytesSync(file.bytes);
-    }
-  });
+          columnFlex: [4, 3, 3, 3],
+        );
+        File('${directory.path}/${file.name}').writeAsBytesSync(file.bytes);
+      }
+    },
+  );
+
+  test(
+    'group comparisons have explicit units and separate headers in every export',
+    () {
+      for (final rows in [
+        profitReportRows(fixture()),
+        profitReportPdfRows(fixture()),
+      ]) {
+        for (final group in ['Products', 'Categories', 'Branches']) {
+          final start = rows.indexWhere(
+            (r) => r.length == 1 && r[0] == '$group comparisons',
+          );
+          expect(start, greaterThan(0));
+          expect(rows[start + 1], ['Name', 'Metric', 'Previous', 'Change %']);
+          expect(rows[start + 2], ['Latte សួស្តី', 'Units sold', 1, '100.00']);
+          expect(rows[start + 3][1], 'Recipe COGS');
+          expect(rows[start + 3][2], isA<ReportCost>());
+          expect(rows[start + 3][2].toString(), '1.000000');
+          final margin = rows.indexWhere(
+            (r) => r.length == 1 && r[0] == '$group margin changes',
+          );
+          expect(rows[margin + 1], ['Name', 'Change (percentage points)']);
+          expect(rows[margin + 2], ['Latte សួស្តី', '1.00']);
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'source pagination hides retained rows while the next page is pending',
+    (tester) async {
+      final repository = MockProfitRepository();
+      final next = Completer<Map<String, dynamic>>();
+      when(
+        () => repository.profit(any(), 21),
+      ).thenAnswer((_) async => fixture());
+      Map<String, dynamic> source(int page) => {
+            'rows': [
+              row()
+                ..addAll({
+                  'order_id': page,
+                  'order_number': page,
+                  'branch_name': 'Riverside',
+                  'occurred_at_local': '2026-10-19 08:00:00 +07:00',
+                  'category_name': 'Coffee',
+                }),
+            ],
+            'total': 51,
+            'page': page,
+            'per_page': 50,
+          };
+      when(
+        () => repository.profitDetails(
+          any(),
+          21,
+          productId: null,
+          category: null,
+          page: 1,
+        ),
+      ).thenAnswer((_) async => source(1));
+      when(
+        () => repository.profitDetails(
+          any(),
+          21,
+          productId: null,
+          category: null,
+          page: 2,
+        ),
+      ).thenAnswer((_) => next.future);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            salesReportsRepositoryProvider.overrideWithValue(repository),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const ProfitReportScreen(
+              query: SalesReportQuery(
+                period: 'custom',
+                dateFrom: '2026-10-19',
+                dateTo: '2026-10-19',
+              ),
+              branchId: 21,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Revenue excluding tax'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Page 1 ·'), findsOneWidget);
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.textContaining('Order 1 ·'), findsNothing);
+      expect(find.textContaining('Page 2 ·'), findsNothing);
+      expect(find.text('Next'), findsNothing);
+      expect(find.text('Previous'), findsNothing);
+      next.complete(source(2));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Page 2 ·'), findsOneWidget);
+      expect(find.textContaining('Order 2 ·'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Next'))
+            .onPressed,
+        isNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final scale in [1.0, 2.0]) {
     testWidgets(
-        'profit overview fits phone at text scale $scale and opens exact source filters',
-        (tester) async {
-      await tester.binding.setSurfaceSize(const Size(360, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final repository = MockProfitRepository();
-      when(() => repository.profit(any(), 21))
-          .thenAnswer((_) async => fixture(incomplete: true));
-      when(() =>
-          repository.profitDetails(any(), 21,
-              productId: any(named: 'productId'),
-              category: any(named: 'category'),
-              page: any(named: 'page'))).thenAnswer((_) async => {
+      'profit overview fits phone at text scale $scale and opens exact source filters',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(360, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final repository = MockProfitRepository();
+        when(
+          () => repository.profit(any(), 21),
+        ).thenAnswer((_) async => fixture(incomplete: true));
+        when(
+          () => repository.profitDetails(
+            any(),
+            21,
+            productId: any(named: 'productId'),
+            category: any(named: 'category'),
+            page: any(named: 'page'),
+          ),
+        ).thenAnswer(
+          (_) async => {
             'rows': [
               row()
                 ..addAll({
@@ -156,49 +285,63 @@ void main() {
                   'order_number': 7,
                   'branch_name': 'Riverside',
                   'occurred_at_local': '2026-10-19 08:00:00 +07:00',
-                  'category_name': 'Coffee'
-                })
+                  'category_name': 'Coffee',
+                }),
             ],
             'total': 1,
             'page': 1,
-            'per_page': 50
-          });
-      final key = GlobalKey();
-      const query = SalesReportQuery(
+            'per_page': 50,
+          },
+        );
+        final key = GlobalKey();
+        const query = SalesReportQuery(
           period: 'custom',
           dateFrom: '2026-10-19',
           dateTo: '2026-10-19',
-          cashierId: 5);
-      await tester.pumpWidget(ProviderScope(
-          overrides: [
-            salesReportsRepositoryProvider.overrideWithValue(repository)
-          ],
-          child: MaterialApp(
+          cashierId: 5,
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              salesReportsRepositoryProvider.overrideWithValue(repository),
+            ],
+            child: MaterialApp(
               theme: AppTheme.light,
               home: MediaQuery(
-                  data: MediaQueryData(
-                      size: const Size(360, 800),
-                      textScaler: TextScaler.linear(scale)),
-                  child: RepaintBoundary(
-                      key: key,
-                      child: const ProfitReportScreen(
-                          query: query, branchId: 21))))));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      await savePreview(tester, key, 'profit-report-phone-$scale.png');
-      final tile = find.text('Revenue excluding tax');
-      await tester.scrollUntilVisible(tile, 250);
-      await tester.tap(tile);
-      await tester.pumpAndSettle();
-      expect(find.text('Order 7 · Latte សួស្តី'), findsOneWidget);
-      expect(find.textContaining('Riverside · 2026-10-19'), findsOneWidget);
-      final captured = verify(() => repository.profitDetails(captureAny(), 21,
-          productId: null,
-          category: null,
-          page: 1)).captured.single as SalesReportQuery;
-      expect(captured.dateFrom, '2026-10-19');
-      expect(captured.cashierId, 5);
-      expect(tester.takeException(), isNull);
-    });
+                data: MediaQueryData(
+                  size: const Size(360, 800),
+                  textScaler: TextScaler.linear(scale),
+                ),
+                child: RepaintBoundary(
+                  key: key,
+                  child: const ProfitReportScreen(query: query, branchId: 21),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await savePreview(tester, key, 'profit-report-phone-$scale.png');
+        final tile = find.text('Revenue excluding tax');
+        await tester.scrollUntilVisible(tile, 250);
+        await tester.tap(tile);
+        await tester.pumpAndSettle();
+        expect(find.text('Order 7 · Latte សួស្តី'), findsOneWidget);
+        expect(find.textContaining('Riverside · 2026-10-19'), findsOneWidget);
+        final captured = verify(
+          () => repository.profitDetails(
+            captureAny(),
+            21,
+            productId: null,
+            category: null,
+            page: 1,
+          ),
+        ).captured.single as SalesReportQuery;
+        expect(captured.dateFrom, '2026-10-19');
+        expect(captured.cashierId, 5);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }

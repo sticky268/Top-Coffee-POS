@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 /** Sale-cohort profitability. Only immutable line costs and ledger reversals are used. */
 final class ProfitReportService
 {
-    private const MONEY = ['gross', 'discounts', 'tax', 'additional', 'refunds', 'refund_tax', 'non_sales_refunds', 'revenue'];
+    private const MONEY = ['gross', 'discounts', 'reconciliation', 'tax', 'additional', 'refunds', 'refund_tax', 'non_sales_refunds', 'revenue'];
 
     public function __construct(private SalesReportService $sales) {}
 
@@ -70,7 +70,27 @@ final class ProfitReportService
                     'additional' => $extra, 'refunds' => $saleRefund - $refundTax, 'refund_tax' => $refundTax,
                     'non_sales_refunds' => $refund - $saleRefund,
                     'revenue' => $total - $tax + $extra - $saleRefund + $refundTax];
+                // Allocate components once, then derive revenue. Independently splitting
+                // revenue puts tied discount cents on the opposite item.
+                $values['reconciliation'] = $total - $tax - $values['gross'] + $values['discounts'];
                 $allocated = array_map(fn ($amount) => ReportAllocation::split($amount, $weights), $values);
+                $allocated['discounts'] = ReportAllocation::split($values['discounts'], $allocated['gross']);
+                $base = [];
+                foreach ($weights as $id => $_) {
+                    $base[$id] = $allocated['gross'][$id] - $allocated['discounts'][$id];
+                }
+                $reconciled = $values['reconciliation'] === 0 ? $base
+                    : ReportAllocation::split($total - $tax, array_map(fn ($n) => max(0, $n), $base));
+                $net = [];
+                foreach ($base as $id => $amount) {
+                    $allocated['reconciliation'][$id] = $reconciled[$id] - $amount;
+                    $net[$id] = $reconciled[$id] + $allocated['additional'][$id];
+                }
+                // Full refunds cancel every item's recorded net sale, including
+                // legacy reconciliation residuals. Partial refunds use net weights.
+                $allocated['refunds'] = $saleRefund === $total + $extra
+                    ? $net : ReportAllocation::split($values['refunds'], array_map(fn ($n) => max(0, $n), $net));
+                foreach ($net as $id => $amount) $allocated['revenue'][$id] = $amount - $allocated['refunds'][$id];
                 $restocked = (bool) ($refunds[$order->id]->restocked ?? false);
                 $movements = $ledger->get($order->id, collect());
                 $verifiedRestock = $restocked && $order->inventory_disposed_at !== null && $refund >= $total + $extra
@@ -206,7 +226,7 @@ final class ProfitReportService
             'currency' => 'USD', 'generated_at' => CarbonImmutable::now('UTC')->toIso8601String(),
             'margin_threshold_percent' => $marginThreshold === null ? null : ReportMoney::decimal($marginThreshold),
             'popularity_threshold_units' => count($selling) === 0 ? 0 : intdiv($current['summary']['quantity'] + count($selling) - 1, count($selling)),
-            'basis' => 'Fully paid completed sales by branch-local completion date. Revenue excludes recorded tax. Order discounts, additional charges and refunds are allocated to lines by original line price × quantity using largest remainders. Refunds up to the sale value reduce revenue; any surplus is a non-sales refund. Refund tax is proportional to original tax; additional charges have no recorded tax. Adjustments follow the original sale. This is gross profit, before operating expenses.',
+            'basis' => 'Fully paid completed sales by branch-local completion date. Revenue excludes recorded tax. Gross, tax and additional charges use original line price × quantity weights with largest remainders. Discounts use allocated gross weights; revenue is derived from allocated components. Recorded total reconciliation preserves legacy discrepancies. Partial refunds excluding tax use net sale weights; full refunds cancel each line net sale. Refunds up to the sale value reduce revenue; any surplus is a non-sales refund. Refund tax is proportional to original tax; additional charges have no recorded tax. Adjustments follow the original sale. This is gross profit, before operating expenses.',
             'cost_basis' => 'Sale-time line recipe cost includes variants and modifiers. Full restock reversals require a balanced stock_movements ledger; consumed and wasted items retain their cost. Missing costs make profit and margin incomplete. Historical categories are never backfilled from today’s catalogue.',
             'unsold_basis' => 'Currently active, available catalogue products with no units sold in this selection; availability history is not recorded. A cashier filter means no sales by that cashier.'];
         return $result;

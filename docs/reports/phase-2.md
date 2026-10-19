@@ -15,9 +15,13 @@ Go back to Sales to change filters. All calculations run on the API.
   charges are reported separately as non-sales refunds, not negative revenue.
   Additional charges have no separate recorded tax.
   This is ingredient gross profit, not operating/net profit or a tax return.
-- Each order's gross, discount, tax, additional charge and refund amounts are
-  allocated by original `unit_price × quantity`, using exact largest remainders
-  with item ID ties. Zero-price orders use equal line weights. Refunds are **not**
+- Gross, tax and additional charges use original `unit_price × quantity` weights
+  with exact largest remainders and item ID ties. Discounts use allocated gross
+  weights; revenue is derived from these components, never independently rounded.
+  A recorded-total reconciliation component preserves legacy orders whose total
+  differs from subtotal minus discount plus tax. Partial refunds excluding tax
+  use allocated net sale weights; full refunds cancel each line's net sale exactly.
+  Zero-price orders use equal line weights. Refunds are **not**
   evidence that a particular product was returned. All amounts reconcile exactly
   across item, product, category and branch groups; no current recipe is consulted.
 - Recipe COGS uses `order_items.ingredient_cost`, the total line cost recorded at
@@ -62,6 +66,11 @@ Go back to Sales to change filters. All calculations run on the API.
   fields. Source items are paginated and show branch-local timestamps.
 - Tests: `ProfitReportsTest`, `profit_reports_test.dart`, independent export readers.
   Real MySQL workflow includes the new feature tests.
+- Review regressions cover tied discount cents, partial/full refunds, legacy total
+  reconciliation, explicit comparison export headers and delayed source pagination.
+  Group comparisons have their own Name/Metric/Previous/Change % table; margin
+  changes have an explicit percentage-points header. Pending source requests hide
+  the preceding page and its controls until the requested response completes.
 
 ## Validation
 

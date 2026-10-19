@@ -3,12 +3,15 @@ import 'sales_report.dart';
 /// Six-decimal historical costs; rounded only for the money label.
 class ReportCost extends ReportAmount {
   ReportCost._(this.micros)
-      : super((micros.abs() ~/ 10000 + (micros.abs() % 10000 >= 5000 ? 1 : 0)) *
-            (micros < 0 ? -1 : 1));
+      : super(
+          (micros.abs() ~/ 10000 + (micros.abs() % 10000 >= 5000 ? 1 : 0)) *
+              (micros < 0 ? -1 : 1),
+        );
   final int micros;
   factory ReportCost.parse(Object? value) {
-    final match = RegExp(r'^(-?)(\d+)(?:\.(\d{1,6}))?$')
-        .firstMatch(value?.toString() ?? '');
+    final match = RegExp(
+      r'^(-?)(\d+)(?:\.(\d{1,6}))?$',
+    ).firstMatch(value?.toString() ?? '');
     if (match == null) {
       throw const FormatException('Invalid historical cost');
     }
@@ -50,6 +53,7 @@ class ProfitReport {
 const profitLabels = {
   'gross': 'Gross item sales',
   'discounts': 'Allocated discounts',
+  'reconciliation': 'Recorded total reconciliation',
   'tax': 'Original tax',
   'additional': 'Allocated additional charges',
   'refunds': 'Refunds excluding tax',
@@ -77,9 +81,9 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
       ['Top Coffee POS profitability report'],
       [
         'Branches',
-        SalesReport.maps(report.meta['branches'])
-            .map((b) => '${b['name']} (${b['timezone']})')
-            .join(', ')
+        SalesReport.maps(
+          report.meta['branches'],
+        ).map((b) => '${b['name']} (${b['timezone']})').join(', '),
       ],
       [
         'Cashier',
@@ -87,13 +91,13 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
       ],
       [
         'Category filter',
-        report.meta['category_name']?.toString() ?? 'All historical categories'
+        report.meta['category_name']?.toString() ?? 'All historical categories',
       ],
       ['From', report.meta['date_from'] as String],
       ['To', report.meta['date_to'] as String],
       [
         'Previous period',
-        '${report.meta['previous_from']} – ${report.meta['previous_to']}'
+        '${report.meta['previous_from']} – ${report.meta['previous_to']}',
       ],
       ['Accounting basis', report.meta['basis'] as String],
       ['Cost basis', report.meta['cost_basis'] as String],
@@ -106,32 +110,32 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
           _exportValue(report.summary, entry.key),
           _previousValue(report.summary, entry.key),
           report.summary['comparisons'][entry.key]?['percent']?.toString() ??
-              'No comparable baseline'
+              'No comparable baseline',
         ],
       [
         'Margin %',
         report.summary['margin_percent']?.toString() ??
-            'Incomplete / no net revenue'
+            'Incomplete / no net revenue',
       ],
       [
         'Margin change (percentage points)',
         report.summary['margin_change_points']?.toString() ??
-            'No comparable baseline'
+            'No comparable baseline',
       ],
       ['Unknown cost lines', report.summary['unknown_cost_lines'] as int],
       [
         'Historical category unknown lines',
-        report.summary['legacy_category_lines'] as int
+        report.summary['legacy_category_lines'] as int,
       ],
       [
         'Known COGS only (not total)',
-        ReportCost.parse(report.summary['known_cogs'])
+        ReportCost.parse(report.summary['known_cogs']),
       ],
       ['Reversed COGS', ReportCost.parse(report.summary['reversed_cogs'])],
       for (final group in {
         'Products': report.products,
         'Categories': report.categories,
-        'Branches': report.branches
+        'Branches': report.branches,
       }.entries) ...[
         [],
         [
@@ -143,9 +147,9 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
           'Margin %',
           'Unknown cost lines',
           'Revenue change %',
-          'Performance'
+          'Performance',
         ],
-        for (final row in group.value) ...[
+        for (final row in group.value)
           [
             row['name'] as String,
             row['quantity'] as int,
@@ -156,20 +160,28 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
             row['unknown_cost_lines'] as int,
             row['comparisons']['revenue']?['percent']?.toString() ??
                 'No comparable baseline',
-            row['performance']?.toString() ?? ''
+            row['performance']?.toString() ?? '',
           ],
+        [],
+        ['${group.key} comparisons'],
+        ['Name', 'Metric', 'Previous', 'Change %'],
+        for (final row in group.value)
           for (final key in ['quantity', 'cogs', 'gross_profit'])
             [
-              '${row['name']} · ${profitLabels[key]} change',
+              row['name'] as String,
+              profitLabels[key]!,
               _previousValue(row, key),
               row['comparisons'][key]?['percent']?.toString() ??
-                  'No comparable baseline'
+                  'No comparable baseline',
             ],
+        [],
+        ['${group.key} margin changes'],
+        ['Name', 'Change (percentage points)'],
+        for (final row in group.value)
           [
-            '${row['name']} · margin change (points)',
-            row['margin_change_points']?.toString() ?? 'Unavailable'
+            row['name'] as String,
+            row['margin_change_points']?.toString() ?? 'Unavailable',
           ],
-        ],
       ],
       [],
       ['Currently available products with no sales'],
