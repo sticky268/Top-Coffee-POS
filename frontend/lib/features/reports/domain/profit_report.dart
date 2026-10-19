@@ -81,6 +81,14 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
             .map((b) => '${b['name']} (${b['timezone']})')
             .join(', ')
       ],
+      [
+        'Cashier',
+        report.meta['cashier_name']?.toString() ?? 'All sale cashiers'
+      ],
+      [
+        'Category filter',
+        report.meta['category_name']?.toString() ?? 'All historical categories'
+      ],
       ['From', report.meta['date_from'] as String],
       ['To', report.meta['date_to'] as String],
       [
@@ -138,7 +146,7 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
           'Revenue change %',
           'Performance'
         ],
-        for (final row in group.value)
+        for (final row in group.value) ...[
           [
             row['name'] as String,
             row['quantity'] as int,
@@ -151,6 +159,18 @@ List<List<Object>> profitReportRows(ProfitReport report) => [
                 'No comparable baseline',
             row['performance']?.toString() ?? ''
           ],
+          for (final key in ['quantity', 'cogs', 'gross_profit'])
+            [
+              '${row['name']} · ${profitLabels[key]} change',
+              row['comparisons'][key]?['previous']?.toString() ?? 'Incomplete',
+              row['comparisons'][key]?['percent']?.toString() ??
+                  'No comparable baseline'
+            ],
+          [
+            '${row['name']} · margin change (points)',
+            row['margin_change_points']?.toString() ?? 'Unavailable'
+          ],
+        ],
       ],
       [],
       ['Currently available products with no sales'],

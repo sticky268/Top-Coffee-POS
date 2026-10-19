@@ -45,6 +45,7 @@ Go back to Sales to change filters. All calculations run on the API.
   revenue-weighted margin among complete-cost products with positive revenue.
   Stars/volume/opportunity/review are descriptive, not automatic pricing decisions.
   Missing-cost and no-positive-revenue products receive no margin quadrant.
+- Popularity uses the whole-unit ceiling of the average for its displayed threshold.
 - Comparisons use the same elapsed previous period as Phase 1. Margin changes use
   percentage points; unknown costs and zero revenue have no comparable margin.
 

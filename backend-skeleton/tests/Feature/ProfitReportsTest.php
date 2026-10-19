@@ -172,7 +172,7 @@ class ProfitReportsTest extends TestCase
         DB::transaction(fn () => app(SaleInventoryService::class)->deductForOrder(Order::findOrFail($order), $this->actor->id));
         $this->assertDatabaseHas('order_items', ['id' => $item, 'sale_category_captured' => true, 'sale_category_name' => 'Coffee', 'ingredient_cost' => '5.000000']);
         RecipeItem::query()->update(['quantity_used' => '0.900']);
-        $ingredient->update(['average_unit_cost' => '99.000000']);
+        $ingredient->forceFill(['average_unit_cost' => '99.000000'])->save();
         $this->category->update(['name' => 'Changed']);
         $this->report()->assertOk()->assertJsonPath('data.summary.cogs', '5.000000')
             ->assertJsonPath('data.categories.0.name', 'Coffee')->assertJsonPath('data.summary.gross_profit', '5.000000');
@@ -193,6 +193,26 @@ class ProfitReportsTest extends TestCase
         $this->assertLessThan(25, count(DB::getQueryLog()), 'Sources must bulk-load, not query per item.');
         DB::disableQueryLog();
         $this->report(['cashier_id' => User::factory()->create()->id])->assertForbidden();
+    }
+
+    public function test_additional_split_collections_and_branch_cashier_groups_reconcile(): void
+    {
+        $this->travelTo(now()->setTime(12, 0));
+        $second = Branch::factory()->create(['business_id' => $this->actor->business_id, 'timezone' => 'America/New_York']);
+        $this->actor->branches()->attach($second->id);
+        $order = $this->sale(['supplemental_total' => '2.00']);
+        $this->item($order, '2.000000');
+        DB::table('payments')->where('order_id', $order)->update(['amount' => '7.00']);
+        DB::table('payments')->insert(['order_id' => $order, 'amount' => '5.00', 'method' => 'card', 'status' => 'completed', 'processed_by' => $this->actor->id]);
+        $other = User::factory()->create(['business_id' => $this->actor->business_id]);
+        $other->branches()->attach($second->id);
+        $this->item($this->sale(['branch_id' => $second->id, 'user_id' => $other->id], '2026-10-19 05:00:00'), '3.000000');
+        $this->getJson('/api/v1/reports/sales?report=profit')->assertOk()
+            ->assertJsonPath('data.summary.revenue', '22.00')->assertJsonPath('data.summary.additional', '2.00')
+            ->assertJsonPath('data.summary.cogs', '5.000000')->assertJsonCount(2, 'data.branches');
+        $this->getJson('/api/v1/reports/sales?report=profit&cashier_id='.$other->id)->assertOk()
+            ->assertJsonPath('data.summary.revenue', '10.00')->assertJsonPath('data.meta.cashier_name', $other->name)
+            ->assertJsonCount(1, 'data.branches');
     }
 
     public function test_full_overpayment_refund_does_not_create_negative_sales_revenue(): void

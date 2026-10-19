@@ -197,9 +197,13 @@ final class ProfitReportService
             ->distinct()->orderBy('products.id')->get(['products.id', 'products.name'])->all();
         $result['meta'] = ['date_from' => $p->from, 'date_to' => $p->to, 'previous_from' => $p->previousFrom, 'previous_to' => $p->previousTo,
             'branches' => $c['branches']->map(fn ($b) => ['id' => (int) $b->id, 'name' => $b->name, 'timezone' => $b->timezone ?: 'UTC'])->values(),
+            'cashier_id' => $c['input']['cashier_id'] ?? null,
+            'cashier_name' => isset($c['input']['cashier_id']) ? $c['cashiers']->firstWhere('id', $c['input']['cashier_id'])->name : null,
+            'category_id' => $c['input']['category_id'] ?? null,
+            'category_name' => isset($c['input']['category_id']) ? $c['categories']->firstWhere('id', $c['input']['category_id'])->name : null,
             'currency' => 'USD', 'generated_at' => CarbonImmutable::now('UTC')->toIso8601String(),
             'margin_threshold_percent' => $marginThreshold === null ? null : ReportMoney::decimal($marginThreshold),
-            'popularity_threshold_units' => count($selling) === 0 ? '0.00' : ReportMoney::decimal(ReportAllocation::ratio($current['summary']['quantity'], 100, count($selling))),
+            'popularity_threshold_units' => count($selling) === 0 ? 0 : intdiv($current['summary']['quantity'] + count($selling) - 1, count($selling)),
             'basis' => 'Fully paid completed sales by branch-local completion date. Revenue excludes recorded tax. Order discounts, additional charges and refunds are allocated to lines by original line price × quantity using largest remainders. Refunds up to the sale value reduce revenue; any surplus is a non-sales refund. Refund tax is proportional to original tax; additional charges have no recorded tax. Adjustments follow the original sale. This is gross profit, before operating expenses.',
             'cost_basis' => 'Sale-time line recipe cost includes variants and modifiers. Full restock reversals require a balanced stock_movements ledger; consumed and wasted items retain their cost. Missing costs make profit and margin incomplete. Historical categories are never backfilled from today’s catalogue.',
             'unsold_basis' => 'Currently active, available catalogue products with no units sold in this selection; availability history is not recorded. A cashier filter means no sales by that cashier.'];

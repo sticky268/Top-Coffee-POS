@@ -119,6 +119,17 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                           style: Theme.of(context).textTheme.titleMedium),
                       Text(
                           'Compared with ${report.meta['previous_from']} – ${report.meta['previous_to']}'),
+                      Text(
+                          'Cashier: ${report.meta['cashier_name'] ?? 'All sale cashiers'} · Category: ${report.meta['category_name'] ?? 'All historical categories'}'),
+                      if (report.meta['category_id'] != null)
+                        const Text(
+                            'This category filter excludes older items with no category snapshot.'),
+                      if (ReportAmount.parse(
+                                  report.summary['non_sales_refunds'])
+                              .cents >
+                          0)
+                        const Text(
+                            'Refunds exceed recorded sale value. Review the separate non-sales refund amount in Sales, discounts & refunds.'),
                       Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
@@ -205,7 +216,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                           childrenPadding: const EdgeInsets.all(12),
                           children: [
                             Text(
-                                'Higher popularity: at least ${report.meta['popularity_threshold_units']} units, the average per selling product. Higher margin: at least ${report.meta['margin_threshold_percent'] ?? 'unavailable'}%, weighted across known-cost products with positive revenue. Refunded units remain sold units.'),
+                                'Higher popularity: at least ${report.meta['popularity_threshold_units']} units (average per selling product, rounded up). Higher margin: at least ${report.meta['margin_threshold_percent'] ?? 'unavailable'}%, weighted across known-cost products with positive revenue. Refunded units remain sold units.'),
                             for (final row in report.products)
                               ListTile(
                                   title: Text(row['name'] as String),
@@ -260,7 +271,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
               ListTile(
                   title: Text(row['name'] as String),
                   subtitle: Text(
-                      '${row['quantity']} units · revenue ${profitValue(row, 'revenue')}\nCOGS ${profitValue(row, 'cogs')} · profit ${profitValue(row, 'gross_profit')}\nMargin ${row['margin_percent'] ?? 'Unavailable'}% · ${_comparison(row, 'revenue')}'),
+                      '${row['quantity']} units · revenue ${profitValue(row, 'revenue')}\nCOGS ${profitValue(row, 'cogs')} · profit ${profitValue(row, 'gross_profit')}\nMargin ${row['margin_percent'] ?? 'Unavailable'}% · ${_comparison(row, 'revenue')}\nCOGS ${_comparison(row, 'cogs')}\nProfit ${_comparison(row, 'gross_profit')}\nUnits ${_comparison(row, 'quantity')}\nMargin change ${row['margin_change_points'] ?? 'unavailable'} points'),
                   onTap: () => onTap(row),
                   trailing: const Icon(Icons.chevron_right))
           ]);
