@@ -209,12 +209,17 @@ void main() {
           200,
           scrollable: find.byType(Scrollable).first,
         );
-        // Nested horizontal ensureVisible can leave the row below the viewport.
-        // Scroll the actual vertical list until the cell can receive a tap.
+        // Place the nested cell using the vertical scroll position; a drag
+        // can fling past it before the next frame on different toolchains.
+        await tester.pumpAndSettle();
+        final vertical = tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position;
         for (var attempt = 0;
-            attempt < 10 && tester.getCenter(cell).dy > 650;
+            attempt < 5 && (tester.getCenter(cell).dy - 400).abs() > 50;
             attempt++) {
-          await tester.drag(find.byType(ListView).first, const Offset(0, -200));
+          vertical.jumpTo((vertical.pixels + tester.getCenter(cell).dy - 400)
+              .clamp(vertical.minScrollExtent, vertical.maxScrollExtent));
           await tester.pumpAndSettle();
         }
         expect(tester.getCenter(cell).dy, inInclusiveRange(56, 650));
