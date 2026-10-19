@@ -59,6 +59,11 @@ final class ReportPeriod
             $previousFrom = $from->subDays($days);
             $previousTo = $from->subDay();
         }
+        if (isset($input['comparison_from'], $input['comparison_to'])) {
+            $previousFrom = CarbonImmutable::parse($input['comparison_from'], $timezone)->startOfDay();
+            $previousTo = CarbonImmutable::parse($input['comparison_to'], $timezone)->startOfDay();
+            abort_if($previousFrom->gt($previousTo) || $previousTo->gte($from) || $previousFrom->diffInDays($previousTo) >= 366, 422, 'Choose a previous comparison of at most 366 days before this selection.');
+        }
         $this->previousFrom = $previousFrom->toDateString();
         $this->previousTo = $previousTo->toDateString();
     }

@@ -217,8 +217,7 @@ class _ReportContent extends ConsumerWidget {
                 onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                         builder: (_) => ProfitReportScreen(
-                            query: query.periodSelection('custom',
-                                from: report.from, to: report.to),
+                            query: query.forProfit(report),
                             branchId: ref.read(currentBranchProvider)?.id)))),
             if (query.period == 'year') timeline,
             LayoutBuilder(builder: (context, constraints) {

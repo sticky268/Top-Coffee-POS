@@ -215,6 +215,21 @@ class ProfitReportsTest extends TestCase
             ->assertJsonCount(1, 'data.branches');
     }
 
+    public function test_pinned_profit_period_retains_month_to_date_comparison_and_validates_bounds(): void
+    {
+        $this->item($this->sale([], '2026-09-05 01:00:00'));
+        $this->item($this->sale());
+        $this->report(['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-19',
+            'comparison_from' => '2026-09-01', 'comparison_to' => '2026-09-19'])->assertOk()
+            ->assertJsonPath('data.meta.previous_from', '2026-09-01')
+            ->assertJsonPath('data.summary.comparisons.revenue.previous', '10.00');
+        $this->report(['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-19',
+            'comparison_from' => '2026-10-01', 'comparison_to' => '2026-10-19'])->assertUnprocessable();
+        $this->report(['comparison_from' => '2026-09-01'])->assertUnprocessable();
+        $this->report(['period' => 'custom', 'date_from' => '2026-10-01', 'date_to' => '2026-10-19',
+            'comparison_from' => '2024-01-01', 'comparison_to' => '2026-09-19'])->assertUnprocessable();
+    }
+
     public function test_full_overpayment_refund_does_not_create_negative_sales_revenue(): void
     {
         $order = $this->sale(['total' => '9.90', 'subtotal' => '9.00', 'tax_total' => '0.90']);

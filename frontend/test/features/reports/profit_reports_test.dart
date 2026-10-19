@@ -12,6 +12,7 @@ import 'package:top_coffee_pos/features/reports/data/sales_reports_repository.da
 import 'package:top_coffee_pos/features/reports/domain/profit_report.dart';
 import 'package:top_coffee_pos/features/reports/domain/sales_report.dart';
 import 'package:top_coffee_pos/features/reports/presentation/profit_report_screen.dart';
+import 'sales_report_fixture.dart';
 import '../../presentation/ui_polish_test.dart' show savePreview;
 
 class MockProfitRepository extends Mock implements SalesReportsRepository {}
@@ -89,6 +90,17 @@ void main() {
     ]) {
       await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
     }
+  });
+
+  test(
+      'profit pins current and previous ranges without changing calendar comparison',
+      () {
+    final query = const SalesReportQuery(period: 'this_month', cashierId: 5)
+        .forProfit(salesReportFixture());
+    expect(query.parameters(21)['comparison_from'],
+        salesReportFixture().meta['previous_from']);
+    expect(query.dateFrom, salesReportFixture().from);
+    expect(query.cashierId, 5);
   });
 
   test(

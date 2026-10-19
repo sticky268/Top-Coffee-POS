@@ -17,6 +17,8 @@ class SalesReportsController extends Controller
         abort_unless($request->user()->can('reports.view'), 403, 'You do not have permission to view reports.');
         $input = $request->validate([
             'report' => 'nullable|in:sales,profit',
+            'comparison_from' => 'nullable|required_with:comparison_to|date_format:Y-m-d',
+            'comparison_to' => 'nullable|required_with:comparison_from|date_format:Y-m-d|after_or_equal:comparison_from|before:date_from',
             'product_id' => 'nullable|integer|min:0',
             'profit_category' => ['nullable', 'regex:/^(legacy|none|[0-9]+)$/'],
             'branch_id' => 'nullable|integer|min:1',
@@ -32,6 +34,7 @@ class SalesReportsController extends Controller
             'method' => 'nullable|in:cash,card,qr,split',
             'page' => 'nullable|integer|min:1|max:1000000',
         ]);
+        abort_if(isset($input['comparison_from']) && (($input['report'] ?? 'sales') !== 'profit' || ($input['period'] ?? 'today') !== 'custom'), 422, 'Pinned comparisons require a custom profit period.');
         $user = $request->user();
         $branches = Branch::withTrashed()->where('business_id', $user->business_id)
             ->when(! $user->can('branches.view-all'), fn ($q) => $q->whereIn('id', $user->branches()->select('branches.id')))
