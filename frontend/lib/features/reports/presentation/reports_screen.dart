@@ -11,6 +11,7 @@ import '../data/report_exporter.dart';
 import '../domain/sales_report.dart';
 import 'sales_report_details_screen.dart';
 import 'profit_report_screen.dart';
+import 'activity_report_screen.dart';
 
 const reportMetricLabels = {
   'net_sales': 'Net sales',
@@ -217,6 +218,14 @@ class _ReportContent extends ConsumerWidget {
                 onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                         builder: (_) => ProfitReportScreen(
+                            query: query.forProfit(report),
+                            branchId: ref.read(currentBranchProvider)?.id)))),
+            OutlinedButton.icon(
+                icon: const Icon(Icons.schedule),
+                label: const Text('Time & cashier performance'),
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) => ActivityReportScreen(
                             query: query.forProfit(report),
                             branchId: ref.read(currentBranchProvider)?.id)))),
             if (query.period == 'year') timeline,

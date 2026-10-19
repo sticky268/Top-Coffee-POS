@@ -37,6 +37,24 @@ class SalesReportsRepository {
   Future<SalesReport> load(SalesReportQuery query, int? branchId) async =>
       SalesReport(await _get(query.parameters(branchId)));
 
+  Future<Map<String, dynamic>> activity(SalesReportQuery query, int? branchId,
+          {bool detail = false,
+          int page = 1,
+          int? weekday,
+          int? hour,
+          int? cashier,
+          String kind = 'orders'}) =>
+      _get({
+        ...query.parameters(branchId),
+        'report': 'activity',
+        if (detail) 'detail': 'activity',
+        'page': page,
+        'activity_kind': kind,
+        if (weekday != null) 'weekday': weekday,
+        if (hour != null) 'hour': hour,
+        if (cashier != null) 'source_cashier': cashier
+      });
+
   Future<Map<String, dynamic>> details(SalesReportQuery query, int? branchId,
           {required String kind,
           String? metric,

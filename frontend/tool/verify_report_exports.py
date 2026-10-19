@@ -45,3 +45,15 @@ for group in ["Products", "Categories", "Branches"]:
     assert f"{group}comparisons" in compact_profit_text
 assert "Change(percentagepoints)" in compact_profit_text
 print("Profit exports preserve six-decimal COGS, profit, branch and dates.")
+
+activity = load_workbook(root / "activity-exact.xlsx", data_only=False)["Sales report"]
+assert any(c.value == 24.98 and c.data_type == "n" for row in activity for c in row)
+cashier = next(c for row in activity for c in row if isinstance(c.value, str) and c.value.startswith("=Cashier"))
+assert cashier.data_type == "s"
+activity_rows = list(activity.iter_rows())
+assert sum(isinstance(row[0].value, str) and row[0].value.endswith("/ Paid orders") for row in activity_rows) == 168
+activity_pdf = PdfReader(root / "activity-exact.pdf")
+activity_text = re.sub(r"\s+", "", "".join(page.extract_text() for page in activity_pdf.pages))
+for expected in ["24.98", "Riverside", "2026-10-19", "Change(points)", "Discount", "Void", "Cashier"]:
+    assert expected in activity_text
+print("Time/cashier exports preserve exact numeric amounts, literal names, 168 Excel cells and labelled PDF comparisons.")
