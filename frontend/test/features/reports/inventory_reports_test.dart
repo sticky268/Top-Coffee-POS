@@ -173,7 +173,19 @@ void main() {
       final ingredient = find.byKey(const ValueKey('inventory-ingredient-9'));
       await tester.scrollUntilVisible(ingredient, 250,
           scrollable: find.byType(Scrollable).first);
-      await tester.tap(find.text('=Coffee / Riverside'));
+      await tester.pumpAndSettle();
+      final title = find.text('=Coffee / Riverside');
+      final cardScroll =
+          tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+      for (var attempt = 0;
+          attempt < 5 && (tester.getCenter(title).dy - 400).abs() > 50;
+          attempt++) {
+        cardScroll.jumpTo((cardScroll.pixels + tester.getCenter(title).dy - 400)
+            .clamp(cardScroll.minScrollExtent, cardScroll.maxScrollExtent));
+        await tester.pumpAndSettle();
+      }
+      expect(title.hitTestable(), findsOneWidget);
+      await tester.tap(title);
       await tester.pumpAndSettle();
       final actual =
           find.widgetWithText(ListTile, 'Actual gross sale deductions');
