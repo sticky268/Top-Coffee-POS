@@ -146,7 +146,7 @@ class BranchComparisonReportsTest extends TestCase
         $this->report(['branch_id' => $hidden->id])->assertForbidden();
         $this->report(['branch_id' => $foreign->id])->assertForbidden();
         $this->report(['cashier_id' => User::factory()->create()->id])->assertForbidden();
-        $this->actor->givePermissionTo(Permission::findOrCreate('branches.view-all'));
+        $this->actor->givePermissionTo(Permission::findOrCreate('branches.view-all', 'web'));
         $this->report()->assertOk()->assertJsonCount(2, 'data.branches');
         $this->report(['branch_id' => $foreign->id])->assertForbidden();
         $this->report(['detail' => 'profit'])->assertUnprocessable();
