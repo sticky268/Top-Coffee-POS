@@ -57,3 +57,16 @@ activity_text = re.sub(r"\s+", "", "".join(page.extract_text() for page in activ
 for expected in ["24.98", "Riverside", "2026-10-19", "Change(points)", "Discount", "Void", "Cashier"]:
     assert expected in activity_text
 print("Time/cashier exports preserve exact numeric amounts, literal names, 168 Excel cells and labelled PDF comparisons.")
+
+# Phase 4 inventory fixtures retain numeric decimals and make missing history explicit.
+inventory = load_workbook(root / 'inventory-exact.xlsx', data_only=False)['Sales report']
+assert any(c.value == 1.999002 and c.data_type == 'n' for row in inventory for c in row)
+assert any(c.value == 1.999 and c.data_type == 'n' for row in inventory for c in row)
+name = next(c for row in inventory for c in row if c.value == '=Coffee')
+assert name.data_type == 's'
+assert any(c.value == 'Unavailable' for row in inventory for c in row)
+inventory_pdf = PdfReader(root / 'inventory-exact.pdf')
+inventory_text = re.sub(r'\s+', '', ''.join(page.extract_text() for page in inventory_pdf.pages))
+for expected in ['Inventory', 'Riverside', '2026-10-19', '1.999002', 'Theoretical', 'Unavailable', 'Change%']:
+    assert expected in inventory_text, expected
+print('Inventory exports preserve numeric six-decimal costs, three-decimal quantities, unavailable history and branch/date context.')

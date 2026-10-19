@@ -78,6 +78,7 @@ class SaleInventoryService
                 })
                 ->get();
 
+            $recipeSnapshot = [];
             $cost = 0.0;
             $costKnown = $recipeItems->isNotEmpty();
             foreach ($recipeItems as $recipeItem) {
@@ -104,13 +105,14 @@ class SaleInventoryService
                     "Sale deduction for Order #{$order->id}",
                     $order,
                 );
+                $recipeSnapshot[] = ['ingredient_id' => (int) $recipeItem->ingredient_id, 'quantity' => number_format($quantity, 3, '.', '')];
                 $costKnown = $costKnown && $movement->unit_cost !== null;
                 $cost += $quantity * (float) $movement->unit_cost;
             }
             $orderItem->forceFill(['ingredient_cost' => $costKnown ? $cost : null,
                 'sale_category_id' => $orderItem->product?->category_id,
                 'sale_category_name' => $orderItem->product?->category?->name,
-                'sale_category_captured' => true])->save();
+                'sale_category_captured' => true, 'recipe_usage_snapshot' => $recipeSnapshot ?: null])->save();
         }
     }
 }

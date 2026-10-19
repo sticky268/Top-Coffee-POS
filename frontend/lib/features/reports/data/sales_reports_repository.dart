@@ -34,6 +34,19 @@ class SalesReportsRepository {
         if (category != null) 'profit_category': category
       });
 
+  Future<Map<String, dynamic>> inventory(SalesReportQuery query, int? branchId,
+          {bool detail = false,
+          int? ingredientId,
+          String kind = 'ledger',
+          int page = 1}) =>
+      _get({
+        ...query.parameters(branchId),
+        'report': 'inventory',
+        if (detail) 'detail': 'inventory',
+        if (ingredientId != null) 'ingredient_id': ingredientId,
+        'inventory_kind': kind,
+        'page': page
+      });
   Future<SalesReport> load(SalesReportQuery query, int? branchId) async =>
       SalesReport(await _get(query.parameters(branchId)));
 
