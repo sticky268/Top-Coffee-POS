@@ -52,7 +52,7 @@ Both phases stay on the same unmerged review branch, codex/reports-time-cashier.
 - Flutter: inventory_report.dart, inventory_report_screen.dart, repository method,
   Reports entry; CSV/numeric XLSX/branded four-column PDF use the shared exporter.
 - Verification: InventoryReportsTest, inventory_reports_test.dart, independent export
-  reader assertions, and real MySQL CI selection.
+  reader assertions, real MySQL CI selection and the populated upgrade/rollback rehearsal.
 
 ## Verification (disposable databases only)
 

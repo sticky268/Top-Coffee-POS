@@ -11,9 +11,8 @@ use Tests\TestCase;
 class OperationsMigrationRehearsalTest extends TestCase
 {
     private bool $disposable = false;
-    // Cafe operations, checkout controls, completion index, receipt snapshots,
-    // drawer telemetry, manager PIN credentials and report indexes are rehearsed together.
-    private const RELEASE_MIGRATIONS = 8;
+    // Keep the populated pre-operations baseline stable as release migrations grow.
+    private int $releaseMigrations = 0;
 
     protected function setUp(): void
     {
@@ -23,10 +22,13 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertSame('mysql', config('database.default'));
         $this->assertSame('operations_testing', config('database.connections.mysql.database'));
         $this->disposable = true;
-        // Rehearse all eight release migrations together from the populated
-        // pre-operations schema; the drawer table must not shift the baseline.
+        // Rehearse every applied release migration since the same historical baseline.
         $this->artisan('migrate:fresh', ['--force' => true])->assertExitCode(0);
-        $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
+        $this->releaseMigrations = DB::table('migrations')->where('migration', '>=', '2026_10_13_000001_add_cafe_operations')->count();
+        $this->assertGreaterThan(0, $this->releaseMigrations);
+        $this->artisan('migrate:rollback', ['--step' => $this->releaseMigrations, '--force' => true])->assertExitCode(0);
+        $this->assertFalse(Schema::hasColumn('order_items', 'recipe_usage_snapshot'));
+        $this->assertFalse(Schema::hasIndex('stock_movements', 'stock_branch_time_id'));
         $this->assertFalse(Schema::hasColumn('order_items', 'sale_category_captured'));
         $this->assertFalse(Schema::hasTable('cashier_shifts'));
         $this->assertFalse(Schema::hasIndex('payments', 'payments_report_event_date'));
@@ -77,6 +79,9 @@ class OperationsMigrationRehearsalTest extends TestCase
         $verify();
         $this->assertDrawerSchema();
         $this->assertTrue(Schema::hasIndex('orders', 'orders_branch_status_completed_index'));
+        $this->assertTrue(Schema::hasColumn('order_items', 'recipe_usage_snapshot'));
+        $this->assertTrue(Schema::hasIndex('stock_movements', 'stock_branch_time_id'));
+        $this->assertNull(DB::table('order_items')->value('recipe_usage_snapshot'));
         $this->assertTrue(Schema::hasColumn('order_items', 'sale_category_captured'));
         $this->assertTrue(Schema::hasIndex('payments', 'payments_report_event_date'));
         $this->assertTrue(Schema::hasIndex('payment_refunds', 'refunds_report_event_date'));
@@ -96,7 +101,7 @@ class OperationsMigrationRehearsalTest extends TestCase
         $verify();
         $this->assertDrawerSchema();
         // Rollback rehearsal occurs before any new shift/correction data is written.
-        $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => $this->releaseMigrations, '--force' => true])->assertExitCode(0);
         $verify();
         $this->assertFalse(Schema::hasTable('cash_drawer_events'));
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
@@ -104,7 +109,7 @@ class OperationsMigrationRehearsalTest extends TestCase
         $this->assertDrawerSchema();
 
         // Verify the local rehearsal command against a populated restored copy.
-        $this->artisan('migrate:rollback', ['--step' => self::RELEASE_MIGRATIONS, '--force' => true])->assertExitCode(0);
+        $this->artisan('migrate:rollback', ['--step' => $this->releaseMigrations, '--force' => true])->assertExitCode(0);
         $this->assertFalse(Schema::hasColumn('order_items', 'product_name'));
         $target = 'top_coffee_pos_pr7_rehearsal_20000101';
         DB::statement('CREATE DATABASE `'.$target.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
