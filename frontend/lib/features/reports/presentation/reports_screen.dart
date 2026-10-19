@@ -10,6 +10,7 @@ import '../application/sales_reports_controller.dart';
 import '../data/report_exporter.dart';
 import '../domain/sales_report.dart';
 import 'sales_report_details_screen.dart';
+import 'profit_report_screen.dart';
 
 const reportMetricLabels = {
   'net_sales': 'Net sales',
@@ -210,6 +211,15 @@ class _ReportContent extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(report.meta['category_basis'] as String)),
             const SizedBox(height: 12),
+            OutlinedButton.icon(
+                icon: const Icon(Icons.insights),
+                label: const Text('Profit & product performance'),
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) => ProfitReportScreen(
+                            query: query.periodSelection('custom',
+                                from: report.from, to: report.to),
+                            branchId: ref.read(currentBranchProvider)?.id)))),
             if (query.period == 'year') timeline,
             LayoutBuilder(builder: (context, constraints) {
               final columns = constraints.maxWidth >= 900
