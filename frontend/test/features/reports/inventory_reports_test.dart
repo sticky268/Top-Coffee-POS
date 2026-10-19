@@ -57,7 +57,7 @@ Map<String, dynamic> inventoryFixture() {
     final keys = identical(source, row)
         ? inventoryLabels.keys
         : inventorySummaryLabels.keys;
-    source['comparisons'] = {
+    source['comparisons'] = <String, dynamic>{
       for (final key in keys)
         key: {
           'previous': inventoryCostKeys.contains(key)
