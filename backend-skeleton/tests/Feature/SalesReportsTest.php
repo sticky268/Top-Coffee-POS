@@ -98,6 +98,38 @@ class SalesReportsTest extends TestCase
         $this->assertSame(4, $rows['Historical name']['quantity']);
     }
 
+    public function test_history_counts_paid_orders_once_and_preserves_whole_order_item_quantities(): void
+    {
+        $coffee = DB::table('categories')->insertGetId(['business_id' => $this->manager->business_id, 'name' => 'Coffee']);
+        $food = DB::table('categories')->insertGetId(['business_id' => $this->manager->business_id, 'name' => 'Food']);
+        $latte = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id,
+            'category_id' => $coffee, 'name' => 'Latte', 'base_price' => '1.00']);
+        $toast = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id,
+            'category_id' => $food, 'name' => 'Toast', 'base_price' => '1.00']);
+        $other = User::factory()->create(['business_id' => $this->manager->business_id]);
+        $other->branches()->attach($this->branch->id);
+        $first = $this->sale('2026-10-19 01:00:00', '11.11');
+        $second = $this->sale('2026-10-19 02:00:00', '2.22', ['user_id' => $other->id]);
+        $this->sale('2026-10-19 03:00:00', '1.00'); // Legacy paid sale with no items still counts.
+        $unpaid = $this->sale('2026-10-19 01:00:00', '100.00', paid: false);
+        $foreign = $this->sale('2026-10-19 01:00:00', '100.00', ['branch_id' => Branch::factory()->create()->id]);
+        foreach ([[$first, $latte, 2], [$first, $toast, 3], [$second, $toast, 7], [$unpaid, $latte, 100], [$foreign, $latte, 100]] as [$order, $product, $quantity]) {
+            DB::table('order_items')->insert(['order_id' => $order, 'product_id' => $product, 'quantity' => $quantity, 'unit_price' => '1.00']);
+        }
+        $payment = DB::table('payments')->where('order_id', $first)->value('id');
+        $this->refund($payment, '1.00', '2026-10-20 01:00:00');
+        $this->getJson($this->url())->assertOk()->assertJsonPath('data.timeline.0.total', '14.33')
+            ->assertJsonPath('data.timeline.0.orders', 3)->assertJsonPath('data.timeline.0.items', 12);
+        $this->getJson($this->url(['category_id' => $coffee]))->assertOk()->assertJsonPath('data.timeline.0.total', '11.11')
+            ->assertJsonPath('data.timeline.0.orders', 1)->assertJsonPath('data.timeline.0.items', 5);
+        $this->getJson($this->url(['cashier_id' => $other->id]))->assertOk()->assertJsonPath('data.timeline.0.total', '2.22')
+            ->assertJsonPath('data.timeline.0.orders', 1)->assertJsonPath('data.timeline.0.items', 7);
+        $this->getJson($this->url(['period' => 'year', 'year' => 2026]))->assertOk()->assertJsonCount(12, 'data.timeline')
+            ->assertJsonPath('data.timeline.9.total', '14.33')->assertJsonPath('data.timeline.9.orders', 3)
+            ->assertJsonPath('data.timeline.9.items', 12)->assertJsonPath('data.timeline.10.upcoming', true)
+            ->assertJsonPath('data.timeline.10.orders', 0)->assertJsonPath('data.timeline.10.items', 0);
+    }
+
     public function test_server_presets_follow_branch_date_and_exact_boundaries(): void
     {
         // Server is October 18 UTC, but the branch is already on October 19.

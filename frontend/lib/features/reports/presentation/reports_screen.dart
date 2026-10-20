@@ -35,7 +35,7 @@ class ReportsScreen extends ConsumerWidget {
     final state = ref.watch(salesReportsControllerProvider);
     final controller = ref.read(salesReportsControllerProvider.notifier);
     return Scaffold(
-      appBar: const PageAppBar(title: Text('Reports')),
+      appBar: const PageAppBar(title: Text('Sales summary')),
       body: PageContent(
           maxWidth: 1200,
           child: state.when(

@@ -23,9 +23,11 @@ class ProfitReportScreen extends ConsumerStatefulWidget {
     super.key,
     required this.query,
     required this.branchId,
+    this.onChangeFilters,
   });
   final SalesReportQuery query;
   final int? branchId;
+  final VoidCallback? onChangeFilters;
   @override
   ConsumerState<ProfitReportScreen> createState() => _ProfitReportScreenState();
 }
@@ -166,7 +168,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: widget.onChangeFilters ?? () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.tune),
                         label: const Text('Change report filters'),
                       ),

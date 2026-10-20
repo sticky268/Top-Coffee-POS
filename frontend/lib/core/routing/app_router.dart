@@ -42,7 +42,7 @@ import '../../features/products/presentation/products_screen.dart';
 import '../../features/purchasing/presentation/purchase_history_screen.dart';
 import '../../features/purchasing/presentation/suppliers_screen.dart';
 import '../../features/purchasing/presentation/purchase_creation_screen.dart';
-import '../../features/reports/presentation/reports_screen.dart';
+import '../../features/reports/presentation/reports_home_screen.dart';
 import '../../features/settings/presentation/receipt_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/about_screen.dart';
@@ -322,7 +322,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/reports',
-            builder: (context, state) => const ReportsScreen(),
+            builder: (context, state) => const ReportsHomeScreen(),
           ),
           GoRoute(
             path: '/settings',

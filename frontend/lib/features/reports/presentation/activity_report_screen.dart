@@ -13,9 +13,11 @@ class ActivityReportScreen extends ConsumerStatefulWidget {
     super.key,
     required this.query,
     required this.branchId,
+    this.onChangeFilters,
   });
   final SalesReportQuery query;
   final int? branchId;
+  final VoidCallback? onChangeFilters;
   @override
   ConsumerState<ActivityReportScreen> createState() =>
       _ActivityReportScreenState();
@@ -163,7 +165,7 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
                       'Cashier: ${meta['cashier_name'] ?? 'All'} / Category: ${meta['category_name'] ?? 'All'}',
                     ),
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: widget.onChangeFilters ?? () => Navigator.pop(context),
                       child: const Text('Change report filters'),
                     ),
                     for (final key in activityLabels.keys)

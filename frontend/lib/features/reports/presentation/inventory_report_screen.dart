@@ -13,9 +13,11 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
     super.key,
     required this.query,
     required this.branchId,
+    this.onChangeFilters,
   });
   final SalesReportQuery query;
   final int? branchId;
+  final VoidCallback? onChangeFilters;
   @override
   ConsumerState<InventoryReportScreen> createState() =>
       _InventoryReportScreenState();
@@ -159,7 +161,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
                       '${meta['date_from']} - ${meta['date_to']}\nPrevious: ${meta['previous_from']} - ${meta['previous_to']}',
                     ),
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: widget.onChangeFilters ?? () => Navigator.pop(context),
                       child: const Text('Change date and report filters'),
                     ),
                     Text(

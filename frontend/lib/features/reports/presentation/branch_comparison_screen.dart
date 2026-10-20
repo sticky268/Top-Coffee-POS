@@ -11,8 +11,9 @@ import '../domain/sales_report.dart';
 import 'profit_report_screen.dart';
 
 class BranchComparisonScreen extends ConsumerStatefulWidget {
-  const BranchComparisonScreen({super.key, required this.query});
+  const BranchComparisonScreen({super.key, required this.query, this.onChangeFilters});
   final SalesReportQuery query;
+  final VoidCallback? onChangeFilters;
   @override
   ConsumerState<BranchComparisonScreen> createState() =>
       _BranchComparisonScreenState();
@@ -127,7 +128,7 @@ class _BranchComparisonScreenState
                       const Text(
                           'Each branch uses its own timezone. Dashboard branch selection does not limit this comparison.'),
                       TextButton.icon(
-                          onPressed: () {
+                          onPressed: widget.onChangeFilters ?? () {
                             Navigator.of(context).pop();
                           },
                           icon: const Icon(Icons.tune),
