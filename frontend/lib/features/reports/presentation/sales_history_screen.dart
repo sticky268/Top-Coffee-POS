@@ -330,7 +330,7 @@ class _HistoryRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
-      color: best ? scheme.tertiaryContainer.withValues(alpha: .45) : null,
+      color: best ? scheme.tertiary.withValues(alpha: .08) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
@@ -390,27 +390,35 @@ class _HistoryRow extends StatelessWidget {
                   ),
                 ],
               );
-              final total = Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      amount,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: future
-                            ? scheme.onSurfaceVariant
-                            : scheme.primary,
-                        fontWeight: FontWeight.w700,
+              final total = ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: stacked
+                      ? constraints.maxWidth
+                      : constraints.maxWidth * .48,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        amount,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: future
+                                  ? scheme.onSurfaceVariant
+                                  : scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    future ? Icons.schedule : Icons.chevron_right,
-                    size: 20,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(
+                      future ? Icons.schedule : Icons.chevron_right,
+                      size: 20,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
               );
               return stacked
                   ? Column(
@@ -421,7 +429,7 @@ class _HistoryRow extends StatelessWidget {
                       children: [
                         Expanded(child: details),
                         const SizedBox(width: 16),
-                        Flexible(child: total),
+                        total,
                       ],
                     );
             },

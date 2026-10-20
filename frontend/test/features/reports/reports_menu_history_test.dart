@@ -97,6 +97,7 @@ Future<void> showPage(
       child: RepaintBoundary(
         key: preview,
         child: MaterialApp(
+          debugShowCheckedModeBanner: false,
           theme: dark ? AppTheme.dark : AppTheme.light,
           builder: (context, child) => MediaQuery(
             data: MediaQueryData(
@@ -173,6 +174,10 @@ void main() {
             expect(find.text('Daily'), findsOneWidget);
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'sales-history-$width-$scale-$dark');
+            if (scale == 1) {
+              final amount = find.descendant(of: find.byKey(const ValueKey('history-2026-10-19')), matching: find.text(r'$65.95'));
+              expect(tester.getRect(amount).right, greaterThan(width - 80), reason: 'Amounts align at the trailing edge like the reference.');
+            }
             await tester.scrollUntilVisible(
               find.text('Top'),
               200,
