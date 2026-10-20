@@ -8,10 +8,12 @@ import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/reports/data/sales_reports_repository.dart';
+import 'package:top_coffee_pos/features/reports/application/sales_reports_controller.dart';
 import 'package:top_coffee_pos/features/reports/domain/sales_report.dart';
 import 'package:top_coffee_pos/features/reports/presentation/reports_home_screen.dart';
 import 'package:top_coffee_pos/features/reports/presentation/sales_history_screen.dart';
 import 'sales_report_fixture.dart';
+import 'inventory_reports_test.dart' show inventoryFixture;
 import '../../presentation/ui_polish_test.dart' show savePreview;
 
 class MockHistoryRepository extends Mock implements SalesReportsRepository {}
@@ -190,6 +192,43 @@ void main() {
       }
     }
   }
+
+  testWidgets(
+    'menu analytical entry opens filters and reloads their selection',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => salesReportFixture());
+      when(
+        () => repository.inventory(any(), 21),
+      ).thenAnswer((_) async => inventoryFixture());
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(
+        tester,
+        container,
+        const ReportWorkspaceScreen(kind: ReportWorkspace.inventory),
+      );
+      expect(find.text('Inventory report'), findsOneWidget);
+      await tester.tap(find.text('Change date and report filters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sales summary'), findsOneWidget);
+      await container
+          .read(salesReportsControllerProvider.notifier)
+          .select(const SalesReportQuery(categoryId: 1));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      final sent = verify(
+        () => repository.inventory(captureAny(), 21),
+      ).captured.cast<SalesReportQuery>();
+      expect(sent.last.categoryId, 1);
+      expect(sent.last.comparisonFrom, '2026-10-18');
+      expect(find.text('Inventory report'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'monthly history shows all twelve months and opens its exact period',

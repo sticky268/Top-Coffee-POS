@@ -10,10 +10,6 @@ import '../application/sales_reports_controller.dart';
 import '../data/report_exporter.dart';
 import '../domain/sales_report.dart';
 import 'sales_report_details_screen.dart';
-import 'profit_report_screen.dart';
-import 'activity_report_screen.dart';
-import 'inventory_report_screen.dart';
-import 'branch_comparison_screen.dart';
 
 const reportMetricLabels = {
   'net_sales': 'Net sales',
@@ -214,33 +210,6 @@ class _ReportContent extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(report.meta['category_basis'] as String)),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-                icon: const Icon(Icons.insights),
-                label: const Text('Profit & product performance'),
-                onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                        builder: (_) => ProfitReportScreen(
-                            query: query.forProfit(report),
-                            branchId: ref.read(currentBranchProvider)?.id)))),
-            OutlinedButton.icon(
-                icon: const Icon(Icons.schedule),
-                label: const Text('Time & cashier performance'),
-                onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                        builder: (_) => ActivityReportScreen(
-                            query: query.forProfit(report),
-                            branchId: ref.read(currentBranchProvider)?.id)))),
-            OutlinedButton.icon(
-                icon: const Icon(Icons.store_outlined),
-                label: const Text('Compare branches'),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => BranchComparisonScreen(query: query.forProfit(report))))),
-            OutlinedButton.icon(
-                icon: const Icon(Icons.inventory_2_outlined),
-                label: const Text('Inventory report'),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => InventoryReportScreen(query: query.forProfit(report),
-                        branchId: ref.read(currentBranchProvider)?.id)))),
               if (query.period == 'year') timeline,
             LayoutBuilder(builder: (context, constraints) {
               final columns = constraints.maxWidth >= 900
