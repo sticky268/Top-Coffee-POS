@@ -23,9 +23,11 @@ class ProfitReportScreen extends ConsumerStatefulWidget {
     super.key,
     required this.query,
     required this.branchId,
+    this.onChangeFilters,
   });
   final SalesReportQuery query;
   final int? branchId;
+  final VoidCallback? onChangeFilters;
   @override
   ConsumerState<ProfitReportScreen> createState() => _ProfitReportScreenState();
 }
@@ -88,7 +90,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
   void _sources({int? product, String? category, int? branch}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _ProfitSources(
+        builder: (_) => ProfitSourceItemsScreen(
           query: widget.query,
           branchId: branch ?? widget.branchId,
           productId: product,
@@ -115,7 +117,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                         'Could not load profitability. Check the connection.',
                       ),
                       FilledButton(
-                        onPressed: () => setState(() => pending = _load()),
+                        onPressed: () => setState(() { pending = _load(); }),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -166,7 +168,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: widget.onChangeFilters ?? () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.tune),
                         label: const Text('Change report filters'),
                       ),
@@ -376,8 +378,9 @@ String _comparison(Map<String, dynamic> row, String key) {
   return '${percent == null ? (comparison['status'] == 'new' ? 'New activity' : 'No change') : '$percent%'} vs previous · previous ${comparison['previous']}';
 }
 
-class _ProfitSources extends ConsumerStatefulWidget {
-  const _ProfitSources({
+class ProfitSourceItemsScreen extends ConsumerStatefulWidget {
+  const ProfitSourceItemsScreen({
+    super.key,
     required this.query,
     required this.branchId,
     this.productId,
@@ -388,10 +391,10 @@ class _ProfitSources extends ConsumerStatefulWidget {
   final int? productId;
   final String? category;
   @override
-  ConsumerState<_ProfitSources> createState() => _ProfitSourcesState();
+  ConsumerState<ProfitSourceItemsScreen> createState() => _ProfitSourceItemsScreenState();
 }
 
-class _ProfitSourcesState extends ConsumerState<_ProfitSources> {
+class _ProfitSourceItemsScreenState extends ConsumerState<ProfitSourceItemsScreen> {
   int page = 1;
   late Future<Map<String, dynamic>> pending;
   Future<Map<String, dynamic>> _load() =>
@@ -424,7 +427,7 @@ class _ProfitSourcesState extends ConsumerState<_ProfitSources> {
               if (state.hasError) {
                 return Center(
                   child: FilledButton(
-                    onPressed: () => setState(() => pending = _load()),
+                    onPressed: () => setState(() { pending = _load(); }),
                     child: const Text('Retry source items'),
                   ),
                 );

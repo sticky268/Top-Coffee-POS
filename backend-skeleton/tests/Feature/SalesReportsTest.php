@@ -63,6 +63,73 @@ class SalesReportsTest extends TestCase
         return '/api/v1/reports/sales?'.http_build_query(['branch_id' => $this->branch->id] + $query);
     }
 
+    public function test_top_products_group_normalized_snapshot_names_under_strict_sql(): void
+    {
+        if (DB::getDriverName() === 'mysql') {
+            $mode = DB::selectOne('SELECT @@SESSION.sql_mode AS modes')->modes;
+            $this->assertStringContainsString('ONLY_FULL_GROUP_BY', $mode);
+        }
+        $category = DB::table('categories')->insertGetId(['business_id' => $this->manager->business_id,
+            'name' => 'Coffee', 'created_at' => now(), 'updated_at' => now()]);
+        $product = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id, 'category_id' => $category,
+            'name' => 'Current name', 'base_price' => '0.10', 'created_at' => now(), 'updated_at' => now()]);
+        $other = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id, 'category_id' => $category,
+            'name' => 'Another product', 'base_price' => '0.10', 'created_at' => now(), 'updated_at' => now()]);
+        foreach ([[$product, null, 1], [$product, '', 2], [$product, 'Current name', 3],
+            [$product, 'Historical name', 4], [$other, 'Current name', 5]] as [$id, $name, $quantity]) {
+            $order = $this->sale('2026-10-19 01:00:00');
+            DB::table('order_items')->insert(['order_id' => $order, 'product_id' => $id,
+                'product_name' => $name, 'quantity' => $quantity, 'unit_price' => '0.10',
+                'created_at' => now(), 'updated_at' => now()]);
+        }
+        // Neither unpaid nor out-of-period lines may enter the aggregation.
+        foreach ([$this->sale('2026-10-19 01:00:00', paid: false), $this->sale('2026-10-17 01:00:00')] as $order) {
+            DB::table('order_items')->insert(['order_id' => $order, 'product_id' => $product,
+                'product_name' => 'Current name', 'quantity' => 100, 'unit_price' => '0.10']);
+        }
+        $rows = $this->getJson($this->url())->assertOk()->assertJsonCount(3, 'data.top_products')->json('data.top_products');
+        $this->assertSame(['Current name', 'Current name', 'Historical name'], array_column($rows, 'product_name'));
+        $this->assertSame([6, 5, 4], array_column($rows, 'quantity'));
+        $this->assertSame(['0.60', '0.50', '0.40'], array_column($rows, 'total'));
+        $this->assertEquals([$product, $other, $product], array_column($rows, 'product_id'));
+        DB::table('products')->where('id', $product)->update(['name' => 'Renamed catalogue', 'deleted_at' => now()]);
+        $rows = collect($this->getJson($this->url())->assertOk()->json('data.top_products'))->keyBy('product_name');
+        $this->assertSame(3, $rows['Renamed catalogue']['quantity']);
+        $this->assertSame(4, $rows['Historical name']['quantity']);
+    }
+
+    public function test_history_counts_paid_orders_once_and_preserves_whole_order_item_quantities(): void
+    {
+        $coffee = DB::table('categories')->insertGetId(['business_id' => $this->manager->business_id, 'name' => 'Coffee']);
+        $food = DB::table('categories')->insertGetId(['business_id' => $this->manager->business_id, 'name' => 'Food']);
+        $latte = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id,
+            'category_id' => $coffee, 'name' => 'Latte', 'base_price' => '1.00']);
+        $toast = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id,
+            'category_id' => $food, 'name' => 'Toast', 'base_price' => '1.00']);
+        $other = User::factory()->create(['business_id' => $this->manager->business_id]);
+        $other->branches()->attach($this->branch->id);
+        $first = $this->sale('2026-10-19 01:00:00', '11.11');
+        $second = $this->sale('2026-10-19 02:00:00', '2.22', ['user_id' => $other->id]);
+        $this->sale('2026-10-19 03:00:00', '1.00'); // Legacy paid sale with no items still counts.
+        $unpaid = $this->sale('2026-10-19 01:00:00', '100.00', paid: false);
+        $foreign = $this->sale('2026-10-19 01:00:00', '100.00', ['branch_id' => Branch::factory()->create()->id]);
+        foreach ([[$first, $latte, 2], [$first, $toast, 3], [$second, $toast, 7], [$unpaid, $latte, 100], [$foreign, $latte, 100]] as [$order, $product, $quantity]) {
+            DB::table('order_items')->insert(['order_id' => $order, 'product_id' => $product, 'quantity' => $quantity, 'unit_price' => '1.00']);
+        }
+        $payment = DB::table('payments')->where('order_id', $first)->value('id');
+        $this->refund($payment, '1.00', '2026-10-20 01:00:00');
+        $this->getJson($this->url())->assertOk()->assertJsonPath('data.timeline.0.total', '14.33')
+            ->assertJsonPath('data.timeline.0.orders', 3)->assertJsonPath('data.timeline.0.items', 12);
+        $this->getJson($this->url(['category_id' => $coffee]))->assertOk()->assertJsonPath('data.timeline.0.total', '11.11')
+            ->assertJsonPath('data.timeline.0.orders', 1)->assertJsonPath('data.timeline.0.items', 5);
+        $this->getJson($this->url(['cashier_id' => $other->id]))->assertOk()->assertJsonPath('data.timeline.0.total', '2.22')
+            ->assertJsonPath('data.timeline.0.orders', 1)->assertJsonPath('data.timeline.0.items', 7);
+        $this->getJson($this->url(['period' => 'year', 'year' => 2026]))->assertOk()->assertJsonCount(12, 'data.timeline')
+            ->assertJsonPath('data.timeline.9.total', '14.33')->assertJsonPath('data.timeline.9.orders', 3)
+            ->assertJsonPath('data.timeline.9.items', 12)->assertJsonPath('data.timeline.10.upcoming', true)
+            ->assertJsonPath('data.timeline.10.orders', 0)->assertJsonPath('data.timeline.10.items', 0);
+    }
+
     public function test_server_presets_follow_branch_date_and_exact_boundaries(): void
     {
         // Server is October 18 UTC, but the branch is already on October 19.
@@ -233,3 +300,4 @@ class SalesReportsTest extends TestCase
         $this->assertSame('-100.00', ReportMoney::comparison(0, 100)['percent']);
     }
 }
+

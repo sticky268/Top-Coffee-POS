@@ -18,6 +18,9 @@ class SalesReportsRepository {
     return Map<String, dynamic>.from(data);
   }
 
+  Future<Map<String, dynamic>> branchComparison(SalesReportQuery query, int? branchId) =>
+      _get({...query.parameters(branchId), 'report': 'branches'});
+
   Future<ProfitReport> profit(SalesReportQuery query, int? branchId) async =>
       ProfitReport(
           await _get({...query.parameters(branchId), 'report': 'profit'}));
@@ -34,8 +37,39 @@ class SalesReportsRepository {
         if (category != null) 'profit_category': category
       });
 
+  Future<Map<String, dynamic>> inventory(SalesReportQuery query, int? branchId,
+          {bool detail = false,
+          int? ingredientId,
+          String kind = 'ledger',
+          int page = 1}) =>
+      _get({
+        ...query.parameters(branchId),
+        'report': 'inventory',
+        if (detail) 'detail': 'inventory',
+        if (ingredientId != null) 'ingredient_id': ingredientId,
+        'inventory_kind': kind,
+        'page': page
+      });
   Future<SalesReport> load(SalesReportQuery query, int? branchId) async =>
       SalesReport(await _get(query.parameters(branchId)));
+
+  Future<Map<String, dynamic>> activity(SalesReportQuery query, int? branchId,
+          {bool detail = false,
+          int page = 1,
+          int? weekday,
+          int? hour,
+          int? cashier,
+          String kind = 'orders'}) =>
+      _get({
+        ...query.parameters(branchId),
+        'report': 'activity',
+        if (detail) 'detail': 'activity',
+        'page': page,
+        'activity_kind': kind,
+        if (weekday != null) 'weekday': weekday,
+        if (hour != null) 'hour': hour,
+        if (cashier != null) 'source_cashier': cashier
+      });
 
   Future<Map<String, dynamic>> details(SalesReportQuery query, int? branchId,
           {required String kind,

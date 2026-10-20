@@ -169,27 +169,42 @@ final class SalesReportService
         }
         $expressions = $bindings = [];
         foreach ($buckets as $i => [$from, $to]) {
-            $conditions = [];
+            $conditions = $windowBindings = [];
             foreach ($c['branches'] as $branch) {
                 [$start, $until] = ReportPeriod::window($from, $to, $branch->timezone ?: 'UTC');
                 $conditions[] = '(orders.branch_id = ? AND COALESCE(orders.completed_at, orders.created_at) >= ? AND COALESCE(orders.completed_at, orders.created_at) < ?)';
-                array_push($bindings, $branch->id, $start, $until);
+                array_push($windowBindings, $branch->id, $start, $until);
             }
             $condition = $conditions === [] ? '1 = 0' : implode(' OR ', $conditions);
             $expressions[] = "SUM(CASE WHEN $condition THEN ".ReportMoney::sql('orders.total')." ELSE 0 END) AS bucket_$i";
+            $expressions[] = "SUM(CASE WHEN $condition THEN 1 ELSE 0 END) AS orders_$i";
+            $expressions[] = "SUM(CASE WHEN $condition THEN COALESCE(report_quantities.units, 0) ELSE 0 END) AS units_$i";
+            array_push($bindings, ...$windowBindings, ...$windowBindings, ...$windowBindings);
         }
-        $totals = $this->selected($c, $p->from, $p->to)->selectRaw(implode(', ', $expressions), $bindings)->first();
+        $orders = $this->selected($c, $p->from, $p->to);
+        // Aggregate items first so multi-item sales never multiply order totals.
+        // Restrict this derived table to the same paid/branch/filter cohort.
+        $quantities = DB::table('order_items')->whereIn('order_id', (clone $orders)->select('orders.id'))
+            ->selectRaw('order_id, SUM(quantity) AS units')->groupBy('order_id');
+        $totals = $orders->leftJoinSub($quantities, 'report_quantities', fn ($join) => $join->on('report_quantities.order_id', '=', 'orders.id'))
+            ->selectRaw(implode(', ', $expressions), $bindings)->first();
         return array_map(fn ($i) => ['date_from' => $buckets[$i][0], 'date_to' => $buckets[$i][1],
             'total' => ReportMoney::decimal((int) ($totals->{"bucket_$i"} ?? 0)),
+            'orders' => (int) ($totals->{"orders_$i"} ?? 0),
+            'items' => (int) ($totals->{"units_$i"} ?? 0),
             'upcoming' => $monthly && $buckets[$i][0] > $p->today], array_keys($buckets));
     }
 
     private function topProducts(Builder $orders): array
     {
-        return DB::table('order_items')->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+        // Resolve snapshot/fallback names before aggregation. MariaDB's strict
+        // GROUP BY checker does not recognise the repeated COALESCE expression.
+        $items = DB::table('order_items')->leftJoin('products', 'products.id', '=', 'order_items.product_id')
             ->whereIn('order_items.order_id', (clone $orders)->select('orders.id'))
-            ->selectRaw("order_items.product_id, COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product') AS product_name, SUM(order_items.quantity) AS quantity, SUM(".ReportMoney::sql('order_items.unit_price')." * order_items.quantity) AS cents")
-            ->groupBy('order_items.product_id', DB::raw("COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product')"))
+            ->selectRaw("order_items.product_id, COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product') AS report_product_name, order_items.quantity, ".ReportMoney::sql('order_items.unit_price')." * order_items.quantity AS line_cents");
+        return DB::query()->fromSub($items, 'report_items')
+            ->selectRaw('product_id, report_product_name AS product_name, SUM(quantity) AS quantity, SUM(line_cents) AS cents')
+            ->groupBy('product_id', 'report_product_name')
             ->orderByDesc('quantity')->orderBy('product_name')->limit(10)->get()->map(fn ($r) => [
                 'product_id' => $r->product_id, 'product_name' => $r->product_name,
                 'quantity' => (int) $r->quantity, 'total' => ReportMoney::decimal((int) $r->cents),
@@ -356,3 +371,4 @@ final class SalesReportService
         return ['rows' => $rows, 'total' => $total, 'page' => $page, 'per_page' => 50];
     }
 }
+
