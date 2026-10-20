@@ -186,10 +186,14 @@ final class SalesReportService
 
     private function topProducts(Builder $orders): array
     {
-        return DB::table('order_items')->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+        // Resolve snapshot/fallback names before aggregation. MariaDB's strict
+        // GROUP BY checker does not recognise the repeated COALESCE expression.
+        $items = DB::table('order_items')->leftJoin('products', 'products.id', '=', 'order_items.product_id')
             ->whereIn('order_items.order_id', (clone $orders)->select('orders.id'))
-            ->selectRaw("order_items.product_id, COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product') AS product_name, SUM(order_items.quantity) AS quantity, SUM(".ReportMoney::sql('order_items.unit_price')." * order_items.quantity) AS cents")
-            ->groupBy('order_items.product_id', DB::raw("COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product')"))
+            ->selectRaw("order_items.product_id, COALESCE(NULLIF(order_items.product_name, ''), products.name, 'Archived product') AS report_product_name, order_items.quantity, ".ReportMoney::sql('order_items.unit_price')." * order_items.quantity AS line_cents");
+        return DB::query()->fromSub($items, 'report_items')
+            ->selectRaw('product_id, report_product_name AS product_name, SUM(quantity) AS quantity, SUM(line_cents) AS cents')
+            ->groupBy('product_id', 'report_product_name')
             ->orderByDesc('quantity')->orderBy('product_name')->limit(10)->get()->map(fn ($r) => [
                 'product_id' => $r->product_id, 'product_name' => $r->product_name,
                 'quantity' => (int) $r->quantity, 'total' => ReportMoney::decimal((int) $r->cents),
@@ -356,3 +360,4 @@ final class SalesReportService
         return ['rows' => $rows, 'total' => $total, 'page' => $page, 'per_page' => 50];
     }
 }
+

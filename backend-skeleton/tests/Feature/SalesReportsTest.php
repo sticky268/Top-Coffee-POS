@@ -63,6 +63,41 @@ class SalesReportsTest extends TestCase
         return '/api/v1/reports/sales?'.http_build_query(['branch_id' => $this->branch->id] + $query);
     }
 
+    public function test_top_products_group_normalized_snapshot_names_under_strict_sql(): void
+    {
+        if (DB::getDriverName() === 'mysql') {
+            $mode = DB::selectOne('SELECT @@SESSION.sql_mode AS modes')->modes;
+            $this->assertStringContainsString('ONLY_FULL_GROUP_BY', $mode);
+        }
+        $category = DB::table('categories')->insertGetId(['business_id' => $this->manager->business_id,
+            'name' => 'Coffee', 'created_at' => now(), 'updated_at' => now()]);
+        $product = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id, 'category_id' => $category,
+            'name' => 'Current name', 'base_price' => '0.10', 'created_at' => now(), 'updated_at' => now()]);
+        $other = DB::table('products')->insertGetId(['business_id' => $this->manager->business_id, 'category_id' => $category,
+            'name' => 'Another product', 'base_price' => '0.10', 'created_at' => now(), 'updated_at' => now()]);
+        foreach ([[$product, null, 1], [$product, '', 2], [$product, 'Current name', 3],
+            [$product, 'Historical name', 4], [$other, 'Current name', 5]] as [$id, $name, $quantity]) {
+            $order = $this->sale('2026-10-19 01:00:00');
+            DB::table('order_items')->insert(['order_id' => $order, 'product_id' => $id,
+                'product_name' => $name, 'quantity' => $quantity, 'unit_price' => '0.10',
+                'created_at' => now(), 'updated_at' => now()]);
+        }
+        // Neither unpaid nor out-of-period lines may enter the aggregation.
+        foreach ([$this->sale('2026-10-19 01:00:00', paid: false), $this->sale('2026-10-17 01:00:00')] as $order) {
+            DB::table('order_items')->insert(['order_id' => $order, 'product_id' => $product,
+                'product_name' => 'Current name', 'quantity' => 100, 'unit_price' => '0.10']);
+        }
+        $rows = $this->getJson($this->url())->assertOk()->assertJsonCount(3, 'data.top_products')->json('data.top_products');
+        $this->assertSame(['Current name', 'Current name', 'Historical name'], array_column($rows, 'product_name'));
+        $this->assertSame([6, 5, 4], array_column($rows, 'quantity'));
+        $this->assertSame(['0.60', '0.50', '0.40'], array_column($rows, 'total'));
+        $this->assertEquals([$product, $other, $product], array_column($rows, 'product_id'));
+        DB::table('products')->where('id', $product)->update(['name' => 'Renamed catalogue', 'deleted_at' => now()]);
+        $rows = collect($this->getJson($this->url())->assertOk()->json('data.top_products'))->keyBy('product_name');
+        $this->assertSame(3, $rows['Renamed catalogue']['quantity']);
+        $this->assertSame(4, $rows['Historical name']['quantity']);
+    }
+
     public function test_server_presets_follow_branch_date_and_exact_boundaries(): void
     {
         // Server is October 18 UTC, but the branch is already on October 19.
@@ -233,3 +268,4 @@ class SalesReportsTest extends TestCase
         $this->assertSame('-100.00', ReportMoney::comparison(0, 100)['percent']);
     }
 }
+

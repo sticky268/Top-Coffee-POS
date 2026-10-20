@@ -88,6 +88,40 @@ jobs:
         env:
           MYSQL_TEST_CONTAINER: ${{ job.services.mysql.id }}
         run: bash tools/test_runtime_grants.sh
+  reports-mariadb:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-disposable-password
+          MYSQL_DATABASE: reports_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-disposable-password"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_KEY: '0123456789abcdef0123456789abcdef'
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: reports_testing
+      DB_USERNAME: root
+      DB_PASSWORD: ci-disposable-password
+    defaults:
+      run:
+        working-directory: backend-skeleton
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Verify reports with strict grouping on XAMPP-compatible MariaDB
+        run: php vendor/bin/phpunit --filter 'SalesReportsTest|ProfitReportsTest|ActivityReportsTest|InventoryReportsTest|BranchComparisonReportsTest'
   manager-pin-format:
     runs-on: ubuntu-latest
     steps:
@@ -269,3 +303,4 @@ jobs:
           path: frontend/build/usb-test/*
           if-no-files-found: error
           retention-days: 7
+
