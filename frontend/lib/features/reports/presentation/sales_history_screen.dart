@@ -159,6 +159,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                               selected: monthly == mode,
                               showCheckmark: false,
                               side: BorderSide.none,
+                              shape: const StadiumBorder(),
                               selectedColor: const Color(0xff2563eb),
                               backgroundColor: Colors.transparent,
                               labelStyle: TextStyle(
@@ -217,8 +218,9 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                           DropdownMenuItem(value: y, child: Text('$y')),
                       ],
                       onChanged: (value) {
-                        if (value != null)
+                        if (value != null) {
                           _select(query.periodSelection('year', year: value));
+                        }
                       },
                     ),
                     const SizedBox(height: 12),
