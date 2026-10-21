@@ -562,11 +562,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
 
                   try {
                     await printerService.connect(ipAddress);
-                    if (Platform.isIOS) {
-                      await printerService.sendPayload(_previewPayload());
-                    } else {
-                      await printerService.printTest();
-                    }
+                    await printerService.sendPayload(_previewPayload());
 
                     if (!mounted) {
                       return;

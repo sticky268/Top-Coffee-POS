@@ -2,6 +2,10 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
+import 'package:top_coffee_pos/features/settings/presentation/receipt_settings_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:top_coffee_pos/core/printer/printer_service.dart';
@@ -59,5 +63,57 @@ void main() {
       image.dispose();
     }
     expect(images[0], isNot(orderedEquals(images[1])));
+  });
+  testWidgets(
+      'font selector saves Niradei and Test Print uses the selected preview font',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final directory = Directory.systemTemp.createTempSync('niradei-settings-');
+    addTearDown(() => directory.deleteSync(recursive: true));
+    const paths = MethodChannel('plugins.flutter.io/path_provider');
+    const printer = MethodChannel('top_coffee_pos/printer');
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(paths, (_) async => directory.path);
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(printer,
+        (call) async {
+      calls.add(call);
+      return true;
+    });
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(paths, null);
+      tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(printer, null);
+    });
+    await tester.pumpWidget(ProviderScope(overrides: [
+      currentBranchProvider.overrideWith(
+          (ref) => CurrentBranchNotifier(ref, listenToAuth: false)),
+    ], child: const MaterialApp(home: ReceiptSettingsScreen())));
+    await tester.pumpAndSettle();
+    final selector = find.byKey(const ValueKey('fontStyleDefault'));
+    await tester.ensureVisible(selector);
+    await tester.pumpAndSettle();
+    await tester.tap(selector);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Niradei').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('fontStyleNiradei')), findsOneWidget);
+    final testPrint = find.text('Test Print');
+    await tester.ensureVisible(testPrint);
+    await tester.pumpAndSettle();
+    await tester.tap(testPrint);
+    await tester.pumpAndSettle();
+    final sent = calls.singleWhere((c) => c.method == 'printReceipt');
+    expect((sent.arguments as Map)['fontStyle'], 'Niradei');
+    expect(
+        calls.map((c) => c.method), ['connect', 'printReceipt', 'disconnect']);
+    final save = find.text('Save Settings');
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect((await ReceiptSettings.load()).fontStyle, 'Niradei');
+    expect(tester.takeException(), isNull);
   });
 }
