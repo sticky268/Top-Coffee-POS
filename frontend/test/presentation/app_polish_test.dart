@@ -274,7 +274,8 @@ void main() {
       );
       await tester.tap(find.widgetWithText(ChoiceChip, '7 Days'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Sales breakdown').hitTestable(), 150);
+      await tester.scrollUntilVisible(
+          find.text('Sales breakdown').hitTestable(), 150);
       await tester.ensureVisible(find.text('Sales breakdown'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Sales breakdown').hitTestable());
