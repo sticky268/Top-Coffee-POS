@@ -199,6 +199,7 @@ void main() {
             );
             expect(find.text('4 Sales · 32 Items'), findsWidgets);
             expect(find.text('Top'), findsOneWidget);
+            expect(find.text(r'$1,405.54'), findsOneWidget);
             expect(tester.takeException(), isNull);
           },
         );

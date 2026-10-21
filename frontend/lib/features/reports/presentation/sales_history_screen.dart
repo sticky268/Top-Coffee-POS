@@ -385,7 +385,12 @@ class _HistoryRow extends StatelessWidget {
     final title = DateFormat(
       monthly ? 'MMMM yyyy' : 'd MMM yyyy',
     ).format(DateTime.parse(row['date_from'] as String));
-    final amount = future ? 'Upcoming' : ReportAmount.parse(row['total']).money;
+    final amount = future
+        ? 'Upcoming'
+        : ReportAmount.parse(row['total']).money.replaceAllMapped(
+            RegExp(r'(\d)(?=(\d{3})+\.)'),
+            (match) => '${match[1]},',
+          );
     final subtitle = future
         ? 'No sales period yet'
         : row['orders'] == null || row['items'] == null
