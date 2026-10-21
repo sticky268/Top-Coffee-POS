@@ -348,6 +348,7 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
             const ListTile(title: Text('No paid sales in this selection.')),
           for (final row in rows)
             ExpansionTile(
+              key: PageStorageKey('profit-$title-${row['id']}'),
               title: Text(row['name'] as String),
               subtitle: Text(
                   '${row['quantity']} units · ${reportDisplayValue(profitValue(row, 'revenue'))} revenue\nProfit ${reportDisplayValue(profitValue(row, 'gross_profit'))}'),
