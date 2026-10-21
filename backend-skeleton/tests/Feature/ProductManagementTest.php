@@ -416,4 +416,27 @@ class ProductManagementTest extends TestCase
         $productJson = collect($response->json('data'))->firstWhere('name', 'Latte');
         $this->assertEquals(3.00, $productJson['price']);
     }
+    public function test_photo_updates_accept_multipart_boolean_flags_and_variant_fields(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $branch = Branch::factory()->create(['business_id' => $this->business->id]);
+        $manager = $this->makeManager($branch);
+        $category = Category::forceCreate(['name' => 'Photo coffee', 'business_id' => $this->business->id]);
+        $product = Product::forceCreate(['name' => 'Latte', 'category_id' => $category->id, 'business_id' => $this->business->id, 'base_price' => '3.50', 'is_active' => true]);
+        $product->branches()->attach($branch->id, ['is_available' => true, 'price_override' => '4.25']);
+        $variant = ProductVariant::create(['product_id' => $product->id, 'name' => 'Large', 'price_delta' => '0.75', 'is_active' => true]);
+        foreach (['0', '1'] as $active) {
+            $photo = \Illuminate\Http\UploadedFile::fake()->createWithContent('latte.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII='));
+            $this->actingAs($manager)->post('/api/v1/products/'.$product->id, [
+                '_method' => 'PATCH', 'name' => 'Latte', 'category_id' => (string) $category->id,
+                'base_price' => '3.50', 'is_active' => $active, 'image' => $photo,
+                'variants' => [['id' => (string) $variant->id, 'name' => 'Large', 'price_delta' => '0.75', 'is_active' => '0', 'recipe_multiplier' => '1.25']],
+            ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('data.is_active', $active === '1');
+            $this->assertDatabaseHas('branch_product', ['product_id' => $product->id, 'branch_id' => $branch->id, 'price_override' => '4.25']);
+            $this->assertDatabaseHas('product_variants', ['id' => $variant->id, 'is_active' => false, 'recipe_multiplier' => '1.25']);
+            $image = $product->images()->latest('id')->firstOrFail();
+            \Illuminate\Support\Facades\Storage::disk('public')->assertExists($image->path);
+        }
+    }
+
 }
