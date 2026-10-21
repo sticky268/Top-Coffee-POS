@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:go_router/go_router.dart';
+import 'package:top_coffee_pos/features/products/presentation/product_form_screen.dart';
+import 'package:top_coffee_pos/features/subscription/domain/subscription_models.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
@@ -162,6 +165,130 @@ void main() {
       });
     }
   }
+
+  testWidgets(
+    'saved menu item opens its real edit form from row and action menu',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final auth = MenuAuth();
+      when(() => auth.hasStoredToken()).thenAnswer((_) async => true);
+      when(() => auth.getCurrentUser()).thenAnswer((_) async => user);
+      final subscription = MenuSubscription();
+      when(() => subscription.getSubscription()).thenAnswer(
+        (_) async => SubscriptionDetails.fromJson(const {
+          'plan': null,
+          'branch_usage': {'current': 1},
+          'subscription': {
+            'status': 'active',
+            'can_modify': true,
+            'is_active': true,
+            'is_expired': false,
+          },
+        }),
+      );
+      ProductFormArgs? opened;
+      final router = GoRouter(
+        initialLocation: '/manage-menu',
+        routes: [
+          GoRoute(
+            path: '/manage-menu',
+            builder: (_, __) => const ManageMenuScreen(),
+          ),
+          GoRoute(
+            path: '/products/form',
+            builder: (_, state) {
+              opened = state.extra! as ProductFormArgs;
+              return ProductFormScreen(args: opened!);
+            },
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(auth),
+            subscriptionRepositoryProvider.overrideWithValue(subscription),
+            currentBranchProvider.overrideWith(
+              (ref) =>
+                  CurrentBranchNotifier(ref, listenToAuth: false)
+                    ..selectBranch(branch),
+            ),
+            menuDataProvider.overrideWith(
+              (ref) async => {
+                ...catalog,
+                'products': [
+                  {
+                    'id': 6,
+                    'name': 'Menu latte',
+                    'category_id': 1,
+                    'category': {'id': 1, 'name': 'Coffee'},
+                    'base_price': '3.50',
+                    'is_active': true,
+                    'images': [
+                      {'url': 'https://example.invalid/latte.jpg'},
+                    ],
+                    'variants': [
+                      {
+                        'id': 8,
+                        'name': 'Large',
+                        'price_delta': '0.75',
+                        'recipe_multiplier': '1.250',
+                        'is_active': true,
+                      },
+                    ],
+                    'branches': [
+                      {
+                        'id': 1,
+                        'pivot': {'price_override': '4.25'},
+                      },
+                    ],
+                  },
+                ],
+              },
+            ),
+          ],
+          child: MaterialApp.router(
+            routerConfig: router,
+            theme: AppTheme.light,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Items'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Menu latte'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit Product'), findsOneWidget);
+      expect(opened!.initialProduct!.basePrice, 3.50);
+      expect(opened!.initialProduct!.categoryId, 1);
+      expect(
+        opened!.initialProduct!.imageUrl,
+        'https://example.invalid/latte.jpg',
+      );
+      expect(opened!.initialProduct!.variants.single.priceDelta, .75);
+      expect(opened!.initialProduct!.variants.single.recipeMultiplier, 1.25);
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.widgetWithText(TextFormField, 'Base price'),
+            )
+            .controller!
+            .text,
+        '3.50',
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Item actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit shared item'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit Product'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final withRecipe in [false, true]) {
     testWidgets('saved modifier reopens for editing, recipe $withRecipe', (

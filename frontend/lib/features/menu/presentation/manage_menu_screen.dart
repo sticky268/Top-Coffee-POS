@@ -154,13 +154,7 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
           categories: categories,
           initialProduct: record == null
               ? null
-              : ManagedProduct.fromJson({
-                  ...record,
-                  'images': [
-                    for (final image in record['images'] as List? ?? [])
-                      {...image as Map, 'url': image['url']},
-                  ],
-                }),
+              : ManagedProduct.fromJson(record),
         ),
       );
     } else {
