@@ -139,7 +139,7 @@ void main() {
                                     onTap: () => taps++,
                                   ),
                                   QuickAction(
-                                    label: 'Products',
+                                    label: 'Manage Menu',
                                     icon: Icons.local_cafe_outlined,
                                     onTap: () => taps++,
                                   ),
