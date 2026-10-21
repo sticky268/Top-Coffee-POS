@@ -8,10 +8,14 @@ import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/menu/presentation/manage_menu_screen.dart';
+import 'package:top_coffee_pos/features/menu/data/menu_repository.dart';
 import 'package:top_coffee_pos/features/menu/presentation/menu_editor_screen.dart';
+import 'package:top_coffee_pos/features/subscription/data/subscription_repository.dart';
 import '../../presentation/ui_polish_test.dart' show savePreview;
 
 class MenuAuth extends Mock implements AuthRepository {}
+
+class MenuSubscription extends Mock implements SubscriptionRepository {}
 
 const branch = BranchSummary(id: 1, name: 'Riverside', code: 'PP-01');
 const user = AuthenticatedUser(
@@ -103,6 +107,59 @@ void main() {
           );
         });
       }
+    }
+  }
+
+  for (final width in [360.0, 800.0]) {
+    for (final dark in [false, true]) {
+      testWidgets('section search is clearable at $width dark $dark', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 1000));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final key = GlobalKey();
+        final subscription = MenuSubscription();
+        when(
+          () => subscription.getSubscription(),
+        ).thenAnswer((_) async => throw Exception('Read-only preview'));
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              subscriptionRepositoryProvider.overrideWithValue(subscription),
+              menuDataProvider.overrideWith((ref) async => catalog),
+            ],
+            child: MaterialApp(
+              theme: dark ? AppTheme.dark : AppTheme.light,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(2)),
+                child: child!,
+              ),
+              home: RepaintBoundary(
+                key: key,
+                child: const MenuSectionScreen(section: 'Categories'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Coffee'), findsOneWidget);
+        await tester.enterText(find.byType(TextField), '  coffee  ');
+        await tester.pumpAndSettle();
+        expect(find.text('Coffee'), findsOneWidget);
+        await tester.enterText(find.byType(TextField), 'tea');
+        await tester.pumpAndSettle();
+        expect(find.text('No matches for “tea”.'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await savePreview(tester, key, 'menu-search-empty-$width-$dark');
+        await tester.tap(find.byTooltip('Clear search'));
+        await tester.pumpAndSettle();
+        expect(find.text('Coffee'), findsOneWidget);
+        expect(find.text('1 entry shown'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await savePreview(tester, key, 'menu-section-$width-$dark');
+      });
     }
   }
 

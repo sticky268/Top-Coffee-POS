@@ -72,6 +72,8 @@ class ManageMenuScreen extends ConsumerWidget {
                     ),
                   ])
                     Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      clipBehavior: Clip.antiAlias,
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -112,16 +114,28 @@ class MenuSectionScreen extends ConsumerStatefulWidget {
 }
 
 class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
+  final searchController = TextEditingController();
   String search = '';
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   bool archived = false;
 
   Future<void> edit(MenuRecord data, MenuRecord? record) async {
     if (widget.section == 'Categories' &&
         record != null &&
         record['branch_id'] == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
           content: Text(
-              'This shared category is managed centrally. Create a branch category to customise your menu.')));
+            'This shared category is managed centrally. Create a branch category to customise your menu.',
+          ),
+        ),
+      );
       return;
     }
     if (widget.section == 'Items') {
@@ -175,7 +189,15 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
               onPressed: () => edit(asyncData.requireValue, null),
               icon: const Icon(Icons.add),
               label: Text(
-                'Add ${widget.section == 'Categories' ? 'category' : widget.section == 'Items' ? 'item' : widget.section == 'Combos' ? 'combo' : widget.section == 'Discounts' ? 'discount' : 'modifier group'}',
+                'Add ${widget.section == 'Categories'
+                    ? 'category'
+                    : widget.section == 'Items'
+                    ? 'item'
+                    : widget.section == 'Combos'
+                    ? 'combo'
+                    : widget.section == 'Discounts'
+                    ? 'discount'
+                    : 'modifier group'}',
               ),
             )
           : null,
@@ -200,35 +222,52 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
             ),
           ),
           data: (data) {
-            final source = data[
-                widget.section == 'Items' || widget.section == 'Combos'
-                    ? 'products'
-                    : widget.section.toLowerCase()] as List;
+            final source =
+                data[widget.section == 'Items' || widget.section == 'Combos'
+                        ? 'products'
+                        : widget.section.toLowerCase()]
+                    as List;
             final rows = source
                 .map((e) => Map<String, dynamic>.from(e as Map))
                 .where((row) {
-              final combo = (row['combo_slots'] as List? ?? []).isNotEmpty;
-              return (widget.section != 'Items' || !combo) &&
-                  (widget.section != 'Combos' || combo) &&
-                  (archived || row['is_active'] != false) &&
-                  '${row['name']}'.toLowerCase().contains(
-                        search.toLowerCase(),
+                  final combo = (row['combo_slots'] as List? ?? []).isNotEmpty;
+                  return (widget.section != 'Items' || !combo) &&
+                      (widget.section != 'Combos' || combo) &&
+                      (archived || row['is_active'] != false) &&
+                      '${row['name']}'.toLowerCase().contains(
+                        search.trim().toLowerCase(),
                       );
-            }).toList();
+                })
+                .toList();
             return Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: TextField(
+                    controller: searchController,
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
                       labelText: 'Search ${widget.section.toLowerCase()}',
+                      suffixIcon: search.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              icon: const Icon(Icons.close),
+                              onPressed: () {
+                                searchController.clear();
+                                setState(() => search = '');
+                              },
+                            ),
                     ),
                     onChanged: (v) => setState(() => search = v),
                   ),
                 ),
                 SwitchListTile(
                   title: const Text('Include archived'),
+                  subtitle: Text(
+                    '${rows.length} ${rows.length == 1 ? 'entry' : 'entries'} shown',
+                  ),
                   value: archived,
                   onChanged: (v) => setState(() => archived = v),
                 ),
@@ -244,30 +283,62 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                       itemCount: rows.isEmpty ? 1 : rows.length,
                       itemBuilder: (_, index) {
                         if (rows.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                              'No matching entries. Add one to get started.',
+                          return Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  search.trim().isEmpty
+                                      ? Icons.menu_book_outlined
+                                      : Icons.search_off,
+                                  size: 40,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  search.trim().isEmpty
+                                      ? 'No ${widget.section.toLowerCase()} to show.'
+                                      : 'No matches for “${search.trim()}”.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  search.trim().isNotEmpty
+                                      ? 'Try another name or clear the search.'
+                                      : canModify
+                                      ? 'Use the Add button to create your first entry, or include archived entries.'
+                                      : 'Include archived entries or contact your manager.',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
                           );
                         }
                         final row = rows[index];
                         return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          clipBehavior: Clip.antiAlias,
                           child: ListTile(
                             title: Text('${row['name']}'),
                             subtitle: Text(
                               row['is_active'] == false
                                   ? 'Archived · history retained'
                                   : widget.section == 'Discounts'
-                                      ? '${row['type'] == 'percent' ? '${row['value']}%' : '\$${row['value']}'} · ${row['branch_id'] == null ? 'All branches' : 'This branch'}'
-                                      : widget.section == 'Items' ||
-                                              widget.section == 'Combos'
-                                          ? 'Base price \$${row['base_price']} · tap to edit'
-                                          : widget.section == 'Categories'
-                                              ? 'Display order ${row['sort_order']} · ${row['branch_id'] == null ? 'Shared category' : 'This branch'}'
-                                              : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
+                                  ? '${row['type'] == 'percent' ? '${row['value']}%' : '\$${row['value']}'} · ${row['branch_id'] == null ? 'All branches' : 'This branch'}'
+                                  : widget.section == 'Items' ||
+                                        widget.section == 'Combos'
+                                  ? 'Base price \$${row['base_price']} · tap to edit'
+                                  : widget.section == 'Categories'
+                                  ? 'Display order ${row['sort_order']} · ${row['branch_id'] == null ? 'Shared category' : 'This branch'}'
+                                  : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
                             ),
-                            trailing: widget.section == 'Items' ||
+                            trailing:
+                                widget.section == 'Items' ||
                                     widget.section == 'Combos'
                                 ? PopupMenuButton<String>(
                                     enabled: canModify,
@@ -279,24 +350,31 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                                       if (action == 'branch' &&
                                           context.mounted) {
                                         await showDialog<bool>(
-                                            context: context,
-                                            builder: (_) =>
-                                                BranchAvailabilityDialog(
-                                                    product: row));
+                                          context: context,
+                                          builder: (_) =>
+                                              BranchAvailabilityDialog(
+                                                product: row,
+                                              ),
+                                        );
                                         ref.invalidate(menuDataProvider);
                                         ref.invalidate(
-                                            posCatalogControllerProvider);
+                                          posCatalogControllerProvider,
+                                        );
                                       }
                                     },
                                     itemBuilder: (_) => const [
-                                          PopupMenuItem(
-                                              value: 'edit',
-                                              child: Text('Edit shared item')),
-                                          PopupMenuItem(
-                                              value: 'branch',
-                                              child: Text(
-                                                  'Branch pricing & availability'))
-                                        ])
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Text('Edit shared item'),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'branch',
+                                        child: Text(
+                                          'Branch pricing & availability',
+                                        ),
+                                      ),
+                                    ],
+                                  )
                                 : const Icon(Icons.chevron_right),
                             onTap: canModify ? () => edit(data, row) : null,
                           ),

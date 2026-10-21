@@ -77,8 +77,9 @@ void main() {
       );
       expect(two.discountTotal, .94);
       expect(
-        two.copyWith(
-            menuDiscount: const {'type': 'fixed', 'value': '50'}).total,
+        two
+            .copyWith(menuDiscount: const {'type': 'fixed', 'value': '50'})
+            .total,
         0,
       );
       expect(
@@ -147,6 +148,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Check the number of choices.'), findsOneWidget);
     expect(result, isNull);
+    await tester.tap(find.text('Oat (+\$0.45)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Soy (+\$0.20)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Check the number of choices.'), findsNothing);
+    expect(find.text('Add · \$3.95'), findsOneWidget);
     await tester.tap(find.text('Oat (+\$0.45)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add · \$4.20'));
