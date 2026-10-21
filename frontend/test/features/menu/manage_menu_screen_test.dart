@@ -183,7 +183,7 @@ void main() {
               section: 'Modifiers',
               catalog: {
                 ...catalog,
-                'ingredients': [
+                'ingredients': const [
                   {'id': 7, 'name': 'Oat milk'},
                 ],
               },
@@ -194,7 +194,7 @@ void main() {
                 'max_select': 1,
                 'is_required': false,
                 'is_active': true,
-                'products': [],
+                'products': const [],
                 'modifiers': [
                   {
                     'id': 8,
