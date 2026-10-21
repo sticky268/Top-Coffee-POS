@@ -329,6 +329,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
               ),
               items: const [
                 DropdownMenuItem(value: 'Default', child: Text('Default')),
+                DropdownMenuItem(value: 'Niradei', child: Text('Niradei')),
                 DropdownMenuItem(
                   value: 'Sans Serif',
                   child: Text('Sans Serif'),
@@ -1005,6 +1006,9 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     String? family;
 
     switch (fontStyle) {
+      case 'Niradei':
+        family = 'Niradei';
+        break;
       case 'Sans Serif':
         family = 'sans-serif';
         break;
@@ -1021,7 +1025,11 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
     return TextStyle(
       fontFamily: family,
       fontSize: fontSize,
-      fontWeight: fontWeight,
+      fontWeight: fontStyle == 'Niradei' &&
+              (fontWeight?.index ?? 3) >= FontWeight.w700.index
+          ? FontWeight.w900
+          : fontWeight,
+      fontFamilyFallback: const ['TopCoffeeReceiptKhmer'],
       color: AppColors.receiptInk,
     );
   }
