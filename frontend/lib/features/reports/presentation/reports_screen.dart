@@ -139,7 +139,9 @@ class _ReportContent extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '${_date(report.from)} – ${_date(report.to)}',
+            report.from == report.to
+                ? _date(report.from)
+                : '${_date(report.from)} – ${_date(report.to)}',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
@@ -617,6 +619,7 @@ class _MetricCard extends StatelessWidget {
             : 'No change · both periods zero')
         : '${comparison['percent']}% vs previous period';
     return Card(
+      margin: const EdgeInsets.only(bottom: 8),
       color: prominent ? Theme.of(context).colorScheme.primaryContainer : null,
       child: InkWell(
         onTap: onTap,
@@ -658,6 +661,7 @@ class _Section extends StatelessWidget {
   final List<Widget> children;
   @override
   Widget build(BuildContext context) => Card(
+        margin: const EdgeInsets.only(bottom: 8),
         child: ExpansionTile(
           key: PageStorageKey(title),
           title: Text(title, style: Theme.of(context).textTheme.titleMedium),
