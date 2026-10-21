@@ -60,7 +60,7 @@ class MenuSaleService
             $choice = collect($slot['choices'])->first(fn ($c) => (int) $c['product_id'] === (int) ($selections[$i] ?? 0));
             abort_unless($choice, 422, 'A combo selection is no longer offered.');
             $component = $this->product((int) $choice['product_id'], $branch);
-            abort_if($component->combo_slots || $component->modifierGroups->contains(fn ($g) => $g->is_required || $g->min_select > 0), 422, 'A combo component requires configuration. Review the combo menu.');
+            abort_if($component->combo_slots || $component->modifierGroups->contains(fn ($g) => $g->is_active && ($g->is_required || $g->min_select > 0)), 422, 'A combo component requires configuration. Review the combo menu.');
             $componentVariant = isset($choice['variant_id']) ? $component->variants()->where('is_active', true)->find($choice['variant_id']) : null;
             abort_if(isset($choice['variant_id']) && ! $componentVariant, 422, 'A combo size is no longer available.');
             $price += self::cents($choice['extra_price'] ?? 0);

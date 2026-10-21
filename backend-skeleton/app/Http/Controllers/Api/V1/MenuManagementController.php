@@ -35,7 +35,7 @@ class MenuManagementController extends Controller
                     foreach ($product->images as $image) $image->setAttribute('url', asset('storage/'.$image->path));
                 }),
             'categories' => Category::where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $branch))->orderBy('sort_order')->get(),
-            'modifiers' => ModifierGroup::with(['modifiers.recipeItems', 'products:id,name'])->orderBy('name')->get(),
+            'modifiers' => ModifierGroup::with(['modifiers.recipeItems' => fn ($q) => $q->where('branch_id', $branch), 'products:id,name'])->orderBy('name')->get(),
             'discounts' => MenuDiscount::where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $branch))->orderBy('name')->get(),
             'ingredients' => Ingredient::where('branch_id', $branch)->orderBy('name')->get(['id', 'name']),
         ]]);
@@ -62,7 +62,7 @@ class MenuManagementController extends Controller
             abort_if(count($ids) !== count(array_unique($ids)), 422, 'Each slot must have distinct products.');
             foreach ($slot['choices'] as $choice) {
                 $product = Product::whereHas('branches', fn ($q) => $q->where('branches.id', $branch))->findOrFail($choice['product_id']);
-                abort_if($product->combo_slots || $product->modifierGroups()->where(fn ($q) => $q->where('is_required', true)->orWhere('min_select', '>', 0))->exists(), 422, 'Choose individual items without required modifiers as combo components.');
+                abort_if($product->combo_slots || $product->modifierGroups()->where('is_active', true)->where(fn ($q) => $q->where('is_required', true)->orWhere('min_select', '>', 0))->exists(), 422, 'Choose individual items without required modifiers as combo components.');
                 abort_if(isset($choice['variant_id']) && ! $product->variants()->where('is_active', true)->whereKey($choice['variant_id'])->exists(), 422, 'Choose an active size belonging to the component.');
             }
         }
@@ -89,13 +89,15 @@ class MenuManagementController extends Controller
             'options' => 'required|array|min:1|max:50', 'options.*.id' => 'nullable|integer|distinct',
             'options.*.name' => 'required|string|max:120', 'options.*.price_delta' => 'required|decimal:0,2|min:0|max:99999.99',
             'options.*.is_active' => 'required|boolean', 'options.*.recipe' => 'present|array',
-            'options.*.recipe.*.ingredient_id' => 'required|integer|distinct',
+            'options.*.recipe.*.ingredient_id' => 'required|integer',
             'options.*.recipe.*.quantity_used' => 'required|decimal:0,3|gt:0|max:999999',
         ]);
         $activeCount = collect($data['options'])->where('is_active', true)->count();
         abort_if(($data['is_active'] ?? true) && max($data['min_select'], $data['is_required'] ? 1 : 0) > $activeCount, 422, 'Not enough active options for the required choices.');
         foreach ($data['product_ids'] as $productId) Product::findOrFail($productId);
         foreach ($data['options'] as $option) {
+            $ingredientIds = array_column($option['recipe'], 'ingredient_id');
+            abort_if(count($ingredientIds) !== count(array_unique($ingredientIds)), 422, 'List an ingredient only once per modifier option.');
             foreach ($option['recipe'] as $row) Ingredient::where('branch_id', $branch)->findOrFail($row['ingredient_id']);
         }
         $group = DB::transaction(function () use ($id, $data, $branch, $request) {
