@@ -30,7 +30,7 @@ class MenuManagementController extends Controller
         $this->authorizeMenu($request);
         $branch = $this->branch($request);
         return response()->json(['data' => [
-            'products' => Product::with(['category', 'variants', 'branches', 'modifierGroups', 'images'])
+            'products' => Product::with(['category', 'variants', 'branches' => fn ($q) => $q->where('branches.id', $branch), 'modifierGroups', 'images'])
                 ->whereHas('branches', fn ($q) => $q->where('branches.id', $branch))->orderBy('name')->get()->each(function ($product) {
                     foreach ($product->images as $image) $image->setAttribute('url', asset('storage/'.$image->path));
                 }),
@@ -84,7 +84,7 @@ class MenuManagementController extends Controller
         $branch = $this->branch($request);
         $data = $request->validate([
             'name' => 'required|string|max:120', 'min_select' => 'required|integer|min:0|max:50',
-            'max_select' => 'required|integer|min:1|max:50|gte:min_select', 'is_required' => 'required|boolean',
+            'max_select' => 'required|integer|min:1|max:50|gte:min_select', 'is_required' => 'required|boolean', 'is_active' => 'sometimes|boolean',
             'product_ids' => 'present|array', 'product_ids.*' => 'integer|distinct',
             'options' => 'required|array|min:1|max:50', 'options.*.id' => 'nullable|integer|distinct',
             'options.*.name' => 'required|string|max:120', 'options.*.price_delta' => 'required|decimal:0,2|min:0|max:99999.99',
@@ -93,7 +93,7 @@ class MenuManagementController extends Controller
             'options.*.recipe.*.quantity_used' => 'required|decimal:0,3|gt:0|max:999999',
         ]);
         $activeCount = collect($data['options'])->where('is_active', true)->count();
-        abort_if(max($data['min_select'], $data['is_required'] ? 1 : 0) > $activeCount, 422, 'Not enough active options for the required choices.');
+        abort_if(($data['is_active'] ?? true) && max($data['min_select'], $data['is_required'] ? 1 : 0) > $activeCount, 422, 'Not enough active options for the required choices.');
         foreach ($data['product_ids'] as $productId) Product::findOrFail($productId);
         foreach ($data['options'] as $option) {
             foreach ($option['recipe'] as $row) Ingredient::where('branch_id', $branch)->findOrFail($row['ingredient_id']);
@@ -101,7 +101,7 @@ class MenuManagementController extends Controller
         $group = DB::transaction(function () use ($id, $data, $branch, $request) {
             $group = $id ? ModifierGroup::lockForUpdate()->findOrFail($id) : new ModifierGroup;
             $before = $group->exists ? $group->load('modifiers')->toArray() : null;
-            $group->fill(collect($data)->only(['name', 'min_select', 'max_select', 'is_required'])->all())->save();
+            $group->fill(collect($data)->only(['name', 'min_select', 'max_select', 'is_required', 'is_active'])->all())->save();
             $kept = [];
             foreach ($data['options'] as $option) {
                 $modifier = isset($option['id']) ? $group->modifiers()->findOrFail($option['id']) : $group->modifiers()->make();

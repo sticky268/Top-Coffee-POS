@@ -93,11 +93,12 @@ class _AvailabilityState extends ConsumerState<BranchAvailabilityDialog> {
                                 : price.text.trim());
                         if (context.mounted) Navigator.pop(context, true);
                       } catch (e) {
-                        if (mounted)
+                        if (mounted) {
                           setState(() {
                             error = menuError(e);
                             saving = false;
                           });
+                        }
                       }
                     },
               child: Text(saving ? 'Saving…' : 'Save'))

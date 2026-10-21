@@ -36,7 +36,6 @@ import '../../features/pos/presentation/select_table_screen.dart';
 import '../../features/pos/presentation/open_order_screen.dart';
 
 import '../../features/pos/presentation/table_management_screen.dart';
-import '../../features/products/presentation/category_management_screen.dart';
 import '../../features/products/presentation/product_form_screen.dart';
 import '../../features/menu/presentation/manage_menu_screen.dart';
 import '../../features/purchasing/presentation/purchase_history_screen.dart';
@@ -269,7 +268,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/products/categories',
-            builder: (context, state) => const CategoryManagementScreen(),
+            builder: (context, state) =>
+                const MenuSectionScreen(section: 'Categories'),
           ),
           GoRoute(
             path: '/products/form',

@@ -198,9 +198,8 @@ void main() {
               );
               await tester.pumpAndSettle();
               await tester.runAsync(() async {
-                final boundary =
-                    key.currentContext!.findRenderObject()!
-                        as RenderRepaintBoundary;
+                final boundary = key.currentContext!.findRenderObject()!
+                    as RenderRepaintBoundary;
                 final image = await boundary.toImage(pixelRatio: 1);
                 final bytes = await image.toByteData(
                   format: ui.ImageByteFormat.png,
@@ -285,15 +284,16 @@ void main() {
         width < 300
             ? 1
             : width < 600
-            ? 2
-            : 4,
+                ? 2
+                : 4,
       );
       final price = tester.renderObject<RenderParagraph>(find.text('\$3.50'));
       expect(price.didExceedMaxLines, isFalse);
     });
   }
 
-  testWidgets('Categories selects one navigation item', (tester) async {
+  testWidgets('Categories selects the Manage Menu navigation item',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final auth = MockAuthRepository();
@@ -314,7 +314,7 @@ void main() {
         .where((tile) => tile.selected)
         .toList();
     expect(selected, hasLength(1));
-    expect((selected.single.title! as Text).data, 'Categories');
+    expect((selected.single.title! as Text).data, 'Manage Menu');
     expect(tester.takeException(), isNull);
   });
 }

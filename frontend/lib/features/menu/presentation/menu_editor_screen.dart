@@ -25,6 +25,7 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
   late final MenuRecord draft;
   bool saving = false;
   String? error;
+  bool get category => widget.section == 'Categories';
   bool get combo => widget.section == 'Combos';
   bool get discount => widget.section == 'Discounts';
   List<MenuRecord> records(String key) => (widget.catalog[key] as List)
@@ -42,7 +43,9 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
     );
     draft.putIfAbsent('name', () => '');
     draft.putIfAbsent('is_active', () => true);
-    if (combo) {
+    if (category) {
+      draft.putIfAbsent('sort_order', () => 0);
+    } else if (combo) {
       draft.putIfAbsent('base_price', () => '0.00');
       draft.putIfAbsent('combo_slots', () => <dynamic>[]);
     } else if (discount) {
@@ -153,7 +156,10 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
     final branch = ref.read(currentBranchProvider)?.id;
     if (branch == null) return;
     if (combo && (draft['combo_slots'] as List).isEmpty ||
-        !combo && !discount && (draft['options'] as List).isEmpty) {
+        !category &&
+            !combo &&
+            !discount &&
+            (draft['options'] as List).isEmpty) {
       setState(
         () => error =
             combo ? 'Add at least one combo slot.' : 'Add at least one option.',
@@ -184,7 +190,7 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
       child: Scaffold(
         appBar: PageAppBar(
           title: Text(
-            '${widget.initial == null ? 'Add' : 'Edit'} ${combo ? 'combo' : discount ? 'discount' : 'modifier group'}',
+            '${widget.initial == null ? 'Add' : 'Edit'} ${category ? 'category' : combo ? 'combo' : discount ? 'discount' : 'modifier group'}',
           ),
         ),
         body: PageContent(
@@ -197,26 +203,29 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    combo || discount
+                    category || combo || discount
                         ? 'Branch: ${branch?.name ?? ''}'
                         : 'Group and prices are shared across the business. Ingredient usage below applies to ${branch?.name ?? 'this branch'}.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
                   text('Name', draft, 'name'),
+                  if (category)
+                    text('Display order (lower numbers first)', draft,
+                        'sort_order',
+                        integer: true),
                   if (combo) ...comboFields(),
                   if (discount) ...discountFields(),
-                  if (!combo && !discount) ...modifierFields(),
-                  if (combo || discount)
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
-                      subtitle: const Text(
-                        'Archive to stop new sales while retaining history.',
-                      ),
-                      value: draft['is_active'] == true,
-                      onChanged: (v) => setState(() => draft['is_active'] = v),
+                  if (!category && !combo && !discount) ...modifierFields(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Active'),
+                    subtitle: const Text(
+                      'Archive to stop new sales while retaining history.',
                     ),
+                    value: draft['is_active'] == true,
+                    onChanged: (v) => setState(() => draft['is_active'] = v),
+                  ),
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),

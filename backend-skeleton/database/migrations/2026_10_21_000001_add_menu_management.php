@@ -15,6 +15,7 @@ return new class extends Migration
             $table->json('menu_configuration')->nullable();
             $table->text('variant_name')->nullable()->change();
         });
+        Schema::table('modifier_groups', fn (Blueprint $table) => $table->boolean('is_active')->default(true));
         Schema::create('menu_discounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('business_id')->constrained();
@@ -34,6 +35,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('menu_discounts');
+        Schema::table('modifier_groups', fn (Blueprint $table) => $table->dropColumn('is_active'));
         Schema::table('order_items', fn (Blueprint $table) => $table->dropColumn('menu_configuration'));
         Schema::table('products', fn (Blueprint $table) => $table->dropColumn('combo_slots'));
     }

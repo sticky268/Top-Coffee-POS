@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/cart_controller.dart';
+import '../../application/pos_catalog_controller.dart';
+import '../../application/pos_catalog_state.dart';
 import '../../domain/pos_models.dart';
 import 'product_card.dart';
 import 'variant_selector_sheet.dart';
@@ -72,10 +74,12 @@ class ProductGrid extends ConsumerWidget {
           quantityInCart: quantities[product.id] ?? 0,
           onTap: () async {
             if (product.needsConfiguration) {
+              final catalog = ref.read(posCatalogControllerProvider);
               final item = await showMenuSelection(
                 context,
                 product,
-                catalog: products,
+                catalog:
+                    catalog is PosCatalogLoaded ? catalog.products : products,
               );
               if (item == null || !context.mounted) return;
               if (onConfiguredSelected != null) {

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 
 class TenantIntegrity
 {
-    public const OWNED_TABLES = ['categories', 'products', 'customers', 'suppliers', 'expense_categories', 'modifier_groups', 'audit_logs'];
+    public const OWNED_TABLES = ['categories', 'products', 'customers', 'suppliers', 'expense_categories', 'modifier_groups', 'menu_discounts', 'audit_logs'];
 
     public function report(): array
     {
@@ -17,6 +17,7 @@ class TenantIntegrity
             $unowned[$table] = DB::table($table)->whereNull('business_id')->count();
         }
         $links = [
+            'menu_discount_branch' => ['menu_discounts', 'branches', 'branch_id', 'id', 'a.business_id', 'b.business_id'],
             'category_branch' => ['categories', 'branches', 'branch_id', 'id', 'a.business_id', 'b.business_id'],
             'product_category' => ['products', 'categories', 'category_id', 'id', 'a.business_id', 'b.business_id'],
             'customer_branch' => ['customers', 'branches', 'branch_id', 'id', 'a.business_id', 'b.business_id'],

@@ -10,7 +10,6 @@ import '../../auth/application/auth_state.dart';
 import '../../products/domain/managed_product_models.dart';
 import '../../pos/domain/pos_models.dart';
 import '../../products/presentation/product_form_screen.dart';
-import '../../products/presentation/category_management_screen.dart';
 import 'branch_availability_dialog.dart';
 import '../data/menu_repository.dart';
 import '../../pos/application/pos_catalog_controller.dart';
@@ -90,11 +89,8 @@ class ManageMenuScreen extends ConsumerWidget {
                             : () async {
                                 await Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => section.$1 == 'Categories'
-                                        ? const CategoryManagementScreen()
-                                        : MenuSectionScreen(
-                                            section: section.$1,
-                                          ),
+                                    builder: (_) =>
+                                        MenuSectionScreen(section: section.$1),
                                   ),
                                 );
                                 ref.invalidate(menuDataProvider);
@@ -120,6 +116,14 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
   bool archived = false;
 
   Future<void> edit(MenuRecord data, MenuRecord? record) async {
+    if (widget.section == 'Categories' &&
+        record != null &&
+        record['branch_id'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'This shared category is managed centrally. Create a branch category to customise your menu.')));
+      return;
+    }
     if (widget.section == 'Items') {
       final categories = (data['categories'] as List)
           .map((e) => PosCategory.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -259,7 +263,9 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                                       : widget.section == 'Items' ||
                                               widget.section == 'Combos'
                                           ? 'Base price \$${row['base_price']} · tap to edit'
-                                          : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
+                                          : widget.section == 'Categories'
+                                              ? 'Display order ${row['sort_order']} · ${row['branch_id'] == null ? 'Shared category' : 'This branch'}'
+                                              : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
                             ),
                             trailing: widget.section == 'Items' ||
                                     widget.section == 'Combos'

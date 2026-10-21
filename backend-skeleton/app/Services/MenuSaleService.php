@@ -21,7 +21,7 @@ class MenuSaleService
 
     public function product(int $id, int $branch): Product
     {
-        $product = Product::where('is_active', true)->whereHas('branches', fn ($q) =>
+        $product = Product::where('is_active', true)->whereHas('category', fn ($q) => $q->where('is_active', true))->whereHas('branches', fn ($q) =>
             $q->where('branches.id', $branch)->where('branch_product.is_available', true))
             ->with(['branches' => fn ($q) => $q->where('branches.id', $branch), 'modifierGroups.modifiers'])->find($id);
         abort_unless($product, 422, "Product {$id} is not available at this branch.");
@@ -41,7 +41,7 @@ class MenuSaleService
         $modifierIds = array_map('intval', $input['modifier_ids'] ?? []);
         abort_if(count($modifierIds) !== count(array_unique($modifierIds)), 422, 'A modifier cannot be selected twice.');
         $allowed = [];
-        foreach ($product->modifierGroups as $group) {
+        foreach ($product->modifierGroups->where('is_active', true) as $group) {
             $active = $group->modifiers->where('is_active', true);
             $selected = $active->whereIn('id', $modifierIds);
             $minimum = max((int) $group->min_select, $group->is_required ? 1 : 0);

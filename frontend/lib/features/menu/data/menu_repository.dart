@@ -45,6 +45,14 @@ class MenuRepository {
       api.request((dio) async {
         final id = data['id'];
         final payload = {...data, 'branch_id': branch};
+        if (section == 'categories') {
+          if (id == null) {
+            await dio.post('/categories', data: payload);
+          } else {
+            await dio.patch('/categories/$id', data: payload);
+          }
+          return;
+        }
         if (id == null) {
           await dio.post('/menu/$section', data: payload);
         } else {

@@ -80,13 +80,14 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->where('is_active', true)
+            ->whereHas('category', fn ($q) => $q->where('is_active', true))
             ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
             ->whereHas('branches', function ($query) use ($branchId) {
                 $query->where('branches.id', $branchId)
                     ->where('branch_product.is_available', true);
             })
             ->with([
-                'modifierGroups.modifiers',
+                'modifierGroups' => fn ($q) => $q->where('is_active', true)->with('modifiers'),
                 'category:id,name',
                 'branches' => function ($query) use ($branchId) {
                     // Scoped to the resolved branch only, so

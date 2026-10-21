@@ -341,12 +341,15 @@ class _NavigationItem extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
-    final selected = route == '/pos/select-table'
-        ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
-        : route == '/products' &&
-                selectedRoute.startsWith('/products/categories')
-            ? false
-            : selectedRoute == route || selectedRoute.startsWith('$route/');
+    final selected = route == '/manage-menu' &&
+            selectedRoute.startsWith('/products')
+        ? true
+        : route == '/pos/select-table'
+            ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
+            : route == '/products' &&
+                    selectedRoute.startsWith('/products/categories')
+                ? false
+                : selectedRoute == route || selectedRoute.startsWith('$route/');
 
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
