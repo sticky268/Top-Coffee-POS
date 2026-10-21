@@ -126,6 +126,57 @@ void main() {
     },
   );
 
+  testWidgets('modifier limit disables extra options until one is removed', (
+    tester,
+  ) async {
+    final limited = PosProduct(
+      id: 2,
+      name: 'Toppings',
+      sku: null,
+      description: null,
+      category: null,
+      price: 3.75,
+      variants: [],
+      modifierGroups: [
+        {
+          ...product.modifierGroups.single,
+          'max_select': 2,
+          'options': [
+            ...(product.modifierGroups.single['options'] as List),
+            {'id': 10, 'name': 'Cream', 'price_delta': '0.30'},
+          ],
+        },
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showMenuSelection(context, limited),
+              child: const Text('Configure'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Configure'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Oat (+\$0.45)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Soy (+\$0.20)'));
+    await tester.pumpAndSettle();
+    final cream = find.widgetWithText(CheckboxListTile, 'Cream (+\$0.30)');
+    expect(tester.widget<CheckboxListTile>(cream).onChanged, isNull);
+    await tester.tap(find.text('Oat (+\$0.45)'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<CheckboxListTile>(cream).onChanged, isNotNull);
+    await tester.tap(cream);
+    await tester.pumpAndSettle();
+    expect(tester.widget<CheckboxListTile>(cream).value, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('required modifier prevents add until selected', (tester) async {
     CartItem? result;
     await tester.pumpWidget(
