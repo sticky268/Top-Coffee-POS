@@ -19,6 +19,7 @@ abstract class OrdersRepository {
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? branchId,
   });
 }
@@ -47,8 +48,7 @@ class ApiOrdersRepository implements OrdersRepository {
             'payment_method': filters.paymentMethod,
           if (filters.dateFrom != null)
             'date_from': _formatDate(filters.dateFrom!),
-          if (filters.dateTo != null)
-            'date_to': _formatDate(filters.dateTo!),
+          if (filters.dateTo != null) 'date_to': _formatDate(filters.dateTo!),
         },
       ),
     );
@@ -58,10 +58,7 @@ class ApiOrdersRepository implements OrdersRepository {
 
     return OrderListPage(
       orders: data
-          .map(
-            (json) =>
-                OrderSummary.fromJson(json as Map<String, dynamic>),
-          )
+          .map((json) => OrderSummary.fromJson(json as Map<String, dynamic>))
           .toList(),
       currentPage: meta['current_page'] as int,
       lastPage: meta['last_page'] as int,
@@ -79,12 +76,8 @@ class ApiOrdersRepository implements OrdersRepository {
 
   @override
   Future<OrderDetail> getOrder(int id) async {
-    final response = await _apiClient.request(
-      (dio) => dio.get('/orders/$id'),
-    );
-    return OrderDetail.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    final response = await _apiClient.request((dio) => dio.get('/orders/$id'));
+    return OrderDetail.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   @override
@@ -92,6 +85,7 @@ class ApiOrdersRepository implements OrdersRepository {
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? branchId,
   }) async {
     final response = await _apiClient.request(
@@ -105,9 +99,7 @@ class ApiOrdersRepository implements OrdersRepository {
       ),
     );
 
-      return OrderDetail.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    return OrderDetail.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 }
 

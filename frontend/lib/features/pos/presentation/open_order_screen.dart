@@ -38,8 +38,11 @@ class _EditableOrderLine {
     required this.quantity,
     required this.unitPrice,
     this.orderItemId,
+    this.modifierIds = const [],
+    this.comboSelections = const [],
   });
 
+  final List<int> modifierIds, comboSelections;
   final int productId;
   final int? productVariantId;
   final String productName;
@@ -50,7 +53,8 @@ class _EditableOrderLine {
 
   double get lineTotal => unitPrice * quantity;
 
-  String get lineKey => '$productId:${productVariantId ?? 'base'}';
+  String get lineKey =>
+      '$productId:${productVariantId ?? 'base'}:${(modifierIds.toList()..sort()).join(',')}:${comboSelections.join(',')}';
 
   _EditableOrderLine copyWith({int? quantity}) {
     return _EditableOrderLine(
@@ -61,6 +65,8 @@ class _EditableOrderLine {
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice,
       orderItemId: orderItemId,
+      modifierIds: modifierIds,
+      comboSelections: comboSelections,
     );
   }
 
@@ -73,6 +79,13 @@ class _EditableOrderLine {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       orderItemId: item.id,
+      modifierIds: List<int>.from(
+        item.menuConfiguration['modifier_ids'] as List? ?? [],
+      ),
+      comboSelections: [
+        for (final c in item.menuConfiguration['components'] as List? ?? [])
+          c['product_id'] as int,
+      ],
     );
   }
 
@@ -108,14 +121,14 @@ class OpenOrderScreen extends ConsumerWidget {
       appBar: PageAppBar(title: Text(appBarTitle)),
       body: switch (state) {
         OrderDetailLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: CircularProgressIndicator(),
+        ),
         OrderDetailError(:final message) => _ErrorView(
-            message: message,
-            onRetry: () => ref
-                .read(orderDetailControllerProvider(orderId).notifier)
-                .refresh(),
-          ),
+          message: message,
+          onRetry: () => ref
+              .read(orderDetailControllerProvider(orderId).notifier)
+              .refresh(),
+        ),
         OrderDetailLoaded(:final order) => _OpenOrderContent(order: order),
       },
     );
@@ -141,31 +154,39 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
   bool get _hasChanges {
     final original = _editableLinesFromOrder(_order);
     if (original.length != _lines.length) return true;
-    return original.any((line) => !_lines.any((edited) =>
-        edited.lineKey == line.lineKey && edited.quantity == line.quantity));
+    return original.any(
+      (line) => !_lines.any(
+        (edited) =>
+            edited.lineKey == line.lineKey && edited.quantity == line.quantity,
+      ),
+    );
   }
 
   Future<void> _requestLeave() async {
     if (_isBusy || _allowLeave) return;
     final choice = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-              title: const Text('Save changes before leaving?'),
-              content: const Text('This table has unsaved changes.'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext, 'keep'),
-                    child: const Text('Keep Editing')),
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext, 'discard'),
-                    child: const Text('Discard Changes')),
-                FilledButton(
-                    onPressed: _lines.isEmpty
-                        ? null
-                        : () => Navigator.pop(dialogContext, 'save'),
-                    child: const Text('Save Changes')),
-              ],
-            ));
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Save changes before leaving?'),
+        content: const Text('This table has unsaved changes.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'keep'),
+            child: const Text('Keep Editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'discard'),
+            child: const Text('Discard Changes'),
+          ),
+          FilledButton(
+            onPressed: _lines.isEmpty
+                ? null
+                : () => Navigator.pop(dialogContext, 'save'),
+            child: const Text('Save Changes'),
+          ),
+        ],
+      ),
+    );
     if (!mounted) return;
     if (choice == 'save') {
       await _saveOrder();
@@ -217,8 +238,29 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     return result < 0 ? 0 : result;
   }
 
-  void _addProduct(PosProduct product, {PosProductVariant? variant}) {
-    final newLine = _EditableOrderLine.fromProduct(product, variant: variant);
+  void _addConfigured(CartItem item) =>
+      _addProduct(item.product, variant: item.variant, configured: item);
+
+  void _addProduct(
+    PosProduct product, {
+    PosProductVariant? variant,
+    CartItem? configured,
+  }) {
+    final newLine = configured == null
+        ? _EditableOrderLine.fromProduct(product, variant: variant)
+        : _EditableOrderLine(
+            productId: product.id,
+            productVariantId: variant?.id,
+            productName: product.name,
+            variantName: [
+              if (variant != null) variant.name,
+              configured.configurationLabel,
+            ].where((s) => s.isNotEmpty).join(' · '),
+            quantity: 1,
+            unitPrice: configured.unitPrice,
+            modifierIds: configured.modifierIds,
+            comboSelections: configured.comboSelections,
+          );
 
     final existingIndex = _lines.indexWhere(
       (line) => line.lineKey == newLine.lineKey,
@@ -310,6 +352,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     final items = _lines
         .map(
           (line) => <String, dynamic>{
+            if (line.modifierIds.isNotEmpty) 'modifier_ids': line.modifierIds,
+            if (line.comboSelections.isNotEmpty)
+              'combo_selections': line.comboSelections,
             'product_id': line.productId,
             'product_variant_id': line.productVariantId,
             'quantity': line.quantity,
@@ -362,14 +407,16 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       context.pop(true);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
-        content: Text(error is ApiException
-            ? error.message
-            : 'Could not save order. Check its status before retrying.'),
-        action: SnackBarAction(label: 'Reload', onPressed: _reloadOrder),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is ApiException
+                ? error.message
+                : 'Could not save order. Check its status before retrying.',
+          ),
+          action: SnackBarAction(label: 'Reload', onPressed: _reloadOrder),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -377,20 +424,24 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 
   Future<void> _reloadOrder() async {
     final reload = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-              title: const Text('Reload latest order?'),
-              content: const Text(
-                  'Your unsaved edits will be replaced with the saved order. Review it before making changes again.'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext, false),
-                    child: const Text('Keep Editing')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(dialogContext, true),
-                    child: const Text('Reload')),
-              ],
-            ));
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reload latest order?'),
+        content: const Text(
+          'Your unsaved edits will be replaced with the saved order. Review it before making changes again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep Editing'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reload'),
+          ),
+        ],
+      ),
+    );
     if (reload == true && mounted) {
       ref.read(orderDetailControllerProvider(_order.id).notifier).refresh();
     }
@@ -443,9 +494,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       context.go('/pos/select-table');
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             error is ApiException
@@ -478,14 +527,19 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
       final result = await showDialog<_PaymentResult>(
         context: context,
         builder: (_) => _PaymentDialog(
-            total: saved.total, bill: customerBill, allowedMethods: methods),
+          total: saved.total,
+          bill: customerBill,
+          allowedMethods: methods,
+        ),
       );
       if (!mounted) return;
       setState(() => _isShowingPayment = false);
       if (result == null) return;
 
       isPaying = true;
-      final confirmation = await ref.read(posRepositoryProvider).payHeldOrder(
+      final confirmation = await ref
+          .read(posRepositoryProvider)
+          .payHeldOrder(
             orderId: saved.id,
             paymentMethod: result.method,
             tendered: result.tendered,
@@ -517,11 +571,11 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
           content: Text(
             isPaying
                 ? (error is ApiException
-                    ? error.message
-                    : 'Could not complete payment. Check the order before retrying.')
+                      ? error.message
+                      : 'Could not complete payment. Check the order before retrying.')
                 : (error is ApiException
-                    ? error.message
-                    : 'Could not save order. Payment was not started.'),
+                      ? error.message
+                      : 'Could not save order. Payment was not started.'),
           ),
           action: isPaying
               ? null
@@ -600,7 +654,8 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
     final currency = NumberFormat.currency(symbol: '\$');
     final catalogState = ref.watch(posCatalogControllerProvider);
     final authState = ref.watch(authControllerProvider);
-    final canCancel = authState is AuthAuthenticated &&
+    final canCancel =
+        authState is AuthAuthenticated &&
         authState.user.hasPermission('orders.cancel');
 
     return PopScope(
@@ -640,6 +695,7 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                   crossAxisCount: productColumns,
                   onProductSelected: _addProduct,
                   onVariantSelected: _addProductVariant,
+                  onConfiguredSelected: _addConfigured,
                 );
 
                 if (isWide) {
@@ -706,8 +762,9 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: pos_ui.PosActionButton(
-                                      onPressed:
-                                          _lines.isEmpty ? null : _payOrder,
+                                      onPressed: _lines.isEmpty
+                                          ? null
+                                          : _payOrder,
                                       child: const Text('Review & Pay'),
                                     ),
                                   ),
@@ -715,14 +772,14 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                               ),
                               const SizedBox(height: 8),
                               SizedBox(
-                                  width: double.infinity,
-                                  child: pos_ui.SecondaryButton(
-                                    onPressed:
-                                        _lines.isEmpty ? null : _saveOrder,
-                                    child: Text(_hasChanges
-                                        ? 'Save Changes'
-                                        : 'Save Order'),
-                                  )),
+                                width: double.infinity,
+                                child: pos_ui.SecondaryButton(
+                                  onPressed: _lines.isEmpty ? null : _saveOrder,
+                                  child: Text(
+                                    _hasChanges ? 'Save Changes' : 'Save Order',
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -747,8 +804,11 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
 }
 
 class _PaymentResult {
-  const _PaymentResult(
-      {required this.method, this.tendered, this.splitPayments});
+  const _PaymentResult({
+    required this.method,
+    this.tendered,
+    this.splitPayments,
+  });
 
   final String method;
   final double? tendered;
@@ -756,8 +816,11 @@ class _PaymentResult {
 }
 
 class _PaymentDialog extends StatefulWidget {
-  const _PaymentDialog(
-      {required this.total, required this.bill, required this.allowedMethods});
+  const _PaymentDialog({
+    required this.total,
+    required this.bill,
+    required this.allowedMethods,
+  });
 
   final double total;
   final CustomerBill bill;
@@ -780,8 +843,9 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     super.initState();
     _method = widget.allowedMethods.firstOrNull ?? '';
     _firstMethod = _method;
-    _secondMethod =
-        widget.allowedMethods.length > 1 ? widget.allowedMethods[1] : _method;
+    _secondMethod = widget.allowedMethods.length > 1
+        ? widget.allowedMethods[1]
+        : _method;
   }
 
   @override
@@ -861,7 +925,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           'method': portion.$1,
           'amount': portion.$2 / 100,
           if (portion.$1 == 'cash')
-            'tendered': double.tryParse(_splitTendered.text) ?? portion.$2 / 100
+            'tendered':
+                double.tryParse(_splitTendered.text) ?? portion.$2 / 100,
         },
     ];
   }
@@ -890,8 +955,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               Text(
                 _formatMoney(widget.total),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 24),
               if (widget.allowedMethods.isEmpty)
@@ -901,18 +966,22 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                   choices: [
                     for (final method in widget.allowedMethods)
                       CheckoutChoice(
-                          method,
-                          method == 'qr'
-                              ? 'QR'
-                              : '${method[0].toUpperCase()}${method.substring(1)}',
-                          method == 'cash'
-                              ? Icons.payments_outlined
-                              : method == 'card'
-                                  ? Icons.credit_card
-                                  : Icons.qr_code_2),
+                        method,
+                        method == 'qr'
+                            ? 'QR'
+                            : '${method[0].toUpperCase()}${method.substring(1)}',
+                        method == 'cash'
+                            ? Icons.payments_outlined
+                            : method == 'card'
+                            ? Icons.credit_card
+                            : Icons.qr_code_2,
+                      ),
                     if (widget.allowedMethods.length > 1)
                       const CheckoutChoice(
-                          'split', 'Split', Icons.call_split_outlined),
+                        'split',
+                        'Split',
+                        Icons.call_split_outlined,
+                      ),
                   ],
                   selected: _method,
                   enabled: true,
@@ -921,65 +990,90 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               if (_method == 'split') ...[
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                    key: ValueKey('first-$_firstMethod'),
-                    initialValue: _firstMethod,
-                    decoration: const InputDecoration(
-                        labelText: 'First payment method'),
-                    items: [
-                      for (final method in widget.allowedMethods)
-                        DropdownMenuItem(
-                            value: method, child: Text(method.toUpperCase()))
-                    ],
-                    onChanged: (value) => setState(() {
-                          _firstMethod = value!;
-                          if (_secondMethod == value) {
-                            _secondMethod = widget.allowedMethods
-                                .firstWhere((m) => m != value);
-                          }
-                        })),
+                  key: ValueKey('first-$_firstMethod'),
+                  initialValue: _firstMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'First payment method',
+                  ),
+                  items: [
+                    for (final method in widget.allowedMethods)
+                      DropdownMenuItem(
+                        value: method,
+                        child: Text(method.toUpperCase()),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _firstMethod = value!;
+                    if (_secondMethod == value) {
+                      _secondMethod = widget.allowedMethods.firstWhere(
+                        (m) => m != value,
+                      );
+                    }
+                  }),
+                ),
                 TextField(
-                    controller: _firstAmount,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                        labelText: 'First payment amount', prefixText: '\$ '),
-                    onChanged: (_) => setState(() {})),
+                  controller: _firstAmount,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'First payment amount',
+                    prefixText: '\$ ',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
                 DropdownButtonFormField<String>(
-                    key: ValueKey('second-$_secondMethod'),
-                    initialValue: _secondMethod,
-                    decoration: const InputDecoration(
-                        labelText: 'Remaining payment method'),
-                    items: [
-                      for (final method in widget.allowedMethods
-                          .where((m) => m != _firstMethod))
-                        DropdownMenuItem(
-                            value: method, child: Text(method.toUpperCase()))
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _secondMethod = value!)),
+                  key: ValueKey('second-$_secondMethod'),
+                  initialValue: _secondMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Remaining payment method',
+                  ),
+                  items: [
+                    for (final method in widget.allowedMethods.where(
+                      (m) => m != _firstMethod,
+                    ))
+                      DropdownMenuItem(
+                        value: method,
+                        child: Text(method.toUpperCase()),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() => _secondMethod = value!),
+                ),
                 Text(
-                    'Remaining: ${_formatMoney(widget.total - (double.tryParse(_firstAmount.text) ?? 0))}'),
+                  'Remaining: ${_formatMoney(widget.total - (double.tryParse(_firstAmount.text) ?? 0))}',
+                ),
                 if (_firstMethod == 'cash' || _secondMethod == 'cash')
                   TextField(
-                      controller: _splitTendered,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                          labelText: 'Cash received for cash portion',
-                          hintText: 'Leave blank for exact amount'),
-                      onChanged: (_) => setState(() {})),
+                    controller: _splitTendered,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Cash received for cash portion',
+                      hintText: 'Leave blank for exact amount',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
               ],
               if (isCash) ...[
                 const SizedBox(height: 24),
-                Wrap(spacing: 8, children: [
-                  for (final amount in cashQuickAmounts(widget.total))
-                    OutlinedButton(
-                        onPressed: () => setState(() => _tenderedController
-                            .text = amount.toStringAsFixed(2)),
-                        child: Text(amount == widget.total
-                            ? 'Exact'
-                            : _formatMoney(amount))),
-                ]),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final amount in cashQuickAmounts(widget.total))
+                      OutlinedButton(
+                        onPressed: () => setState(
+                          () => _tenderedController.text = amount
+                              .toStringAsFixed(2),
+                        ),
+                        child: Text(
+                          amount == widget.total
+                              ? 'Exact'
+                              : _formatMoney(amount),
+                        ),
+                      ),
+                  ],
+                ),
                 TextField(
                   controller: _tenderedController,
                   autofocus: true,
@@ -1017,15 +1111,15 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                           _tenderedController.text.trim().isEmpty
                               ? 0
                               : (_canConfirm
-                                  ? _changeDue
-                                  : widget.total - (_tendered ?? 0)),
+                                    ? _changeDue
+                                    : widget.total - (_tendered ?? 0)),
                         ),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: _canConfirm
-                                  ? null
-                                  : Theme.of(context).colorScheme.error,
-                            ),
+                          fontWeight: FontWeight.bold,
+                          color: _canConfirm
+                              ? null
+                              : Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ],
                   ),
@@ -1124,9 +1218,7 @@ class _OrderPanel extends StatelessWidget {
                         children: [
                           Text(
                             line.productName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           if (line.variantName != null) ...[
@@ -1136,9 +1228,7 @@ class _OrderPanel extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             currency.format(line.unitPrice),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: Theme.of(
                                     context,
@@ -1174,9 +1264,7 @@ class _OrderPanel extends StatelessWidget {
                             child: Text(
                               '${line.quantity}',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -1195,9 +1283,7 @@ class _OrderPanel extends StatelessWidget {
                       child: Text(
                         currency.format(line.lineTotal),
                         textAlign: TextAlign.end,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -1218,31 +1304,33 @@ class _ProductCatalogPanel extends StatelessWidget {
     required this.crossAxisCount,
     required this.onProductSelected,
     required this.onVariantSelected,
+    required this.onConfiguredSelected,
   });
 
+  final void Function(CartItem item) onConfiguredSelected;
   final PosCatalogState state;
   final int crossAxisCount;
   final void Function(PosProduct product) onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)
-      onVariantSelected;
+  onVariantSelected;
 
   @override
   Widget build(BuildContext context) {
     return switch (state) {
       PosCatalogLoading() => const Center(child: CircularProgressIndicator()),
       PosCatalogError(:final message) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 42),
-                const SizedBox(height: 16),
-                Text(message, textAlign: TextAlign.center),
-              ],
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 42),
+              const SizedBox(height: 16),
+              Text(message, textAlign: TextAlign.center),
+            ],
           ),
         ),
+      ),
       PosCatalogLoaded(
         :final categories,
         :final visibleProducts,
@@ -1252,23 +1340,26 @@ class _ProductCatalogPanel extends StatelessWidget {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
             SliverToBoxAdapter(
-                child: Column(children: [
-              const SizedBox(height: 8),
-              ProductSearchField(
-                onChanged: (query) => context
-                    .findAncestorStateOfType<_OpenOrderContentState>()
-                    ?._updateCatalogSearch(query),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  ProductSearchField(
+                    onChanged: (query) => context
+                        .findAncestorStateOfType<_OpenOrderContentState>()
+                        ?._updateCatalogSearch(query),
+                  ),
+                  const SizedBox(height: 8),
+                  CategorySelector(
+                    categories: categories,
+                    selectedCategoryId: selectedCategoryId,
+                    onSelected: (id) => context
+                        .findAncestorStateOfType<_OpenOrderContentState>()
+                        ?._updateCatalogCategory(id),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
-              const SizedBox(height: 8),
-              CategorySelector(
-                categories: categories,
-                selectedCategoryId: selectedCategoryId,
-                onSelected: (id) => context
-                    .findAncestorStateOfType<_OpenOrderContentState>()
-                    ?._updateCatalogCategory(id),
-              ),
-              const SizedBox(height: 8),
-            ])),
+            ),
             if (visibleProducts.isEmpty)
               const SliverFillRemaining(
                 hasScrollBody: false,
@@ -1281,6 +1372,7 @@ class _ProductCatalogPanel extends StatelessWidget {
                 sliver: true,
                 onProductSelected: onProductSelected,
                 onVariantSelected: onVariantSelected,
+                onConfiguredSelected: onConfiguredSelected,
               ),
           ],
         ),

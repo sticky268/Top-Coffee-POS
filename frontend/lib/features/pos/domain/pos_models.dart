@@ -118,6 +118,8 @@ class PosProduct {
     required this.price,
     required this.variants,
     this.imageUrl,
+    this.modifierGroups = const [],
+    this.comboSlots = const [],
   });
 
   final int id;
@@ -133,6 +135,10 @@ class PosProduct {
   final List<PosProductVariant> variants;
   final String? imageUrl;
 
+  final List<Map<String, dynamic>> modifierGroups;
+  final List<Map<String, dynamic>> comboSlots;
+  bool get needsConfiguration =>
+      modifierGroups.isNotEmpty || comboSlots.isNotEmpty;
   bool get hasVariants => variants.isNotEmpty;
 
   factory PosProduct.fromJson(Map<String, dynamic> json) {
@@ -146,6 +152,12 @@ class PosProduct {
               json['category'] as Map<String, dynamic>,
             )
           : null,
+      modifierGroups: (json['modifier_groups'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
+      comboSlots: (json['combo_slots'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
       price: (json['price'] as num).toDouble(),
       variants: (json['variants'] as List? ?? const [])
           .map((v) => PosProductVariant.fromJson(v as Map<String, dynamic>))
@@ -160,7 +172,23 @@ class PosProduct {
 
 /// One line in the cart: a product, an optional variant, and a quantity.
 class CartItem {
-  const CartItem({required this.product, this.variant, required this.quantity});
+  const CartItem({
+    required this.product,
+    this.variant,
+    required this.quantity,
+    this.modifierIds = const [],
+    this.comboSelections = const [],
+    this.extraCents = 0,
+    this.configurationLabel = '',
+  });
+
+  final List<int> modifierIds, comboSelections;
+  final int extraCents;
+  final String configurationLabel;
+  Map<String, dynamic> get selectionPayload => {
+    if (modifierIds.isNotEmpty) 'modifier_ids': modifierIds,
+    if (comboSelections.isNotEmpty) 'combo_selections': comboSelections,
+  };
 
   final PosProduct product;
   final PosProductVariant? variant;
@@ -168,7 +196,8 @@ class CartItem {
 
   /// Unit price for this line â€” the variant's resolved price if a variant
   /// was selected, otherwise the product's own resolved price.
-  double get unitPrice => variant?.price ?? product.price;
+  double get unitPrice =>
+      ((100 * (variant?.price ?? product.price)).round() + extraCents) / 100;
 
   double get lineTotal => unitPrice * quantity;
 
@@ -178,12 +207,17 @@ class CartItem {
   /// increment/decrement/remove actions â€” this is what guarantees a
   /// "Latte â€” Medium" line and a "Latte â€” Large" line never collapse into
   /// each other.
-  String get lineKey => '${product.id}:${variant?.id ?? 'base'}';
+  String get lineKey =>
+      '${product.id}:${variant?.id ?? 'base'}${modifierIds.isEmpty && comboSelections.isEmpty ? '' : ':${(modifierIds.toList()..sort()).join(',')}:${comboSelections.join(',')}'}';
 
   CartItem copyWith({int? quantity}) {
     return CartItem(
       product: product,
       variant: variant,
+      modifierIds: modifierIds,
+      comboSelections: comboSelections,
+      extraCents: extraCents,
+      configurationLabel: configurationLabel,
       quantity: quantity ?? this.quantity,
     );
   }
@@ -248,15 +282,27 @@ class OrderConfirmation {
   final double? changeDue;
   final List<PaymentConfirmation> payments;
 
-  OrderConfirmation withCashDrawerResult(Future<String?> result) => OrderConfirmation(
-    orderId: orderId, orderNumber: orderNumber, total: total,
-    paymentMethod: paymentMethod, tendered: tendered, changeDue: changeDue,
-    payments: payments, status: status, cashDrawerResult: result,
-  );
+  OrderConfirmation withCashDrawerResult(Future<String?> result) =>
+      OrderConfirmation(
+        orderId: orderId,
+        orderNumber: orderNumber,
+        total: total,
+        paymentMethod: paymentMethod,
+        tendered: tendered,
+        changeDue: changeDue,
+        payments: payments,
+        status: status,
+        cashDrawerResult: result,
+      );
 
-  bool get hasCompletedCashPayment => status == 'completed' && total > 0 &&
+  bool get hasCompletedCashPayment =>
+      status == 'completed' &&
+      total > 0 &&
       (payments.isNotEmpty
-          ? payments.any((p) => p.method == 'cash' && p.amount > 0 && p.status == 'completed')
+          ? payments.any(
+              (p) =>
+                  p.method == 'cash' && p.amount > 0 && p.status == 'completed',
+            )
           : paymentMethod == 'cash');
 
   int get effectiveOrderNumber => orderNumber ?? orderId;

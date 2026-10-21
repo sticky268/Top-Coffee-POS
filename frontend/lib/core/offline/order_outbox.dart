@@ -46,32 +46,32 @@ class PendingOrder {
   final DateTime? confirmedAt;
 
   factory PendingOrder.fromJson(Map<String, dynamic> json) => PendingOrder(
-        uuid: json['uuid'] as String,
-        userId: json['user_id'] as int,
-        branchId: json['branch_id'] as int,
-        endpoint: json['endpoint'] as String,
-        payload: Map<String, dynamic>.from(json['payload'] as Map),
-        createdAt: DateTime.parse(json['created_at'] as String),
-        fingerprint: json['fingerprint'] as String,
-        status: json['status'] as String,
-        error: json['error'] as String?,
-        orderId: json['order_id'] as int?,
-        confirmedAt: DateTime.tryParse(json['confirmed_at'] as String? ?? ''),
-      );
+    uuid: json['uuid'] as String,
+    userId: json['user_id'] as int,
+    branchId: json['branch_id'] as int,
+    endpoint: json['endpoint'] as String,
+    payload: Map<String, dynamic>.from(json['payload'] as Map),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    fingerprint: json['fingerprint'] as String,
+    status: json['status'] as String,
+    error: json['error'] as String?,
+    orderId: json['order_id'] as int?,
+    confirmedAt: DateTime.tryParse(json['confirmed_at'] as String? ?? ''),
+  );
 
   Map<String, dynamic> toJson() => {
-        'uuid': uuid,
-        'user_id': userId,
-        'branch_id': branchId,
-        'endpoint': endpoint,
-        'payload': payload,
-        'created_at': createdAt.toIso8601String(),
-        'fingerprint': fingerprint,
-        'status': status,
-        'error': error,
-        'order_id': orderId,
-        'confirmed_at': confirmedAt?.toIso8601String(),
-      };
+    'uuid': uuid,
+    'user_id': userId,
+    'branch_id': branchId,
+    'endpoint': endpoint,
+    'payload': payload,
+    'created_at': createdAt.toIso8601String(),
+    'fingerprint': fingerprint,
+    'status': status,
+    'error': error,
+    'order_id': orderId,
+    'confirmed_at': confirmedAt?.toIso8601String(),
+  };
 }
 
 /// A durable write-ahead journal. The server remains authoritative for prices,
@@ -79,7 +79,7 @@ class PendingOrder {
 /// creates a new UUID; replay always uses the exact original request.
 class OrderOutbox {
   OrderOutbox(this.store, {String Function()? newUuid})
-      : _newUuid = newUuid ?? const Uuid().v4;
+    : _newUuid = newUuid ?? const Uuid().v4;
   final LocalStore store;
   final String Function() _newUuid;
   Future<void> _tail = Future.value();
@@ -130,9 +130,10 @@ class OrderOutbox {
         item['product_id'],
         item['product_variant_id'],
         item['quantity'],
+        item['modifier_ids'],
+        item['combo_selections'],
       ]);
-    }).toList()
-      ..sort();
+    }).toList()..sort();
     return jsonEncode([
       payload['order_type'],
       payload['table_id'],
@@ -149,47 +150,46 @@ class OrderOutbox {
     required Map<String, dynamic> payload,
     bool checkUnresolvedSales = false,
     List<String> acknowledgedPendingUuids = const [],
-  }) =>
-      _serialized(() async {
-        final requestUuid = payload['uuid'] as String?;
-        final canonical = {...payload}..remove('uuid');
-        final fingerprint = jsonEncode([
-          endpoint,
-          {...canonical}..remove('shift_id'),
-        ]);
-        final orders = await list(userId, branchId);
-        for (final order in orders) {
-          // Explicit IDs represent individual sales, even when baskets match.
-          // Legacy callers without an ID retain payload-based retry recovery.
-          if (requestUuid != null
-              ? order.uuid == requestUuid
-              : order.fingerprint == fingerprint && order.status != 'synced') {
-            return order;
-          }
-        }
-        if (checkUnresolvedSales && requestUuid != null) {
-          for (final order in orders) {
-            if (order.status != 'synced' &&
-                order.endpoint == endpoint &&
-                _saleMatch(order.payload) == _saleMatch(payload) &&
-                !acknowledgedPendingUuids.contains(order.uuid)) {
-              throw UnresolvedOrderException(order.uuid);
-            }
-          }
-        }
-        final uuid = requestUuid ?? _newUuid();
-        final order = PendingOrder(
-          uuid: uuid,
-          userId: userId,
-          branchId: branchId,
-          endpoint: endpoint,
-          payload: {...canonical, 'uuid': uuid, 'expected_cashier_id': userId},
-          createdAt: DateTime.now().toUtc(),
-          fingerprint: fingerprint,
-        );
-        await _save(order);
+  }) => _serialized(() async {
+    final requestUuid = payload['uuid'] as String?;
+    final canonical = {...payload}..remove('uuid');
+    final fingerprint = jsonEncode([
+      endpoint,
+      {...canonical}..remove('shift_id'),
+    ]);
+    final orders = await list(userId, branchId);
+    for (final order in orders) {
+      // Explicit IDs represent individual sales, even when baskets match.
+      // Legacy callers without an ID retain payload-based retry recovery.
+      if (requestUuid != null
+          ? order.uuid == requestUuid
+          : order.fingerprint == fingerprint && order.status != 'synced') {
         return order;
-      });
+      }
+    }
+    if (checkUnresolvedSales && requestUuid != null) {
+      for (final order in orders) {
+        if (order.status != 'synced' &&
+            order.endpoint == endpoint &&
+            _saleMatch(order.payload) == _saleMatch(payload) &&
+            !acknowledgedPendingUuids.contains(order.uuid)) {
+          throw UnresolvedOrderException(order.uuid);
+        }
+      }
+    }
+    final uuid = requestUuid ?? _newUuid();
+    final order = PendingOrder(
+      uuid: uuid,
+      userId: userId,
+      branchId: branchId,
+      endpoint: endpoint,
+      payload: {...canonical, 'uuid': uuid, 'expected_cashier_id': userId},
+      createdAt: DateTime.now().toUtc(),
+      fingerprint: fingerprint,
+    );
+    await _save(order);
+    return order;
+  });
 
   Future<void> _save(PendingOrder order) async {
     await store.write(
@@ -217,24 +217,25 @@ class OrderOutbox {
         value['status'] = error == null
             ? 'synced'
             : error is NetworkException || error is ServerException
-                ? 'pending'
-                : 'review';
+            ? 'pending'
+            : 'review';
         value['order_id'] = orderId;
         if (error == null) {
           value['confirmed_at'] = DateTime.now().toUtc().toIso8601String();
         }
-        value['error'] =
-            error is ApiException ? error.message : error?.toString();
+        value['error'] = error is ApiException
+            ? error.message
+            : error?.toString();
         await _save(PendingOrder.fromJson(value));
       });
 
   Future<void> retry(PendingOrder order) => _serialized(() async {
-        if (await _acknowledged(order)) return;
-        final value = order.toJson();
-        value['status'] = 'pending';
-        value['error'] = null;
-        await _save(PendingOrder.fromJson(value));
-      });
+    if (await _acknowledged(order)) return;
+    final value = order.toJson();
+    value['status'] = 'pending';
+    value['error'] = null;
+    await _save(PendingOrder.fromJson(value));
+  });
 
   /// Only acknowledged records can be cleared: uncertain payments are retained.
   Future<void> clearAcknowledged(int userId, int branchId) =>

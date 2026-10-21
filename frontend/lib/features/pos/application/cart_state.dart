@@ -5,7 +5,12 @@ import '../domain/pos_models.dart';
 /// cart has no "loading" concept, it's pure local state mutated by user
 /// actions, so that machinery would be unnecessary here.
 class CartState {
-  const CartState({this.items = const [], this.discountTotal = 0, this.table});
+  const CartState({
+    this.items = const [],
+    double discountTotal = 0,
+    this.table,
+    this.menuDiscount,
+  }) : _manualDiscount = discountTotal;
 
   final PosTable? table;
 
@@ -16,7 +21,19 @@ class CartState {
   /// per the task's "prepare the UI/state for it, but don't add
   /// complicated discount rules yet"). Clamped against subtotal so total
   /// can never go negative — see [total].
-  final double discountTotal;
+  final double _manualDiscount;
+  final Map<String, dynamic>? menuDiscount;
+  double get discountTotal {
+    final offer = menuDiscount;
+    if (offer == null) return _manualDiscount;
+    final sub = (subtotal * 100).round();
+    final value = ((num.tryParse(offer['value'].toString()) ?? 0) * 100)
+        .round();
+    final amount = offer['type'] == 'percent'
+        ? (sub * value + 5000) ~/ 10000
+        : value;
+    return amount.clamp(0, sub) / 100;
+  }
 
   bool get isEmpty => items.isEmpty;
 
@@ -29,14 +46,20 @@ class CartState {
     return result < 0 ? 0 : result;
   }
 
-  CartState copyWith(
-      {List<CartItem>? items,
-      double? discountTotal,
-      PosTable? table,
-      bool clearTable = false}) {
+  CartState copyWith({
+    List<CartItem>? items,
+    double? discountTotal,
+    PosTable? table,
+    Map<String, dynamic>? menuDiscount,
+    bool clearMenuDiscount = false,
+    bool clearTable = false,
+  }) {
     return CartState(
       items: items ?? this.items,
-      discountTotal: discountTotal ?? this.discountTotal,
+      discountTotal: discountTotal ?? _manualDiscount,
+      menuDiscount: clearMenuDiscount
+          ? null
+          : menuDiscount ?? this.menuDiscount,
       table: clearTable ? null : table ?? this.table,
     );
   }

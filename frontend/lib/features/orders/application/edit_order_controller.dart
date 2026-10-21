@@ -10,11 +10,8 @@ import '../domain/order_models.dart';
 import 'edit_order_state.dart';
 
 class EditOrderController extends StateNotifier<EditOrderState> {
-  EditOrderController(
-    this._repository,
-    this._catalog,
-    this._order,
-  ) : super(const EditOrderState()) {
+  EditOrderController(this._repository, this._catalog, this._order)
+    : super(const EditOrderState()) {
     _initialize();
   }
 
@@ -23,8 +20,9 @@ class EditOrderController extends StateNotifier<EditOrderState> {
   final OrderDetail _order;
 
   void _initialize() {
-    final catalogProducts =
-        _catalog is PosCatalogLoaded ? _catalog.products : const <PosProduct>[];
+    final catalogProducts = _catalog is PosCatalogLoaded
+        ? _catalog.products
+        : const <PosProduct>[];
 
     final items = <CartItem>[];
 
@@ -51,6 +49,18 @@ class EditOrderController extends StateNotifier<EditOrderState> {
           product: product,
           variant: variant,
           quantity: orderItem.quantity,
+          modifierIds: List<int>.from(
+            orderItem.menuConfiguration['modifier_ids'] as List? ?? [],
+          ),
+          comboSelections: [
+            for (final c
+                in orderItem.menuConfiguration['components'] as List? ?? [])
+              c['product_id'] as int,
+          ],
+          extraCents:
+              ((orderItem.unitPrice - (variant?.price ?? product.price)) * 100)
+                  .round(),
+          configurationLabel: orderItem.variantName ?? '',
         ),
       );
     }
@@ -71,37 +81,40 @@ class EditOrderController extends StateNotifier<EditOrderState> {
     return null;
   }
 
-  void addItem(
-    PosProduct product, {
-    PosProductVariant? variant,
-  }) {
+  void addConfigured(CartItem item) {
+    final index = state.items.indexWhere((i) => i.lineKey == item.lineKey);
+    final items = [...state.items];
+    if (index < 0) {
+      items.add(item);
+    } else {
+      items[index] = items[index].copyWith(quantity: items[index].quantity + 1);
+    }
+    state = state.copyWith(items: items, clearError: true);
+  }
+
+  void addItem(PosProduct product, {PosProductVariant? variant}) {
     final lineKey = '${product.id}:${variant?.id ?? 'base'}';
 
-    final existingIndex =
-        state.items.indexWhere((item) => item.lineKey == lineKey);
+    final existingIndex = state.items.indexWhere(
+      (item) => item.lineKey == lineKey,
+    );
 
     if (existingIndex >= 0) {
       final updatedItems = [...state.items];
       final existing = updatedItems[existingIndex];
 
-      updatedItems[existingIndex] =
-          existing.copyWith(quantity: existing.quantity + 1);
-
-      state = state.copyWith(
-        items: updatedItems,
-        clearError: true,
+      updatedItems[existingIndex] = existing.copyWith(
+        quantity: existing.quantity + 1,
       );
+
+      state = state.copyWith(items: updatedItems, clearError: true);
       return;
     }
 
     state = state.copyWith(
       items: [
         ...state.items,
-        CartItem(
-          product: product,
-          variant: variant,
-          quantity: 1,
-        ),
+        CartItem(product: product, variant: variant, quantity: 1),
       ],
       clearError: true,
     );
@@ -132,10 +145,7 @@ class EditOrderController extends StateNotifier<EditOrderState> {
       updatedItems[index] = item.copyWith(quantity: nextQuantity);
     }
 
-    state = state.copyWith(
-      items: updatedItems,
-      clearError: true,
-    );
+    state = state.copyWith(items: updatedItems, clearError: true);
   }
 
   void removeItem(String lineKey) {
@@ -146,24 +156,16 @@ class EditOrderController extends StateNotifier<EditOrderState> {
   }
 
   void clear() {
-    state = state.copyWith(
-      items: const [],
-      clearError: true,
-    );
+    state = state.copyWith(items: const [], clearError: true);
   }
 
   void setDiscount(double amount) {
     final normalized = amount < 0 ? 0.0 : amount;
 
-    state = state.copyWith(
-      discountTotal: normalized,
-      clearError: true,
-    );
+    state = state.copyWith(discountTotal: normalized, clearError: true);
   }
 
-  Future<OrderDetail?> save({
-    int? branchId,
-  }) async {
+  Future<OrderDetail?> save({int? branchId}) async {
     if (state.isSaving) {
       return null;
     }
@@ -175,15 +177,13 @@ class EditOrderController extends StateNotifier<EditOrderState> {
       return null;
     }
 
-    state = state.copyWith(
-      isSaving: true,
-      clearError: true,
-    );
+    state = state.copyWith(isSaving: true, clearError: true);
 
     try {
       final items = state.items
           .map(
             (item) => {
+              ...item.selectionPayload,
               'product_id': item.product.id,
               if (item.variant != null) 'product_variant_id': item.variant!.id,
               'quantity': item.quantity,
@@ -202,10 +202,7 @@ class EditOrderController extends StateNotifier<EditOrderState> {
         return updatedOrder;
       }
 
-      state = state.copyWith(
-        isSaving: false,
-        clearError: true,
-      );
+      state = state.copyWith(isSaving: false, clearError: true);
 
       return updatedOrder;
     } catch (e) {
@@ -222,26 +219,22 @@ class EditOrderController extends StateNotifier<EditOrderState> {
           final value = entry.value;
 
           if (value is List) {
-            details.addAll(
-              value.map((item) => item.toString()),
-            );
+            details.addAll(value.map((item) => item.toString()));
           } else {
             details.add('${entry.key}: $value');
           }
         }
 
-        errorMessage =
-            details.isEmpty ? e.message : '${e.message}: ${details.join(' ')}';
+        errorMessage = details.isEmpty
+            ? e.message
+            : '${e.message}: ${details.join(' ')}';
       } else if (e is ApiException) {
         errorMessage = e.message;
       } else {
         errorMessage = e.toString();
       }
 
-      state = state.copyWith(
-        isSaving: false,
-        errorMessage: errorMessage,
-      );
+      state = state.copyWith(isSaving: false, errorMessage: errorMessage);
 
       return null;
     }
@@ -249,14 +242,12 @@ class EditOrderController extends StateNotifier<EditOrderState> {
 }
 
 final editOrderControllerProvider = StateNotifierProvider.autoDispose
-    .family<EditOrderController, EditOrderState, OrderDetail>(
-  (ref, order) {
-    final catalog = ref.watch(posCatalogControllerProvider);
+    .family<EditOrderController, EditOrderState, OrderDetail>((ref, order) {
+      final catalog = ref.watch(posCatalogControllerProvider);
 
-    return EditOrderController(
-      ref.watch(ordersRepositoryProvider),
-      catalog,
-      order,
-    );
-  },
-);
+      return EditOrderController(
+        ref.watch(ordersRepositoryProvider),
+        catalog,
+        order,
+      );
+    });

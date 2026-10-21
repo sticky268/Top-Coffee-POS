@@ -5,6 +5,7 @@ import '../../application/cart_controller.dart';
 import '../../domain/pos_models.dart';
 import 'product_card.dart';
 import 'variant_selector_sheet.dart';
+import 'menu_selection_sheet.dart';
 
 class ProductGrid extends ConsumerWidget {
   const ProductGrid({
@@ -14,14 +15,16 @@ class ProductGrid extends ConsumerWidget {
     this.sliver = false,
     this.onProductSelected,
     this.onVariantSelected,
+    this.onConfiguredSelected,
   });
 
+  final void Function(CartItem item)? onConfiguredSelected;
   final List<PosProduct> products;
   final int crossAxisCount;
   final bool sliver;
   final void Function(PosProduct product)? onProductSelected;
   final void Function(PosProduct product, PosProductVariant variant)?
-      onVariantSelected;
+  onVariantSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,9 +51,9 @@ class ProductGrid extends ConsumerWidget {
       final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
       // Use the catalog pane's width; the tablet cart takes its own space.
       final columns = ((width - 16) / (scale > 1.4 ? 256 : 166)).floor().clamp(
-            1,
-            crossAxisCount,
-          );
+        1,
+        crossAxisCount,
+      );
       final tileWidth = (width - 32 - 16 * (columns - 1)) / columns;
       // Large type needs room for names rather than a taller photo.
       final tileHeight = scale > 1.4
@@ -67,8 +70,29 @@ class ProductGrid extends ConsumerWidget {
         return ProductCard(
           product: product,
           quantityInCart: quantities[product.id] ?? 0,
-          onTap: () {
-            if (product.hasVariants) {
+          onTap: () async {
+            if (product.needsConfiguration) {
+              final item = await showMenuSelection(
+                context,
+                product,
+                catalog: products,
+              );
+              if (item == null || !context.mounted) return;
+              if (onConfiguredSelected != null) {
+                onConfiguredSelected!(item);
+              } else {
+                ref
+                    .read(cartControllerProvider.notifier)
+                    .addItem(
+                      product,
+                      variant: item.variant,
+                      modifierIds: item.modifierIds,
+                      comboSelections: item.comboSelections,
+                      extraCents: item.extraCents,
+                      configurationLabel: item.configurationLabel,
+                    );
+              }
+            } else if (product.hasVariants) {
               showVariantSelector(
                 context,
                 ref,

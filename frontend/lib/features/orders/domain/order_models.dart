@@ -94,6 +94,7 @@ class OrderPaymentDetail {
 
 class OrderLineItem {
   const OrderLineItem({
+    this.menuConfiguration = const {},
     required this.id,
     required this.productId,
     this.productVariantId,
@@ -105,6 +106,7 @@ class OrderLineItem {
   });
 
   final int id;
+  final Map<String, dynamic> menuConfiguration;
   final int productId;
   final int? productVariantId;
   final String productName;
@@ -115,6 +117,9 @@ class OrderLineItem {
 
   factory OrderLineItem.fromJson(Map<String, dynamic> json) {
     return OrderLineItem(
+      menuConfiguration: Map<String, dynamic>.from(
+        json['menu_configuration'] as Map? ?? {},
+      ),
       id: json['id'] as int,
       productId: json['product_id'] as int,
       productVariantId: json['product_variant_id'] as int?,

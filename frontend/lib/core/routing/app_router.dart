@@ -38,7 +38,7 @@ import '../../features/pos/presentation/open_order_screen.dart';
 import '../../features/pos/presentation/table_management_screen.dart';
 import '../../features/products/presentation/category_management_screen.dart';
 import '../../features/products/presentation/product_form_screen.dart';
-import '../../features/products/presentation/products_screen.dart';
+import '../../features/menu/presentation/manage_menu_screen.dart';
 import '../../features/purchasing/presentation/purchase_history_screen.dart';
 import '../../features/purchasing/presentation/suppliers_screen.dart';
 import '../../features/purchasing/presentation/purchase_creation_screen.dart';
@@ -123,8 +123,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/operations',
             builder: (context, state) => OperationsScreen(
               initialSection: state.uri.queryParameters['section'],
-              initialShiftId:
-                  int.tryParse(state.uri.queryParameters['shift_id'] ?? ''),
+              initialShiftId: int.tryParse(
+                state.uri.queryParameters['shift_id'] ?? '',
+              ),
               initialDifferencesOnly:
                   state.uri.queryParameters['review'] == 'differences',
             ),
@@ -150,21 +151,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pos',
             builder: (context, state) => PosScreen(
-              initialTable:
-                  state.extra is PosTable ? state.extra as PosTable : null,
+              initialTable: state.extra is PosTable
+                  ? state.extra as PosTable
+                  : null,
             ),
           ),
           GoRoute(
             path: '/pos/checkout',
             builder: (context, state) => CheckoutScreen(
-              initialTable:
-                  state.extra is PosTable ? state.extra as PosTable : null,
+              initialTable: state.extra is PosTable
+                  ? state.extra as PosTable
+                  : null,
             ),
           ),
           GoRoute(
             path: '/pos/select-table',
             builder: (context, state) => SelectTableScreen(
-                selectionOnly: state.uri.queryParameters['select'] == 'true'),
+              selectionOnly: state.uri.queryParameters['select'] == 'true',
+            ),
           ),
           GoRoute(
             path: '/pos/open-order/:id',
@@ -257,8 +261,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const LoyaltySettingsScreen(),
           ),
           GoRoute(
+            path: '/manage-menu',
+            builder: (context, state) => const ManageMenuScreen(),
+          ),
+          GoRoute(
             path: '/products',
-            builder: (context, state) => const ProductsScreen(),
+            builder: (context, state) =>
+                const MenuSectionScreen(section: 'Items'),
           ),
           GoRoute(
             path: '/products/categories',
@@ -300,7 +309,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   return InventoryMovementHistoryScreen(
                     ingredient: ingredient,
                     initialMovementId: int.tryParse(
-                        state.uri.queryParameters['movement_id'] ?? ''),
+                      state.uri.queryParameters['movement_id'] ?? '',
+                    ),
                   );
                 },
               ),

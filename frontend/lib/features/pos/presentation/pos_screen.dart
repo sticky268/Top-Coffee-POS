@@ -10,6 +10,7 @@ import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
 import '../application/cart_controller.dart';
 import 'widgets/variant_selector_sheet.dart';
+import 'widgets/menu_selection_sheet.dart';
 import 'cash_drawer_button.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
@@ -95,10 +96,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         appBar: AppBar(
           toolbarHeight: compactToolbar
               ? (MediaQuery.textScalerOf(context).scale(16) * 1.5 +
-                      MediaQuery.textScalerOf(context).scale(11) * 1.3 +
-                      8)
-                  .clamp(56, 160)
-                  .toDouble()
+                        MediaQuery.textScalerOf(context).scale(11) * 1.3 +
+                        8)
+                    .clamp(56, 160)
+                    .toDouble()
               : null,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,9 +160,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                                   : 'Dine-in · ${_selectedTable!.name}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -185,10 +184,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 onPressed: lastReceipt == null
                     ? null
                     : () => showLastReceiptDialog(
-                          context: context,
-                          orderId: lastReceipt.id,
-                          orderReference: lastReceipt.displayOrderReference,
-                        ),
+                        context: context,
+                        orderId: lastReceipt.id,
+                        orderReference: lastReceipt.displayOrderReference,
+                      ),
                 icon: const Icon(Icons.receipt_long_outlined),
               )
             else
@@ -196,10 +195,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 onPressed: lastReceipt == null
                     ? null
                     : () => showLastReceiptDialog(
-                          context: context,
-                          orderId: lastReceipt.id,
-                          orderReference: lastReceipt.displayOrderReference,
-                        ),
+                        context: context,
+                        orderId: lastReceipt.id,
+                        orderReference: lastReceipt.displayOrderReference,
+                      ),
                 icon: const Icon(Icons.receipt_long_outlined),
                 label: const Text('Last Receipt'),
               ),
@@ -230,11 +229,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               return switch (catalogState) {
                 PosCatalogLoading() => const _CatalogLoading(),
                 PosCatalogError(:final message) => _CatalogErrorView(
-                    message: message,
-                    onRetry: () => ref
-                        .read(posCatalogControllerProvider.notifier)
-                        .refresh(),
-                  ),
+                  message: message,
+                  onRetry: () =>
+                      ref.read(posCatalogControllerProvider.notifier).refresh(),
+                ),
                 PosCatalogLoaded(
                   :final categories,
                   :final selectedCategoryId,
@@ -320,7 +318,8 @@ class _PhoneLayout extends ConsumerWidget {
           const Divider(height: 1),
           PhoneCartBar(
             selectedTable: selectedTable,
-            compact: viewport.maxHeight < 420 ||
+            compact:
+                viewport.maxHeight < 420 ||
                 MediaQuery.viewInsetsOf(context).bottom > 0,
           ),
         ],
@@ -437,7 +436,7 @@ class _CatalogErrorView extends StatelessWidget {
   }
 }
 
-void _scanProduct(BuildContext context, WidgetRef ref, String code) {
+void _scanProduct(BuildContext context, WidgetRef ref, String code) async {
   final catalog = ref.read(posCatalogControllerProvider);
   if (catalog is! PosCatalogLoaded) return;
   final matches = catalog.products
@@ -453,7 +452,24 @@ void _scanProduct(BuildContext context, WidgetRef ref, String code) {
     return;
   }
   final product = matches.single;
-  if (product.hasVariants) {
+  if (product.needsConfiguration) {
+    final item = await showMenuSelection(
+      context,
+      product,
+      catalog: catalog.products,
+    );
+    if (item == null || !context.mounted) return;
+    ref
+        .read(cartControllerProvider.notifier)
+        .addItem(
+          product,
+          variant: item.variant,
+          modifierIds: item.modifierIds,
+          comboSelections: item.comboSelections,
+          extraCents: item.extraCents,
+          configurationLabel: item.configurationLabel,
+        );
+  } else if (product.hasVariants) {
     showVariantSelector(context, ref, product);
   } else {
     ref.read(cartControllerProvider.notifier).addItem(product);

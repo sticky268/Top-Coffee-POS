@@ -18,10 +18,26 @@ class CartController extends StateNotifier<CartState> {
   /// quantity is increased instead of creating a duplicate line — matching
   /// on CartItem.lineKey, which is why a "Latte — Medium" line and a
   /// "Latte — Large" line never merge into each other.
-  void addItem(PosProduct product, {PosProductVariant? variant}) {
-    final newItem = CartItem(product: product, variant: variant, quantity: 1);
-    final existingIndex =
-        state.items.indexWhere((i) => i.lineKey == newItem.lineKey);
+  void addItem(
+    PosProduct product, {
+    PosProductVariant? variant,
+    List<int> modifierIds = const [],
+    List<int> comboSelections = const [],
+    int extraCents = 0,
+    String configurationLabel = '',
+  }) {
+    final newItem = CartItem(
+      product: product,
+      variant: variant,
+      quantity: 1,
+      modifierIds: modifierIds,
+      comboSelections: comboSelections,
+      extraCents: extraCents,
+      configurationLabel: configurationLabel,
+    );
+    final existingIndex = state.items.indexWhere(
+      (i) => i.lineKey == newItem.lineKey,
+    );
 
     if (existingIndex == -1) {
       state = state.copyWith(items: [...state.items, newItem]);
@@ -59,15 +75,22 @@ class CartController extends StateNotifier<CartState> {
 
   void removeItem(String lineKey) {
     state = state.copyWith(
-        items: state.items.where((i) => i.lineKey != lineKey).toList());
+      items: state.items.where((i) => i.lineKey != lineKey).toList(),
+    );
   }
 
   /// Manually set a flat discount amount. Clamped to be non-negative here;
   /// CartState.total additionally clamps the *result* so a discount
   /// larger than the subtotal can never produce a negative total.
   void setDiscount(double amount) {
-    state = state.copyWith(discountTotal: amount < 0 ? 0 : amount);
+    state = state.copyWith(
+      discountTotal: amount < 0 ? 0 : amount,
+      clearMenuDiscount: true,
+    );
   }
+
+  void selectMenuDiscount(Map<String, dynamic>? offer) => state = state
+      .copyWith(menuDiscount: offer, clearMenuDiscount: offer == null);
 
   void selectTable(PosTable? table) =>
       state = state.copyWith(table: table, clearTable: table == null);
@@ -79,15 +102,20 @@ class CartController extends StateNotifier<CartState> {
 
 final _draftsProvider = Provider((ref) => <String, CartState>{});
 
-final cartControllerProvider =
-    StateNotifierProvider<CartController, CartState>((ref) {
-  final userId = ref.watch(authControllerProvider
-      .select((auth) => auth is AuthAuthenticated ? auth.user.id : null));
-  final branchId =
-      ref.watch(currentBranchProvider.select((branch) => branch?.id));
-  final drafts = ref.read(_draftsProvider);
-  final key = '$userId:$branchId';
-  final controller = CartController(drafts[key] ?? const CartState());
-  controller.addListener((state) => drafts[key] = state);
-  return controller;
-});
+final cartControllerProvider = StateNotifierProvider<CartController, CartState>(
+  (ref) {
+    final userId = ref.watch(
+      authControllerProvider.select(
+        (auth) => auth is AuthAuthenticated ? auth.user.id : null,
+      ),
+    );
+    final branchId = ref.watch(
+      currentBranchProvider.select((branch) => branch?.id),
+    );
+    final drafts = ref.read(_draftsProvider);
+    final key = '$userId:$branchId';
+    final controller = CartController(drafts[key] ?? const CartState());
+    controller.addListener((state) => drafts[key] = state);
+    return controller;
+  },
+);

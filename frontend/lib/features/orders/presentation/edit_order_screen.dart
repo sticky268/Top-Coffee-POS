@@ -194,6 +194,7 @@ class _CatalogSection extends ConsumerWidget {
           child: ProductGrid(
             products: products,
             crossAxisCount: crossAxisCount,
+            onConfiguredSelected: controller.addConfigured,
             onProductSelected: (product) => controller.addItem(product),
             onVariantSelected: (product, variant) =>
                 controller.addItem(product, variant: variant),
