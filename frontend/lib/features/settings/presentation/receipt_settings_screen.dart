@@ -1026,7 +1026,7 @@ class _ReceiptSettingsScreenState extends ConsumerState<ReceiptSettingsScreen> {
       fontFamily: family,
       fontSize: fontSize,
       fontWeight: fontStyle == 'Niradei' &&
-              (fontWeight?.index ?? 3) >= FontWeight.w700.index
+              (fontWeight?.value ?? 400) >= FontWeight.w700.value
           ? FontWeight.w900
           : fontWeight,
       fontFamilyFallback: const ['TopCoffeeReceiptKhmer'],
