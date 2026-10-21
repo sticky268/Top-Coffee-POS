@@ -64,8 +64,8 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
       final branch = ref.read(currentBranchProvider)?.id;
       draft['options'] = [
         for (final option in draft['modifiers'] as List? ?? [])
-          {
-            ...option as Map,
+          <String, dynamic>{
+            ...Map<String, dynamic>.from(option as Map),
             'recipe': [
               for (final r in option['recipe_items'] as List? ?? [])
                 if (r['branch_id'] == branch)

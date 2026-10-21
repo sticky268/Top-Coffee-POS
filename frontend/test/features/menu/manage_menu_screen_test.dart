@@ -163,6 +163,96 @@ void main() {
     }
   }
 
+  for (final withRecipe in [false, true]) {
+    testWidgets('saved modifier reopens for editing, recipe $withRecipe', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentBranchProvider.overrideWith(
+              (ref) =>
+                  CurrentBranchNotifier(ref, listenToAuth: false)
+                    ..selectBranch(branch),
+            ),
+          ],
+          child: MaterialApp(
+            home: MenuEditorScreen(
+              section: 'Modifiers',
+              catalog: {
+                ...catalog,
+                'ingredients': [
+                  {'id': 7, 'name': 'Oat milk'},
+                ],
+              },
+              initial: {
+                'id': 3,
+                'name': 'Milk choice',
+                'min_select': 0,
+                'max_select': 1,
+                'is_required': false,
+                'is_active': true,
+                'products': [],
+                'modifiers': [
+                  {
+                    'id': 8,
+                    'name': 'Oat',
+                    'price_delta': '0.45',
+                    'is_active': true,
+                    'recipe_items': withRecipe
+                        ? [
+                            {
+                              'branch_id': 1,
+                              'ingredient_id': 7,
+                              'quantity_used': '0.200',
+                            },
+                            {
+                              'branch_id': 2,
+                              'ingredient_id': 99,
+                              'quantity_used': '0.500',
+                            },
+                          ]
+                        : [],
+                  },
+                ],
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final name = find.widgetWithText(TextFormField, 'Option name');
+      await tester.scrollUntilVisible(
+        name,
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.widget<TextFormField>(name).initialValue, 'Oat');
+      final price = find.widgetWithText(TextFormField, 'Extra price');
+      expect(tester.widget<TextFormField>(price).initialValue, '0.45');
+      await tester.enterText(name, 'Oat milk');
+      if (withRecipe) {
+        final ingredient = find.byType(DropdownButtonFormField<int>);
+        await tester.scrollUntilVisible(
+          ingredient,
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('Oat milk'), findsWidgets);
+        final quantity = find.widgetWithText(
+          TextFormField,
+          'Quantity in ingredient stock units',
+        );
+        expect(tester.widget<TextFormField>(quantity).initialValue, '0.200');
+        expect(ingredient, findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('editor exposes real choices and rejects empty combo', (
     tester,
   ) async {
