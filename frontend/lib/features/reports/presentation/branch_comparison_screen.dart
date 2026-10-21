@@ -154,7 +154,9 @@ class _BranchComparisonScreenState
                             'quantity'
                           ])
                             ReportMetricTile(
-                                label: profitLabels[key]!,
+                                label: key == 'cogs'
+                                    ? 'Product costs'
+                                    : profitLabels[key]!,
                                 value: profitValue(report.summary, key),
                                 onTap: report.summary['lines'] == 0
                                     ? null

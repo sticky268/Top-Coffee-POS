@@ -255,6 +255,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
                         ),
                       ],
                     ),
+                    const Text('Exports include all ingredients.'),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,

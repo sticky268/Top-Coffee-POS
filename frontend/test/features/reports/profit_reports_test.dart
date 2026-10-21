@@ -324,8 +324,10 @@ void main() {
         expect(tester.takeException(), isNull);
         await savePreview(tester, key, 'profit-report-phone-$scale.png');
         final tile = find.text('Revenue excluding tax');
-        await tester.scrollUntilVisible(tile, 250);
-        await tester.tap(tile);
+        await tester.scrollUntilVisible(tile.hitTestable(), 150);
+        await tester.ensureVisible(tile);
+        await tester.pumpAndSettle();
+        await tester.tap(tile.hitTestable());
         await tester.pumpAndSettle();
         expect(find.text('Order 7 · Latte សួស្តី'), findsOneWidget);
         expect(find.textContaining('Riverside · 2026-10-19'), findsOneWidget);

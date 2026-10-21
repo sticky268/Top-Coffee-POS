@@ -313,6 +313,7 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
       ]),
       Expanded(
           child: SingleChildScrollView(
+              key: const PageStorageKey('activity-heatmap-horizontal-scroll'),
               scrollDirection: Axis.horizontal,
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

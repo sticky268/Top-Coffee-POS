@@ -189,7 +189,9 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                       metrics: [
                         for (final key in ['revenue', 'cogs', 'quantity'])
                           ReportMetricTile(
-                              label: profitLabels[key]!,
+                              label: key == 'cogs'
+                                  ? 'Product costs'
+                                  : profitLabels[key]!,
                               value: profitValue(report.summary, key),
                               onTap: _sources),
                       ],

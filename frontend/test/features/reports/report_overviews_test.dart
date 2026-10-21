@@ -158,4 +158,58 @@ void main() {
     expect(find.text('Unavailable'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('product rows expand comparisons and keep exact source filters',
+      (tester) async {
+    final repository = OverviewRepository();
+    when(() => repository.profit(any(), 21)).thenAnswer((_) async => fixture());
+    when(() => repository.profitDetails(any(), 21, productId: 1, page: 1))
+        .thenAnswer((_) async =>
+            {'rows': <Map<String, dynamic>>[], 'page': 1, 'total': 0});
+    const query = SalesReportQuery(
+        period: 'custom',
+        dateFrom: '2026-10-19',
+        dateTo: '2026-10-19',
+        cashierId: 5,
+        categoryId: 6);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [salesReportsRepositoryProvider.overrideWithValue(repository)],
+      child: MaterialApp(
+          theme: AppTheme.light,
+          home: const ProfitReportScreen(query: query, branchId: 21)),
+    ));
+    await tester.pumpAndSettle();
+    final heading = find.text('Best sellers · units');
+    await tester.scrollUntilVisible(heading.hitTestable(), 150);
+    await tester.ensureVisible(heading);
+    await tester.pumpAndSettle();
+    await tester.tap(heading.hitTestable());
+    await tester.pumpAndSettle();
+    final product = find.text('Latte សួស្តី');
+    await tester.scrollUntilVisible(product.hitTestable(), 100);
+    await tester.ensureVisible(product);
+    await tester.pumpAndSettle();
+    await tester.tap(product.hitTestable());
+    await tester.pumpAndSettle();
+    final group =
+        find.ancestor(of: heading, matching: find.byType(ReportSection));
+    final revenue = find.descendant(
+        of: group,
+        matching: find.widgetWithText(ListTile, 'Revenue excluding tax'));
+    await tester.scrollUntilVisible(revenue.hitTestable(), 100);
+    await tester.ensureVisible(revenue);
+    await tester.pumpAndSettle();
+    expect(
+        find.descendant(
+            of: group, matching: find.textContaining('100.00% vs previous')),
+        findsWidgets);
+    await tester.tap(revenue.hitTestable());
+    await tester.pumpAndSettle();
+    expect(find.text('Profit source items'), findsOneWidget);
+    final sent = verify(() =>
+            repository.profitDetails(captureAny(), 21, productId: 1, page: 1))
+        .captured
+        .single as SalesReportQuery;
+    expect(sent.parameters(21), query.parameters(21));
+    expect(tester.takeException(), isNull);
+  });
 }
