@@ -15,30 +15,31 @@ class MenuAuth extends Mock implements AuthRepository {}
 
 const branch = BranchSummary(id: 1, name: 'Riverside', code: 'PP-01');
 const user = AuthenticatedUser(
-    id: 1,
-    name: 'Manager',
-    email: 'menu@example.invalid',
-    roles: ['manager'],
-    permissions: ['products.manage'],
-    branches: [branch]);
+  id: 1,
+  name: 'Manager',
+  email: 'menu@example.invalid',
+  roles: ['manager'],
+  permissions: ['products.manage'],
+  branches: [branch],
+);
 final catalog = <String, dynamic>{
   'products': [],
   'categories': [
-    {'id': 1, 'name': 'Coffee'}
+    {'id': 1, 'name': 'Coffee'},
   ],
   'ingredients': [],
   'discounts': [],
-  'modifiers': []
+  'modifiers': [],
 };
 
 void main() {
   setUpAll(() async {
-    await (FontLoader('Inter')
-          ..addFont(rootBundle.load('assets/fonts/Inter.ttf')))
-        .load();
-    await (FontLoader('MaterialIcons')
-          ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
-        .load();
+    await (FontLoader(
+      'Inter',
+    )..addFont(rootBundle.load('assets/fonts/Inter.ttf'))).load();
+    await (FontLoader(
+      'MaterialIcons',
+    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
   });
 
   for (final width in [360.0, 800.0]) {
@@ -51,49 +52,84 @@ void main() {
           when(() => auth.hasStoredToken()).thenAnswer((_) async => true);
           when(() => auth.getCurrentUser()).thenAnswer((_) async => user);
           final key = GlobalKey();
-          await tester.pumpWidget(ProviderScope(
+          await tester.pumpWidget(
+            ProviderScope(
               overrides: [
                 authRepositoryProvider.overrideWithValue(auth),
-                currentBranchProvider.overrideWith((ref) =>
-                    CurrentBranchNotifier(ref, listenToAuth: false)
-                      ..selectBranch(branch)),
+                currentBranchProvider.overrideWith(
+                  (ref) =>
+                      CurrentBranchNotifier(ref, listenToAuth: false)
+                        ..selectBranch(branch),
+                ),
               ],
               child: MaterialApp(
                 theme: dark ? AppTheme.dark : AppTheme.light,
                 builder: (context, child) => MediaQuery(
-                    data: MediaQuery.of(context)
-                        .copyWith(textScaler: TextScaler.linear(scale)),
-                    child: child!),
-                home:
-                    RepaintBoundary(key: key, child: const ManageMenuScreen()),
-              )));
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child!,
+                ),
+                home: RepaintBoundary(
+                  key: key,
+                  child: const ManageMenuScreen(),
+                ),
+              ),
+            ),
+          );
           await tester.pumpAndSettle();
-          expect(find.text('Items'), findsOneWidget);
-          expect(find.text('Combos'), findsOneWidget);
-          expect(find.text('Categories'), findsOneWidget);
-          expect(find.text('Discounts'), findsOneWidget);
-          expect(find.text('Modifiers'), findsOneWidget);
           expect(tester.takeException(), isNull);
           await savePreview(tester, key, 'manage-menu-$width-$scale-$dark');
+          for (final section in [
+            'Items',
+            'Combos',
+            'Categories',
+            'Discounts',
+            'Modifiers',
+          ]) {
+            await tester.scrollUntilVisible(
+              find.text(section),
+              180,
+              scrollable: find.byType(Scrollable).first,
+            );
+            await tester.pumpAndSettle();
+            expect(find.text(section).hitTestable(), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          }
+          await savePreview(
+            tester,
+            key,
+            'manage-menu-scrolled-$width-$scale-$dark',
+          );
         });
       }
     }
   }
 
-  testWidgets('editor exposes real choices and rejects empty combo',
-      (tester) async {
-    await tester.pumpWidget(ProviderScope(
+  testWidgets('editor exposes real choices and rejects empty combo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
         overrides: [
-          currentBranchProvider.overrideWith((ref) =>
-              CurrentBranchNotifier(ref, listenToAuth: false)
-                ..selectBranch(branch)),
+          currentBranchProvider.overrideWith(
+            (ref) =>
+                CurrentBranchNotifier(ref, listenToAuth: false)
+                  ..selectBranch(branch),
+          ),
         ],
         child: MaterialApp(
-            home: MenuEditorScreen(section: 'Combos', catalog: catalog))));
+          home: MenuEditorScreen(section: 'Combos', catalog: catalog),
+        ),
+      ),
+    );
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Name'), 'Morning combo');
-    await tester
-        .tap(find.widgetWithText(DropdownButtonFormField<int>, 'Category'));
+      find.widgetWithText(TextFormField, 'Name'),
+      'Morning combo',
+    );
+    await tester.tap(
+      find.widgetWithText(DropdownButtonFormField<int>, 'Category'),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Coffee').last);
     await tester.pumpAndSettle();
