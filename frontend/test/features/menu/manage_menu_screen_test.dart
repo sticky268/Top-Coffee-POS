@@ -29,7 +29,7 @@ const user = AuthenticatedUser(
 final catalog = <String, dynamic>{
   'products': [],
   'categories': [
-    {'id': 1, 'name': 'Coffee'},
+    {'id': 1, 'name': 'Coffee', 'sort_order': 0, 'is_active': true},
   ],
   'ingredients': [],
   'discounts': [],
