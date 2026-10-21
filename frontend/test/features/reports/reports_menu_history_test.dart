@@ -174,7 +174,7 @@ void main() {
             expect(find.text('Daily'), findsOneWidget);
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'sales-history-$width-$scale-$dark');
-            if (scale == 1) {
+            {
               final amount = find.descendant(
                 of: find.byKey(const ValueKey('history-2026-10-19')),
                 matching: find.text(r'$65.95'),
@@ -328,6 +328,90 @@ void main() {
         sent.any((q) => q.period == 'month' && q.year == 2026 && q.month == 10),
         isTrue,
       );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'daily card opens exact dates and can be opened again after back',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => historyFixture());
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(tester, container, const SalesHistoryScreen());
+      for (var attempt = 0; attempt < 2; attempt++) {
+        await tester.tap(find.byKey(const ValueKey('history-2026-10-19')));
+        await tester.pumpAndSettle();
+        expect(find.text('Sales summary'), findsOneWidget);
+        final query = container
+            .read(salesReportsControllerProvider.notifier)
+            .query;
+        expect(query.period, 'custom');
+        expect(query.dateFrom, '2026-10-19');
+        expect(query.dateTo, '2026-10-19');
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(find.text('Sale Reports'), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'upcoming month does not open a summary or issue another request',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(() => repository.load(any(), 21)).thenAnswer(
+        (call) async => historyFixture(
+          monthly:
+              (call.positionalArguments.first as SalesReportQuery).period ==
+              'year',
+        ),
+      );
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(tester, container, const SalesHistoryScreen(), width: 800);
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+      clearInteractions(repository);
+      await tester.tap(find.text('December 2026'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sale Reports'), findsOneWidget);
+      expect(find.text('Sales summary'), findsNothing);
+      verifyNever(() => repository.load(any(), any()));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'failed pull-to-refresh shows retry and recovers without an uncaught error',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => historyFixture());
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(tester, container, const SalesHistoryScreen());
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => throw Exception('offline'));
+      await tester.drag(
+        find.byKey(const ValueKey('sales-history-list')),
+        const Offset(0, 450),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Retry history'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => historyFixture());
+      await tester.tap(find.text('Retry history'));
+      await tester.pumpAndSettle();
+      expect(find.text('19 Oct 2026'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

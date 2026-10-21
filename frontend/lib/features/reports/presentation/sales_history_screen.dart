@@ -93,7 +93,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
             }
             if (snapshot.hasError) {
               return Center(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -138,9 +138,14 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                 setState(() {
                   pending = next;
                 });
-                await next;
+                try {
+                  await next;
+                } catch (_) {
+                  // FutureBuilder shows the failed request and its retry action.
+                }
               },
               child: ListView(
+                key: const ValueKey('sales-history-list'),
                 padding: const EdgeInsets.all(16),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
@@ -496,7 +501,11 @@ class _HistoryRow extends StatelessWidget {
               return stacked
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [details, const SizedBox(height: 10), total],
+                      children: [
+                        details,
+                        const SizedBox(height: 10),
+                        Align(alignment: Alignment.centerRight, child: total),
+                      ],
                     )
                   : Row(
                       children: [
