@@ -28,7 +28,7 @@ class _MenuSelectionState extends State<_MenuSelection> {
   int cents(dynamic value) => ((num.tryParse('$value') ?? 0) * 100).round();
   String choiceHint(Map group) {
     final minimum = (group['min_select'] as num).toInt();
-    final required = group['is_required'] == true;
+    final required = group['is_required'] == true || minimum > 0;
     final effectiveMinimum = required && minimum == 0 ? 1 : minimum;
     final maximum = (group['max_select'] as num).toInt();
     final range = effectiveMinimum == maximum
