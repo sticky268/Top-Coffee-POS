@@ -129,7 +129,6 @@ class DashboardNavigation extends StatelessWidget {
                         selectedRoute: selectedRoute,
                         onTap: () => _navigate(context, '/print-queue'),
                       ),
-
                       _NavigationItem(
                         icon: Icons.inventory_2_outlined,
                         selectedIcon: Icons.inventory_2,
@@ -345,21 +344,21 @@ class _NavigationItem extends ConsumerWidget {
     final selected = route == '/pos/select-table'
         ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
         : route == '/products' &&
-              selectedRoute.startsWith('/products/categories')
-        ? false
-        : selectedRoute == route || selectedRoute.startsWith('$route/');
+                selectedRoute.startsWith('/products/categories')
+            ? false
+            : selectedRoute == route || selectedRoute.startsWith('$route/');
 
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+            ? theme.colorScheme.onSurface
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     final iconColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+            ? theme.colorScheme.onSurfaceVariant
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

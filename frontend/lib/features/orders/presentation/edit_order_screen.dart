@@ -37,14 +37,14 @@ class EditOrderScreen extends ConsumerWidget {
         maxWidth: 800,
         child: switch (orderState) {
           OrderDetailLoading() => const Center(
-            child: CircularProgressIndicator(),
-          ),
+              child: CircularProgressIndicator(),
+            ),
           OrderDetailError(:final message) => _ErrorView(
-            message: message,
-            onRetry: () => ref
-                .read(orderDetailControllerProvider(orderId).notifier)
-                .refresh(),
-          ),
+              message: message,
+              onRetry: () => ref
+                  .read(orderDetailControllerProvider(orderId).notifier)
+                  .refresh(),
+            ),
           OrderDetailLoaded(:final order) => _EditOrderBody(order: order),
         },
       ),
@@ -64,10 +64,10 @@ class _EditOrderBody extends ConsumerWidget {
     return switch (catalogState) {
       PosCatalogLoading() => const Center(child: CircularProgressIndicator()),
       PosCatalogError(:final message) => _ErrorView(
-        message: message,
-        onRetry: () =>
-            ref.read(posCatalogControllerProvider.notifier).refresh(),
-      ),
+          message: message,
+          onRetry: () =>
+              ref.read(posCatalogControllerProvider.notifier).refresh(),
+        ),
       PosCatalogLoaded(
         :final categories,
         :final selectedCategoryId,
@@ -489,9 +489,8 @@ class _DiscountEditorState extends State<_DiscountEditor> {
             ),
             const SizedBox(width: 8),
             pos_ui.OutlinedButton.icon(
-              onPressed: widget.enabled
-                  ? () => setState(() => _editing = true)
-                  : null,
+              onPressed:
+                  widget.enabled ? () => setState(() => _editing = true) : null,
               icon: const Icon(Icons.discount_outlined),
               label: Text(widget.value > 0 ? 'Edit discount' : 'Add discount'),
             ),

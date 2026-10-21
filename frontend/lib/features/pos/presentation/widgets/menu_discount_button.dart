@@ -18,9 +18,7 @@ class MenuDiscountButton extends ConsumerWidget {
         final branch = ref.read(currentBranchProvider)?.id;
         if (branch == null) return;
         try {
-          final response = await ref
-              .read(apiClientProvider)
-              .request(
+          final response = await ref.read(apiClientProvider).request(
                 (dio) => dio.get(
                   '/menu/discounts',
                   queryParameters: {'branch_id': branch},
@@ -63,10 +61,11 @@ class MenuDiscountButton extends ConsumerWidget {
               .read(cartControllerProvider.notifier)
               .selectMenuDiscount(selected.isEmpty ? null : selected);
         } catch (e) {
-          if (context.mounted)
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Could not load saved discounts. $e')),
             );
+          }
         }
       },
     );

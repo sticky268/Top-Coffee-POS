@@ -24,7 +24,7 @@ class MenuManagementTest extends TestCase
         $this->branch = Branch::factory()->create(['business_id' => $business->id, 'timezone' => 'Asia/Phnom_Penh']);
         $this->user = User::factory()->create(['business_id' => $business->id]);
         $this->user->branches()->attach($this->branch->id, ['is_primary' => true]);
-        foreach (['products.manage', 'orders.create', 'orders.edit', 'reports.view'] as $permission) $this->user->givePermissionTo(Permission::findOrCreate($permission));
+        foreach (['products.manage', 'orders.create', 'orders.edit', 'orders.view', 'reports.view'] as $permission) $this->user->givePermissionTo(Permission::findOrCreate($permission));
         $this->actingAs($this->user);
         $category = Category::create(['name' => 'Coffee']);
         $this->product = Product::create(['name' => 'Latte', 'category_id' => $category->id, 'base_price' => '3.25', 'is_active' => true]);
@@ -44,7 +44,7 @@ class MenuManagementTest extends TestCase
         $this->product->update(['is_active' => false]);
         $this->getJson('/api/v1/menu?branch_id='.$this->branch->id)->assertOk()
             ->assertJsonPath('data.products.0.base_price', '3.25')->assertJsonPath('data.products.0.is_active', false)
-            ->assertJsonPath('data.products.0.branches.0.pivot.price_override', '3.75');
+            ->assertJsonPath('data.products.0.branches.0.pivot.price_override', 3.75);
     }
 
     public function test_combo_and_modifiers_are_priced_by_server_and_deduct_components_atomically(): void

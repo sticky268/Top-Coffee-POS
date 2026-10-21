@@ -11,7 +11,7 @@ import 'edit_order_state.dart';
 
 class EditOrderController extends StateNotifier<EditOrderState> {
   EditOrderController(this._repository, this._catalog, this._order)
-    : super(const EditOrderState()) {
+      : super(const EditOrderState()) {
     _initialize();
   }
 
@@ -20,9 +20,8 @@ class EditOrderController extends StateNotifier<EditOrderState> {
   final OrderDetail _order;
 
   void _initialize() {
-    final catalogProducts = _catalog is PosCatalogLoaded
-        ? _catalog.products
-        : const <PosProduct>[];
+    final catalogProducts =
+        _catalog is PosCatalogLoaded ? _catalog.products : const <PosProduct>[];
 
     final items = <CartItem>[];
 
@@ -225,9 +224,8 @@ class EditOrderController extends StateNotifier<EditOrderState> {
           }
         }
 
-        errorMessage = details.isEmpty
-            ? e.message
-            : '${e.message}: ${details.join(' ')}';
+        errorMessage =
+            details.isEmpty ? e.message : '${e.message}: ${details.join(' ')}';
       } else if (e is ApiException) {
         errorMessage = e.message;
       } else {
@@ -243,11 +241,11 @@ class EditOrderController extends StateNotifier<EditOrderState> {
 
 final editOrderControllerProvider = StateNotifierProvider.autoDispose
     .family<EditOrderController, EditOrderState, OrderDetail>((ref, order) {
-      final catalog = ref.watch(posCatalogControllerProvider);
+  final catalog = ref.watch(posCatalogControllerProvider);
 
-      return EditOrderController(
-        ref.watch(ordersRepositoryProvider),
-        catalog,
-        order,
-      );
-    });
+  return EditOrderController(
+    ref.watch(ordersRepositoryProvider),
+    catalog,
+    order,
+  );
+});

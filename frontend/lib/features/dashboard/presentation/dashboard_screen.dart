@@ -69,12 +69,12 @@ class DashboardScreen extends ConsumerWidget {
                               : null,
                           cashDiscrepancyCount:
                               dashboardState is DashboardLoaded
-                              ? dashboardState.stats.cashDiscrepancyCount
-                              : null,
+                                  ? dashboardState.stats.cashDiscrepancyCount
+                                  : null,
                           cashDiscrepancyShiftId:
                               dashboardState is DashboardLoaded
-                              ? dashboardState.stats.cashDiscrepancyShiftId
-                              : null,
+                                  ? dashboardState.stats.cashDiscrepancyShiftId
+                                  : null,
                         ),
                         _DashboardBody(
                           state: dashboardState,
@@ -110,9 +110,10 @@ class _DashboardBody extends ConsumerWidget {
     return switch (state) {
       DashboardLoading() => const _DashboardLoading(),
       DashboardError(:final message) => _DashboardErrorView(
-        message: message,
-        onRetry: () => ref.read(dashboardControllerProvider.notifier).refresh(),
-      ),
+          message: message,
+          onRetry: () =>
+              ref.read(dashboardControllerProvider.notifier).refresh(),
+        ),
       DashboardLoaded(
         :final stats,
         :final recentOrders,

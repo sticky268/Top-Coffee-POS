@@ -67,9 +67,9 @@ void main() {
   test(
     'saved percentage discount tracks changed quantities with cent rounding',
     () {
-      final cart = CartState(
-        items: const [CartItem(product: product, quantity: 1)],
-        menuDiscount: const {'id': 1, 'type': 'percent', 'value': '12.50'},
+      const cart = CartState(
+        items: [CartItem(product: product, quantity: 1)],
+        menuDiscount: {'id': 1, 'type': 'percent', 'value': '12.50'},
       );
       expect(cart.discountTotal, .47);
       final two = cart.copyWith(
@@ -77,9 +77,8 @@ void main() {
       );
       expect(two.discountTotal, .94);
       expect(
-        two
-            .copyWith(menuDiscount: const {'type': 'fixed', 'value': '50'})
-            .total,
+        two.copyWith(
+            menuDiscount: const {'type': 'fixed', 'value': '50'}).total,
         0,
       );
       expect(

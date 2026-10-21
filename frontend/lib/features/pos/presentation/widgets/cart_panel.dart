@@ -26,16 +26,14 @@ class CartPanel extends ConsumerWidget {
       color: theme.colorScheme.surface,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact =
-              constraints.maxHeight < 380 ||
+          final compact = constraints.maxHeight < 380 ||
               MediaQuery.textScalerOf(context).scale(14) > 20;
           final lines = cart.isEmpty
               ? const _EmptyCart()
               : ListView.separated(
                   shrinkWrap: compact,
-                  physics: compact
-                      ? const NeverScrollableScrollPhysics()
-                      : null,
+                  physics:
+                      compact ? const NeverScrollableScrollPhysics() : null,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: cart.items.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
@@ -102,9 +100,9 @@ class CartPanel extends ConsumerWidget {
                     onPressed: cart.isEmpty
                         ? null
                         : () => context.push(
-                            '/pos/checkout',
-                            extra: selectedTable,
-                          ),
+                              '/pos/checkout',
+                              extra: selectedTable,
+                            ),
                     child: const Text('Review Order'),
                   ),
                 ],
@@ -190,9 +188,8 @@ class _DiscountRow extends StatefulWidget {
 class _DiscountRowState extends State<_DiscountRow> {
   bool _editing = false;
   late final TextEditingController _controller = TextEditingController(
-    text: widget.discountTotal > 0
-        ? widget.discountTotal.toStringAsFixed(2)
-        : '',
+    text:
+        widget.discountTotal > 0 ? widget.discountTotal.toStringAsFixed(2) : '',
   );
 
   @override

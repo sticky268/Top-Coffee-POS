@@ -27,11 +27,10 @@ class CartState {
     final offer = menuDiscount;
     if (offer == null) return _manualDiscount;
     final sub = (subtotal * 100).round();
-    final value = ((num.tryParse(offer['value'].toString()) ?? 0) * 100)
-        .round();
-    final amount = offer['type'] == 'percent'
-        ? (sub * value + 5000) ~/ 10000
-        : value;
+    final value =
+        ((num.tryParse(offer['value'].toString()) ?? 0) * 100).round();
+    final amount =
+        offer['type'] == 'percent' ? (sub * value + 5000) ~/ 10000 : value;
     return amount.clamp(0, sub) / 100;
   }
 
@@ -57,9 +56,8 @@ class CartState {
     return CartState(
       items: items ?? this.items,
       discountTotal: discountTotal ?? _manualDiscount,
-      menuDiscount: clearMenuDiscount
-          ? null
-          : menuDiscount ?? this.menuDiscount,
+      menuDiscount:
+          clearMenuDiscount ? null : menuDiscount ?? this.menuDiscount,
       table: clearTable ? null : table ?? this.table,
     );
   }

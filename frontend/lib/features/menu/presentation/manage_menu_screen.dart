@@ -11,7 +11,7 @@ import '../../products/domain/managed_product_models.dart';
 import '../../pos/domain/pos_models.dart';
 import '../../products/presentation/product_form_screen.dart';
 import '../../products/presentation/category_management_screen.dart';
-import '../../products/data/products_repository.dart';
+import 'branch_availability_dialog.dart';
 import '../data/menu_repository.dart';
 import '../../pos/application/pos_catalog_controller.dart';
 import 'menu_editor_screen.dart';
@@ -171,15 +171,7 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
               onPressed: () => edit(asyncData.requireValue, null),
               icon: const Icon(Icons.add),
               label: Text(
-                'Add ${widget.section == 'Categories'
-                    ? 'category'
-                    : widget.section == 'Items'
-                    ? 'item'
-                    : widget.section == 'Combos'
-                    ? 'combo'
-                    : widget.section == 'Discounts'
-                    ? 'discount'
-                    : 'modifier group'}',
+                'Add ${widget.section == 'Categories' ? 'category' : widget.section == 'Items' ? 'item' : widget.section == 'Combos' ? 'combo' : widget.section == 'Discounts' ? 'discount' : 'modifier group'}',
               ),
             )
           : null,
@@ -194,7 +186,7 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                 const Text('Could not load the menu.'),
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('$error'),
+                  child: Text(menuError(error)),
                 ),
                 TextButton(
                   onPressed: () => ref.invalidate(menuDataProvider),
@@ -204,23 +196,21 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
             ),
           ),
           data: (data) {
-            final source =
-                data[widget.section == 'Items' || widget.section == 'Combos'
-                        ? 'products'
-                        : widget.section.toLowerCase()]
-                    as List;
+            final source = data[
+                widget.section == 'Items' || widget.section == 'Combos'
+                    ? 'products'
+                    : widget.section.toLowerCase()] as List;
             final rows = source
                 .map((e) => Map<String, dynamic>.from(e as Map))
                 .where((row) {
-                  final combo = (row['combo_slots'] as List? ?? []).isNotEmpty;
-                  return (widget.section != 'Items' || !combo) &&
-                      (widget.section != 'Combos' || combo) &&
-                      (archived || row['is_active'] != false) &&
-                      '${row['name']}'.toLowerCase().contains(
+              final combo = (row['combo_slots'] as List? ?? []).isNotEmpty;
+              return (widget.section != 'Items' || !combo) &&
+                  (widget.section != 'Combos' || combo) &&
+                  (archived || row['is_active'] != false) &&
+                  '${row['name']}'.toLowerCase().contains(
                         search.toLowerCase(),
                       );
-                })
-                .toList();
+            }).toList();
             return Column(
               children: [
                 Padding(
@@ -249,13 +239,14 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: rows.isEmpty ? 1 : rows.length,
                       itemBuilder: (_, index) {
-                        if (rows.isEmpty)
+                        if (rows.isEmpty) {
                           return const Padding(
                             padding: EdgeInsets.all(24),
                             child: Text(
                               'No matching entries. Add one to get started.',
                             ),
                           );
+                        }
                         final row = rows[index];
                         return Card(
                           child: ListTile(
@@ -264,34 +255,44 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                               row['is_active'] == false
                                   ? 'Archived · history retained'
                                   : widget.section == 'Discounts'
-                                  ? '${row['type'] == 'percent' ? '${row['value']}%' : '\$${row['value']}'} · ${row['branch_id'] == null ? 'All branches' : 'This branch'}'
-                                  : widget.section == 'Items' ||
-                                        widget.section == 'Combos'
-                                  ? 'Base price \$${row['base_price']} · tap to edit'
-                                  : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
+                                      ? '${row['type'] == 'percent' ? '${row['value']}%' : '\$${row['value']}'} · ${row['branch_id'] == null ? 'All branches' : 'This branch'}'
+                                      : widget.section == 'Items' ||
+                                              widget.section == 'Combos'
+                                          ? 'Base price \$${row['base_price']} · tap to edit'
+                                          : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
                             ),
-                            trailing: const Icon(Icons.chevron_right),
+                            trailing: widget.section == 'Items' ||
+                                    widget.section == 'Combos'
+                                ? PopupMenuButton<String>(
+                                    enabled: canModify,
+                                    tooltip: 'Item actions',
+                                    onSelected: (action) async {
+                                      if (action == 'edit') {
+                                        await edit(data, row);
+                                      }
+                                      if (action == 'branch' &&
+                                          context.mounted) {
+                                        await showDialog<bool>(
+                                            context: context,
+                                            builder: (_) =>
+                                                BranchAvailabilityDialog(
+                                                    product: row));
+                                        ref.invalidate(menuDataProvider);
+                                        ref.invalidate(
+                                            posCatalogControllerProvider);
+                                      }
+                                    },
+                                    itemBuilder: (_) => const [
+                                          PopupMenuItem(
+                                              value: 'edit',
+                                              child: Text('Edit shared item')),
+                                          PopupMenuItem(
+                                              value: 'branch',
+                                              child: Text(
+                                                  'Branch pricing & availability'))
+                                        ])
+                                : const Icon(Icons.chevron_right),
                             onTap: canModify ? () => edit(data, row) : null,
-                            onLongPress: widget.section == 'Items' && canModify
-                                ? () async {
-                                    try {
-                                      await ref
-                                          .read(productsRepositoryProvider)
-                                          .setProductActive(
-                                            row['id'] as int,
-                                            row['is_active'] == false,
-                                          );
-                                      ref.invalidate(menuDataProvider);
-                                    } catch (error) {
-                                      if (context.mounted)
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(content: Text('$error')),
-                                        );
-                                    }
-                                  }
-                                : null,
                           ),
                         );
                       },

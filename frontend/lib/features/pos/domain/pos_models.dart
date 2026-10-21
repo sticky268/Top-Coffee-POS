@@ -164,7 +164,7 @@ class PosProduct {
           .toList(),
       imageUrl: (json['images'] as List? ?? const []).isNotEmpty
           ? ((json['images'] as List).first as Map<String, dynamic>)['url']
-                as String?
+              as String?
           : null,
     );
   }
@@ -186,9 +186,9 @@ class CartItem {
   final int extraCents;
   final String configurationLabel;
   Map<String, dynamic> get selectionPayload => {
-    if (modifierIds.isNotEmpty) 'modifier_ids': modifierIds,
-    if (comboSelections.isNotEmpty) 'combo_selections': comboSelections,
-  };
+        if (modifierIds.isNotEmpty) 'modifier_ids': modifierIds,
+        if (comboSelections.isNotEmpty) 'combo_selections': comboSelections,
+      };
 
   final PosProduct product;
   final PosProductVariant? variant;
@@ -315,9 +315,8 @@ class OrderConfirmation {
         ? json['payment'] as Map<String, dynamic>
         : null;
 
-    final paymentsJson = json['payments'] is List
-        ? json['payments'] as List
-        : const [];
+    final paymentsJson =
+        json['payments'] is List ? json['payments'] as List : const [];
 
     return OrderConfirmation(
       orderId: json['id'] as int,
@@ -412,9 +411,8 @@ class OrderReceipt {
         ? json['payment'] as Map<String, dynamic>
         : null;
 
-    final paymentsJson = json['payments'] is List
-        ? json['payments'] as List
-        : const [];
+    final paymentsJson =
+        json['payments'] is List ? json['payments'] as List : const [];
 
     final itemsJson = json['items'] is List ? json['items'] as List : const [];
 

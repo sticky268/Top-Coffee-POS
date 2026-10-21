@@ -89,8 +89,8 @@ class CartController extends StateNotifier<CartState> {
     );
   }
 
-  void selectMenuDiscount(Map<String, dynamic>? offer) => state = state
-      .copyWith(menuDiscount: offer, clearMenuDiscount: offer == null);
+  void selectMenuDiscount(Map<String, dynamic>? offer) => state =
+      state.copyWith(menuDiscount: offer, clearMenuDiscount: offer == null);
 
   void selectTable(PosTable? table) =>
       state = state.copyWith(table: table, clearTable: table == null);

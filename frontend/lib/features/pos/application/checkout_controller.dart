@@ -117,9 +117,8 @@ class CheckoutController extends StateNotifier<CheckoutState> {
           final approved = await confirmSeparateSale?.call(e.uuid) ?? false;
           if (!mounted) return;
           final currentAuth = _ref.read(authControllerProvider);
-          final currentUser = currentAuth is AuthAuthenticated
-              ? currentAuth.user.id
-              : null;
+          final currentUser =
+              currentAuth is AuthAuthenticated ? currentAuth.user.id : null;
           if (currentUser != userId ||
               _ref.read(currentBranchProvider)?.id != branchId) {
             state = const CheckoutError(
@@ -231,5 +230,5 @@ class CheckoutController extends StateNotifier<CheckoutState> {
 
 final checkoutControllerProvider =
     StateNotifierProvider.autoDispose<CheckoutController, CheckoutState>((ref) {
-      return CheckoutController(ref.watch(posRepositoryProvider), ref);
-    });
+  return CheckoutController(ref.watch(posRepositoryProvider), ref);
+});

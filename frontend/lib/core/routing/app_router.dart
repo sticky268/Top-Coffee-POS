@@ -151,17 +151,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pos',
             builder: (context, state) => PosScreen(
-              initialTable: state.extra is PosTable
-                  ? state.extra as PosTable
-                  : null,
+              initialTable:
+                  state.extra is PosTable ? state.extra as PosTable : null,
             ),
           ),
           GoRoute(
             path: '/pos/checkout',
             builder: (context, state) => CheckoutScreen(
-              initialTable: state.extra is PosTable
-                  ? state.extra as PosTable
-                  : null,
+              initialTable:
+                  state.extra is PosTable ? state.extra as PosTable : null,
             ),
           ),
           GoRoute(

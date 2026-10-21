@@ -31,7 +31,9 @@ class MenuManagementController extends Controller
         $branch = $this->branch($request);
         return response()->json(['data' => [
             'products' => Product::with(['category', 'variants', 'branches', 'modifierGroups', 'images'])
-                ->whereHas('branches', fn ($q) => $q->where('branches.id', $branch))->orderBy('name')->get(),
+                ->whereHas('branches', fn ($q) => $q->where('branches.id', $branch))->orderBy('name')->get()->each(function ($product) {
+                    foreach ($product->images as $image) $image->setAttribute('url', asset('storage/'.$image->path));
+                }),
             'categories' => Category::where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $branch))->orderBy('sort_order')->get(),
             'modifiers' => ModifierGroup::with(['modifiers.recipeItems', 'products:id,name'])->orderBy('name')->get(),
             'discounts' => MenuDiscount::where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $branch))->orderBy('name')->get(),
