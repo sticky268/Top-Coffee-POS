@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'report_overview_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/widgets/page_app_bar.dart';
@@ -108,6 +109,9 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
           child: FutureBuilder<ProfitReport>(
             future: pending,
             builder: (context, state) {
+              if (state.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
               if (state.hasError) {
                 return Center(
                   child: Column(
@@ -117,7 +121,9 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                         'Could not load profitability. Check the connection.',
                       ),
                       FilledButton(
-                        onPressed: () => setState(() { pending = _load(); }),
+                        onPressed: () => setState(() {
+                          pending = _load();
+                        }),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -132,27 +138,24 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                 onRefresh: () async {
                   final next = _load();
                   setState(() => pending = next);
-                  await next;
+                  try {
+                    await next;
+                  } catch (_) {
+                    // FutureBuilder renders the error and Retry action.
+                  }
                 },
                 child: ListView(
                   padding: const EdgeInsets.all(16),
+                  physics: const AlwaysScrollableScrollPhysics(),
                   children: [
-                    Text(
-                      SalesReport.maps(
-                        report.meta['branches'],
-                      )
-                          .map((b) => '${b['name']} · ${b['timezone']}')
-                          .join('\n'),
-                    ),
-                    Text(
-                      '${report.meta['date_from']} – ${report.meta['date_to']}',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      'Compared with ${report.meta['previous_from']} – ${report.meta['previous_to']}',
-                    ),
-                    Text(
-                      'Cashier: ${report.meta['cashier_name'] ?? 'All sale cashiers'} · Category: ${report.meta['category_name'] ?? 'All historical categories'}',
+                    ReportHeader(
+                      meta: report.meta,
+                      scope: SalesReport.maps(report.meta['branches'])
+                          .map((b) => '${b['name']}')
+                          .join(', '),
+                      filterLabel: 'Change report filters',
+                      onChangeFilters: widget.onChangeFilters ??
+                          () => Navigator.of(context).pop(),
                     ),
                     if (report.meta['category_id'] != null)
                       const Text(
@@ -165,14 +168,6 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                       const Text(
                         'Refunds exceed recorded sale value. Review the separate non-sales refund amount in Sales, discounts & refunds.',
                       ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: widget.onChangeFilters ?? () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.tune),
-                        label: const Text('Change report filters'),
-                      ),
-                    ),
                     if (report.summary['unknown_cost_lines'] != 0)
                       Card(
                         child: Padding(
@@ -182,43 +177,36 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                           ),
                         ),
                       ),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final columns = constraints.maxWidth >= 600 &&
-                                MediaQuery.textScalerOf(context).scale(14) <= 20
-                            ? 2
-                            : 1;
-                        return Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final key in [
-                              'revenue',
-                              'cogs',
-                              'gross_profit',
-                              'quantity',
-                            ])
-                              SizedBox(
-                                width:
-                                    (constraints.maxWidth - (columns - 1) * 8) /
-                                        columns,
-                                child: Card(
-                                  child: ListTile(
-                                    title: Text(profitLabels[key]!),
-                                    subtitle: Text(
-                                      '${profitValue(report.summary, key)}\n${_comparison(report.summary, key)}',
-                                    ),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: _sources,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
+                    ReportOverview(
+                      primary: ReportMetricTile(
+                        label: profitLabels['gross_profit']!,
+                        value: profitValue(report.summary, 'gross_profit'),
+                        prominent: true,
+                        caption:
+                            'Revenue less product costs. Operating expenses are excluded.',
+                        onTap: _sources,
+                      ),
+                      metrics: [
+                        for (final key in ['revenue', 'cogs', 'quantity'])
+                          ReportMetricTile(
+                              label: profitLabels[key]!,
+                              value: profitValue(report.summary, key),
+                              onTap: _sources),
+                      ],
                     ),
-                    ExpansionTile(
-                      title: const Text('Sales, discounts & refunds'),
+                    ReportSection(title: 'Previous-period changes', children: [
+                      for (final key in [
+                        'revenue',
+                        'cogs',
+                        'gross_profit',
+                        'quantity'
+                      ])
+                        ListTile(
+                            title: Text(profitLabels[key]!),
+                            subtitle: Text(_comparison(report.summary, key))),
+                    ]),
+                    ReportSection(
+                      title: 'Sales, discounts & refunds',
                       children: [
                         for (final entry in profitLabels.entries.where(
                           (e) => ![
@@ -238,19 +226,21 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                           ),
                       ],
                     ),
-                    Card(
-                      child: ListTile(
-                        title: const Text('Gross margin'),
-                        subtitle: Text(
-                          '${report.summary['margin_percent'] == null ? 'Unavailable' : '${report.summary['margin_percent']}%'}\n${report.summary['margin_change_points'] == null ? 'No comparable margin baseline' : '${report.summary['margin_change_points']} percentage points vs previous'}',
-                        ),
-                        onTap: _sources,
-                        trailing: const Icon(Icons.chevron_right),
-                      ),
-                    ),
-                    ExpansionTile(
-                      title: const Text('Accounting & cost coverage'),
-                      childrenPadding: const EdgeInsets.all(16),
+                    ReportSection(title: 'Gross margin', children: [
+                      ListTile(
+                          title: Text(report.summary['margin_percent'] == null
+                              ? 'Unavailable'
+                              : '${report.summary['margin_percent']}%'),
+                          subtitle: Text(report
+                                      .summary['margin_change_points'] ==
+                                  null
+                              ? 'No comparable margin baseline'
+                              : '${report.summary['margin_change_points']} percentage points vs previous'),
+                          onTap: _sources,
+                          trailing: const Icon(Icons.chevron_right)),
+                    ]),
+                    ReportSection(
+                      title: 'Accounting & cost coverage',
                       children: [
                         const Text(
                           'Uses the filters from Sales. Category here means individual sale-time items; older unknown categories appear separately.',
@@ -275,9 +265,8 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                       report.slow,
                       (r) => _sources(product: r['id'] as int),
                     ),
-                    ExpansionTile(
-                      title: const Text('Popularity versus margin'),
-                      childrenPadding: const EdgeInsets.all(12),
+                    ReportSection(
+                      title: 'Popularity versus margin',
                       children: [
                         Text(
                           'Higher popularity: at least ${report.meta['popularity_threshold_units']} units (average per selling product, rounded up). Higher margin: at least ${report.meta['margin_threshold_percent'] ?? 'unavailable'}%, weighted across known-cost products with positive revenue. Refunded units remain sold units.',
@@ -307,11 +296,9 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                       report.branches,
                       (r) => _sources(branch: r['id'] as int),
                     ),
-                    ExpansionTile(
-                      title: Text(
-                        'Currently available, no sales · ${report.unsold.length}',
-                      ),
-                      childrenPadding: const EdgeInsets.all(16),
+                    ReportSection(
+                      title:
+                          'Currently available, no sales · ${report.unsold.length}',
                       children: [
                         Text(report.meta['unsold_basis'] as String),
                         if (report.unsold.isEmpty)
@@ -352,20 +339,34 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
     List<Map<String, dynamic>> rows,
     void Function(Map<String, dynamic>) onTap,
   ) =>
-      ExpansionTile(
-        title: Text(title),
-        childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
+      ReportSection(
+        title: title,
         children: [
           if (rows.isEmpty)
             const ListTile(title: Text('No paid sales in this selection.')),
           for (final row in rows)
-            ListTile(
+            ExpansionTile(
               title: Text(row['name'] as String),
               subtitle: Text(
-                '${row['quantity']} units · revenue ${profitValue(row, 'revenue')}\nCOGS ${profitValue(row, 'cogs')} · profit ${profitValue(row, 'gross_profit')}\nMargin ${row['margin_percent'] ?? 'Unavailable'}% · ${_comparison(row, 'revenue')}\nCOGS ${_comparison(row, 'cogs')}\nProfit ${_comparison(row, 'gross_profit')}\nUnits ${_comparison(row, 'quantity')}\nMargin change ${row['margin_change_points'] ?? 'unavailable'} points',
-              ),
-              onTap: () => onTap(row),
-              trailing: const Icon(Icons.chevron_right),
+                  '${row['quantity']} units · ${reportDisplayValue(profitValue(row, 'revenue'))} revenue\nProfit ${reportDisplayValue(profitValue(row, 'gross_profit'))}'),
+              children: [
+                for (final key in [
+                  'revenue',
+                  'cogs',
+                  'gross_profit',
+                  'quantity'
+                ])
+                  ListTile(
+                      title: Text(profitLabels[key]!),
+                      subtitle: Text(
+                          '${profitValue(row, key)}\n${_comparison(row, key)}'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => onTap(row)),
+                ListTile(
+                    title: const Text('Gross margin'),
+                    subtitle: Text(
+                        '${row['margin_percent'] == null ? 'Unavailable' : '${row['margin_percent']}%'}\nChange: ${row['margin_change_points'] ?? 'Unavailable'} percentage points')),
+              ],
             ),
         ],
       );
@@ -391,10 +392,12 @@ class ProfitSourceItemsScreen extends ConsumerStatefulWidget {
   final int? productId;
   final String? category;
   @override
-  ConsumerState<ProfitSourceItemsScreen> createState() => _ProfitSourceItemsScreenState();
+  ConsumerState<ProfitSourceItemsScreen> createState() =>
+      _ProfitSourceItemsScreenState();
 }
 
-class _ProfitSourceItemsScreenState extends ConsumerState<ProfitSourceItemsScreen> {
+class _ProfitSourceItemsScreenState
+    extends ConsumerState<ProfitSourceItemsScreen> {
   int page = 1;
   late Future<Map<String, dynamic>> pending;
   Future<Map<String, dynamic>> _load() =>
@@ -427,7 +430,9 @@ class _ProfitSourceItemsScreenState extends ConsumerState<ProfitSourceItemsScree
               if (state.hasError) {
                 return Center(
                   child: FilledButton(
-                    onPressed: () => setState(() { pending = _load(); }),
+                    onPressed: () => setState(() {
+                      pending = _load();
+                    }),
                     child: const Text('Retry source items'),
                   ),
                 );
