@@ -253,8 +253,9 @@ void main() {
     'reports keep range choices and long totals readable at 200 percent',
     (tester) async {
       final reports = MockReportsRepository();
-      when(() => reports.load(any(), any()))
-          .thenAnswer((_) async => salesReportFixture());
+      when(
+        () => reports.load(any(), any()),
+      ).thenAnswer((_) async => salesReportFixture());
       final preview = GlobalKey();
       await pump(
         tester,
@@ -265,14 +266,25 @@ void main() {
         reports: reports,
         preview: preview,
       );
+      await tester.tap(find.text('Dates & filters'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.widgetWithText(ChoiceChip, '7 Days'),
+        150,
+      );
       await tester.tap(find.widgetWithText(ChoiceChip, '7 Days'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Gross sales'), 300);
+      await tester.scrollUntilVisible(find.text('Sales breakdown'), 300);
+      await tester.tap(find.text('Sales breakdown'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Gross sales'), 150);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await savePreview(tester, preview, 'reports-large-text');
       await tester.scrollUntilVisible(
-          find.text('Cash drawer reconciliation'), 300);
+        find.text('Cash drawer reconciliation'),
+        300,
+      );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       verify(() => reports.load(any(), any())).called(2);
