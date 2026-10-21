@@ -67,18 +67,18 @@ class ReportsHomeScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             _heading(context, 'Sales & revenue'),
             _ReportLink(
+              title: 'Sale Reports',
+              subtitle: 'Daily and monthly sales, item counts and top periods',
+              icon: Icons.calendar_month_outlined,
+              color: Colors.blue,
+              onTap: () => open(const SalesHistoryScreen()),
+            ),
+            _ReportLink(
               title: 'Sales summary',
               subtitle: 'Totals, payments, refunds and cash reconciliation',
               icon: Icons.bar_chart_rounded,
               color: Colors.teal,
               onTap: () => open(const ReportsScreen()),
-            ),
-            _ReportLink(
-              title: 'Sales history',
-              subtitle: 'Browse daily sales and every month of the year',
-              icon: Icons.calendar_month_outlined,
-              color: Colors.blue,
-              onTap: () => open(const SalesHistoryScreen()),
             ),
             _ReportLink(
               title: 'Profit & product performance',

@@ -152,7 +152,7 @@ void main() {
             verifyNever(() => repository.load(any(), any()));
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'reports-menu-$width-$scale-$dark');
-            final history = find.text('Sales history');
+            final history = find.text('Sale Reports');
             await tester.scrollUntilVisible(
               history,
               150,
@@ -175,8 +175,16 @@ void main() {
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'sales-history-$width-$scale-$dark');
             if (scale == 1) {
-              final amount = find.descendant(of: find.byKey(const ValueKey('history-2026-10-19')), matching: find.text(r'$65.95'));
-              expect(tester.getRect(amount).right, greaterThan(width - 80), reason: 'Amounts align at the trailing edge like the reference.');
+              final amount = find.descendant(
+                of: find.byKey(const ValueKey('history-2026-10-19')),
+                matching: find.text(r'$65.95'),
+              );
+              expect(
+                tester.getRect(amount).right,
+                greaterThan(width - 80),
+                reason:
+                    'Amounts align at the trailing edge like the reference.',
+              );
             }
             await tester.scrollUntilVisible(
               find.text('Top'),
@@ -189,7 +197,7 @@ void main() {
               key,
               'sales-history-rows-$width-$scale-$dark',
             );
-            expect(find.text('4 paid orders · 32 items'), findsWidgets);
+            expect(find.text('4 Sales · 32 Items'), findsWidgets);
             expect(find.text('Top'), findsOneWidget);
             expect(tester.takeException(), isNull);
           },
@@ -197,6 +205,56 @@ void main() {
       }
     }
   }
+
+  testWidgets(
+    'sales filters retain their values across daily and monthly tabs',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(() => repository.load(any(), 21)).thenAnswer((call) async {
+        final query = call.positionalArguments.first as SalesReportQuery;
+        return historyFixture(monthly: query.period == 'year');
+      });
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(
+        tester,
+        container,
+        const SalesHistoryScreen(),
+        width: 800,
+        scale: 2,
+      );
+      expect(find.text('Your sales from the last 30 days'), findsOneWidget);
+      expect(find.text('Cashier'), findsNothing);
+      await tester.tap(find.byTooltip('Sales filters'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(DropdownButtonFormField<int>, 'Cashier'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manager').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Filtered sales'), findsOneWidget);
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+      final sent = verify(
+        () => repository.load(captureAny(), 21),
+      ).captured.cast<SalesReportQuery>();
+      expect(sent.last.period, 'year');
+      expect(sent.last.cashierId, 16);
+      await tester.tap(find.byTooltip('Sales filters'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Clear filters'));
+      await tester.tap(find.text('Clear filters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Filtered sales'), findsNothing);
+      final cleared = verify(
+        () => repository.load(captureAny(), 21),
+      ).captured.cast<SalesReportQuery>();
+      expect(cleared.last.period, 'year');
+      expect(cleared.last.cashierId, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'menu analytical entry opens filters and reloads their selection',
@@ -288,7 +346,7 @@ void main() {
       await tester.tap(find.text('Retry history'));
       await tester.pumpAndSettle();
       expect(find.text('Top'), findsNothing);
-      expect(find.text('0 paid orders · 0 items'), findsWidgets);
+      expect(find.text('0 Sales · 0 Items'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
@@ -319,7 +377,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Airport'), findsOneWidget);
     expect(find.text('Top'), findsNothing);
-    expect(find.text('0 paid orders · 0 items'), findsWidgets);
+    expect(find.text('0 Sales · 0 Items'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }
