@@ -8,7 +8,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../settings/data/receipt_settings.dart';
 
-/// Manual access records its reason without changing sales or cash totals.
+/// Manual access opens immediately without recording drawer activity.
 class CashDrawerButton extends ConsumerStatefulWidget {
   const CashDrawerButton({super.key, this.compact = false});
   final bool compact;
@@ -19,7 +19,6 @@ class CashDrawerButton extends ConsumerStatefulWidget {
 
 class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
   bool _busy = false;
-  bool _prompting = false;
 
   bool _allowed() {
     final auth = ref.read(authControllerProvider);
@@ -33,22 +32,10 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
   }
 
   Future<void> _open() async {
-    if (_busy || _prompting || !_allowed()) return;
+    if (_busy || !_allowed()) return;
     final selected = ref.read(printScopeProvider);
     final branch = ref.read(currentBranchProvider);
     if (selected == null || branch == null) return;
-    setState(() => _prompting = true);
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (_) => const _DrawerReasonDialog(),
-    );
-    if (!mounted) return;
-    setState(() => _prompting = false);
-    if (reason == null ||
-        !_allowed() ||
-        ref.read(printScopeProvider) != selected) {
-      return;
-    }
     final queue = ref.read(printQueueProvider);
     setState(() => _busy = true);
     var message = 'Drawer command sent. Check the drawer.';
@@ -67,7 +54,7 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
           throw StateError(
               'Sign in and select the original branch before opening the drawer.');
         }
-      }, reason: reason);
+      }, recordActivity: false);
     } catch (error) {
       message =
           'Could not confirm drawer command. Check the drawer before retrying. $error';
@@ -88,13 +75,13 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
       return pos_ui.IconButton(
         boxed: true,
         tooltip: 'Open cash drawer',
-        onPressed: _busy || _prompting ? null : _open,
+        onPressed: _busy ? null : _open,
         isLoading: _busy,
         icon: const Icon(Icons.point_of_sale),
       );
     }
     return pos_ui.SecondaryButton.icon(
-      onPressed: _busy || _prompting ? null : _open,
+      onPressed: _busy ? null : _open,
       icon: _busy
           ? const SizedBox(
               width: 20,
@@ -104,71 +91,4 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
       label: Text(_busy ? 'Sending…' : 'Open cash drawer'),
     );
   }
-}
-
-class _DrawerReasonDialog extends StatefulWidget {
-  const _DrawerReasonDialog();
-  @override
-  State<_DrawerReasonDialog> createState() => _DrawerReasonDialogState();
-}
-
-class _DrawerReasonDialogState extends State<_DrawerReasonDialog> {
-  final _form = GlobalKey<FormState>();
-  final _reason = TextEditingController();
-  bool _submitted = false;
-
-  @override
-  void dispose() {
-    _reason.dispose();
-    super.dispose();
-  }
-
-  void _confirm() {
-    if (_submitted) return;
-    if (_form.currentState!.validate()) {
-      _submitted = true;
-      Navigator.of(context).pop(_reason.text.trim());
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        scrollable: true,
-        title: const Text('Why are you opening the drawer?'),
-        content: SizedBox(
-          width: 360,
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                    'The request is recorded with your name and branch. Opening the drawer does not change cash totals.'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _reason,
-                  autofocus: true,
-                  maxLength: 255,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason',
-                    hintText: 'For example, make change',
-                  ),
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _confirm(),
-                  validator: (value) => (value?.trim().length ?? 0) < 3
-                      ? 'Enter a reason with at least 3 characters.'
-                      : null,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel')),
-          FilledButton(onPressed: _confirm, child: const Text('Open drawer')),
-        ],
-      );
 }

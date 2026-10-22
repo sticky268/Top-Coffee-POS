@@ -343,7 +343,7 @@ class PrintQueue {
     return job;
   });
 
-  /// An immediate command. Only its audit evidence is persisted and uploaded;
+  /// An immediate command. Activity recording can be disabled for manual access;
   /// neither failed commands nor uncertain attempts are automatically replayed.
   /// Shares the receipt serializer so connect/disconnect cannot interrupt a print.
   Future<void> openCashDrawer(
@@ -352,6 +352,7 @@ class PrintQueue {
     void Function() authorize, {
     int? completedSaleId,
     String? reason,
+    bool recordActivity = true,
   }) => _serialized(() async {
     _guard(selected);
     authorize();
@@ -360,16 +361,18 @@ class PrintQueue {
     if (automaticKey != null && await store.read(automaticKey) != null) return;
     _guard(selected);
     authorize();
-    // A storage failure must prevent hardware access. This journal is telemetry,
+    // Recorded access requires durable storage before hardware access. This journal is telemetry,
     // not a drawer-command queue, so a crash can never resume a pulse.
-    final event = await _drawerJournal.begin(
-      selected, orderId: completedSaleId, reason: reason,
-    );
+    final event = recordActivity || completedSaleId != null
+        ? await _drawerJournal.begin(
+            selected, orderId: completedSaleId, reason: reason,
+          )
+        : null;
     Object? failure;
     try {
       if (automaticKey != null) {
         // Preserve existing device-local at-most-once sale markers across updates.
-        await store.write(automaticKey, event.requestedAt.toIso8601String());
+        await store.write(automaticKey, event!.requestedAt.toIso8601String());
       }
       final ip = (await destination()).trim();
       if (ip.isEmpty) {
@@ -391,9 +394,11 @@ class PrintQueue {
       }
     }
     try {
-      await _drawerJournal.save(event.finish(
-        failure == null ? 'command_sent' : 'unconfirmed',
-      ));
+      if (event != null) {
+        await _drawerJournal.save(event.finish(
+          failure == null ? 'command_sent' : 'unconfirmed',
+        ));
+      }
     } catch (_) {
       failure ??= StateError(
         'The drawer request was saved, but its final command status could not be saved. Check the drawer before retrying.',
