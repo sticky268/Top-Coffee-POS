@@ -238,7 +238,7 @@ void main() {
     await tester.tap(destination);
     await tester.pumpAndSettle();
     expect(find.text('Opened /operations'), findsOneWidget);
-    expect(find.text('MAIN'), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
