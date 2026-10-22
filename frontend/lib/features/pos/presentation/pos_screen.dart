@@ -176,12 +176,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             if (compactToolbar) const CashDrawerButton(compact: true),
             if (drawerScope != null)
               pos_ui.IconButton(
+                boxed: compactToolbar,
                 tooltip: 'Drawer activity',
                 icon: const Icon(Icons.history),
                 onPressed: () => context.push('/drawer-activity'),
               ),
             if (compactToolbar)
               pos_ui.IconButton(
+                boxed: true,
                 tooltip: 'Last Receipt',
                 onPressed: lastReceipt == null
                     ? null
@@ -204,9 +206,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.receipt_long_outlined),
                 label: const Text('Last Receipt'),
               ),
-            const SizedBox(width: 8),
+            SizedBox(width: compactToolbar ? 0 : 8),
             if (compactToolbar)
               pos_ui.IconButton(
+                boxed: true,
                 tooltip: 'Dine-in',
                 onPressed: _openTableSelector,
                 icon: const Icon(Icons.table_restaurant),
@@ -217,7 +220,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.table_restaurant),
                 label: const Text('Dine-in'),
               ),
-            const SizedBox(width: 8),
+            SizedBox(width: compactToolbar ? 0 : 8),
           ],
         ),
         body: SafeArea(

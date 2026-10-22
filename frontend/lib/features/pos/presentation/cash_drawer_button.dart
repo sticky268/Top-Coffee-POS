@@ -86,6 +86,7 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
     if (!_allowed()) return const SizedBox.shrink();
     if (widget.compact) {
       return pos_ui.IconButton(
+        boxed: true,
         tooltip: 'Open cash drawer',
         onPressed: _busy || _prompting ? null : _open,
         isLoading: _busy,

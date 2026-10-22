@@ -8,6 +8,7 @@ import 'package:top_coffee_pos/core/receipt/last_receipt_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/core/routing/app_shell.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
+import 'package:top_coffee_pos/features/auth/application/auth_controller.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/pos/application/cart_controller.dart';
 import 'package:top_coffee_pos/features/pos/data/pos_repository.dart';
@@ -72,12 +73,24 @@ void main() {
     GlobalKey? preview,
     bool populate = true,
     bool shell = false,
+    bool signedIn = false,
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final repository = PolishPosRepository();
     final auth = PolishAuthRepository();
-    when(() => auth.hasStoredToken()).thenAnswer((_) async => false);
+    when(() => auth.hasStoredToken()).thenAnswer((_) async => signedIn);
+    when(() => auth.getCurrentUser())
+        .thenAnswer((_) async => const AuthenticatedUser(
+              id: 1,
+              name: 'Cashier',
+              email: 'preview@example.invalid',
+              roles: ['cashier'],
+              permissions: ['orders.create'],
+              branches: [
+                BranchSummary(id: 21, name: 'Riverside', code: 'PP-01')
+              ],
+            ));
     when(
       () => repository.getCategories(branchId: 21),
     ).thenAnswer((_) async => _categories);
@@ -98,6 +111,9 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    if (signedIn) {
+      await container.read(authControllerProvider.notifier).initialization;
+    }
     if (populate) {
       final cart = container.read(cartControllerProvider.notifier);
       cart.addItem(_products.first);
@@ -140,7 +156,8 @@ void main() {
           tester,
         ) async {
           final preview = GlobalKey();
-          await pump(tester, size, scale, dark, preview: preview);
+          await pump(tester, size, scale, dark,
+              preview: preview, signedIn: true);
           expect(tester.takeException(), isNull);
           expect(find.text('Takeaway'), findsOneWidget);
           expect(find.text('Review Order'), findsOneWidget);
