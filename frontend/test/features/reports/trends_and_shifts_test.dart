@@ -200,7 +200,8 @@ void main() {
 
   testWidgets('failed trends load can retry', (tester) async {
     final repository = TrendRepository();
-    when(() => repository.load(any(), 21)).thenThrow(Exception('offline'));
+    when(() => repository.load(any(), 21))
+        .thenAnswer((_) async => throw Exception('offline'));
     await tester.pumpWidget(ProviderScope(
         overrides: [
           salesReportsRepositoryProvider.overrideWithValue(repository)
@@ -229,7 +230,7 @@ void main() {
     when(() => repository.details(any(), 21,
         kind: 'orders',
         metric: 'total_sales',
-        page: 1)).thenThrow(Exception('offline'));
+        page: 1)).thenAnswer((_) async => throw Exception('offline'));
     await tester.pumpWidget(ProviderScope(
         overrides: [
           salesReportsRepositoryProvider.overrideWithValue(repository)
