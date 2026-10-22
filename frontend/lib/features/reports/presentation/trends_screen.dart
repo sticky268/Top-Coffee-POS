@@ -38,8 +38,9 @@ class SalesTrends {
             from.month == month.month &&
             row['upcoming'] != true;
       }).toList();
-      if (matches.length != 1)
+      if (matches.length != 1) {
         throw const FormatException('Incomplete monthly history');
+      }
       months.add(matches.single);
     }
     return SalesTrends(today, reports[0], reports[1], months);
@@ -79,13 +80,15 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
             child: FutureBuilder<SalesTrends>(
                 future: pending,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done)
+                  if (snapshot.connectionState != ConnectionState.done) {
                     return const Center(child: CircularProgressIndicator());
-                  if (snapshot.hasError)
+                  }
+                  if (snapshot.hasError) {
                     return Center(
                         child: FilledButton(
                             onPressed: () => setState(() => pending = load()),
                             child: const Text('Retry trends')));
+                  }
                   final data = snapshot.requireData;
                   Widget total(String title, SalesReport report) {
                     final c = report.comparisons['total_sales'] as Map;
