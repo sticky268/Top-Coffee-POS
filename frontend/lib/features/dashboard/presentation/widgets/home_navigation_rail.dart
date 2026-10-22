@@ -6,6 +6,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import 'dashboard_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 
 /// The modern home keeps frequent destinations close; the full menu remains
 /// available so changing layout never removes less-frequent destinations.
@@ -28,19 +29,27 @@ class HomeNavigationRail extends ConsumerWidget {
                   IconButton(
                       tooltip: 'All tools',
                       icon: const Icon(Icons.menu, color: AppColors.white),
-                      onPressed: () => showModalBottomSheet<void>(
-                            context: context,
-                            isScrollControlled: true,
-                            useSafeArea: true,
-                            builder: (sheetContext) => SizedBox(
-                                height: MediaQuery.sizeOf(context).height * .85,
-                                child: DashboardNavigation(
-                                    selectedRoute: '/home',
-                                    onDestinationSelected: (route) {
-                                      Navigator.of(sheetContext).pop();
-                                      context.go(route);
-                                    })),
-                          )),
+                      onPressed: () {
+                        // The rail may disappear during rotation while the sheet
+                        // stays open. Keep the router, not a disposable context.
+                        final router = GoRouter.of(context);
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          builder: (sheetContext) => SizedBox(
+                            height:
+                                MediaQuery.sizeOf(sheetContext).height * .85,
+                            child: DashboardNavigation(
+                              selectedRoute: '/home',
+                              onDestinationSelected: (route) {
+                                Navigator.of(sheetContext).pop();
+                                router.go(route);
+                              },
+                            ),
+                          ),
+                        );
+                      }),
                   for (final destination in [
                     ('Home', Icons.home_outlined, '/home', true),
                     (
@@ -76,31 +85,43 @@ class HomeNavigationRail extends ConsumerWidget {
                     ('Settings', Icons.settings_outlined, '/settings', true),
                   ])
                     if (destination.$4)
-                      Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Column(children: [
-                            IconButton(
-                                tooltip: destination.$1,
-                                isSelected: destination.$3 == '/home',
-                                style: IconButton.styleFrom(
-                                    backgroundColor: destination.$3 == '/home'
-                                        ? AppColors.caramel
-                                        : null),
-                                icon: Icon(destination.$2,
+                      Tooltip(
+                        message: destination.$1,
+                        child: Semantics(
+                          selected: destination.$3 == '/home',
+                          child: pos_ui.ActionSurface(
+                            key: ValueKey('home-nav-${destination.$1}'),
+                            onTap: () => context.go(destination.$3),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 12),
+                              child: Column(children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
                                     color: destination.$3 == '/home'
-                                        ? AppColors.espresso
-                                        : AppColors.cream),
-                                onPressed: () => context.go(destination.$3)),
-                            Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                child: Text(destination.$1,
+                                        ? AppColors.caramel
+                                        : null,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(destination.$2,
+                                      color: destination.$3 == '/home'
+                                          ? AppColors.espresso
+                                          : AppColors.cream),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(destination.$1,
                                     textAlign: TextAlign.center,
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
-                                        ?.copyWith(color: AppColors.cream))),
-                          ])),
+                                        ?.copyWith(color: AppColors.cream)),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
                 ]),
               ))),
     );

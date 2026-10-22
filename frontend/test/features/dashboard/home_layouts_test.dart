@@ -14,6 +14,7 @@ import 'package:top_coffee_pos/core/theme/home_layout_preference.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/dashboard/data/dashboard_repository.dart';
+import 'package:top_coffee_pos/features/dashboard/application/dashboard_controller.dart';
 import 'package:top_coffee_pos/features/dashboard/domain/dashboard_models.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/widgets/home_navigation_rail.dart';
@@ -124,7 +125,8 @@ void main() {
               '/manage-menu',
               '/inventory',
               '/reports',
-              '/settings/receipt'
+              '/settings/receipt',
+              '/settings'
             ])
               GoRoute(
                   path: path,
@@ -137,10 +139,14 @@ void main() {
         child: MaterialApp.router(
             theme: dark ? AppTheme.dark : AppTheme.light,
             routerConfig: router,
-            builder: (context, child) => MediaQuery(
-                data: MediaQueryData(
-                    size: size, textScaler: TextScaler.linear(scale)),
-                child: RepaintBoundary(key: preview, child: child!)))));
+            builder: (context, child) => LayoutBuilder(
+                  builder: (context, constraints) => MediaQuery(
+                    data: MediaQueryData(
+                        size: constraints.biggest,
+                        textScaler: TextScaler.linear(scale)),
+                    child: RepaintBoundary(key: preview, child: child!),
+                  ),
+                ))));
     await tester.pumpAndSettle();
     return (container, repo);
   }
@@ -247,33 +253,139 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'settings apply, persist and return home without reloading dashboard data',
+  for (final size in [const Size(390, 844), const Size(1440, 1000)]) {
+    testWidgets(
+        'settings apply, persist and return home without reloading dashboard data $size',
+        (tester) async {
+      final (container, repo) =
+          await pumpHome(tester, HomeLayout.classic, size, 1, false);
+      for (final layout in [
+        HomeLayout.modern,
+        HomeLayout.coffeeCounter,
+        HomeLayout.classic
+      ]) {
+        await tester.ensureVisible(find.byTooltip('Home layout'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Home layout'));
+        await tester.pumpAndSettle();
+        final choice = find.byKey(ValueKey('home-layout-${layout.name}'));
+        await tester.ensureVisible(choice);
+        await tester.pumpAndSettle();
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(container.read(homeLayoutProvider), layout);
+        expect(await HomeLayoutStore().load(), layout);
+        final context = tester.element(find.byType(HomeLayoutSettingsCard));
+        GoRouter.of(context).pop();
+        await tester.pumpAndSettle();
+        expect(
+            find.byKey(ValueKey('dashboard-${layout.name}')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+      verify(() => repo.getStats()).called(1);
+    });
+  }
+
+  testWidgets('each layout keeps its own scroll position without refetching',
       (tester) async {
     final (container, repo) = await pumpHome(
         tester, HomeLayout.classic, const Size(390, 844), 1, false);
-    for (final layout in [
-      HomeLayout.modern,
-      HomeLayout.coffeeCounter,
-      HomeLayout.classic
-    ]) {
-      await tester.ensureVisible(find.byTooltip('Home layout'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Home layout'));
-      await tester.pumpAndSettle();
-      final choice = find.byKey(ValueKey('home-layout-${layout.name}'));
-      await tester.ensureVisible(choice);
-      await tester.pumpAndSettle();
-      await tester.tap(choice);
-      await tester.pumpAndSettle();
-      expect(container.read(homeLayoutProvider), layout);
-      expect(await HomeLayoutStore().load(), layout);
-      final context = tester.element(find.byType(HomeLayoutSettingsCard));
-      GoRouter.of(context).pop();
-      await tester.pumpAndSettle();
-      expect(find.byKey(ValueKey('dashboard-${layout.name}')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    }
+    ScrollPosition position(HomeLayout layout) => tester
+        .state<ScrollableState>(find
+            .descendant(
+                of: find.byKey(PageStorageKey('home-scroll-${layout.name}')),
+                matching: find.byType(Scrollable))
+            .first)
+        .position;
+    position(HomeLayout.classic).jumpTo(240);
+    await tester.pumpAndSettle();
+    await container
+        .read(homeLayoutPreferenceProvider.notifier)
+        .select(HomeLayout.modern);
+    await tester.pumpAndSettle();
+    expect(position(HomeLayout.modern).pixels, 0);
+    position(HomeLayout.modern).jumpTo(120);
+    await tester.pumpAndSettle();
+    await container
+        .read(homeLayoutPreferenceProvider.notifier)
+        .select(HomeLayout.coffeeCounter);
+    await tester.pumpAndSettle();
+    expect(position(HomeLayout.coffeeCounter).pixels, 0);
+    await container
+        .read(homeLayoutPreferenceProvider.notifier)
+        .select(HomeLayout.classic);
+    await tester.pumpAndSettle();
+    expect(position(HomeLayout.classic).pixels, 240);
+    expect(container.read(currentBranchProvider), branch);
     verify(() => repo.getStats()).called(1);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final keyboard in [false, true]) {
+    testWidgets('modern navigation label works with keyboard=$keyboard',
+        (tester) async {
+      await pumpHome(
+          tester, HomeLayout.modern, const Size(1440, 1000), 1, false);
+      final label = find.descendant(
+          of: find.byType(HomeNavigationRail), matching: find.text('Reports'));
+      if (keyboard) {
+        Focus.of(tester.element(label)).requestFocus();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      } else {
+        await tester.tap(label);
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Opened /reports'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('open modern tools menu survives tablet-to-phone rotation',
+      (tester) async {
+    await pumpHome(tester, HomeLayout.modern, const Size(1440, 1000), 1, false);
+    await tester.tap(find.byTooltip('All tools'));
+    await tester.pumpAndSettle();
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    final destination = find.text('Daily Operations').last;
+    await tester.ensureVisible(destination);
+    await tester.pumpAndSettle();
+    await tester.tap(destination);
+    await tester.pumpAndSettle();
+    expect(find.text('Opened /operations'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('layout choices remain usable during an offline dashboard retry',
+      (tester) async {
+    final (container, repo) = await pumpHome(
+        tester, HomeLayout.classic, const Size(390, 844), 1, false);
+    when(() => repo.getStats())
+        .thenAnswer((_) async => throw Exception('offline'));
+    await container.read(dashboardControllerProvider.notifier).refresh();
+    await tester.pumpAndSettle();
+    expect(find.text('Could not load the dashboard'), findsOneWidget);
+    await container
+        .read(homeLayoutPreferenceProvider.notifier)
+        .select(HomeLayout.coffeeCounter);
+    await tester.pumpAndSettle();
+    expect(find.text('Could not load the dashboard'), findsOneWidget);
+    expect(find.text('New Order'), findsNothing);
+    when(() => repo.getStats()).thenAnswer((_) async => const DashboardStats(
+        todaysSales: 428.50,
+        todaysOrders: 47,
+        averageOrderValue: 9.12,
+        lowStockItemCount: 3));
+    final retry = find.widgetWithText(FilledButton, 'Retry');
+    await tester.ensureVisible(retry);
+    await tester.pumpAndSettle();
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const ValueKey('dashboard-coffeeCounter')), findsOneWidget);
+    expect(find.text('\$428.50'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

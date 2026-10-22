@@ -23,6 +23,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final layout = ref.watch(homeLayoutProvider);
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
     if (user != null && !user.hasPermission('reports.view')) {
@@ -52,6 +53,7 @@ class DashboardScreen extends ConsumerWidget {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1312),
                   child: SingleChildScrollView(
+                    key: PageStorageKey('home-scroll-${layout.name}'),
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -62,8 +64,7 @@ class DashboardScreen extends ConsumerWidget {
                             user: user,
                             showBrand:
                                 MediaQuery.sizeOf(context).width >= 900 &&
-                                    ref.watch(homeLayoutProvider) !=
-                                        HomeLayout.coffeeCounter,
+                                    layout != HomeLayout.coffeeCounter,
                             onLogout: () => ref
                                 .read(authControllerProvider.notifier)
                                 .logout(),

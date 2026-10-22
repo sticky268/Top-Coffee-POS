@@ -26,6 +26,7 @@ class CashierWorkspace extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
+          key: PageStorageKey('cashier-home-scroll-${layout.name}'),
           padding: const EdgeInsets.all(16),
           children: [
             DashboardHeader(
