@@ -16,6 +16,7 @@ import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
 import 'package:top_coffee_pos/features/dashboard/data/dashboard_repository.dart';
 import 'package:top_coffee_pos/features/dashboard/domain/dashboard_models.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:top_coffee_pos/features/dashboard/presentation/widgets/home_navigation_rail.dart';
 import 'package:top_coffee_pos/features/settings/presentation/home_layout_settings_card.dart';
 import '../../presentation/ui_polish_test.dart' show savePreview;
 
@@ -162,6 +163,10 @@ void main() {
         expect(find.text('47'), findsOneWidget);
         expect(find.text('\$9.12'), findsOneWidget);
         expect(find.text('3 items'), findsOneWidget);
+        if (layout == HomeLayout.modern && viewport.$1.width >= 900) {
+          expect(tester.getSize(find.byType(HomeNavigationRail)).height,
+              viewport.$1.height);
+        }
         expect(find.textContaining('#002104'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await savePreview(tester, preview,

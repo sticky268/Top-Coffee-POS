@@ -71,6 +71,7 @@ class AppShell extends ConsumerWidget {
 
         return Scaffold(
           body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (home && layout == HomeLayout.modern)
                 const HomeNavigationRail()
