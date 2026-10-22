@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/theme/home_layout_preference.dart';
+import 'widgets/home_dashboard_layouts.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../application/dashboard_controller.dart';
@@ -262,7 +264,18 @@ class _DashboardContent extends ConsumerWidget {
         ),
     ];
 
+    final layout = ref.watch(homeLayoutProvider);
+    if (layout != HomeLayout.classic) {
+      return HomeDashboardLayouts(
+        layout: layout,
+        stats: stats,
+        actions: actions,
+        recentOrders: recentOrders,
+        salesOverview: salesOverview,
+      );
+    }
     return Column(
+      key: const ValueKey('dashboard-classic'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         StatCardsGrid(stats: stats, crossAxisCount: statColumns),
