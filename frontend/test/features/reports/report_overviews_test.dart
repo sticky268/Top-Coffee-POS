@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
 import 'package:top_coffee_pos/features/reports/data/sales_reports_repository.dart';
 import 'package:top_coffee_pos/features/reports/domain/sales_report.dart';
+import 'package:top_coffee_pos/features/reports/domain/profit_report.dart';
 import 'package:top_coffee_pos/features/reports/presentation/activity_report_screen.dart';
 import 'package:top_coffee_pos/features/reports/presentation/branch_comparison_screen.dart';
 import 'package:top_coffee_pos/features/reports/presentation/inventory_report_screen.dart';
@@ -14,7 +15,7 @@ import 'package:top_coffee_pos/features/reports/presentation/report_overview_wid
 import 'activity_reports_test.dart' show activityFixture;
 import 'branch_comparison_test.dart' show branchesFixture;
 import 'inventory_reports_test.dart' show inventoryFixture;
-import 'profit_reports_test.dart' show fixture;
+import 'profit_reports_test.dart' show fixture, row;
 import '../../presentation/ui_polish_test.dart' show savePreview;
 
 class OverviewRepository extends Mock implements SalesReportsRepository {}
@@ -217,6 +218,75 @@ void main() {
         .captured
         .single as SalesReportQuery;
     expect(sent.parameters(21), query.parameters(21));
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+      'ranked preview opens the complete list and selects the correct row',
+      (tester) async {
+    int? selected;
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: ReportRankingPreview(
+      title: 'Ranked categories',
+      noun: 'categories',
+      rows: [
+        for (var i = 1; i <= 4; i++) {'id': i, 'name': 'Category $i'}
+      ],
+      value: (row) => '${row['id']} units',
+      onSelect: (row) => selected = row['id'] as int,
+    ))));
+    expect(find.text('Category 4'), findsNothing);
+    await tester.tap(find.text('View all 4 categories'));
+    await tester.pumpAndSettle();
+    expect(find.text('Category 4'), findsOneWidget);
+    await tester.tap(find.text('Category 4'));
+    await tester.pumpAndSettle();
+    expect(selected, 4);
+    expect(find.text('Category 4'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('historical category ranking opens sources with its original key',
+      (tester) async {
+    final repository = OverviewRepository();
+    when(() => repository.profit(any(), 21))
+        .thenAnswer((_) async => ProfitReport({
+              ...fixture().data,
+              'categories': [
+                {...row(), 'id': 'legacy', 'name': 'Older sales'}
+              ],
+            }));
+    when(() => repository.profitDetails(any(), 21, category: 'legacy', page: 1))
+        .thenAnswer((_) async =>
+            {'rows': <Map<String, dynamic>>[], 'page': 1, 'total': 0});
+    await tester.pumpWidget(ProviderScope(
+        overrides: [
+          salesReportsRepositoryProvider.overrideWithValue(repository)
+        ],
+        child: MaterialApp(
+            theme: AppTheme.light,
+            home: const ProfitReportScreen(
+                query: SalesReportQuery(
+                    period: 'custom',
+                    dateFrom: '2026-10-19',
+                    dateTo: '2026-10-19',
+                    cashierId: 5),
+                branchId: 21))));
+    await tester.pumpAndSettle();
+    final preview = find.widgetWithText(
+        ReportRankingPreview, 'Leading categories · quantity');
+    final category =
+        find.descendant(of: preview, matching: find.text('Older sales'));
+    await tester.scrollUntilVisible(category.hitTestable(), 150);
+    await tester.ensureVisible(category);
+    await tester.pumpAndSettle();
+    await tester.tap(category.hitTestable());
+    await tester.pumpAndSettle();
+    expect(find.text('Profit source items'), findsOneWidget);
+    final sent = verify(() => repository.profitDetails(captureAny(), 21,
+        category: 'legacy', page: 1)).captured.single as SalesReportQuery;
+    expect(sent.cashierId, 5);
+    expect(sent.dateFrom, '2026-10-19');
     expect(tester.takeException(), isNull);
   });
 }

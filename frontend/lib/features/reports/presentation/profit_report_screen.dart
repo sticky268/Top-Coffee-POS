@@ -220,6 +220,28 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
                         value: (row) =>
                             '${reportDisplayValue(profitValue(row, 'revenue'))} revenue · ${row['quantity']} units',
                         onSelect: (row) => _sources(product: row['id'] as int)),
+                    ReportRankingPreview(
+                        title: 'Leading categories · quantity',
+                        noun: 'categories',
+                        rows: [...report.categories]..sort((a, b) =>
+                            (b['quantity'] as num)
+                                .compareTo(a['quantity'] as num)),
+                        value: (row) =>
+                            '${row['quantity']} units · ${reportDisplayValue(profitValue(row, 'revenue'))} revenue',
+                        onSelect: (row) =>
+                            _sources(category: row['id'].toString())),
+                    ReportRankingPreview(
+                        title: 'Leading categories · revenue',
+                        noun: 'categories',
+                        rows: [
+                          ...report.categories
+                        ]..sort((a, b) => ReportAmount.parse(b['revenue'])
+                            .cents
+                            .compareTo(ReportAmount.parse(a['revenue']).cents)),
+                        value: (row) =>
+                            '${reportDisplayValue(profitValue(row, 'revenue'))} revenue · ${row['quantity']} units',
+                        onSelect: (row) =>
+                            _sources(category: row['id'].toString())),
                     ReportSection(title: 'Previous-period changes', children: [
                       for (final key in [
                         'revenue',

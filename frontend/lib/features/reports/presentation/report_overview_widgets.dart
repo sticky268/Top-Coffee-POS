@@ -275,8 +275,10 @@ class ReportRankingPreview extends StatelessWidget {
       required this.title,
       required this.rows,
       required this.value,
-      required this.onSelect});
+      required this.onSelect,
+      this.noun = 'products'});
   final String title;
+  final String noun;
   final List<Map<String, dynamic>> rows;
   final String Function(Map<String, dynamic>) value;
   final ValueChanged<Map<String, dynamic>> onSelect;
@@ -309,9 +311,9 @@ class ReportRankingPreview extends StatelessWidget {
                       ?.copyWith(fontWeight: FontWeight.w700))),
           const Divider(height: 1),
           if (rows.isEmpty)
-            const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('No paid product sales in this period.')),
+            Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('No paid $noun sales in this period.')),
           for (var i = 0; i < rows.length && i < 3; i++)
             row(context, rows[i], i),
           if (rows.length > 3)
@@ -345,7 +347,7 @@ class ReportRankingPreview extends StatelessWidget {
                                           })
                                       ])),
                                     ])))),
-                    child: Text('View all ${rows.length} products'))),
+                    child: Text('View all ${rows.length} $noun'))),
         ]),
       );
 }
