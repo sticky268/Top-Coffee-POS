@@ -238,6 +238,26 @@ void main() {
     });
   }
 
+  testWidgets('layout picker stays clear of device cutouts and gesture area',
+      (tester) async {
+    const size = Size(390, 844);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(const ProviderScope(
+        child: MaterialApp(
+            home: MediaQuery(
+                data: MediaQueryData(
+                    size: size,
+                    padding: EdgeInsets.only(left: 24, right: 16, bottom: 34)),
+                child: HomeLayoutSettingsScreen()))));
+    await tester.pumpAndSettle();
+    final viewport = tester.getRect(find.byType(SingleChildScrollView));
+    expect(viewport.left, greaterThanOrEqualTo(24));
+    expect(viewport.right, lessThanOrEqualTo(374));
+    expect(viewport.bottom, lessThanOrEqualTo(810));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('modern full menu closes after opening a destination',
       (tester) async {
     await pumpHome(tester, HomeLayout.modern, const Size(1440, 1000), 1, false);

@@ -12,10 +12,14 @@ class HomeLayoutSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Scaffold(
         appBar: PageAppBar(title: Text('Home layout')),
-        body: PageContent(
-            maxWidth: 800,
-            child: SingleChildScrollView(
-                padding: EdgeInsets.all(16), child: HomeLayoutSettingsCard())),
+        body: SafeArea(
+          top: false,
+          child: PageContent(
+              maxWidth: 800,
+              child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: HomeLayoutSettingsCard())),
+        ),
       );
 }
 
