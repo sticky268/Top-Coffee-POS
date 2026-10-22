@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import 'dashboard_navigation.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// The modern home keeps frequent destinations close; the full menu remains
 /// available so changing layout never removes less-frequent destinations.
@@ -16,9 +17,8 @@ class HomeNavigationRail extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     bool allowed(String permission) =>
         auth is AuthAuthenticated && auth.user.hasPermission(permission);
-    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surfaceContainerLow,
+      color: AppColors.espresso,
       child: SafeArea(
           child: SizedBox(
               width: 96,
@@ -27,7 +27,7 @@ class HomeNavigationRail extends ConsumerWidget {
                   const SizedBox(height: 12),
                   IconButton(
                       tooltip: 'All tools',
-                      icon: const Icon(Icons.menu),
+                      icon: const Icon(Icons.menu, color: AppColors.white),
                       onPressed: () => showModalBottomSheet<void>(
                             context: context,
                             isScrollControlled: true,
@@ -84,9 +84,12 @@ class HomeNavigationRail extends ConsumerWidget {
                                 isSelected: destination.$3 == '/home',
                                 style: IconButton.styleFrom(
                                     backgroundColor: destination.$3 == '/home'
-                                        ? scheme.primaryContainer
+                                        ? AppColors.caramel
                                         : null),
-                                icon: Icon(destination.$2),
+                                icon: Icon(destination.$2,
+                                    color: destination.$3 == '/home'
+                                        ? AppColors.espresso
+                                        : AppColors.cream),
                                 onPressed: () => context.go(destination.$3)),
                             Padding(
                                 padding:
@@ -95,7 +98,8 @@ class HomeNavigationRail extends ConsumerWidget {
                                     textAlign: TextAlign.center,
                                     style: Theme.of(context)
                                         .textTheme
-                                        .labelSmall)),
+                                        .labelSmall
+                                        ?.copyWith(color: AppColors.cream))),
                           ])),
                 ]),
               ))),

@@ -36,6 +36,16 @@ class HomeDashboardLayouts extends StatelessWidget {
               .contains(action.label))
           .toList();
       final manage = actions.where((action) => !work.contains(action)).toList();
+      const manageOrder = [
+        'Manage Menu',
+        'Inventory',
+        'Customers',
+        'Reports',
+        'Receipt Settings',
+        'Settings'
+      ];
+      manage.sort((a, b) =>
+          manageOrder.indexOf(a.label).compareTo(manageOrder.indexOf(b.label)));
       Widget group(String title, List<QuickAction> values,
               {bool primary = false}) =>
           _HomePanel(
@@ -307,20 +317,24 @@ class _HomeAction extends StatelessWidget {
   final QuickAction action;
   final bool colorful, featured;
   Color get color => switch (action.label) {
-        'New Order' || 'Inventory' => AppColors.ready,
-        'Daily Operations' => AppColors.warning,
-        'Orders' || 'Customers' => AppColors.info,
-        'Manage Menu' || 'Receipt Settings' => AppColors.error,
-        'Reports' => AppColors.plum,
-        _ => AppColors.espresso,
+        'New Order' || 'Inventory' => const Color(0xFF168372),
+        'Daily Operations' => const Color(0xFFA96700),
+        'Orders' || 'Customers' => const Color(0xFF146CB5),
+        'Manage Menu' => const Color(0xFFC4594C),
+        'Receipt Settings' => const Color(0xFFAD4C69),
+        'Reports' => const Color(0xFF7555A6),
+        _ => AppColors.info,
       };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = action.label.startsWith('New ');
-    final foreground =
-        primary ? AppColors.white : AppColors.semantic(context, color);
+    final foreground = primary
+        ? AppColors.white
+        : theme.brightness == Brightness.dark
+            ? Color.lerp(color, AppColors.white, .45)!
+            : color;
     final background = primary
         ? const Color(0xFF145A52)
         : colorful

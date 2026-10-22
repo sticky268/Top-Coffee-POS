@@ -273,7 +273,14 @@ class _DashboardContent extends ConsumerWidget {
       return HomeDashboardLayouts(
         layout: layout,
         stats: stats,
-        actions: actions,
+        actions: [
+          ...actions,
+          if (layout == HomeLayout.coffeeCounter && user != null)
+            QuickAction(
+                label: 'Settings',
+                icon: Icons.settings_outlined,
+                onTap: () => context.push('/settings')),
+        ],
         recentOrders: recentOrders,
         salesOverview: salesOverview,
       );

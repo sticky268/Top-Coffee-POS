@@ -10,9 +10,9 @@ import '../../../core/widgets/app_buttons.dart' as pos_ui;
 class HomeLayoutSettingsScreen extends StatelessWidget {
   const HomeLayoutSettingsScreen({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: const PageAppBar(title: Text('Home layout')),
-        body: const PageContent(
+  Widget build(BuildContext context) => const Scaffold(
+        appBar: PageAppBar(title: Text('Home layout')),
+        body: PageContent(
             maxWidth: 800,
             child: SingleChildScrollView(
                 padding: EdgeInsets.all(16), child: HomeLayoutSettingsCard())),
