@@ -60,6 +60,10 @@ class DashboardScreen extends ConsumerWidget {
                         if (user != null)
                           DashboardHeader(
                             user: user,
+                            showBrand:
+                                MediaQuery.sizeOf(context).width >= 900 &&
+                                    ref.watch(homeLayoutProvider) !=
+                                        HomeLayout.coffeeCounter,
                             onLogout: () => ref
                                 .read(authControllerProvider.notifier)
                                 .logout(),
@@ -284,21 +288,35 @@ class _DashboardContent extends ConsumerWidget {
         const SizedBox(height: 16),
         QuickActionsGrid(actions: actions, crossAxisCount: actionColumns),
         const SizedBox(height: 24),
-        Text(
-          'Sales Overview — Last 7 Days',
-          style: theme.textTheme.titleMedium,
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SalesOverviewChart(data: salesOverview),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text('Recent Orders', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 16),
-        RecentOrdersSection(orders: recentOrders),
+        LayoutBuilder(builder: (context, constraints) {
+          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final chart =
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Sales Overview — Last 7 Days',
+                style: theme.textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Card(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SalesOverviewChart(data: salesOverview))),
+          ]);
+          final orders =
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Recent Orders', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+            RecentOrdersSection(orders: recentOrders),
+          ]);
+          if (constraints.maxWidth >= 850 && scale <= 1.3) {
+            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(flex: 3, child: chart),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: orders),
+            ]);
+          }
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [chart, const SizedBox(height: 24), orders]);
+        }),
       ],
     );
   }

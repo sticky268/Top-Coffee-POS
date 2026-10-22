@@ -113,10 +113,8 @@ void main() {
           routes: [
             GoRoute(path: '/home', builder: (_, __) => const DashboardScreen()),
             GoRoute(
-                path: '/settings',
-                builder: (_, __) => const Scaffold(
-                    body: SingleChildScrollView(
-                        child: HomeLayoutSettingsCard()))),
+                path: '/settings/home-layout',
+                builder: (_, __) => const HomeLayoutSettingsScreen()),
             for (final path in [
               '/pos',
               '/operations',
@@ -189,6 +187,60 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  for (final viewport in [
+    (const Size(390, 844), 1.0, false),
+    (const Size(1024, 900), 1.0, true),
+    (const Size(360, 800), 2.0, false),
+  ]) {
+    testWidgets('layout settings remain usable $viewport', (tester) async {
+      await tester.binding.setSurfaceSize(viewport.$1);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final preview = GlobalKey();
+      await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+              theme: viewport.$3 ? AppTheme.dark : AppTheme.light,
+              home: MediaQuery(
+                  data: MediaQueryData(
+                      size: viewport.$1,
+                      textScaler: TextScaler.linear(viewport.$2)),
+                  child: RepaintBoundary(
+                      key: preview,
+                      child: const HomeLayoutSettingsScreen())))));
+      await tester.pumpAndSettle();
+      for (final layout in HomeLayout.values) {
+        final choice = find.byKey(ValueKey('home-layout-${layout.name}'));
+        await tester.ensureVisible(choice);
+        await tester.pumpAndSettle();
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(container.read(homeLayoutProvider), layout);
+        expect(await HomeLayoutStore().load(), layout);
+        expect(tester.getSize(choice).height, greaterThanOrEqualTo(48));
+        expect(tester.takeException(), isNull);
+      }
+      await savePreview(tester, preview,
+          'home-settings-${viewport.$1.width.toInt()}-${viewport.$2}-${viewport.$3}');
+    });
+  }
+
+  testWidgets('modern full menu closes after opening a destination',
+      (tester) async {
+    await pumpHome(tester, HomeLayout.modern, const Size(1440, 1000), 1, false);
+    await tester.tap(find.byTooltip('All tools'));
+    await tester.pumpAndSettle();
+    final destination = find.text('Daily Operations').last;
+    await tester.ensureVisible(destination);
+    await tester.pumpAndSettle();
+    await tester.tap(destination);
+    await tester.pumpAndSettle();
+    expect(find.text('Opened /operations'), findsOneWidget);
+    expect(find.text('MAIN'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
       'settings apply, persist and return home without reloading dashboard data',

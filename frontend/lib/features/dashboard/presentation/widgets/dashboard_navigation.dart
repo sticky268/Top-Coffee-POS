@@ -7,11 +7,17 @@ import '../../../auth/application/auth_state.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class DashboardNavigation extends StatelessWidget {
-  const DashboardNavigation({super.key, required this.selectedRoute});
+  const DashboardNavigation(
+      {super.key, required this.selectedRoute, this.onDestinationSelected});
 
   final String selectedRoute;
+  final ValueChanged<String>? onDestinationSelected;
 
   void _navigate(BuildContext context, String route) {
+    if (onDestinationSelected != null) {
+      onDestinationSelected!(route);
+      return;
+    }
     final scaffold = Scaffold.maybeOf(context);
     if (scaffold?.isDrawerOpen ?? false) {
       scaffold!.closeDrawer();

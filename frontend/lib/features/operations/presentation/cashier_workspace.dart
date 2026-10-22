@@ -30,6 +30,8 @@ class CashierWorkspace extends ConsumerWidget {
           children: [
             DashboardHeader(
               user: user,
+              showBrand: MediaQuery.sizeOf(context).width >= 900 &&
+                  layout != HomeLayout.coffeeCounter,
               onLogout: () =>
                   ref.read(authControllerProvider.notifier).logout(),
             ),

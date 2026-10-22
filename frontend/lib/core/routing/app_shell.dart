@@ -43,7 +43,10 @@ class AppShell extends ConsumerWidget {
             // Dashboard has no page toolbar; all other routes provide one.
             appBar: home
                 ? AppBar(
-                    title: const Text('Top Coffee POS'),
+                    title: Text('Top Coffee POS',
+                        style: counter
+                            ? const TextStyle(color: AppColors.white)
+                            : null),
                     backgroundColor: counter ? AppColors.espresso : null,
                     foregroundColor: counter ? AppColors.white : null,
                   )

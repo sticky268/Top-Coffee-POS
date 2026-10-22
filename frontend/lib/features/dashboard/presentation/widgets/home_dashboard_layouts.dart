@@ -70,7 +70,10 @@ class HomeDashboardLayouts extends StatelessWidget {
             const SizedBox(height: 20),
             _HomePanel(
                 title: 'Quick Actions',
-                child: _ActionTiles(actions: actions, colorful: false)),
+                child: _ActionTiles(actions: [
+                  ...actions.where((action) => action.label == 'New Order'),
+                  ...actions.where((action) => action.label != 'New Order'),
+                ], colorful: false)),
           ],
           const SizedBox(height: 20),
           if (constraints.maxWidth >= 850 && scale <= 1.3)

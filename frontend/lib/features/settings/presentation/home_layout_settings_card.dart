@@ -2,8 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/page_app_bar.dart';
+import '../../../core/widgets/page_content.dart';
 import '../../../core/theme/home_layout_preference.dart';
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+
+class HomeLayoutSettingsScreen extends StatelessWidget {
+  const HomeLayoutSettingsScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: const PageAppBar(title: Text('Home layout')),
+        body: const PageContent(
+            maxWidth: 800,
+            child: SingleChildScrollView(
+                padding: EdgeInsets.all(16), child: HomeLayoutSettingsCard())),
+      );
+}
 
 class HomeLayoutSettingsCard extends ConsumerWidget {
   const HomeLayoutSettingsCard({super.key});

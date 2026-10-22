@@ -32,10 +32,14 @@ class HomeNavigationRail extends ConsumerWidget {
                             context: context,
                             isScrollControlled: true,
                             useSafeArea: true,
-                            builder: (_) => SizedBox(
+                            builder: (sheetContext) => SizedBox(
                                 height: MediaQuery.sizeOf(context).height * .85,
-                                child: const DashboardNavigation(
-                                    selectedRoute: '/home')),
+                                child: DashboardNavigation(
+                                    selectedRoute: '/home',
+                                    onDestinationSelected: (route) {
+                                      Navigator.of(sheetContext).pop();
+                                      context.go(route);
+                                    })),
                           )),
                   for (final destination in [
                     ('Home', Icons.home_outlined, '/home', true),
