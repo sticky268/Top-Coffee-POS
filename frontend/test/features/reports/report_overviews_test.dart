@@ -111,6 +111,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.textContaining('Previous period: 18 Oct 2026'),
             findsOneWidget);
+        if (report == 'profit' && layout.$2 == 1 && !layout.$3) {
+          await tester
+              .widget<RefreshIndicator>(find.byType(RefreshIndicator))
+              .onRefresh();
+          await tester.pumpAndSettle();
+        }
         expect(tester.takeException(), isNull);
       });
     }

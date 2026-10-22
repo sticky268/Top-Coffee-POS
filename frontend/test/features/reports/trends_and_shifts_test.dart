@@ -214,6 +214,43 @@ void main() {
     await tester.tap(find.text('Retry trends'));
     await tester.pumpAndSettle();
     expect(find.text('Your sales rhythm'), findsOneWidget);
+    await tester
+        .widget<RefreshIndicator>(find.byType(RefreshIndicator))
+        .onRefresh();
+    await tester.pumpAndSettle();
+    expect(find.text('Your sales rhythm'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('source-record retry recovers without a state-update exception',
+      (tester) async {
+    final repository = TrendRepository();
+    when(() => repository.load(any(), 21)).thenAnswer(
+        (c) async => fixture(c.positionalArguments[0] as SalesReportQuery));
+    when(() => repository.details(any(), 21,
+        kind: 'orders',
+        metric: 'total_sales',
+        page: 1)).thenThrow(Exception('offline'));
+    await tester.pumpWidget(ProviderScope(
+        overrides: [
+          salesReportsRepositoryProvider.overrideWithValue(repository)
+        ],
+        child: const MaterialApp(
+            home: TrendsScreen(query: SalesReportQuery(), branchId: 21))));
+    await tester.pumpAndSettle();
+    final today = find.widgetWithText(ListTile, 'Today');
+    await tester.ensureVisible(today);
+    await tester.pumpAndSettle();
+    await tester.tap(today);
+    await tester.pumpAndSettle();
+    expect(find.text('Could not load source records.'), findsOneWidget);
+    when(() => repository.details(any(), 21,
+            kind: 'orders', metric: 'total_sales', page: 1))
+        .thenAnswer(
+            (_) async => {'rows': <Map<String, dynamic>>[], 'total': 0});
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(find.text('Could not load source records.'), findsNothing);
+    expect(find.text('Report source records'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

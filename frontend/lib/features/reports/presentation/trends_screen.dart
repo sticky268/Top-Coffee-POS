@@ -86,7 +86,9 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                   if (snapshot.hasError) {
                     return Center(
                         child: FilledButton(
-                            onPressed: () => setState(() => pending = load()),
+                            onPressed: () => setState(() {
+                                  pending = load();
+                                }),
                             child: const Text('Retry trends')));
                   }
                   final data = snapshot.requireData;
@@ -109,7 +111,9 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                   return RefreshIndicator(
                       onRefresh: () async {
                         final next = load();
-                        setState(() => pending = next);
+                        setState(() {
+                          pending = next;
+                        });
                         try {
                           await next;
                         } catch (_) {/* Retry is shown above. */}

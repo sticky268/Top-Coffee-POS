@@ -141,7 +141,9 @@ class _ProfitReportScreenState extends ConsumerState<ProfitReportScreen> {
               return RefreshIndicator(
                 onRefresh: () async {
                   final next = _load();
-                  setState(() => pending = next);
+                  setState(() {
+                    pending = next;
+                  });
                   try {
                     await next;
                   } catch (_) {
