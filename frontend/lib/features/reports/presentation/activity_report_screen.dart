@@ -15,10 +15,14 @@ class ActivityReportScreen extends ConsumerStatefulWidget {
     required this.query,
     required this.branchId,
     this.onChangeFilters,
+    this.onPeriodChanged,
+    this.selectedPeriod,
   });
   final SalesReportQuery query;
   final int? branchId;
   final VoidCallback? onChangeFilters;
+  final ValueChanged<String>? onPeriodChanged;
+  final String? selectedPeriod;
   @override
   ConsumerState<ActivityReportScreen> createState() =>
       _ActivityReportScreenState();
@@ -153,6 +157,8 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     ReportHeader(
+                      onPeriodChanged: widget.onPeriodChanged,
+                      selectedPeriod: widget.selectedPeriod,
                       meta: Map<String, dynamic>.from(meta),
                       scope: SalesReport.maps(meta['branches'])
                           .map((b) => '${b['name']}')

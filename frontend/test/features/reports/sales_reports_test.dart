@@ -251,13 +251,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Net sales').hitTestable(), findsOneWidget);
       expect(find.text('Paid orders').hitTestable(), findsOneWidget);
-      expect(find.text('Average order').hitTestable(), findsOneWidget);
-      expect(find.text('Refunds').hitTestable(), findsOneWidget);
+      expect(find.text('Average order'), findsOneWidget);
+      expect(find.text('Refunds'), findsOneWidget);
       expect(find.text(r'$1,234,567.89'), findsWidgets);
       expect(find.text('Gross sales'), findsNothing);
       expect(find.text('Cashier'), findsNothing);
       await savePreview(tester, preview, 'sales-summary-${size.width.toInt()}');
-      await tester.scrollUntilVisible(find.text('Sales breakdown'), 200);
+      await tester.scrollUntilVisible(
+          find.text('Sales breakdown').hitTestable(), 150);
+      await tester.ensureVisible(find.text('Sales breakdown'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Sales breakdown'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Gross sales'), 100);

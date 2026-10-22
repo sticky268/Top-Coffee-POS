@@ -43,8 +43,8 @@ SalesReport historyFixture({bool monthly = false, bool empty = false}) {
                 'total': month > 10 || empty
                     ? '0.00'
                     : month == 10
-                    ? '1405.54'
-                    : '65.95',
+                        ? '1405.54'
+                        : '65.95',
                 'orders': month > 10 || empty ? 0 : 4,
                 'items': month > 10 || empty ? 0 : 32,
                 'upcoming': month > 10,
@@ -58,8 +58,8 @@ SalesReport historyFixture({bool monthly = false, bool empty = false}) {
                 'total': empty
                     ? '0.00'
                     : day == 18
-                    ? '1405.54'
-                    : '65.95',
+                        ? '1405.54'
+                        : '65.95',
                 'orders': empty ? 0 : 4,
                 'items': empty ? 0 : 32,
                 'upcoming': false,
@@ -69,16 +69,16 @@ SalesReport historyFixture({bool monthly = false, bool empty = false}) {
 }
 
 ProviderContainer scope(MockHistoryRepository repository) => ProviderContainer(
-  overrides: [
-    salesReportsRepositoryProvider.overrideWithValue(repository),
-    currentBranchProvider.overrideWith(
-      (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
-        ..selectBranch(
-          const BranchSummary(id: 21, name: 'Riverside', code: 'PP-01'),
+      overrides: [
+        salesReportsRepositoryProvider.overrideWithValue(repository),
+        currentBranchProvider.overrideWith(
+          (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
+            ..selectBranch(
+              const BranchSummary(id: 21, name: 'Riverside', code: 'PP-01'),
+            ),
         ),
-    ),
-  ],
-);
+      ],
+    );
 
 Future<void> showPage(
   WidgetTester tester,
@@ -148,7 +148,7 @@ void main() {
               dark: dark,
               preview: key,
             );
-            expect(find.text('Reports & analytics'), findsOneWidget);
+            expect(find.text('The coffee shop, in focus'), findsOneWidget);
             verifyNever(() => repository.load(any(), any()));
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'reports-menu-$width-$scale-$dark');
@@ -346,9 +346,8 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('history-2026-10-19')));
         await tester.pumpAndSettle();
         expect(find.text('Sales summary'), findsOneWidget);
-        final query = container
-            .read(salesReportsControllerProvider.notifier)
-            .query;
+        final query =
+            container.read(salesReportsControllerProvider.notifier).query;
         expect(query.period, 'custom');
         expect(query.dateFrom, '2026-10-19');
         expect(query.dateTo, '2026-10-19');
@@ -368,7 +367,7 @@ void main() {
         (call) async => historyFixture(
           monthly:
               (call.positionalArguments.first as SalesReportQuery).period ==
-              'year',
+                  'year',
         ),
       );
       final container = scope(repository);

@@ -13,9 +13,15 @@ import 'profit_report_screen.dart';
 
 class BranchComparisonScreen extends ConsumerStatefulWidget {
   const BranchComparisonScreen(
-      {super.key, required this.query, this.onChangeFilters});
+      {super.key,
+      required this.query,
+      this.onChangeFilters,
+      this.onPeriodChanged,
+      this.selectedPeriod});
   final SalesReportQuery query;
   final VoidCallback? onChangeFilters;
+  final ValueChanged<String>? onPeriodChanged;
+  final String? selectedPeriod;
   @override
   ConsumerState<BranchComparisonScreen> createState() =>
       _BranchComparisonScreenState();
@@ -124,6 +130,8 @@ class _BranchComparisonScreenState
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
                       ReportHeader(
+                        onPeriodChanged: widget.onPeriodChanged,
+                        selectedPeriod: widget.selectedPeriod,
                         meta: report.meta,
                         scope: 'All accessible branches',
                         filterLabel: 'Change dates or filters',

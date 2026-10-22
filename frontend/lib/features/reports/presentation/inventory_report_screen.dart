@@ -16,10 +16,14 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
     required this.query,
     required this.branchId,
     this.onChangeFilters,
+    this.onPeriodChanged,
+    this.selectedPeriod,
   });
   final SalesReportQuery query;
   final int? branchId;
   final VoidCallback? onChangeFilters;
+  final ValueChanged<String>? onPeriodChanged;
+  final String? selectedPeriod;
   @override
   ConsumerState<InventoryReportScreen> createState() =>
       _InventoryReportScreenState();
@@ -153,6 +157,8 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     ReportHeader(
+                      onPeriodChanged: widget.onPeriodChanged,
+                      selectedPeriod: widget.selectedPeriod,
                       meta: Map<String, dynamic>.from(meta),
                       scope: SalesReport.maps(meta['branches'])
                           .map((b) => '${b['name']}')

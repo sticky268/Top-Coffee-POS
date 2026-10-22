@@ -184,14 +184,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(heading.hitTestable());
     await tester.pumpAndSettle();
-    final product = find.text('Latte សួស្តី');
+    final group =
+        find.ancestor(of: heading, matching: find.byType(ReportSection));
+    final product =
+        find.descendant(of: group, matching: find.text('Latte សួស្តី'));
     await tester.scrollUntilVisible(product.hitTestable(), 100);
     await tester.ensureVisible(product);
     await tester.pumpAndSettle();
     await tester.tap(product.hitTestable());
     await tester.pumpAndSettle();
-    final group =
-        find.ancestor(of: heading, matching: find.byType(ReportSection));
     final revenue = find.descendant(
         of: group,
         matching: find.widgetWithText(ListTile, 'Revenue excluding tax'));

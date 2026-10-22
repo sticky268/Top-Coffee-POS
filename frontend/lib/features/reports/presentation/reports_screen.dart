@@ -10,6 +10,7 @@ import '../application/sales_reports_controller.dart';
 import '../data/report_exporter.dart';
 import '../domain/sales_report.dart';
 import 'sales_report_details_screen.dart';
+import 'report_overview_widgets.dart';
 
 const reportMetricLabels = {
   'net_sales': 'Net sales',
@@ -131,6 +132,9 @@ class _ReportContent extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          ReportPeriodChips(
+              selected: query.period,
+              onSelected: (p) => controller.select(query.periodSelection(p))),
           Text(
             branches.isEmpty
                 ? 'No accessible branches'
@@ -618,40 +622,14 @@ class _MetricCard extends StatelessWidget {
             ? 'No sales in the previous period'
             : 'No change · both periods zero')
         : '${comparison['percent']}% vs previous period';
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: prominent ? Theme.of(context).colorScheme.primaryContainer : null,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: prominent
-                    ? Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        )
-                    : Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 6),
-              if (prominent) Text(change),
-              if (prominent)
-                const Text('After refunds · includes tax and extra charges'),
-              const SizedBox(height: 4),
-              if (prominent)
-                const Text('Tap to view records',
-                    style: TextStyle(fontSize: 12)),
-            ],
-          ),
-        ),
-      ),
-    );
+    return ReportMetricTile(
+        label: label,
+        value: value,
+        prominent: prominent,
+        caption: prominent
+            ? '$change\nAfter refunds · includes tax and extra charges'
+            : null,
+        onTap: onTap);
   }
 }
 
