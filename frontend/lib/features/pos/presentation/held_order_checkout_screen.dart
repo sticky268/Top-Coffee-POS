@@ -47,6 +47,7 @@ class _HeldOrderCheckoutScreenState extends State<HeldOrderCheckoutScreen> {
   OrderConfirmation? _confirmation;
   String? _error;
   String _method = 'cash';
+  final _scrollController = ScrollController();
   final _tenderedController = TextEditingController();
   final _firstAmount = TextEditingController();
   final _splitTendered = TextEditingController();
@@ -64,6 +65,7 @@ class _HeldOrderCheckoutScreenState extends State<HeldOrderCheckoutScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _tenderedController.dispose();
     _firstAmount.dispose();
     _splitTendered.dispose();
@@ -141,6 +143,9 @@ class _HeldOrderCheckoutScreenState extends State<HeldOrderCheckoutScreen> {
       setState(() => _error = error is ApiException
           ? error.message
           : 'Could not complete payment. Check the order before retrying.');
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -195,6 +200,7 @@ class _HeldOrderCheckoutScreenState extends State<HeldOrderCheckoutScreen> {
                       child: AbsorbPointer(
                         absorbing: _submitting,
                         child: SingleChildScrollView(
+                          controller: _scrollController,
                           padding: const EdgeInsets.all(20),
                           child: Center(
                             child: ConstrainedBox(
@@ -242,28 +248,11 @@ class _HeldOrderCheckoutScreenState extends State<HeldOrderCheckoutScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 20),
-                                  const Text(
-                                    'Review or give the customer the unpaid bill before collecting payment.',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  BillActionButtons(
-                                      bill: widget.bill, showHeading: true),
-                                  const SizedBox(height: 24),
-                                  Text('Total',
+                                  Text('Payment method',
                                       style: Theme.of(context)
                                           .textTheme
-                                          .bodyMedium),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _formatMoney(widget.total),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 24),
+                                          .titleMedium),
+                                  const SizedBox(height: 12),
                                   if (widget.allowedMethods.isEmpty)
                                     const Text(
                                         'No payment methods are enabled for this business.'),
@@ -461,6 +450,11 @@ class _HeldOrderCheckoutScreenState extends State<HeldOrderCheckoutScreen> {
                                       ),
                                     ),
                                   ],
+                                  const SizedBox(height: 24),
+                                  _ReviewSection(
+                                    title: 'Customer bill',
+                                    child: BillActionButtons(bill: widget.bill),
+                                  ),
                                 ],
                               ),
                             ),

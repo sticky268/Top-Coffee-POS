@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:top_coffee_pos/core/theme/app_theme.dart';
+import '../../presentation/ui_polish_test.dart' show savePreview;
 import 'package:top_coffee_pos/core/receipt/receipt_action_service.dart';
 
 import 'package:flutter/material.dart';
@@ -57,6 +60,14 @@ OrderDetail bill(
     );
 
 void main() {
+  setUpAll(() async {
+    for (final font in [
+      ('Inter', 'assets/fonts/Inter.ttf'),
+      ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
+    ]) {
+      await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
+    }
+  });
   late MockPosRepository pos;
   late MockOrdersRepository orders;
   late OrderDetail saved;
@@ -124,6 +135,9 @@ void main() {
     List<String>? allowedMethods,
     bool fromList = false,
     Size viewport = const Size(1200, 900),
+    double textScale = 1,
+    bool dark = false,
+    GlobalKey? preview,
   }) async {
     tester.view.physicalSize = viewport;
     tester.view.devicePixelRatio = 1;
@@ -172,7 +186,20 @@ void main() {
           if (allowedMethods != null)
             authRepositoryProvider.overrideWithValue(auth),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+          builder: (context, child) => RepaintBoundary(
+            key: preview,
+            child: MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -289,6 +316,7 @@ void main() {
     expect(find.text('Print Receipt'), findsOneWidget);
     expect(find.text('E-Receipt'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('New Order'));
     await tester.tap(find.text('New Order'));
     await tester.pumpAndSettle();
 
@@ -585,4 +613,40 @@ void main() {
     expect(find.text('Review & Pay'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  for (final size in [const Size(390, 844), const Size(1024, 768)]) {
+    for (final textScale in [1.0, 2.0]) {
+      testWidgets('held checkout layout ${size.width} text $textScale',
+          (tester) async {
+        final preview = GlobalKey();
+        await pumpBill(tester,
+            viewport: size,
+            textScale: textScale,
+            dark: textScale == 2,
+            preview: preview);
+        await tester.ensureVisible(find.text('Review & Pay'));
+        await tester.tap(find.text('Review & Pay'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.ensureVisible(find.text('Complete Sale'));
+        expect(find.text('Complete Sale').hitTestable(), findsOneWidget);
+        await savePreview(
+            tester, preview, 'held-checkout-${size.width}-$textScale');
+        final cash = find.byWidgetPredicate((w) =>
+            w is TextField && w.decoration?.labelText == 'Cash received');
+        await tester.ensureVisible(cash);
+        await tester.enterText(cash, '10');
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        verifyNever(() => pos.payHeldOrder(
+              orderId: any(named: 'orderId'),
+              paymentMethod: any(named: 'paymentMethod'),
+              expectedTotal: any(named: 'expectedTotal'),
+              branchId: any(named: 'branchId'),
+            ));
+      });
+    }
+  }
 }
