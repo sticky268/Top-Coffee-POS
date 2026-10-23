@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:top_coffee_pos/core/receipt/receipt_action_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,8 @@ import 'package:top_coffee_pos/features/pos/domain/pos_models.dart';
 import 'package:top_coffee_pos/features/pos/presentation/open_order_screen.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
+
+class MockReceiptService extends Mock implements ReceiptActionService {}
 
 class MockBillAuth extends Mock implements AuthRepository {}
 
@@ -57,8 +60,22 @@ void main() {
   late MockPosRepository pos;
   late MockOrdersRepository orders;
   late OrderDetail saved;
+  late MockReceiptService receipts;
 
   setUp(() {
+    receipts = MockReceiptService();
+    when(() => receipts.printReceipt(42, asCopy: false)).thenAnswer(
+      (_) async => const OrderReceipt(
+        orderId: 42,
+        uuid: 'paid-42',
+        orderType: 'dine_in',
+        status: 'completed',
+        subtotal: 8,
+        discountTotal: 0,
+        total: 8,
+        items: [],
+      ),
+    );
     pos = MockPosRepository();
     orders = MockOrdersRepository();
     saved = bill(quantity: 2, unitPrice: 4);
@@ -150,6 +167,7 @@ void main() {
       ProviderScope(
         overrides: [
           posRepositoryProvider.overrideWithValue(pos),
+          receiptActionServiceProvider.overrideWithValue(receipts),
           ordersRepositoryProvider.overrideWithValue(orders),
           if (allowedMethods != null)
             authRepositoryProvider.overrideWithValue(auth),
@@ -243,13 +261,8 @@ void main() {
       ),
     ).captured.single as List<Map<String, dynamic>>;
     expect(items.single['quantity'], 2);
-    expect(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.text('\$8.00'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('\$8.00'), findsWidgets);
     expect(find.text('Print Bill'), findsOneWidget);
     expect(find.text('E-Bill'), findsOneWidget);
     verifyNever(
@@ -261,7 +274,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Confirm Payment'));
+    await tester.tap(find.text('Complete Sale'));
     await tester.pumpAndSettle();
     verify(
       () => pos.payHeldOrder(
@@ -272,11 +285,11 @@ void main() {
         branchId: 11,
       ),
     ).called(1);
-    expect(find.text('Payment completed'), findsOneWidget);
+    expect(find.text('Payment Successful'), findsWidgets);
     expect(find.text('Print Receipt'), findsOneWidget);
     expect(find.text('E-Receipt'), findsOneWidget);
 
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.text('New Order'));
     await tester.pumpAndSettle();
 
     expect(find.text('Tables'), findsOneWidget);
@@ -297,6 +310,7 @@ void main() {
     await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
     expect(find.text('QR'), findsNothing);
+    await tester.ensureVisible(find.text('Split'));
     await tester.tap(find.text('Split'));
     await tester.pumpAndSettle();
     final amount = find.byWidgetPredicate((w) =>
@@ -304,7 +318,7 @@ void main() {
     await tester.ensureVisible(amount);
     await tester.enterText(amount, '3');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirm Payment'));
+    await tester.tap(find.text('Complete Sale'));
     await tester.pumpAndSettle();
     final portions = verify(() => pos.payHeldOrder(
         orderId: 42,
@@ -316,7 +330,7 @@ void main() {
       {'method': 'cash', 'amount': 3.0, 'tendered': 3.0},
       {'method': 'card', 'amount': 5.0}
     ]);
-    expect(find.text('Payment completed'), findsOneWidget);
+    expect(find.text('Payment Successful'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -384,7 +398,7 @@ void main() {
     await pumpBill(tester);
     await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
+    await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('\$8.00'), findsWidgets);
     verifyNever(
@@ -427,7 +441,7 @@ void main() {
       const OrderConfirmation(orderId: 42, total: 8, paymentMethod: ''),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
+    await tester.pageBack();
     await tester.pumpAndSettle();
   });
   testWidgets('phone keeps order actions visible without vertical overflow',
@@ -483,7 +497,7 @@ void main() {
     await pumpBill(tester, viewport: const Size(390, 700));
     await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
-    expect(find.text('Review Bill & Pay'), findsOneWidget);
+    expect(find.text('Review Order'), findsOneWidget);
     verify(() => pos.updateHeldOrder(
           orderId: 42,
           items: any(named: 'items'),
@@ -496,6 +510,79 @@ void main() {
           expectedTotal: any(named: 'expectedTotal'),
           branchId: any(named: 'branchId'),
         ));
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('Complete & Print prints once after payment succeeds',
+      (tester) async {
+    await pumpBill(tester);
+    await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Complete & Print'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('Payment Successful'), findsWidgets);
+    verify(() => receipts.printReceipt(42, asCopy: false)).called(1);
+    await tester.pump();
+    verifyNever(() => receipts.printReceipt(42, asCopy: false));
+  });
+
+  testWidgets('pending payment blocks repeated completion and back navigation',
+      (tester) async {
+    final pending = Completer<OrderConfirmation>();
+    when(() => pos.payHeldOrder(
+          orderId: 42,
+          paymentMethod: 'cash',
+          tendered: null,
+          expectedTotal: 8,
+          branchId: 11,
+        )).thenAnswer((_) => pending.future);
+    await pumpBill(tester);
+    await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    final button = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Complete Sale'));
+    button.onPressed!();
+    button.onPressed!();
+    await tester.pump();
+    verify(() => pos.payHeldOrder(
+          orderId: 42,
+          paymentMethod: 'cash',
+          tendered: null,
+          expectedTotal: 8,
+          branchId: 11,
+        )).called(1);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.text('Review Order'), findsOneWidget);
+    pending.complete(
+        const OrderConfirmation(orderId: 42, total: 8, paymentMethod: 'cash'));
+    await tester.pumpAndSettle();
+    expect(find.text('Payment Successful'), findsWidgets);
+    verifyNever(() => receipts.printReceipt(42, asCopy: false));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('payment failure stays on checkout without printing',
+      (tester) async {
+    when(() => pos.payHeldOrder(
+          orderId: 42,
+          paymentMethod: 'cash',
+          tendered: null,
+          expectedTotal: 8,
+          branchId: 11,
+        )).thenThrow(Exception('Network unavailable'));
+    await pumpBill(tester);
+    await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Complete & Print'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Could not complete payment'), findsOneWidget);
+    expect(find.text('Review Order'), findsOneWidget);
+    expect(find.text('Payment Successful'), findsNothing);
+    verifyNever(() => receipts.printReceipt(42, asCopy: false));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Review & Pay'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
