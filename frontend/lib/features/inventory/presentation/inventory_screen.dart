@@ -1,5 +1,6 @@
 import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/coffee_studio_theme.dart';
 
 import '../../../core/widgets/page_content.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,9 +56,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final user = auth is AuthAuthenticated ? auth.user : null;
     final selectedBranch = ref.watch(currentBranchProvider);
     final scope = ref.watch(inventoryScopeProvider);
-    final canManage = canModify && scope != null &&
+    final canManage = canModify &&
+        scope != null &&
         user?.hasPermission('inventory.manage') == true;
-    final canAdjust = canModify && scope != null &&
+    final canAdjust = canModify &&
+        scope != null &&
         user?.hasPermission('inventory.adjust') == true;
 
     return Scaffold(
@@ -69,8 +72,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             onPressed: inventoryState.isLoading
                 ? null
                 : () => ref
-                      .read(inventoryListControllerProvider.notifier)
-                      .refresh(),
+                    .read(inventoryListControllerProvider.notifier)
+                    .refresh(),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -86,7 +89,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ),
           data: (data) {
             final ingredients = inventoryAttentionList(
-              data.ingredients, query: _searchQuery, filter: _filter,
+              data.ingredients,
+              query: _searchQuery,
+              filter: _filter,
             );
             final summary = InventoryAttentionSummary(data.ingredients);
 
@@ -111,7 +116,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    selectedBranch == null ? 'Select a branch' : selectedBranch.name,
+                    selectedBranch == null
+                        ? 'Select a branch'
+                        : selectedBranch.name,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
@@ -122,22 +129,26 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ),
                   const SizedBox(height: 12),
                   Wrap(
-                    spacing: 8, runSpacing: 8,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       ChoiceChip(
                         label: Text('All (${data.ingredients.length})'),
                         selected: _filter == InventoryStockFilter.all,
-                        onSelected: (_) => setState(() => _filter = InventoryStockFilter.all),
+                        onSelected: (_) =>
+                            setState(() => _filter = InventoryStockFilter.all),
                       ),
                       ChoiceChip(
                         label: Text('Needs restock (${summary.needsRestock})'),
                         selected: _filter == InventoryStockFilter.needsRestock,
-                        onSelected: (_) => setState(() => _filter = InventoryStockFilter.needsRestock),
+                        onSelected: (_) => setState(
+                            () => _filter = InventoryStockFilter.needsRestock),
                       ),
                       ChoiceChip(
                         label: Text('Inactive (${summary.inactive})'),
                         selected: _filter == InventoryStockFilter.inactive,
-                        onSelected: (_) => setState(() => _filter = InventoryStockFilter.inactive),
+                        onSelected: (_) => setState(
+                            () => _filter = InventoryStockFilter.inactive),
                       ),
                     ],
                   ),
@@ -145,7 +156,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   if (data.ingredients.isEmpty)
                     const _EmptyState()
                   else if (ingredients.isEmpty)
-                    _NoSearchResults(filter: _filter, hasSearch: _searchQuery.trim().isNotEmpty)
+                    _NoSearchResults(
+                        filter: _filter,
+                        hasSearch: _searchQuery.trim().isNotEmpty)
                   else
                     ...ingredients.map(
                       (ingredient) => Padding(
@@ -155,12 +168,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           scope: data.scope,
                           onEdit: canManage && data.scope == scope
                               ? () => context.push(
-                                  '/inventory/edit',
-                                  extra: ingredient,
-                                )
+                                    '/inventory/edit',
+                                    extra: ingredient,
+                                  )
                               : null,
                           onStockAction: canAdjust && data.scope == scope
-                              ? () => _showStockActionDialog(ingredient, data.scope)
+                              ? () =>
+                                  _showStockActionDialog(ingredient, data.scope)
                               : null,
                           onDelete: canManage && data.scope == scope
                               ? () => _deleteIngredient(ingredient, data.scope)
@@ -182,10 +196,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   Future<void> _deleteIngredient(
-    InventoryIngredient ingredient, InventoryScope? selected,
+    InventoryIngredient ingredient,
+    InventoryScope? selected,
   ) async {
     final auth = ref.read(authControllerProvider);
-    if (selected == null || ref.read(inventoryScopeProvider) != selected ||
+    if (selected == null ||
+        ref.read(inventoryScopeProvider) != selected ||
         auth is! AuthAuthenticated ||
         !auth.user.hasPermission('inventory.manage') ||
         !SubscriptionActionGuard.canModify(ref)) {
@@ -216,7 +232,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       },
     );
 
-    if (confirmed != true || !mounted ||
+    if (confirmed != true ||
+        !mounted ||
         ref.read(inventoryScopeProvider) != selected) {
       return;
     }
@@ -256,10 +273,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   Future<void> _showStockActionDialog(
-    InventoryIngredient ingredient, InventoryScope? selected,
+    InventoryIngredient ingredient,
+    InventoryScope? selected,
   ) async {
     final auth = ref.read(authControllerProvider);
-    if (selected == null || ref.read(inventoryScopeProvider) != selected ||
+    if (selected == null ||
+        ref.read(inventoryScopeProvider) != selected ||
         auth is! AuthAuthenticated ||
         !auth.user.hasPermission('inventory.adjust') ||
         !SubscriptionActionGuard.canModify(ref)) {
@@ -316,7 +335,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 if ((type == 'adjustment' || type == 'wastage') &&
                     reasonController.text.trim().isEmpty) {
                   setState(() {
-                    errorMessage = 'Please enter a reason for this stock action.';
+                    errorMessage =
+                        'Please enter a reason for this stock action.';
                   });
                   return;
                 }
@@ -359,91 +379,93 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               }
 
               return PopScope(
-                canPop: !isSaving,
-                child: AlertDialog(
-                title: Text('Record stock movement — ${ingredient.name}'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: type,
-                        decoration: const InputDecoration(labelText: 'Action'),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'purchase',
-                            child: Text('Stock In / Purchase'),
+                  canPop: !isSaving,
+                  child: AlertDialog(
+                    title: Text('Record stock movement — ${ingredient.name}'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            initialValue: type,
+                            decoration:
+                                const InputDecoration(labelText: 'Action'),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'purchase',
+                                child: Text('Stock In / Purchase'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'adjustment',
+                                child: Text('Adjustment'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'wastage',
+                                child: Text('Wastage'),
+                              ),
+                            ],
+                            onChanged: isSaving
+                                ? null
+                                : (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        type = value;
+                                      });
+                                    }
+                                  },
                           ),
-                          DropdownMenuItem(
-                            value: 'adjustment',
-                            child: Text('Adjustment'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'wastage',
-                            child: Text('Wastage'),
-                          ),
-                        ],
-                        onChanged: isSaving
-                            ? null
-                            : (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    type = value;
-                                  });
-                                }
-                              },
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: quantityController,
-                        enabled: !isSaving,
-                        keyboardType: TextInputType.numberWithOptions(
-                          decimal: true, signed: type == 'adjustment',
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Quantity',
-                          suffixText: ingredient.unit.abbreviation,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: reasonController,
-                        enabled: !isSaving,
-                        decoration: const InputDecoration(
-                          labelText: 'Reason',
-                          hintText: 'Optional for stock in',
-                        ),
-                        maxLines: 2,
-                      ),
-                      if (errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            errorMessage!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: quantityController,
+                            enabled: !isSaving,
+                            keyboardType: TextInputType.numberWithOptions(
+                              decimal: true,
+                              signed: type == 'adjustment',
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Quantity',
+                              suffixText: ingredient.unit.abbreviation,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: reasonController,
+                            enabled: !isSaving,
+                            decoration: const InputDecoration(
+                              labelText: 'Reason',
+                              hintText: 'Optional for stock in',
+                            ),
+                            maxLines: 2,
+                          ),
+                          if (errorMessage != null) ...[
+                            const SizedBox(height: 16),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                errorMessage!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      pos_ui.SecondaryButton(
+                        onPressed: isSaving
+                            ? null
+                            : () => Navigator.of(dialogContext).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      pos_ui.PrimaryButton(
+                        onPressed: isSaving ? null : submit,
+                        isLoading: isSaving,
+                        child: const Text('Continue'),
+                      ),
                     ],
-                  ),
-                ),
-                actions: [
-                  pos_ui.SecondaryButton(
-                    onPressed: isSaving
-                        ? null
-                        : () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  pos_ui.PrimaryButton(
-                    onPressed: isSaving ? null : submit,
-                    isLoading: isSaving,
-                    child: const Text('Continue'),
-                  ),
-                ],
-              ));
+                  ));
             },
           );
         },
@@ -536,16 +558,16 @@ class _IngredientCard extends StatelessWidget {
     final statusText = !ingredient.isActive
         ? 'Inactive'
         : ingredient.currentStock <= 0
-        ? 'Out of Stock'
-        : ingredient.isLowStock
-        ? 'Low Stock'
-        : 'In Stock';
+            ? 'Out of Stock'
+            : ingredient.isLowStock
+                ? 'Low Stock'
+                : 'In Stock';
 
     final statusColor = !ingredient.isActive
         ? theme.colorScheme.outline
         : ingredient.isLowStock || ingredient.currentStock <= 0
-        ? theme.colorScheme.error
-        : AppColors.semantic(context, AppColors.success);
+            ? theme.colorScheme.error
+            : AppColors.semantic(context, AppColors.success);
 
     final details = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,54 +635,126 @@ class _IngredientCard extends StatelessWidget {
         ),
       ],
     );
+    if (CoffeeStudioTheme.active(context) &&
+        MediaQuery.sizeOf(context).width >= 1000 &&
+        MediaQuery.textScalerOf(context).scale(14) <= 20) {
+      return Card(
+        child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(children: [
+              Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: CoffeeStudioTheme.accentSurface(
+                          context, ingredient.id),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.inventory_2_outlined)),
+              const SizedBox(width: 16),
+              Expanded(flex: 3, child: details),
+              Expanded(
+                  flex: 2,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Current stock',
+                            style: theme.textTheme.labelSmall),
+                        Text(
+                            '${ingredient.currentStock.toStringAsFixed(3)} ${ingredient.unit.abbreviation}',
+                            style: theme.textTheme.titleMedium),
+                      ])),
+              Expanded(
+                  child: Text(statusText,
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(color: statusColor))),
+              PopupMenuButton<String>(
+                tooltip: 'Ingredient actions',
+                onSelected: (action) {
+                  switch (action) {
+                    case 'edit':
+                      onEdit?.call();
+                      break;
+                    case 'stock':
+                      onStockAction?.call();
+                      break;
+                    case 'history':
+                      onHistory();
+                      break;
+                    case 'delete':
+                      onDelete?.call();
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                      value: 'edit',
+                      enabled: onEdit != null,
+                      child: const Text('Edit')),
+                  PopupMenuItem(
+                      value: 'stock',
+                      enabled: onStockAction != null,
+                      child: const Text('Restock / adjust')),
+                  const PopupMenuItem(value: 'history', child: Text('History')),
+                  PopupMenuItem(
+                      value: 'delete',
+                      enabled: onDelete != null,
+                      child: const Text('Delete')),
+                ],
+              ),
+            ])),
+      );
+    }
     return Card(
       elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [LayoutBuilder(
-          builder: (context, constraints) {
-            final heading = Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.inventory_2_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(child: details),
-              ],
-            );
-            if (constraints.maxWidth < 760) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [heading, const SizedBox(height: 16), stock],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: heading),
-                const SizedBox(width: 16),
-                SizedBox(width: 560, child: stock),
-              ],
-            );
-          },
-        ),
-        if (scope != null && ingredient.isActive &&
-            (ingredient.isLowStock || ingredient.currentStock <= 0))
-          IngredientImpactPanel(
-            key: ValueKey('${scope!.userId}:${scope!.branchId}:${ingredient.id}'),
-            ingredientId: ingredient.id, scope: scope!,
-          ),
-        ],
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final heading = Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.inventory_2_outlined,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(child: details),
+                  ],
+                );
+                if (constraints.maxWidth < 760) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [heading, const SizedBox(height: 16), stock],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: heading),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 560, child: stock),
+                  ],
+                );
+              },
+            ),
+            if (scope != null &&
+                ingredient.isActive &&
+                (ingredient.isLowStock || ingredient.currentStock <= 0))
+              IngredientImpactPanel(
+                key: ValueKey(
+                    '${scope!.userId}:${scope!.branchId}:${ingredient.id}'),
+                ingredientId: ingredient.id,
+                scope: scope!,
+              ),
+          ],
         ),
       ),
     );
@@ -710,11 +804,12 @@ class _NoSearchResults extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 200,
-      child: Center(child: Text(hasSearch
-          ? 'No ingredients match this search and filter.'
-          : filter == InventoryStockFilter.needsRestock
-          ? 'No active ingredients need restocking.'
-          : 'No inactive ingredients.')),
+      child: Center(
+          child: Text(hasSearch
+              ? 'No ingredients match this search and filter.'
+              : filter == InventoryStockFilter.needsRestock
+                  ? 'No active ingredients need restocking.'
+                  : 'No inactive ingredients.')),
     );
   }
 }

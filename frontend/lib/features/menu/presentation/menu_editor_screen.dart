@@ -194,6 +194,7 @@ class _MenuEditorState extends ConsumerState<MenuEditorScreen> {
           ),
         ),
         body: PageContent(
+          form: true,
           maxWidth: 800,
           child: AbsorbPointer(
             absorbing: saving,

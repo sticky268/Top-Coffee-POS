@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/app_buttons.dart' as pos_ui;
@@ -45,6 +46,42 @@ class OrderListTile extends StatelessWidget {
         softWrap: false,
         style:
             theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700));
+    if (CoffeeStudioTheme.active(context) &&
+        MediaQuery.sizeOf(context).width >= 900 &&
+        MediaQuery.textScalerOf(context).scale(14) <= 20) {
+      return Material(
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: scheme.outlineVariant)),
+        child: pos_ui.ActionSurface(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(children: [
+                  Expanded(
+                      flex: 3,
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Order ${order.displayOrderReference}',
+                                style: theme.textTheme.titleMedium),
+                            const SizedBox(height: 4),
+                            Text(
+                                '$dateLabel · ${orderTypeLabel(order.orderType)}',
+                                style: theme.textTheme.bodySmall),
+                          ])),
+                  Expanded(
+                      flex: 2,
+                      child:
+                          Align(alignment: Alignment.centerLeft, child: badge)),
+                  amount,
+                  const SizedBox(width: 16),
+                  const Icon(Icons.chevron_right, size: 20),
+                ]))),
+      );
+    }
     return Material(
       color: scheme.surface,
       shape: RoundedRectangleBorder(
