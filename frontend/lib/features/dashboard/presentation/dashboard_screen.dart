@@ -63,32 +63,49 @@ class DashboardScreen extends ConsumerWidget {
                         if (user != null)
                           DashboardHeader(
                             user: user,
-                            showBrand:
+                            showBrand: !CoffeeStudioTheme.active(context) &&
                                 MediaQuery.sizeOf(context).width >= 900 &&
-                                    layout != HomeLayout.coffeeCounter,
+                                layout != HomeLayout.coffeeCounter,
                             onLogout: () => ref
                                 .read(authControllerProvider.notifier)
                                 .logout(),
                           ),
                         const SizedBox(height: 24),
-                        DashboardAttentionPanel(
-                          lowStockCount: dashboardState is DashboardLoaded
-                              ? dashboardState.stats.lowStockItemCount
-                              : null,
-                          cashDiscrepancyCount:
-                              dashboardState is DashboardLoaded
-                                  ? dashboardState.stats.cashDiscrepancyCount
-                                  : null,
-                          cashDiscrepancyShiftId:
-                              dashboardState is DashboardLoaded
-                                  ? dashboardState.stats.cashDiscrepancyShiftId
-                                  : null,
-                        ),
+                        if (!CoffeeStudioTheme.active(context))
+                          DashboardAttentionPanel(
+                            lowStockCount: dashboardState is DashboardLoaded
+                                ? dashboardState.stats.lowStockItemCount
+                                : null,
+                            cashDiscrepancyCount:
+                                dashboardState is DashboardLoaded
+                                    ? dashboardState.stats.cashDiscrepancyCount
+                                    : null,
+                            cashDiscrepancyShiftId: dashboardState
+                                    is DashboardLoaded
+                                ? dashboardState.stats.cashDiscrepancyShiftId
+                                : null,
+                          ),
                         _DashboardBody(
                           state: dashboardState,
                           statColumns: statColumns,
                           actionColumns: actionColumns,
                         ),
+                        if (CoffeeStudioTheme.active(context)) ...[
+                          const SizedBox(height: 24),
+                          DashboardAttentionPanel(
+                            lowStockCount: dashboardState is DashboardLoaded
+                                ? dashboardState.stats.lowStockItemCount
+                                : null,
+                            cashDiscrepancyCount:
+                                dashboardState is DashboardLoaded
+                                    ? dashboardState.stats.cashDiscrepancyCount
+                                    : null,
+                            cashDiscrepancyShiftId: dashboardState
+                                    is DashboardLoaded
+                                ? dashboardState.stats.cashDiscrepancyShiftId
+                                : null,
+                          ),
+                        ],
                       ],
                     ),
                   ),

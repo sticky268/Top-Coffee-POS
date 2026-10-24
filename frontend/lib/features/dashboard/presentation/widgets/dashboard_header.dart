@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
@@ -46,8 +47,15 @@ class DashboardHeader extends ConsumerWidget {
           children: [
             Text(
               '$_greeting, ${user.name}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              style: (CoffeeStudioTheme.active(context)
+                      ? theme.textTheme.headlineSmall
+                      : theme.textTheme.bodyMedium)
+                  ?.copyWith(
+                fontWeight:
+                    CoffeeStudioTheme.active(context) ? FontWeight.w700 : null,
+                color: CoffeeStudioTheme.active(context)
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
             if (roleLabel != null) ...[
