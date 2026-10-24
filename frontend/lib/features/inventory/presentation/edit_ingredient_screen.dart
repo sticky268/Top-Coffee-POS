@@ -145,12 +145,13 @@ class _EditIngredientScreenState extends ConsumerState<EditIngredientScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Edit Ingredient')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: _isLoadingUnits
             ? const Center(child: CircularProgressIndicator())
             : _units.isEmpty
-            ? _buildNoUnitsState()
-            : _buildForm(),
+                ? _buildNoUnitsState()
+                : _buildForm(),
       ),
     );
   }

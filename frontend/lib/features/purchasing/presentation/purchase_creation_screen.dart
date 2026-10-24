@@ -170,13 +170,14 @@ class _PurchaseCreationScreenState
             onPressed: state.isSaving
                 ? null
                 : () => ref
-                      .read(purchaseCreationDataControllerProvider.notifier)
-                      .refresh(),
+                    .read(purchaseCreationDataControllerProvider.notifier)
+                    .refresh(),
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
       body: PageContent(
+        form: true,
         maxWidth: 1000,
         child: dataAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),

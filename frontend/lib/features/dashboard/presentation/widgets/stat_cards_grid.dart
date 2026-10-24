@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 import '../../domain/dashboard_models.dart';
 
 class StatCardsGrid extends StatelessWidget {
@@ -53,8 +54,7 @@ class StatCardsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
-      mainAxisExtent:
-          150 +
+      mainAxisExtent: 150 +
           (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(
                 0.0,
                 3.0,
@@ -89,6 +89,10 @@ class _StatCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
+      color: CoffeeStudioTheme.active(context)
+          ? Color.alphaBlend(
+              data.color.withValues(alpha: .09), theme.colorScheme.surface)
+          : null,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // Genuine responsive tiering, not just a safety net: below this

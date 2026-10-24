@@ -49,7 +49,12 @@ class ProductCard extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxHeight < 92;
-              final padding = isCompact ? 10.0 : 14.0;
+              final studio = CoffeeStudioTheme.active(context);
+              final padding = studio
+                  ? 8.0
+                  : isCompact
+                      ? 10.0
+                      : 14.0;
               final nameFontSize = isCompact ? 13.0 : 15.0;
               final priceFontSize = isCompact ? 12.0 : 14.0;
 
@@ -60,7 +65,7 @@ class ProductCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(studio ? 8 : 12),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [

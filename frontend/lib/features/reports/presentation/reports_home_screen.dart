@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/coffee_studio_theme.dart';
+import '../../../core/widgets/studio_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/widgets/page_app_bar.dart';
@@ -34,6 +36,103 @@ class ReportsHomeScreen extends ConsumerWidget {
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
     }
 
+    if (CoffeeStudioTheme.active(context)) {
+      Widget group(String title, List<StudioAction> actions) => Padding(
+          padding: const EdgeInsets.only(bottom: 28),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            StudioActionBoard(actions: actions),
+          ]));
+      return Scaffold(
+        appBar: const PageAppBar(title: Text('Reports')),
+        body: PageContent(
+            maxWidth: 1300,
+            child: ListView(padding: const EdgeInsets.all(28), children: [
+              Text('Reports',
+                  style: Theme.of(context).textTheme.headlineMedium),
+              const SizedBox(height: 8),
+              Text(branch?.name ?? 'Choose a branch on the dashboard'),
+              const SizedBox(height: 28),
+              group('Sales & revenue', [
+                StudioAction(
+                    'Sale Reports',
+                    'Daily and monthly sales',
+                    Icons.calendar_month_outlined,
+                    () => open(const SalesHistoryScreen())),
+                StudioAction(
+                    'Sales summary',
+                    'Totals, payments and reconciliation',
+                    Icons.bar_chart_rounded,
+                    () => open(const ReportsScreen())),
+                StudioAction(
+                    'Sales trends',
+                    'Daily and monthly momentum',
+                    Icons.stacked_line_chart_rounded,
+                    () => open(const ReportWorkspaceScreen(
+                        kind: ReportWorkspace.trends))),
+                StudioAction(
+                    'Profit & product performance',
+                    'Recipe costs, margins and top items',
+                    Icons.pie_chart_outline,
+                    () => open(const ReportWorkspaceScreen(
+                        kind: ReportWorkspace.profit))),
+                StudioAction(
+                    'Branch comparison',
+                    'Compare accessible branches',
+                    Icons.store_outlined,
+                    () => open(const ReportWorkspaceScreen(
+                        kind: ReportWorkspace.branches))),
+              ]),
+              group('Operations', [
+                StudioAction(
+                    'Shift reports',
+                    'Cash counts and differences',
+                    Icons.fact_check_outlined,
+                    () => open(const ShiftReportsScreen())),
+                StudioAction(
+                    'Time & cashier performance',
+                    'Busy hours and staff activity',
+                    Icons.schedule_outlined,
+                    () => open(const ReportWorkspaceScreen(
+                        kind: ReportWorkspace.activity))),
+                StudioAction(
+                    'Inventory report',
+                    'Stock, waste and usage',
+                    Icons.inventory_2_outlined,
+                    () => open(const ReportWorkspaceScreen(
+                        kind: ReportWorkspace.inventory))),
+                if (user?.hasPermission('expenses.manage') ?? false)
+                  StudioAction(
+                      'Expenses',
+                      'Recorded business expenses',
+                      Icons.receipt_outlined,
+                      () => open(const ExpensesScreen())),
+                if (user?.hasPermission('orders.view') ?? false)
+                  StudioAction(
+                      'Transactions',
+                      'Order and payment details',
+                      Icons.swap_horiz,
+                      () => open(const OrdersScreen(title: 'Transactions'))),
+                if (user?.hasPermission('audit.view') ?? false)
+                  StudioAction('Audit history', 'Who changed what and when',
+                      Icons.history, () => open(const AuditLogScreen())),
+              ]),
+              if ((user?.hasPermission('customers.view') ?? false) ||
+                  (user?.hasPermission('customers.manage') ?? false))
+                group('Customers', [
+                  StudioAction(
+                      'Customers & points',
+                      'Activity and loyalty history',
+                      Icons.people_outline,
+                      () => open(const CustomersScreen())),
+                ]),
+              const Text(
+                  'Reports include sales after they have synced successfully.'),
+            ])),
+      );
+    }
     return Scaffold(
       appBar: const PageAppBar(title: Text('Reports')),
       body: PageContent(

@@ -43,7 +43,7 @@ class DashboardNavigation extends StatelessWidget {
   Widget _navigation(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: 250,
+      width: CoffeeStudioTheme.active(context) ? 108 : 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -54,29 +54,43 @@ class DashboardNavigation extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 16, 24),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.local_cafe_rounded,
-                    size: 32,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Top Coffee',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+              padding: CoffeeStudioTheme.active(context)
+                  ? const EdgeInsets.all(12)
+                  : const EdgeInsets.fromLTRB(24, 24, 16, 24),
+              child: CoffeeStudioTheme.active(context)
+                  ? Column(children: [
+                      const Icon(Icons.local_cafe_outlined,
+                          color: AppColors.caramel, size: 32),
+                      const SizedBox(height: 8),
+                      Text('TOP\nCOFFEE',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.w800)),
+                    ])
+                  : Row(
+                      children: [
+                        Icon(
+                          Icons.local_cafe_rounded,
+                          size: 32,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'Top Coffee',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(
+                    horizontal: CoffeeStudioTheme.active(context) ? 8 : 16),
                 children: [
                   _NavigationSection(
                     title: 'MAIN',
@@ -293,17 +307,18 @@ class _NavigationSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(
-              title,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurfaceVariant,
-                letterSpacing: 0.8,
+          if (!CoffeeStudioTheme.active(context))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                title,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
-          ),
           ...children,
         ],
       ),
@@ -380,6 +395,34 @@ class _NavigationItem extends ConsumerWidget {
         : enabled
             ? theme.colorScheme.onSurfaceVariant
             : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+
+    if (CoffeeStudioTheme.active(context)) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Material(
+          color: selected
+              ? theme.colorScheme.primaryContainer
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+              child: Column(children: [
+                Icon(selected ? selectedIcon : icon,
+                    color: iconColor, size: 23),
+                const SizedBox(height: 6),
+                Text(label,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: foregroundColor)),
+              ]),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

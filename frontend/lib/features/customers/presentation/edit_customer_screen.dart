@@ -111,6 +111,7 @@ class _EditCustomerScreenState extends ConsumerState<EditCustomerScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Edit Customer')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: ListView(
           padding: const EdgeInsets.all(16),

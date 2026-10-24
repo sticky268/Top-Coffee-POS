@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -270,7 +271,7 @@ class _DashboardContent extends ConsumerWidget {
     ];
 
     final layout = ref.watch(homeLayoutProvider);
-    if (layout != HomeLayout.classic) {
+    if (layout != HomeLayout.classic || CoffeeStudioTheme.active(context)) {
       return HomeDashboardLayouts(
         layout: layout,
         stats: stats,

@@ -1,4 +1,5 @@
 import '../../../core/theme/coffee_studio_theme.dart';
+import '../../../core/widgets/studio_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +26,58 @@ class ManageMenuScreen extends ConsumerWidget {
     final allowed =
         auth is AuthAuthenticated && auth.user.hasPermission('products.manage');
     final branch = ref.watch(currentBranchProvider);
+    if (CoffeeStudioTheme.active(context) && allowed) {
+      const sections = [
+        (
+          'Items',
+          'Add and manage individual menu items.',
+          Icons.local_cafe_outlined
+        ),
+        ('Combos', 'Create and manage combo meals.', Icons.fastfood_outlined),
+        (
+          'Categories',
+          'Organize menu items by category.',
+          Icons.category_outlined
+        ),
+        (
+          'Discounts',
+          'Set up promotions and discounts.',
+          Icons.discount_outlined
+        ),
+        ('Modifiers', 'Manage milk, size, sugar and extras.', Icons.tune),
+      ];
+      return Scaffold(
+        appBar: const PageAppBar(title: Text('Manage Menu')),
+        body: PageContent(
+            maxWidth: 1200,
+            child: ListView(
+              padding: const EdgeInsets.all(28),
+              children: [
+                Text('Manage Menu',
+                    style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 8),
+                Text(branch?.name ?? 'Select a branch on the dashboard'),
+                const SizedBox(height: 24),
+                StudioActionBoard(actions: [
+                  for (final section in sections)
+                    StudioAction(
+                        section.$1,
+                        section.$2,
+                        section.$3,
+                        branch == null
+                            ? null
+                            : () async {
+                                await Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                        builder: (_) => MenuSectionScreen(
+                                            section: section.$1)));
+                                ref.invalidate(menuDataProvider);
+                              }),
+                ]),
+              ],
+            )),
+      );
+    }
     return Scaffold(
       appBar: const PageAppBar(title: Text('Manage Menu')),
       body: PageContent(

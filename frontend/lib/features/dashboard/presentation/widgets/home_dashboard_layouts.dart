@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
+import '../../../../core/widgets/studio_layout.dart';
+import 'stat_cards_grid.dart';
 import '../../../../core/theme/home_layout_preference.dart';
 import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/dashboard_models.dart';
@@ -27,6 +30,87 @@ class HomeDashboardLayouts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
+      if (CoffeeStudioTheme.active(context)) {
+        final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final work = [
+          ...actions.where((a) => a.label == 'New Order'),
+          ...actions.where((a) => a.label != 'New Order'),
+        ];
+        final counter = layout == HomeLayout.coffeeCounter;
+        Widget tile(QuickAction a) =>
+            StudioActionBoard(featureFirst: a.label == 'New Order', actions: [
+              StudioAction(
+                  a.label,
+                  a.label == 'New Order'
+                      ? 'Start a new sale'
+                      : 'Open ${a.label.toLowerCase()}',
+                  a.icon,
+                  a.onTap)
+            ]);
+        return Column(
+            key: ValueKey('dashboard-${layout.name}'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (layout == HomeLayout.modern)
+                _HomeMetrics(stats: stats, modern: true)
+              else
+                StatCardsGrid(
+                    stats: stats,
+                    crossAxisCount:
+                        (constraints.maxWidth / (scale > 1.4 ? 250 : 180))
+                            .floor()
+                            .clamp(1, 4)),
+              const SizedBox(height: 24),
+              if (counter && work.isNotEmpty)
+                LayoutBuilder(builder: (context, box) {
+                  if (box.maxWidth < 760 || scale > 1.3) {
+                    return Column(children: [
+                      tile(work.first),
+                      const SizedBox(height: 16),
+                      StudioActionBoard(actions: [
+                        for (final a in work.skip(1))
+                          StudioAction(a.label, 'Open ${a.label.toLowerCase()}',
+                              a.icon, a.onTap)
+                      ]),
+                    ]);
+                  }
+                  return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 4, child: tile(work.first)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                            flex: 6,
+                            child: StudioActionBoard(actions: [
+                              for (final a in work.skip(1))
+                                StudioAction(
+                                    a.label,
+                                    'Open ${a.label.toLowerCase()}',
+                                    a.icon,
+                                    a.onTap)
+                            ])),
+                      ]);
+                })
+              else ...[
+                Text('Quick Actions',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                StudioActionBoard(actions: [
+                  for (final a in work)
+                    StudioAction(a.label, 'Open ${a.label.toLowerCase()}',
+                        a.icon, a.onTap)
+                ]),
+              ],
+              const SizedBox(height: 28),
+              if (constraints.maxWidth > 900 && scale <= 1.3)
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: _chart()),
+                  const SizedBox(width: 20),
+                  Expanded(child: _orders()),
+                ])
+              else ...[_chart(), const SizedBox(height: 20), _orders()],
+            ]);
+      }
       final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
       final wide = constraints.maxWidth >= 1000 && scale <= 1.3;
       final isCounter = layout == HomeLayout.coffeeCounter;

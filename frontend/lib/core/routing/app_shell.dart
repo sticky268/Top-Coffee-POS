@@ -6,6 +6,7 @@ import '../../features/dashboard/presentation/widgets/dashboard_navigation.dart'
 import '../widgets/page_app_bar.dart';
 import '../theme/home_layout_preference.dart';
 import '../theme/app_colors.dart';
+import '../theme/coffee_studio_theme.dart';
 import '../../features/dashboard/presentation/widgets/home_navigation_rail.dart';
 
 class AppShell extends ConsumerWidget {
@@ -73,7 +74,9 @@ class AppShell extends ConsumerWidget {
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (home && layout == HomeLayout.modern)
+              if (home &&
+                  layout == HomeLayout.modern &&
+                  !CoffeeStudioTheme.active(context))
                 const HomeNavigationRail()
               else
                 DashboardNavigation(selectedRoute: selectedRoute),
