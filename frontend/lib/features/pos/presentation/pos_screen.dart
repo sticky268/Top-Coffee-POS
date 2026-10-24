@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/page_app_bar.dart';
+import '../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -93,7 +95,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         context.go('/home');
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: PageAppBar(
           toolbarHeight: compactToolbar
               ? (MediaQuery.textScalerOf(context).scale(16) * 1.5 +
                       MediaQuery.textScalerOf(context).scale(11) * 1.3 +
@@ -110,7 +112,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: compactToolbar
-                    ? Theme.of(context).textTheme.titleMedium
+                    ? Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: CoffeeStudioTheme.active(context)
+                            ? Colors.white
+                            : null)
                     : null,
               ),
               if (compactToolbar)
@@ -120,7 +125,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                       : 'Dine-in · ${_selectedTable!.name}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: CoffeeStudioTheme.active(context)
+                          ? Colors.white70
+                          : null),
                 ),
             ],
           ),
@@ -146,7 +154,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                               ? Icons.shopping_bag_outlined
                               : Icons.table_restaurant_outlined,
                           size: 20,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: CoffeeStudioTheme.active(context)
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -163,7 +173,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600),
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: CoffeeStudioTheme.active(context)
+                                          ? Colors.white
+                                          : null),
                             ),
                           ),
                         ),
