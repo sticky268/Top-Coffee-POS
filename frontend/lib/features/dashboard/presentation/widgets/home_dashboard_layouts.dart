@@ -451,8 +451,15 @@ class _StudioCounterActions extends StatelessWidget {
         ...actions.skip(1).where((a) => a.label == name),
     ];
     final remaining = actions.skip(1).where((a) => !right.contains(a)).toList();
-    final featured = StudioActionBoard(featureFirst: true, actions: [
-      StudioAction(first.label, 'Start a new sale', first.icon, first.onTap),
+    final featured =
+        StudioActionBoard(featureFirst: first.label == 'New Order', actions: [
+      StudioAction(
+          first.label,
+          first.label == 'New Order'
+              ? 'Start a new sale'
+              : 'Open ${first.label.toLowerCase()}',
+          first.icon,
+          first.onTap),
     ]);
     return LayoutBuilder(builder: (context, box) {
       final wide = box.maxWidth >= 760 &&
