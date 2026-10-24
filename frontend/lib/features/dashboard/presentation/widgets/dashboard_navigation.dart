@@ -9,8 +9,12 @@ import '../../../../core/theme/coffee_studio_theme.dart';
 
 class DashboardNavigation extends StatelessWidget {
   const DashboardNavigation(
-      {super.key, required this.selectedRoute, this.onDestinationSelected});
+      {super.key,
+      required this.selectedRoute,
+      this.onDestinationSelected,
+      this.compact = false});
 
+  final bool compact;
   final String selectedRoute;
   final ValueChanged<String>? onDestinationSelected;
 
@@ -34,7 +38,10 @@ class DashboardNavigation extends StatelessWidget {
     if (CoffeeStudioTheme.active(context)) {
       return Theme(
         data: CoffeeStudioTheme.navigation(theme),
-        child: Builder(builder: (context) => _navigation(context)),
+        child: _NavigationPresentation(
+          compact: compact,
+          child: Builder(builder: (context) => _navigation(context)),
+        ),
       );
     }
     return _navigation(context);
@@ -43,7 +50,7 @@ class DashboardNavigation extends StatelessWidget {
   Widget _navigation(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: CoffeeStudioTheme.active(context) ? 108 : 250,
+      width: _NavigationPresentation.compactOf(context) ? 108 : 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -54,10 +61,10 @@ class DashboardNavigation extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: CoffeeStudioTheme.active(context)
+              padding: _NavigationPresentation.compactOf(context)
                   ? const EdgeInsets.all(12)
                   : const EdgeInsets.fromLTRB(24, 24, 16, 24),
-              child: CoffeeStudioTheme.active(context)
+              child: _NavigationPresentation.compactOf(context)
                   ? Column(children: [
                       const Icon(Icons.local_cafe_outlined,
                           color: AppColors.caramel, size: 32),
@@ -90,7 +97,8 @@ class DashboardNavigation extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.symmetric(
-                    horizontal: CoffeeStudioTheme.active(context) ? 8 : 16),
+                    horizontal:
+                        _NavigationPresentation.compactOf(context) ? 8 : 16),
                 children: [
                   _NavigationSection(
                     title: 'MAIN',
@@ -307,7 +315,7 @@ class _NavigationSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!CoffeeStudioTheme.active(context))
+          if (!_NavigationPresentation.compactOf(context))
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Text(
@@ -396,7 +404,7 @@ class _NavigationItem extends ConsumerWidget {
             ? theme.colorScheme.onSurfaceVariant
             : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
-    if (CoffeeStudioTheme.active(context)) {
+    if (_NavigationPresentation.compactOf(context)) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Material(
@@ -449,4 +457,18 @@ class _NavigationItem extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Drawers and full-tools sheets use horizontal rows; only a pinned rail is compact.
+class _NavigationPresentation extends InheritedWidget {
+  const _NavigationPresentation({required this.compact, required super.child});
+  final bool compact;
+  static bool compactOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_NavigationPresentation>()
+          ?.compact ??
+      false;
+  @override
+  bool updateShouldNotify(_NavigationPresentation oldWidget) =>
+      compact != oldWidget.compact;
 }

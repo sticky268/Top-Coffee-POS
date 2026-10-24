@@ -19,6 +19,7 @@ import 'package:top_coffee_pos/features/dashboard/application/dashboard_controll
 import 'package:top_coffee_pos/features/dashboard/domain/dashboard_models.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:top_coffee_pos/features/dashboard/presentation/widgets/home_navigation_rail.dart';
+import 'package:top_coffee_pos/features/dashboard/presentation/widgets/dashboard_navigation.dart';
 import 'package:top_coffee_pos/features/settings/presentation/home_layout_settings_card.dart';
 import '../../presentation/ui_polish_test.dart' show savePreview;
 
@@ -428,6 +429,73 @@ void main() {
     expect(
         find.byKey(const ValueKey('dashboard-coffeeCounter')), findsOneWidget);
     expect(find.text('\$428.50'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  for (final layout in HomeLayout.values) {
+    testWidgets(
+        'Studio ${layout.name} uses pinned navigation on landscape tablet',
+        (tester) async {
+      final preview = GlobalKey();
+      await pumpHome(tester, layout, const Size(1280, 800), 1, false,
+          studio: true, preview: preview);
+      expect(find.byType(Drawer), findsNothing);
+      expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
+      expect(find.byType(ModalBarrier), findsNothing);
+      expect(tester.takeException(), isNull);
+      await savePreview(tester, preview, 'studio-pinned-${layout.name}');
+    });
+  }
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('Studio phone drawer has full-width rows at text $scale',
+        (tester) async {
+      final preview = GlobalKey();
+      await pumpHome(
+          tester, HomeLayout.coffeeCounter, const Size(390, 844), scale, false,
+          studio: true, preview: preview);
+      tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+      await tester.pumpAndSettle();
+      final drawer = find.byType(Drawer);
+      final dashboard = find.descendant(
+          of: drawer, matching: find.widgetWithText(ListTile, 'Dashboard'));
+      expect(dashboard, findsOneWidget);
+      expect(tester.getSize(dashboard).width, greaterThanOrEqualTo(250));
+      expect(
+          find.descendant(
+              of: dashboard, matching: find.byIcon(Icons.dashboard)),
+          findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await savePreview(tester, preview, 'studio-full-drawer-$scale');
+      final menu =
+          find.descendant(of: drawer, matching: find.text('Manage Menu'));
+      await tester.ensureVisible(menu);
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      expect(find.text('Opened /manage-menu'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+      'Studio open drawer disappears cleanly after rotation to landscape',
+      (tester) async {
+    await pumpHome(
+        tester, HomeLayout.coffeeCounter, const Size(390, 844), 1, false,
+        studio: true);
+    tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+    await tester.pumpAndSettle();
+    expect(find.byType(Drawer), findsOneWidget);
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    await tester.pumpAndSettle();
+    expect(find.byType(Drawer), findsNothing);
+    expect(find.byType(ModalBarrier), findsNothing);
+    expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
+    expect(tester.takeException(), isNull);
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Dashboard'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

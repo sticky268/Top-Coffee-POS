@@ -19,6 +19,7 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final layout = ref.watch(homeLayoutProvider);
     final home = selectedRoute == '/home';
+    final studio = CoffeeStudioTheme.active(context);
     final counter = home && layout == HomeLayout.coffeeCounter;
     final usingCache = ref.watch(cachedCatalogProvider);
     final content = Column(
@@ -39,7 +40,7 @@ class AppShell extends ConsumerWidget {
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 900;
 
-        if (!isDesktop || counter) {
+        if (!isDesktop || (counter && !studio)) {
           return Scaffold(
             // Dashboard has no page toolbar; all other routes provide one.
             appBar: home
@@ -79,7 +80,11 @@ class AppShell extends ConsumerWidget {
                   !CoffeeStudioTheme.active(context))
                 const HomeNavigationRail()
               else
-                DashboardNavigation(selectedRoute: selectedRoute),
+                DashboardNavigation(
+                  selectedRoute: selectedRoute,
+                  compact: studio &&
+                      MediaQuery.textScalerOf(context).scale(14) <= 20,
+                ),
               Expanded(child: content),
             ],
           ),
