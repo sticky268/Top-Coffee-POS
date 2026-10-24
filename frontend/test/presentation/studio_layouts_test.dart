@@ -81,14 +81,18 @@ void main() {
             theme:
                 viewport.$3 ? CoffeeStudioTheme.dark : CoffeeStudioTheme.light,
             builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(context)
-                    .copyWith(textScaler: TextScaler.linear(viewport.$2)),
+                data: MediaQuery.of(context).copyWith(
+                    size: viewport.$1,
+                    textScaler: TextScaler.linear(viewport.$2)),
                 child: RepaintBoundary(key: preview, child: child!)),
             home: AppShell(selectedRoute: page.$2, child: page.$3),
           ),
         ));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        if (viewport.$1.width >= 900) {
+          expect(find.text('Panha'), findsOneWidget);
+        }
         if (page.$1 == 'menu' || page.$1 == 'reports') {
           expect(find.byType(StudioActionBoard), findsWidgets);
         }

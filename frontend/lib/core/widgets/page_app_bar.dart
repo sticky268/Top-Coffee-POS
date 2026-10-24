@@ -54,10 +54,30 @@ class PageAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final navigation = PageNavigation.maybeOf(context);
     final canPop = ModalRoute.of(context)?.canPop ?? false;
+    final studio = CoffeeStudioTheme.active(context);
+    final base = Theme.of(context);
+    final toolbarTheme = base.copyWith(
+      colorScheme: base.colorScheme.copyWith(
+        primary: Colors.white,
+        onPrimary: const Color(0xFF3E2723),
+        onSurface: Colors.white,
+        onSurfaceVariant: const Color(0xFFF5EEE6),
+        surface: const Color(0xFF3E2723),
+        outlineVariant: const Color(0xFF9B8175),
+      ),
+      textButtonTheme: TextButtonThemeData(
+          style: base.textButtonTheme.style?.copyWith(
+              foregroundColor: WidgetStateProperty.resolveWith((states) =>
+                  states.contains(WidgetState.disabled)
+                      ? Colors.white38
+                      : Colors.white))),
+    );
+    Widget toolbarControl(Widget control) =>
+        studio ? Theme(data: toolbarTheme, child: control) : control;
     return AppBar(
       title: title,
       actions: [
-        ...?actions,
+        for (final action in actions ?? <Widget>[]) toolbarControl(action),
         if (CoffeeStudioTheme.active(context) &&
             MediaQuery.sizeOf(context).width >= 900 &&
             MediaQuery.textScalerOf(context).scale(14) <= 20) ...[
@@ -102,7 +122,11 @@ class PageAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 )
               : null),
       automaticallyImplyLeading: automaticallyImplyLeading,
-      bottom: bottom,
+      bottom: studio && bottom != null
+          ? PreferredSize(
+              preferredSize: bottom!.preferredSize,
+              child: toolbarControl(bottom!))
+          : bottom,
       toolbarHeight: toolbarHeight,
       titleSpacing: titleSpacing,
       centerTitle: centerTitle,
