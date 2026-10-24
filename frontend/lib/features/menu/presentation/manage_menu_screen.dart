@@ -59,7 +59,24 @@ class ManageMenuScreen extends ConsumerWidget {
                 Text(branch?.name ?? 'Select a branch on the dashboard'),
                 const SizedBox(height: 24),
                 StudioActionBoard(actions: [
-                  for (final section in sections)
+                  for (final section in sections.take(2))
+                    StudioAction(
+                        section.$1,
+                        section.$2,
+                        section.$3,
+                        branch == null
+                            ? null
+                            : () async {
+                                await Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                        builder: (_) => MenuSectionScreen(
+                                            section: section.$1)));
+                                ref.invalidate(menuDataProvider);
+                              }),
+                ]),
+                const SizedBox(height: 16),
+                StudioActionBoard(actions: [
+                  for (final section in sections.skip(2))
                     StudioAction(
                         section.$1,
                         section.$2,

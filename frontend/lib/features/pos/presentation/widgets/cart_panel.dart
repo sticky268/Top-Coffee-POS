@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 import 'menu_discount_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,13 @@ class CartPanel extends ConsumerWidget {
 
     return Material(
       color: theme.colorScheme.surface,
+      shape: CoffeeStudioTheme.active(context)
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant))
+          : null,
+      clipBehavior:
+          CoffeeStudioTheme.active(context) ? Clip.antiAlias : Clip.none,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // Keep the whole panel scrollable when the summary and saved-discount
@@ -55,7 +63,9 @@ class CartPanel extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Order Summary',
+                        CoffeeStudioTheme.active(context)
+                            ? 'Current Order'
+                            : 'Order Summary',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
