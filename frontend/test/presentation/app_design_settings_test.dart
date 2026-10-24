@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +10,14 @@ import 'package:top_coffee_pos/features/settings/presentation/app_design_setting
 import 'ui_polish_test.dart' show savePreview;
 
 void main() {
+  setUpAll(() async {
+    for (final font in [
+      ('Inter', 'assets/fonts/Inter.ttf'),
+      ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
+    ]) {
+      await (FontLoader(font.$1)..addFont(rootBundle.load(font.$2))).load();
+    }
+  });
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   for (final dark in [false, true]) {
