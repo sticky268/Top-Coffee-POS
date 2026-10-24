@@ -203,6 +203,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         await savePreview(tester, key, 'activity-overview-$scale.png');
+        expect(find.byKey(const ValueKey('activity-cell-1-0')), findsNothing);
+        await tester.scrollUntilVisible(
+            find.text('Weekday and hourly heatmap').hitTestable(), 150);
+        await tester.ensureVisible(find.text('Weekday and hourly heatmap'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Weekday and hourly heatmap').hitTestable());
+        await tester.pumpAndSettle();
         final cell = find.byKey(const ValueKey('activity-cell-1-0'));
         await tester.scrollUntilVisible(
           cell,
@@ -287,6 +294,12 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+          find.text('Sales & exceptions').hitTestable(), 150);
+      await tester.ensureVisible(find.text('Sales & exceptions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sales & exceptions').hitTestable());
       await tester.pumpAndSettle();
       final sales =
           find.widgetWithText(ListTile, 'Paid sales including tax').first;

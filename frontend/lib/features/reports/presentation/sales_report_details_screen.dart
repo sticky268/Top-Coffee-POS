@@ -39,7 +39,11 @@ class _SalesReportDetailsScreenState
           metric: widget.metric,
           method: widget.method,
           page: page);
-  void refresh() => setState(() => request = load());
+  void refresh() {
+    setState(() {
+      request = load();
+    });
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(

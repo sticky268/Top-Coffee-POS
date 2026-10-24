@@ -14,7 +14,8 @@ import 'widgets/order_list_tile.dart';
 import 'widgets/order_status_helpers.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
-  const OrdersScreen({super.key});
+  const OrdersScreen({super.key, this.title = 'Orders'});
+  final String title;
 
   @override
   ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
@@ -73,7 +74,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
     return Scaffold(
       appBar: PageAppBar(
-        title: const Text('Orders'),
+        title: Text(widget.title),
         actions: [
           pos_ui.IconButton(
             tooltip: 'Refresh',

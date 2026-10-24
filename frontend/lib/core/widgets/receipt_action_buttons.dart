@@ -144,7 +144,7 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
             icon: const Icon(Icons.print_outlined),
             label: Text(_isPrinting ? 'Printing...' : _requiresPaperCheck ? 'Check Paper' : _printError != null ? 'Retry Print' : 'Print Receipt'),
           ),
-          secondary: pos_ui.SecondaryButton.icon(
+          secondary: pos_ui.OutlinedButton.icon(
             onPressed: busy ? null : _shareElectronicReceipt,
             icon: _isSharing
                 ? const SizedBox(
@@ -156,7 +156,8 @@ class _ReceiptActionButtonsState extends ConsumerState<ReceiptActionButtons> {
             label: Text(_isSharing ? 'Preparing...' : 'E-Receipt'),
           ),
         ),
-        TextButton.icon(
+        const SizedBox(height: 10),
+        pos_ui.OutlinedButton.icon(
           onPressed: busy ? null : () => _printReceipt(asCopy: true),
           icon: const Icon(Icons.copy_outlined),
           label: const Text('Reprint COPY'),
@@ -267,7 +268,7 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
             icon: const Icon(Icons.print_outlined),
             label: Text(_isPrinting ? 'Printing...' : 'Print Bill'),
           ),
-          secondary: pos_ui.SecondaryButton.icon(
+          secondary: pos_ui.OutlinedButton.icon(
             onPressed: busy ? null : _shareElectronicBill,
             icon: _isSharing
                 ? const SizedBox(
@@ -279,7 +280,8 @@ class _BillActionButtonsState extends ConsumerState<BillActionButtons> {
             label: Text(_isSharing ? 'Preparing...' : 'E-Bill'),
           ),
         ),
-        TextButton.icon(
+        const SizedBox(height: 10),
+        pos_ui.OutlinedButton.icon(
           onPressed: busy ? null : () => _printBill(asCopy: true),
           icon: const Icon(Icons.copy_outlined),
           label: const Text('Reprint COPY'),

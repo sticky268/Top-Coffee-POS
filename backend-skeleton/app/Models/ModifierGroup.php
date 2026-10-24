@@ -8,8 +8,8 @@ class ModifierGroup extends Model
 {
     use \App\Traits\BusinessOwned;
 
-    protected $fillable = ['name', 'min_select', 'max_select', 'is_required'];
-    protected $casts = ['is_required' => 'boolean'];
+    protected $fillable = ['name', 'min_select', 'max_select', 'is_required', 'is_active'];
+    protected $casts = ['is_active' => 'boolean', 'is_required' => 'boolean'];
 
     public function modifiers()
     {

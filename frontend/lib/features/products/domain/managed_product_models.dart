@@ -16,6 +16,14 @@ library;
 
 import '../../pos/domain/pos_models.dart' show PosProduct, PosProductVariant;
 
+double _managedNumber(Object? value, String field) {
+  final parsed = value is num ? value.toDouble() : double.tryParse('$value');
+  if (parsed == null || !parsed.isFinite) {
+    throw FormatException('Invalid $field');
+  }
+  return parsed;
+}
+
 class ManagedProductCategoryRef {
   const ManagedProductCategoryRef({required this.id, required this.name});
 
@@ -55,8 +63,10 @@ class ManagedProductVariant {
       id: json['id'] as int?,
       name: json['name'] as String,
       sku: json['sku'] as String?,
-      priceDelta: (json['price_delta'] as num).toDouble(),
-      recipeMultiplier: (json['recipe_multiplier'] as num?)?.toDouble() ?? 1,
+      priceDelta: _managedNumber(json['price_delta'], 'variant price'),
+      recipeMultiplier: json['recipe_multiplier'] == null
+          ? 1
+          : _managedNumber(json['recipe_multiplier'], 'recipe multiplier'),
       isActive: json['is_active'] as bool? ?? true,
     );
   }
@@ -127,23 +137,32 @@ class ManagedProduct {
   final String? imageUrl;
 
   factory ManagedProduct.fromJson(Map<String, dynamic> json) {
-    final categoryJson = json['category'] as Map<String, dynamic>?;
+    final categoryJson = json['category'] == null
+        ? null
+        : Map<String, dynamic>.from(json['category'] as Map);
     return ManagedProduct(
       id: json['id'] as int?,
       name: json['name'] as String,
       sku: json['sku'] as String?,
       description: json['description'] as String?,
-      categoryId: categoryJson?['id'] as int? ?? 0,
+      categoryId:
+          categoryJson?['id'] as int? ?? json['category_id'] as int? ?? 0,
       category: categoryJson != null
           ? ManagedProductCategoryRef.fromJson(categoryJson)
           : null,
-      basePrice: (json['base_price'] as num).toDouble(),
+      basePrice: _managedNumber(json['base_price'], 'base price'),
       isActive: json['is_active'] as bool? ?? true,
       variants: (json['variants'] as List? ?? const [])
-          .map((v) => ManagedProductVariant.fromJson(v as Map<String, dynamic>))
+          .map(
+            (v) => ManagedProductVariant.fromJson(
+              Map<String, dynamic>.from(v as Map),
+            ),
+          )
           .toList(),
       imageUrl: (json['images'] as List? ?? const []).isNotEmpty
-          ? ((json['images'] as List).first as Map<String, dynamic>)['url']
+          ? Map<String, dynamic>.from(
+                  (json['images'] as List).first as Map,
+                )['url']
                 as String?
           : null,
     );

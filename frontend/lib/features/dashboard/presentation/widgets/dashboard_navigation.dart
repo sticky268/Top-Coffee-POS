@@ -5,13 +5,24 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 
 class DashboardNavigation extends StatelessWidget {
-  const DashboardNavigation({super.key, required this.selectedRoute});
+  const DashboardNavigation(
+      {super.key,
+      required this.selectedRoute,
+      this.onDestinationSelected,
+      this.compact = false});
 
+  final bool compact;
   final String selectedRoute;
+  final ValueChanged<String>? onDestinationSelected;
 
   void _navigate(BuildContext context, String route) {
+    if (onDestinationSelected != null) {
+      onDestinationSelected!(route);
+      return;
+    }
     final scaffold = Scaffold.maybeOf(context);
     if (scaffold?.isDrawerOpen ?? false) {
       scaffold!.closeDrawer();
@@ -24,8 +35,22 @@ class DashboardNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (CoffeeStudioTheme.active(context)) {
+      return Theme(
+        data: CoffeeStudioTheme.navigation(theme),
+        child: _NavigationPresentation(
+          compact: compact,
+          child: Builder(builder: (context) => _navigation(context)),
+        ),
+      );
+    }
+    return _navigation(context);
+  }
+
+  Widget _navigation(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      width: 250,
+      width: _NavigationPresentation.compactOf(context) ? 108 : 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -36,29 +61,44 @@ class DashboardNavigation extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 16, 24),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.local_cafe_rounded,
-                    size: 32,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Top Coffee',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+              padding: _NavigationPresentation.compactOf(context)
+                  ? const EdgeInsets.all(12)
+                  : const EdgeInsets.fromLTRB(24, 24, 16, 24),
+              child: _NavigationPresentation.compactOf(context)
+                  ? Column(children: [
+                      const Icon(Icons.local_cafe_outlined,
+                          color: AppColors.caramel, size: 32),
+                      const SizedBox(height: 8),
+                      Text('TOP\nCOFFEE',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.w800)),
+                    ])
+                  : Row(
+                      children: [
+                        Icon(
+                          Icons.local_cafe_rounded,
+                          size: 32,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'Top Coffee',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(
+                    horizontal:
+                        _NavigationPresentation.compactOf(context) ? 8 : 16),
                 children: [
                   _NavigationSection(
                     title: 'MAIN',
@@ -98,23 +138,15 @@ class DashboardNavigation extends StatelessWidget {
                     ],
                   ),
                   _NavigationSection(
-                    title: 'CATALOG',
+                    title: 'MENU',
                     children: [
                       _NavigationItem(
-                        icon: Icons.local_cafe_outlined,
-                        selectedIcon: Icons.local_cafe,
-                        label: 'Products',
-                        route: '/products',
+                        icon: Icons.restaurant_menu_outlined,
+                        selectedIcon: Icons.restaurant_menu,
+                        label: 'Manage Menu',
+                        route: '/manage-menu',
                         selectedRoute: selectedRoute,
-                        onTap: () => _navigate(context, '/products'),
-                      ),
-                      _NavigationItem(
-                        icon: Icons.category_outlined,
-                        selectedIcon: Icons.category,
-                        label: 'Categories',
-                        route: '/products/categories',
-                        selectedRoute: selectedRoute,
-                        onTap: () => _navigate(context, '/products/categories'),
+                        onTap: () => _navigate(context, '/manage-menu'),
                       ),
                     ],
                   ),
@@ -137,7 +169,6 @@ class DashboardNavigation extends StatelessWidget {
                         selectedRoute: selectedRoute,
                         onTap: () => _navigate(context, '/print-queue'),
                       ),
-
                       _NavigationItem(
                         icon: Icons.inventory_2_outlined,
                         selectedIcon: Icons.inventory_2,
@@ -284,17 +315,18 @@ class _NavigationSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(
-              title,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurfaceVariant,
-                letterSpacing: 0.8,
+          if (!CoffeeStudioTheme.active(context))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                title,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
-          ),
           ...children,
         ],
       ),
@@ -328,6 +360,7 @@ class _NavigationItem extends ConsumerWidget {
       '/orders': 'orders.view',
       '/pos/select-table': 'orders.create',
       '/pending-orders': 'orders.create',
+      '/manage-menu': 'products.manage',
       '/products': 'products.manage',
       '/products/categories': 'products.manage',
       '/inventory': 'inventory.view',
@@ -349,24 +382,55 @@ class _NavigationItem extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
-    final selected = route == '/pos/select-table'
-        ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
-        : route == '/products' &&
-              selectedRoute.startsWith('/products/categories')
-        ? false
-        : selectedRoute == route || selectedRoute.startsWith('$route/');
+    final selected = route == '/manage-menu' &&
+            selectedRoute.startsWith('/products')
+        ? true
+        : route == '/pos/select-table'
+            ? selectedRoute == '/pos' || selectedRoute.startsWith('/pos/')
+            : route == '/products' &&
+                    selectedRoute.startsWith('/products/categories')
+                ? false
+                : selectedRoute == route || selectedRoute.startsWith('$route/');
 
     final foregroundColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+            ? theme.colorScheme.onSurface
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
 
     final iconColor = selected
         ? theme.colorScheme.onPrimaryContainer
         : enabled
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+            ? theme.colorScheme.onSurfaceVariant
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+
+    if (_NavigationPresentation.compactOf(context)) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Material(
+          color: selected
+              ? theme.colorScheme.primaryContainer
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+              child: Column(children: [
+                Icon(selected ? selectedIcon : icon,
+                    color: iconColor, size: 23),
+                const SizedBox(height: 6),
+                Text(label,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: foregroundColor)),
+              ]),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -393,4 +457,18 @@ class _NavigationItem extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Drawers and full-tools sheets use horizontal rows; only a pinned rail is compact.
+class _NavigationPresentation extends InheritedWidget {
+  const _NavigationPresentation({required this.compact, required super.child});
+  final bool compact;
+  static bool compactOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_NavigationPresentation>()
+          ?.compact ??
+      false;
+  @override
+  bool updateShouldNotify(_NavigationPresentation oldWidget) =>
+      compact != oldWidget.compact;
 }

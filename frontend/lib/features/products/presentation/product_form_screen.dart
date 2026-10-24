@@ -127,9 +127,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     } else {
       // Create the product for the currently selected branch.
       final currentBranch = ref.read(currentBranchProvider);
-      final branchIds = currentBranch != null
-          ? [currentBranch.id]
-          : const <int>[];
+      final branchIds =
+          currentBranch != null ? [currentBranch.id] : const <int>[];
 
       ref
           .read(productFormControllerProvider.notifier)
@@ -160,9 +159,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Widget build(BuildContext context) {
     final formState = ref.watch(productFormControllerProvider);
     final isSaving = formState is ProductFormSaving;
-    final errorMessage = formState is ProductFormError
-        ? formState.message
-        : null;
+    final errorMessage =
+        formState is ProductFormError ? formState.message : null;
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
 
@@ -187,8 +185,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     });
 
     return Scaffold(
-      appBar: PageAppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
+      appBar:
+          PageAppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SafeArea(
           child: Form(
@@ -253,7 +253,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -293,9 +292,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 DropdownButtonFormField<int>(
                   initialValue: _selectedCategoryId,
                   decoration: const InputDecoration(

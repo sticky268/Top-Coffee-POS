@@ -59,8 +59,8 @@ void main() {
             await savePreview(tester, preview,
                 'appearance-${size.width.toInt()}-${mode.name}');
           }
-          await tester
-              .ensureVisible(find.byKey(const ValueKey('appearance-system')));
+          await tester.scrollUntilVisible(
+              find.byKey(const ValueKey('appearance-system')), 250);
           await tester.pumpAndSettle();
           expect(find.byKey(const ValueKey('appearance-system')).hitTestable(),
               findsOneWidget);

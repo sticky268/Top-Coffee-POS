@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'report_overview_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/widgets/page_app_bar.dart';
@@ -11,9 +12,16 @@ import '../domain/sales_report.dart';
 import 'profit_report_screen.dart';
 
 class BranchComparisonScreen extends ConsumerStatefulWidget {
-  const BranchComparisonScreen({super.key, required this.query, this.onChangeFilters});
+  const BranchComparisonScreen(
+      {super.key,
+      required this.query,
+      this.onChangeFilters,
+      this.onPeriodChanged,
+      this.selectedPeriod});
   final SalesReportQuery query;
   final VoidCallback? onChangeFilters;
+  final ValueChanged<String>? onPeriodChanged;
+  final String? selectedPeriod;
   @override
   ConsumerState<BranchComparisonScreen> createState() =>
       _BranchComparisonScreenState();
@@ -113,27 +121,59 @@ class _BranchComparisonScreenState
                       setState(() {
                         pending = next;
                       });
-                      await next;
+                      try {
+                        await next;
+                      } catch (_) {
+                        // FutureBuilder renders the error and Retry action.
+                      }
                     },
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
-                      Text('All accessible branches',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      Text(
-                          '${report.meta['date_from']} - ${report.meta['date_to']}'),
-                      Text(
-                          'Compared with ${report.meta['previous_from']} - ${report.meta['previous_to']}'),
-                      Text(
-                          'Cashier: ${report.meta['cashier_name'] ?? 'All sale cashiers'}\nCategory: ${report.meta['category_name'] ?? 'All historical categories'}'),
-                      const Text(
-                          'Each branch uses its own timezone. Dashboard branch selection does not limit this comparison.'),
-                      TextButton.icon(
-                          onPressed: widget.onChangeFilters ?? () {
-                            Navigator.of(context).pop();
-                          },
-                          icon: const Icon(Icons.tune),
-                          label: const Text('Change dates or filters')),
-                      _metrics(report.summary, null),
+                      ReportHeader(
+                        onPeriodChanged: widget.onPeriodChanged,
+                        selectedPeriod: widget.selectedPeriod,
+                        meta: report.meta,
+                        scope: 'All accessible branches',
+                        filterLabel: 'Change dates or filters',
+                        onChangeFilters: widget.onChangeFilters ??
+                            () => Navigator.of(context).pop(),
+                        notes: const [
+                          Text(
+                              'Each branch uses its own timezone. Dashboard branch selection does not limit this comparison.')
+                        ],
+                      ),
+                      if (report.summary['unknown_cost_lines'] != 0)
+                        Text(
+                            '${report.summary['unknown_cost_lines']} line(s) have incomplete historical costs. Profit and margin are unavailable.'),
+                      ReportOverview(
+                        primary: ReportMetricTile(
+                            label: profitLabels['revenue']!,
+                            value: profitValue(report.summary, 'revenue'),
+                            prominent: true,
+                            caption:
+                                'Combined revenue across accessible branches.',
+                            onTap: report.summary['lines'] == 0
+                                ? null
+                                : () => _sources(null)),
+                        metrics: [
+                          for (final key in [
+                            'gross_profit',
+                            'cogs',
+                            'quantity'
+                          ])
+                            ReportMetricTile(
+                                label: key == 'cogs'
+                                    ? 'Product costs'
+                                    : profitLabels[key]!,
+                                value: profitValue(report.summary, key),
+                                onTap: report.summary['lines'] == 0
+                                    ? null
+                                    : () => _sources(null)),
+                        ],
+                      ),
+                      ReportSection(
+                          title: 'Totals & previous-period changes',
+                          children: [_metrics(report.summary, null)]),
                       const SizedBox(height: 16),
                       Text('Branches by revenue',
                           style: Theme.of(context).textTheme.titleLarge),
@@ -148,16 +188,16 @@ class _BranchComparisonScreenState
                                 key: ValueKey('branch-${row['id']}'),
                                 title: Text(row['name'] as String),
                                 subtitle: Text(
-                                    '${profitValue(row, 'revenue')} revenue\n${branchChange(row, 'revenue')}\n${row['timezone']}'),
+                                    '${reportDisplayValue(profitValue(row, 'revenue'))} revenue · ${row['revenue_share_percent'] == null ? 'Share unavailable' : '${row['revenue_share_percent']}% of total'}'),
                                 childrenPadding: const EdgeInsets.all(12),
                                 children: [
+                              Text('${row['timezone']}'),
                               Text(
                                   'Revenue rank: ${row['revenue_rank'] ?? 'Not ranked'}; share: ${row['revenue_share_percent'] == null ? 'Unavailable' : '${row['revenue_share_percent']}%'}'),
                               _metrics(row, row['id'] as int),
                             ])),
-                      ExpansionTile(
-                          title: const Text('Accounting & comparison rules'),
-                          childrenPadding: const EdgeInsets.all(12),
+                      ReportSection(
+                          title: 'Accounting & comparison rules',
                           children: [Text(report.basis)]),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         for (final format in ReportExportFormat.values)

@@ -1,0 +1,142 @@
+import 'package:flutter/material.dart';
+import 'app_colors.dart';
+import 'app_theme.dart';
+
+/// Opt-in presentation only; Original continues to use AppTheme unchanged.
+class CoffeeStudioStyle extends ThemeExtension<CoffeeStudioStyle> {
+  const CoffeeStudioStyle();
+  @override
+  CoffeeStudioStyle copyWith() => this;
+  @override
+  CoffeeStudioStyle lerp(covariant CoffeeStudioStyle? other, double t) => this;
+}
+
+abstract final class CoffeeStudioTheme {
+  static bool active(BuildContext context) =>
+      Theme.of(context).extension<CoffeeStudioStyle>() != null;
+  // A consistent cafe palette across shortcuts, menu hubs and statistics.
+  static const _accents = [
+    Color(0xFF087F70),
+    Color(0xFFC74F35),
+    Color(0xFF7350A2),
+    Color(0xFF2468A0),
+    Color(0xFF996000),
+  ];
+
+  static Color accentInk(BuildContext context, int index) {
+    final color = _accents[index.abs() % _accents.length];
+    return Theme.of(context).brightness == Brightness.dark
+        ? Color.lerp(color, Colors.white, .55)!
+        : color;
+  }
+
+  static Color accentSurface(
+          BuildContext context, int index) =>
+      Color.alphaBlend(
+          _accents[index.abs() % _accents.length].withValues(
+              alpha:
+                  Theme.of(context).brightness == Brightness.dark ? .25 : .16),
+          Theme.of(context).colorScheme.surface);
+
+  static const saleGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF17483F), Color(0xFF087568)],
+  );
+
+  static ThemeData get light => _build(false);
+  static ThemeData get dark => _build(true);
+
+  static ThemeData _build(bool dark) {
+    final original = dark ? AppTheme.dark : AppTheme.light;
+    final scheme = original.colorScheme.copyWith(
+      primary: dark ? const Color(0xFF9ADCCE) : const Color(0xFF096B5D),
+      onPrimary: dark ? const Color(0xFF102E29) : Colors.white,
+      primaryContainer:
+          dark ? const Color(0xFF214A43) : const Color(0xFFE0F1EB),
+      onPrimaryContainer:
+          dark ? const Color(0xFFC8EBDE) : const Color(0xFF145A52),
+      secondaryContainer:
+          dark ? const Color(0xFF503A2B) : const Color(0xFFF4E5CD),
+      tertiary: dark ? const Color(0xFFD0B6D2) : const Color(0xFF775C7A),
+    );
+    final header = original.appBarTheme.copyWith(
+      backgroundColor: AppColors.espresso,
+      foregroundColor: AppColors.white,
+      titleTextStyle: original.textTheme.titleLarge
+          ?.copyWith(color: AppColors.white, fontWeight: FontWeight.w700),
+      iconTheme: const IconThemeData(color: AppColors.white),
+      actionsIconTheme: const IconThemeData(color: AppColors.white),
+    );
+    return original.copyWith(
+      colorScheme: scheme,
+      extensions: const [CoffeeStudioStyle()],
+      appBarTheme: header,
+      scaffoldBackgroundColor:
+          dark ? const Color(0xFF181C1A) : const Color(0xFFF6F1E8),
+      cardTheme: original.cardTheme.copyWith(
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: .10),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
+      inputDecorationTheme: original.inputDecorationTheme.copyWith(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: original.filledButtonTheme.style?.copyWith(
+          backgroundColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.disabled)
+                  ? scheme.onSurface.withValues(alpha: .12)
+                  : scheme.primary),
+          foregroundColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.disabled)
+                  ? scheme.onSurface.withValues(alpha: .38)
+                  : scheme.onPrimary),
+          elevation: const WidgetStatePropertyAll(0),
+        ),
+      ),
+      chipTheme: original.chipTheme.copyWith(
+        selectedColor: scheme.primaryContainer,
+      ),
+      listTileTheme: original.listTileTheme.copyWith(
+        selectedTileColor: scheme.primaryContainer,
+        selectedColor: scheme.onPrimaryContainer,
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        indicatorColor: scheme.primary,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
+      dataTableTheme: DataTableThemeData(
+        headingRowColor: WidgetStatePropertyAll(scheme.surfaceContainerLow),
+        dividerThickness: 1,
+        headingTextStyle: original.textTheme.labelLarge,
+        dataTextStyle: original.textTheme.bodyMedium,
+      ),
+    );
+  }
+
+  /// A local palette for navigation only, independent of the content's mode.
+  static ThemeData navigation(ThemeData content) => content.copyWith(
+        colorScheme: content.colorScheme.copyWith(
+          surface: AppColors.espresso,
+          onSurface: AppColors.white,
+          onSurfaceVariant: const Color(0xFFE1D8CD),
+          primary: AppColors.caramel,
+          onPrimary: AppColors.espresso,
+          primaryContainer: const Color(0xFF196455),
+          onPrimaryContainer: AppColors.white,
+          outlineVariant: const Color(0xFF61483E),
+        ),
+        textTheme: content.textTheme
+            .apply(bodyColor: AppColors.white, displayColor: AppColors.white),
+      );
+}

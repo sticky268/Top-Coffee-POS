@@ -46,9 +46,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
     });
 
     try {
-      await ref
-          .read(branchRepositoryProvider)
-          .createBranch(
+      await ref.read(branchRepositoryProvider).createBranch(
             name: _nameController.text.trim(),
             code: _codeController.text.trim(),
             address: _addressController.text.trim(),
@@ -81,6 +79,7 @@ class _AddBranchScreenState extends ConsumerState<AddBranchScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Add Branch')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SafeArea(
           child: Form(

@@ -7,10 +7,17 @@ import '../../domain/dashboard_models.dart';
 /// package) — each bar's height is a fraction of the row's max value,
 /// via FractionallySizedBox inside a fixed-height row.
 class SalesOverviewChart extends StatelessWidget {
-  const SalesOverviewChart({super.key, required this.data, this.height = 160});
+  const SalesOverviewChart(
+      {super.key,
+      required this.data,
+      this.height = 160,
+      this.barColor,
+      this.latestBarColor});
 
   final List<SalesDataPoint> data;
   final double height;
+  final Color? barColor;
+  final Color? latestBarColor;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +64,11 @@ class SalesOverviewChart extends StatelessWidget {
                           ),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
+                              color: point == data.last
+                                  ? latestBarColor ??
+                                      barColor ??
+                                      theme.colorScheme.primary
+                                  : barColor ?? theme.colorScheme.primary,
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(4),
                               ),

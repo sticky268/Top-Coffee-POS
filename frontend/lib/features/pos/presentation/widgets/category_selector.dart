@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 
 import '../../domain/pos_models.dart';
 
@@ -21,6 +22,17 @@ class CategorySelector extends StatelessWidget {
     Widget chip(String name, int? id) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: ChoiceChip(
+            avatar: CoffeeStudioTheme.active(context)
+                ? Icon(
+                    name.toLowerCase().contains('coffee')
+                        ? Icons.local_cafe_outlined
+                        : name.toLowerCase().contains('tea')
+                            ? Icons.emoji_food_beverage_outlined
+                            : name.toLowerCase().contains('bake')
+                                ? Icons.bakery_dining_outlined
+                                : Icons.grid_view_rounded,
+                    size: 18)
+                : null,
             label: Text(name),
             selected: selectedCategoryId == id,
             onSelected: (_) => onSelected(id),
@@ -33,7 +45,9 @@ class CategorySelector extends StatelessWidget {
                   selectedCategoryId == id ? FontWeight.w700 : FontWeight.w500,
             ),
             selectedColor: theme.colorScheme.primaryContainer,
-            backgroundColor: theme.colorScheme.surface,
+            backgroundColor: CoffeeStudioTheme.active(context)
+                ? CoffeeStudioTheme.accentSurface(context, id ?? 4)
+                : theme.colorScheme.surface,
             side: BorderSide(
                 color: selectedCategoryId == id
                     ? theme.colorScheme.primary

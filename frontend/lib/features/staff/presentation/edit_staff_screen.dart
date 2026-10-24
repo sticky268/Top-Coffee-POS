@@ -145,8 +145,7 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
     if (_staff != null && _selectedRole != _staff!.primaryRole) {
       final confirmed = await _confirmChange(
         title: 'Change role?',
-        message:
-            'This will change ${_staff!.name} from '
+        message: 'This will change ${_staff!.name} from '
             '${_roleLabel(_staff!.primaryRole)} to '
             '${_roleLabel(_selectedRole!)}.',
       );
@@ -173,9 +172,7 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
     });
 
     try {
-      await ref
-          .read(staffRepositoryProvider)
-          .updateStaff(
+      await ref.read(staffRepositoryProvider).updateStaff(
             id: widget.staffId,
             name: _nameController.text.trim(),
             email: _emailController.text.trim(),
@@ -288,250 +285,255 @@ class _EditStaffScreenState extends ConsumerState<EditStaffScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Edit Staff')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SafeArea(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _errorMessage != null && _staff == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_errorMessage!, textAlign: TextAlign.center),
-                  ),
-                )
-              : Form(
-                  key: _formKey,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-                    children: [
-                      Text(
-                        'Edit staff account',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child:
+                            Text(_errorMessage!, textAlign: TextAlign.center),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Update this staff member’s account, role, and branch access.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 24),
-                      _SectionCard(
-                        title: 'Personal information',
+                    )
+                  : Form(
+                      key: _formKey,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
                         children: [
-                          TextFormField(
-                            controller: _nameController,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Full name',
-                              hintText: 'Enter full name',
+                          Text(
+                            'Edit staff account',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
-                            validator: (value) =>
-                                _requiredValidator(value, 'Full name'),
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              hintText: 'staff@example.com',
-                            ),
-                            validator: _emailValidator,
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Phone',
-                              hintText: 'Optional',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _SectionCard(
-                        title: 'Account',
-                        children: [
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            textInputAction: TextInputAction.done,
-                            decoration: const InputDecoration(
-                              labelText: 'New password',
-                              hintText: 'Leave blank to keep current password',
-                            ),
-                            validator: _passwordValidator,
-                          ),
-                          const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                _availableRoles().contains(_selectedRole)
-                                ? _selectedRole
-                                : null,
-                            decoration: const InputDecoration(
-                              labelText: 'Role',
-                            ),
-                            items: _availableRoles()
-                                .map(
-                                  (role) => DropdownMenuItem<String>(
-                                    value: role,
-                                    child: Text(_roleLabel(role)),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: _isSaving
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      _selectedRole = value;
-                                    });
-                                  },
-                            validator: (value) =>
-                                value == null ? 'Role is required.' : null,
                           ),
                           const SizedBox(height: 8),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Active account'),
-                            subtitle: Text(
-                              isEditingSelf
-                                  ? 'You cannot deactivate your own account.'
-                                  : 'Allow this staff member to use the system.',
-                            ),
-                            value: _isActive,
-                            onChanged: _isSaving || isEditingSelf
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      _isActive = value;
-                                    });
-                                  },
+                          Text(
+                            'Update this staff member’s account, role, and branch access.',
+                            style: theme.textTheme.bodyMedium,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _SectionCard(
-                        title: 'Branch access',
-                        children: [
-                          if (branches.isEmpty)
-                            Text(
-                              'No accessible branches are available.',
-                              style: theme.textTheme.bodyMedium,
-                            )
-                          else
-                            ...branches.map(
-                              (branch) => CheckboxListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(branch.name),
-                                subtitle: Text(branch.code),
-                                value: _selectedBranchIds.contains(branch.id),
-                                onChanged: _isSaving
-                                    ? null
-                                    : (selected) {
-                                        setState(() {
-                                          if (selected == true) {
-                                            _selectedBranchIds.add(branch.id);
-                                          } else {
-                                            _selectedBranchIds.remove(
-                                              branch.id,
-                                            );
-
-                                            if (_primaryBranchId == branch.id) {
-                                              _primaryBranchId = null;
-                                            }
-                                          }
-                                        });
-                                      },
-                              ),
-                            ),
-                          if (_selectedBranchIds.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<int>(
-                              initialValue:
-                                  branches.any(
-                                    (branch) =>
-                                        branch.id == _primaryBranchId &&
-                                        _selectedBranchIds.contains(branch.id),
-                                  )
-                                  ? _primaryBranchId
-                                  : null,
-                              decoration: const InputDecoration(
-                                labelText: 'Primary branch',
-                              ),
-                              items: branches
-                                  .where(
-                                    (branch) =>
-                                        _selectedBranchIds.contains(branch.id),
-                                  )
-                                  .map(
-                                    (branch) => DropdownMenuItem<int>(
-                                      value: branch.id,
-                                      child: Text(
-                                        '${branch.name} (${branch.code})',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: _isSaving
-                                  ? null
-                                  : (value) {
-                                      setState(() {
-                                        _primaryBranchId = value;
-                                      });
-                                    },
-                              validator: (value) => value == null
-                                  ? 'Primary branch is required.'
-                                  : null,
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: theme.colorScheme.errorContainer,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 24),
+                          _SectionCard(
+                            title: 'Personal information',
                             children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: theme.colorScheme.onErrorContainer,
+                              TextFormField(
+                                controller: _nameController,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  labelText: 'Full name',
+                                  hintText: 'Enter full name',
+                                ),
+                                validator: (value) =>
+                                    _requiredValidator(value, 'Full name'),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(
-                                    color: theme.colorScheme.onErrorContainer,
-                                  ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  hintText: 'staff@example.com',
+                                ),
+                                validator: _emailValidator,
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  labelText: 'Phone',
+                                  hintText: 'Optional',
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        height: 52,
-                        child: pos_ui.PrimaryButton(
-                          onPressed: _isSaving || !canModify
-                              ? null
-                              : _updateStaff,
-                          isLoading: _isSaving,
-                          child: const Text('Save Changes'),
-                        ),
+                          const SizedBox(height: 16),
+                          _SectionCard(
+                            title: 'Account',
+                            children: [
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: true,
+                                textInputAction: TextInputAction.done,
+                                decoration: const InputDecoration(
+                                  labelText: 'New password',
+                                  hintText:
+                                      'Leave blank to keep current password',
+                                ),
+                                validator: _passwordValidator,
+                              ),
+                              const SizedBox(height: 16),
+                              DropdownButtonFormField<String>(
+                                initialValue:
+                                    _availableRoles().contains(_selectedRole)
+                                        ? _selectedRole
+                                        : null,
+                                decoration: const InputDecoration(
+                                  labelText: 'Role',
+                                ),
+                                items: _availableRoles()
+                                    .map(
+                                      (role) => DropdownMenuItem<String>(
+                                        value: role,
+                                        child: Text(_roleLabel(role)),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _isSaving
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          _selectedRole = value;
+                                        });
+                                      },
+                                validator: (value) =>
+                                    value == null ? 'Role is required.' : null,
+                              ),
+                              const SizedBox(height: 8),
+                              SwitchListTile.adaptive(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Active account'),
+                                subtitle: Text(
+                                  isEditingSelf
+                                      ? 'You cannot deactivate your own account.'
+                                      : 'Allow this staff member to use the system.',
+                                ),
+                                value: _isActive,
+                                onChanged: _isSaving || isEditingSelf
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          _isActive = value;
+                                        });
+                                      },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _SectionCard(
+                            title: 'Branch access',
+                            children: [
+                              if (branches.isEmpty)
+                                Text(
+                                  'No accessible branches are available.',
+                                  style: theme.textTheme.bodyMedium,
+                                )
+                              else
+                                ...branches.map(
+                                  (branch) => CheckboxListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text(branch.name),
+                                    subtitle: Text(branch.code),
+                                    value:
+                                        _selectedBranchIds.contains(branch.id),
+                                    onChanged: _isSaving
+                                        ? null
+                                        : (selected) {
+                                            setState(() {
+                                              if (selected == true) {
+                                                _selectedBranchIds
+                                                    .add(branch.id);
+                                              } else {
+                                                _selectedBranchIds.remove(
+                                                  branch.id,
+                                                );
+
+                                                if (_primaryBranchId ==
+                                                    branch.id) {
+                                                  _primaryBranchId = null;
+                                                }
+                                              }
+                                            });
+                                          },
+                                  ),
+                                ),
+                              if (_selectedBranchIds.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                DropdownButtonFormField<int>(
+                                  initialValue: branches.any(
+                                    (branch) =>
+                                        branch.id == _primaryBranchId &&
+                                        _selectedBranchIds.contains(branch.id),
+                                  )
+                                      ? _primaryBranchId
+                                      : null,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Primary branch',
+                                  ),
+                                  items: branches
+                                      .where(
+                                        (branch) => _selectedBranchIds
+                                            .contains(branch.id),
+                                      )
+                                      .map(
+                                        (branch) => DropdownMenuItem<int>(
+                                          value: branch.id,
+                                          child: Text(
+                                            '${branch.name} (${branch.code})',
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: _isSaving
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            _primaryBranchId = value;
+                                          });
+                                        },
+                                  validator: (value) => value == null
+                                      ? 'Primary branch is required.'
+                                      : null,
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: theme.colorScheme.errorContainer,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: theme.colorScheme.onErrorContainer,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: TextStyle(
+                                        color:
+                                            theme.colorScheme.onErrorContainer,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            height: 52,
+                            child: pos_ui.PrimaryButton(
+                              onPressed:
+                                  _isSaving || !canModify ? null : _updateStaff,
+                              isLoading: _isSaving,
+                              child: const Text('Save Changes'),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
         ),
       ),
     );

@@ -40,6 +40,7 @@ class CartLineTile extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (item.configurationLabel.isNotEmpty) Text(item.configurationLabel),
           const SizedBox(height: 4),
           Text(
             '${item.quantity} × ${currency.format(item.unitPrice)}',

@@ -8,6 +8,7 @@ const receiptMargin = 24.0;
 const receiptContentWidth = receiptDotWidth - receiptMargin * 2;
 
 List<String> receiptFontFamilies(String style) => switch (style) {
+      'Niradei' => const ['Niradei', 'Inter', 'TopCoffeeReceiptKhmer'],
       'Sans Serif' => const [
           'Helvetica',
           'Arial',
@@ -153,10 +154,17 @@ Future<ui.Image> renderReceiptImage(Map<String, dynamic> payload) async {
       ..pushStyle(ui.TextStyle(
         color: const ui.Color(0xff000000),
         fontSize: fontSize ?? body,
-        fontWeight: bold ? ui.FontWeight.w700 : ui.FontWeight.w400,
+        fontWeight: bold
+            ? (value('fontStyle') == 'Niradei'
+                ? ui.FontWeight.w900
+                : ui.FontWeight.w700)
+            : ui.FontWeight.w400,
         fontFamily: families.first,
         fontFamilyFallback: families.skip(1).toList(),
-        fontVariations: [ui.FontVariation('wght', bold ? 700 : 400)],
+        fontVariations: [
+          ui.FontVariation('wght',
+              bold ? (value('fontStyle') == 'Niradei' ? 900 : 700) : 400)
+        ],
       ))
       ..addText(content);
     final paragraph = builder.build()

@@ -151,7 +151,13 @@ void main() {
   test('branch preferences do not leak and size/style choices round-trip',
       () async {
     for (final size in ['Small', 'Medium', 'Large']) {
-      for (final style in ['Default', 'Sans Serif', 'Serif', 'Monospace']) {
+      for (final style in [
+        'Default',
+        'Sans Serif',
+        'Serif',
+        'Monospace',
+        'Niradei'
+      ]) {
         for (final position in ['Left', 'Center', 'Right']) {
           final original = settings(
               logoSize: size, fontStyle: style, logoPosition: position);

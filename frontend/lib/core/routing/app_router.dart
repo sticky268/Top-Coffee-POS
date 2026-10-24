@@ -36,15 +36,15 @@ import '../../features/pos/presentation/select_table_screen.dart';
 import '../../features/pos/presentation/open_order_screen.dart';
 
 import '../../features/pos/presentation/table_management_screen.dart';
-import '../../features/products/presentation/category_management_screen.dart';
 import '../../features/products/presentation/product_form_screen.dart';
-import '../../features/products/presentation/products_screen.dart';
+import '../../features/menu/presentation/manage_menu_screen.dart';
 import '../../features/purchasing/presentation/purchase_history_screen.dart';
 import '../../features/purchasing/presentation/suppliers_screen.dart';
 import '../../features/purchasing/presentation/purchase_creation_screen.dart';
 import '../../features/reports/presentation/reports_home_screen.dart';
 import '../../features/settings/presentation/receipt_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/home_layout_settings_card.dart';
 import '../../features/settings/presentation/about_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
 
@@ -123,8 +123,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/operations',
             builder: (context, state) => OperationsScreen(
               initialSection: state.uri.queryParameters['section'],
-              initialShiftId:
-                  int.tryParse(state.uri.queryParameters['shift_id'] ?? ''),
+              initialShiftId: int.tryParse(
+                state.uri.queryParameters['shift_id'] ?? '',
+              ),
               initialDifferencesOnly:
                   state.uri.queryParameters['review'] == 'differences',
             ),
@@ -164,7 +165,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/pos/select-table',
             builder: (context, state) => SelectTableScreen(
-                selectionOnly: state.uri.queryParameters['select'] == 'true'),
+              selectionOnly: state.uri.queryParameters['select'] == 'true',
+            ),
           ),
           GoRoute(
             path: '/pos/open-order/:id',
@@ -257,12 +259,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const LoyaltySettingsScreen(),
           ),
           GoRoute(
+            path: '/manage-menu',
+            builder: (context, state) => const ManageMenuScreen(),
+          ),
+          GoRoute(
             path: '/products',
-            builder: (context, state) => const ProductsScreen(),
+            builder: (context, state) =>
+                const MenuSectionScreen(section: 'Items'),
           ),
           GoRoute(
             path: '/products/categories',
-            builder: (context, state) => const CategoryManagementScreen(),
+            builder: (context, state) =>
+                const MenuSectionScreen(section: 'Categories'),
           ),
           GoRoute(
             path: '/products/form',
@@ -300,7 +308,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   return InventoryMovementHistoryScreen(
                     ingredient: ingredient,
                     initialMovementId: int.tryParse(
-                        state.uri.queryParameters['movement_id'] ?? ''),
+                      state.uri.queryParameters['movement_id'] ?? '',
+                    ),
                   );
                 },
               ),
@@ -327,6 +336,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/settings/home-layout',
+            builder: (context, state) => const HomeLayoutSettingsScreen(),
           ),
           GoRoute(
             path: '/settings/receipt',

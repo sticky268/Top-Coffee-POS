@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/studio_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_breakpoints.dart';
@@ -38,9 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    ref
-        .read(authControllerProvider.notifier)
-        .login(
+    ref.read(authControllerProvider.notifier).login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           deviceName: currentDeviceName(),
@@ -77,7 +76,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: isTablet ? 420 : 400),
-              child: Form(
+              child: StudioFormPanel(
+                  child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
@@ -113,12 +113,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-
                     if (errorMessage != null) ...[
                       _ErrorBanner(message: errorMessage),
                       const SizedBox(height: 16),
                     ],
-
                     TextFormField(
                       controller: _emailController,
                       focusNode: _emailFocus,
@@ -142,7 +140,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                     ),
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _passwordController,
                       focusNode: _passwordFocus,
@@ -176,7 +173,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onFieldSubmitted: (_) => _submit(),
                     ),
                     const SizedBox(height: 24),
-
                     pos_ui.PrimaryButton(
                       onPressed: isLoading ? null : _submit,
                       style: FilledButton.styleFrom(
@@ -187,7 +183,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
-              ),
+              )),
             ),
           ),
         ),

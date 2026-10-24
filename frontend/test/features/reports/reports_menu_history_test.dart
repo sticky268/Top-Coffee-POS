@@ -43,8 +43,8 @@ SalesReport historyFixture({bool monthly = false, bool empty = false}) {
                 'total': month > 10 || empty
                     ? '0.00'
                     : month == 10
-                    ? '1405.54'
-                    : '65.95',
+                        ? '1405.54'
+                        : '65.95',
                 'orders': month > 10 || empty ? 0 : 4,
                 'items': month > 10 || empty ? 0 : 32,
                 'upcoming': month > 10,
@@ -58,8 +58,8 @@ SalesReport historyFixture({bool monthly = false, bool empty = false}) {
                 'total': empty
                     ? '0.00'
                     : day == 18
-                    ? '1405.54'
-                    : '65.95',
+                        ? '1405.54'
+                        : '65.95',
                 'orders': empty ? 0 : 4,
                 'items': empty ? 0 : 32,
                 'upcoming': false,
@@ -69,16 +69,16 @@ SalesReport historyFixture({bool monthly = false, bool empty = false}) {
 }
 
 ProviderContainer scope(MockHistoryRepository repository) => ProviderContainer(
-  overrides: [
-    salesReportsRepositoryProvider.overrideWithValue(repository),
-    currentBranchProvider.overrideWith(
-      (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
-        ..selectBranch(
-          const BranchSummary(id: 21, name: 'Riverside', code: 'PP-01'),
+      overrides: [
+        salesReportsRepositoryProvider.overrideWithValue(repository),
+        currentBranchProvider.overrideWith(
+          (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
+            ..selectBranch(
+              const BranchSummary(id: 21, name: 'Riverside', code: 'PP-01'),
+            ),
         ),
-    ),
-  ],
-);
+      ],
+    );
 
 Future<void> showPage(
   WidgetTester tester,
@@ -148,11 +148,11 @@ void main() {
               dark: dark,
               preview: key,
             );
-            expect(find.text('Reports & analytics'), findsOneWidget);
+            expect(find.text('The coffee shop, in focus'), findsOneWidget);
             verifyNever(() => repository.load(any(), any()));
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'reports-menu-$width-$scale-$dark');
-            final history = find.text('Sales history');
+            final history = find.text('Sale Reports');
             await tester.scrollUntilVisible(
               history,
               150,
@@ -174,9 +174,17 @@ void main() {
             expect(find.text('Daily'), findsOneWidget);
             expect(tester.takeException(), isNull);
             await savePreview(tester, key, 'sales-history-$width-$scale-$dark');
-            if (scale == 1) {
-              final amount = find.descendant(of: find.byKey(const ValueKey('history-2026-10-19')), matching: find.text(r'$65.95'));
-              expect(tester.getRect(amount).right, greaterThan(width - 80), reason: 'Amounts align at the trailing edge like the reference.');
+            {
+              final amount = find.descendant(
+                of: find.byKey(const ValueKey('history-2026-10-19')),
+                matching: find.text(r'$65.95'),
+              );
+              expect(
+                tester.getRect(amount).right,
+                greaterThan(width - 80),
+                reason:
+                    'Amounts align at the trailing edge like the reference.',
+              );
             }
             await tester.scrollUntilVisible(
               find.text('Top'),
@@ -189,14 +197,65 @@ void main() {
               key,
               'sales-history-rows-$width-$scale-$dark',
             );
-            expect(find.text('4 paid orders · 32 items'), findsWidgets);
+            expect(find.text('4 Sales · 32 Items'), findsWidgets);
             expect(find.text('Top'), findsOneWidget);
+            expect(find.text(r'$1,405.54'), findsOneWidget);
             expect(tester.takeException(), isNull);
           },
         );
       }
     }
   }
+
+  testWidgets(
+    'sales filters retain their values across daily and monthly tabs',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(() => repository.load(any(), 21)).thenAnswer((call) async {
+        final query = call.positionalArguments.first as SalesReportQuery;
+        return historyFixture(monthly: query.period == 'year');
+      });
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(
+        tester,
+        container,
+        const SalesHistoryScreen(),
+        width: 800,
+        scale: 2,
+      );
+      expect(find.text('Your sales from the last 30 days'), findsOneWidget);
+      expect(find.text('Cashier'), findsNothing);
+      await tester.tap(find.byTooltip('Sales filters'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(DropdownButtonFormField<int>, 'Cashier'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manager').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Filtered sales'), findsOneWidget);
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+      final sent = verify(
+        () => repository.load(captureAny(), 21),
+      ).captured.cast<SalesReportQuery>();
+      expect(sent.last.period, 'year');
+      expect(sent.last.cashierId, 16);
+      await tester.tap(find.byTooltip('Sales filters'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Clear filters'));
+      await tester.tap(find.text('Clear filters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Filtered sales'), findsNothing);
+      final cleared = verify(
+        () => repository.load(captureAny(), 21),
+      ).captured.cast<SalesReportQuery>();
+      expect(cleared.last.period, 'year');
+      expect(cleared.last.cashierId, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'menu analytical entry opens filters and reloads their selection',
@@ -274,6 +333,89 @@ void main() {
   );
 
   testWidgets(
+    'daily card opens exact dates and can be opened again after back',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => historyFixture());
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(tester, container, const SalesHistoryScreen());
+      for (var attempt = 0; attempt < 2; attempt++) {
+        await tester.tap(find.byKey(const ValueKey('history-2026-10-19')));
+        await tester.pumpAndSettle();
+        expect(find.text('Sales summary'), findsOneWidget);
+        final query =
+            container.read(salesReportsControllerProvider.notifier).query;
+        expect(query.period, 'custom');
+        expect(query.dateFrom, '2026-10-19');
+        expect(query.dateTo, '2026-10-19');
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(find.text('Sale Reports'), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'upcoming month does not open a summary or issue another request',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(() => repository.load(any(), 21)).thenAnswer(
+        (call) async => historyFixture(
+          monthly:
+              (call.positionalArguments.first as SalesReportQuery).period ==
+                  'year',
+        ),
+      );
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(tester, container, const SalesHistoryScreen(), width: 800);
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+      clearInteractions(repository);
+      await tester.tap(find.text('December 2026'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sale Reports'), findsOneWidget);
+      expect(find.text('Sales summary'), findsNothing);
+      verifyNever(() => repository.load(any(), any()));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'failed pull-to-refresh shows retry and recovers without an uncaught error',
+    (tester) async {
+      final repository = MockHistoryRepository();
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => historyFixture());
+      final container = scope(repository);
+      addTearDown(container.dispose);
+      await showPage(tester, container, const SalesHistoryScreen());
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => throw Exception('offline'));
+      await tester.drag(
+        find.byKey(const ValueKey('sales-history-list')),
+        const Offset(0, 450),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Retry history'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      when(
+        () => repository.load(any(), 21),
+      ).thenAnswer((_) async => historyFixture());
+      await tester.tap(find.text('Retry history'));
+      await tester.pumpAndSettle();
+      expect(find.text('19 Oct 2026'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'zero history has no top badge and retry recovers an offline request',
     (tester) async {
       final repository = MockHistoryRepository();
@@ -288,7 +430,7 @@ void main() {
       await tester.tap(find.text('Retry history'));
       await tester.pumpAndSettle();
       expect(find.text('Top'), findsNothing);
-      expect(find.text('0 paid orders · 0 items'), findsWidgets);
+      expect(find.text('0 Sales · 0 Items'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
@@ -319,7 +461,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Airport'), findsOneWidget);
     expect(find.text('Top'), findsNothing);
-    expect(find.text('0 paid orders · 0 items'), findsWidgets);
+    expect(find.text('0 Sales · 0 Items'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

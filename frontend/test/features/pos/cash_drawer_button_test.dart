@@ -35,9 +35,6 @@ void main() {
   late PrintQueue lastQueue;
   Future<void> request(WidgetTester tester) async {
     await tester.tap(find.text('Open cash drawer'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), 'Make change');
-    await tester.tap(find.text('Open drawer'));
     await tester.pump();
   }
 
@@ -98,10 +95,9 @@ void main() {
     printer.connected.complete();
     await tester.pumpAndSettle();
     expect(printer.pulses, 1);
-    final event =
-        (await lastQueue.drawerJournal.list((userId: 1, branchId: 2))).single;
-    expect(event.reason, 'Make change');
-    expect(event.status, 'command_sent');
+    expect(
+        await lastQueue.drawerJournal.list((userId: 1, branchId: 2)), isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
     expect(find.text('Drawer command sent. Check the drawer.'), findsOneWidget);
   });
 
@@ -137,38 +133,16 @@ void main() {
     expect(find.textContaining('Could not confirm drawer command.'),
         findsOneWidget);
   });
-  testWidgets('cancelled or blank reasons never send a drawer command',
-      (tester) async {
-    final printer = await pump(tester);
-    await tester.tap(find.text('Open cash drawer'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Open drawer'));
-    await tester.pumpAndSettle();
-    expect(find.text('Enter a reason with at least 3 characters.'),
-        findsOneWidget);
-    expect(printer.pulses, 0);
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(
-        await lastQueue.drawerJournal.list((userId: 1, branchId: 2)), isEmpty);
-  });
-
   testWidgets(
-      'reason and confirmation remain reachable on a short phone with large text',
+      'manual access opens without a dialog on a short phone with large text',
       (tester) async {
     tester.view.physicalSize = const Size(360, 480);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final printer = await pump(tester, compact: true);
-    await tester.tap(find.text('Open cash drawer'));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.byType(TextFormField));
-    await tester.enterText(find.byType(TextFormField), 'Make change');
-    await tester.ensureVisible(find.text('Open drawer'));
-    await tester.tap(find.text('Open drawer'));
-    await tester.pump();
+    await request(tester);
+    expect(find.byType(AlertDialog), findsNothing);
     printer.connected.complete();
     await tester.pumpAndSettle();
     expect(printer.pulses, 1);

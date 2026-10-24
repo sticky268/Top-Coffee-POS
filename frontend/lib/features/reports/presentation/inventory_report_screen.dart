@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'report_overview_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/widgets/page_app_bar.dart';
@@ -6,6 +7,7 @@ import '../../../core/widgets/page_content.dart';
 import '../data/report_exporter.dart';
 import '../data/sales_reports_repository.dart';
 import '../domain/inventory_report.dart';
+import '../domain/profit_report.dart' show ReportCost;
 import '../domain/sales_report.dart';
 
 class InventoryReportScreen extends ConsumerStatefulWidget {
@@ -14,10 +16,14 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
     required this.query,
     required this.branchId,
     this.onChangeFilters,
+    this.onPeriodChanged,
+    this.selectedPeriod,
   });
   final SalesReportQuery query;
   final int? branchId;
   final VoidCallback? onChangeFilters;
+  final ValueChanged<String>? onPeriodChanged;
+  final String? selectedPeriod;
   @override
   ConsumerState<InventoryReportScreen> createState() =>
       _InventoryReportScreenState();
@@ -150,86 +156,104 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    Text(
-                      SalesReport.maps(
-                        meta['branches'],
-                      )
-                          .map((b) => '${b['name']} / ${b['timezone']}')
-                          .join('\n'),
+                    ReportHeader(
+                      onPeriodChanged: widget.onPeriodChanged,
+                      selectedPeriod: widget.selectedPeriod,
+                      meta: Map<String, dynamic>.from(meta),
+                      scope: SalesReport.maps(meta['branches'])
+                          .map((b) => '${b['name']}')
+                          .join(', '),
+                      filterLabel: 'Change date and report filters',
+                      onChangeFilters: widget.onChangeFilters ??
+                          () => Navigator.pop(context),
+                      notes: const [
+                        Text(
+                            'Stock and waste include all cashiers and categories. Valuation replays the ledger; low stock uses current reorder thresholds.')
+                      ],
                     ),
-                    Text(
-                      '${meta['date_from']} - ${meta['date_to']}\nPrevious: ${meta['previous_from']} - ${meta['previous_to']}',
+                    if (summary['unknown_value_items'] != 0 ||
+                        summary['ledger_review_items'] != 0)
+                      Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                              '${summary['unknown_value_items']} ingredient(s) have unknown valuation · ${summary['ledger_review_items']} need ledger review. Known costs are subtotals.')),
+                    ReportOverview(
+                      primary: ReportMetricTile(
+                          label: inventorySummaryLabels['value']!,
+                          value: summary['value'] == null
+                              ? 'Unavailable'
+                              : ReportCost.parse(summary['value']).money,
+                          prominent: true,
+                          caption:
+                              'At period end · rounded to cents. Exact costs are in the details.',
+                          onTap: () => setState(() => view = 'All')),
+                      metrics: [
+                        for (final key in [
+                          'waste_cost',
+                          'low_stock_items',
+                          'unknown_value_items'
+                        ])
+                          ReportMetricTile(
+                              label: inventorySummaryLabels[key]!,
+                              value: inventoryCostKeys.contains(key) &&
+                                      summary[key] != null
+                                  ? ReportCost.parse(summary[key]).money
+                                  : inventoryValue(summary, key),
+                              onTap: () =>
+                                  setState(() => view = key == 'waste_cost'
+                                      ? 'Waste'
+                                      : key == 'low_stock_items'
+                                          ? 'Low stock'
+                                          : 'Incomplete')),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: widget.onChangeFilters ?? () => Navigator.pop(context),
-                      child: const Text('Change date and report filters'),
-                    ),
-                    Text(
-                      'Branch-wide stock and waste',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Text(
-                      'Stock and waste include all cashiers and categories. Valuation replays the ledger; low stock uses current reorder thresholds.',
-                    ),
-                    for (final key in [
-                      'value',
-                      'waste_cost',
-                      'low_stock_items',
-                      'unknown_value_items',
-                    ])
-                      Card(
-                        child: ListTile(
+                    ReportSection(
+                        title: 'Stock value & previous-period changes',
+                        children: [
+                          for (final key in [
+                            'value',
+                            'waste_cost',
+                            'low_stock_items',
+                            'unknown_value_items'
+                          ])
+                            ListTile(
+                                title: Text(inventorySummaryLabels[key]!),
+                                subtitle: Text(
+                                    '${inventoryValue(summary, key)}\n${inventoryChange(summary, key)}')),
+                          Text(
+                            'Known valuation subtotal: ${inventoryValue(summary, 'known_value')} / known waste subtotal: ${inventoryValue(summary, 'known_waste_cost')}',
+                          ),
+                        ]),
+                    ReportSection(title: 'Selected sales usage', children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        'Cashier: ${meta['cashier_name'] ?? 'All'} / whole-order category: ${meta['category_name'] ?? 'All'}',
+                      ),
+                      const Text(
+                        'Gross sale deductions versus recipe quantities saved at completion. Returns are separate. Variance is a ledger/recipe discrepancy, not a physical stocktake.',
+                      ),
+                      for (final key in [
+                        'sales',
+                        'variance_items',
+                        'missing_recipe_lines',
+                        'ledger_review_items',
+                      ])
+                        ListTile(
                           title: Text(inventorySummaryLabels[key]!),
                           subtitle: Text(
                             '${inventoryValue(summary, key)}\n${inventoryChange(summary, key)}',
                           ),
-                          trailing: const Icon(Icons.chevron_right),
                           onTap: () => setState(() {
-                            view = key == 'waste_cost'
-                                ? 'Waste'
-                                : key == 'low_stock_items'
-                                    ? 'Low stock'
-                                    : key == 'unknown_value_items'
-                                        ? 'Incomplete'
-                                        : 'All';
+                            view = key == 'variance_items'
+                                ? 'Variance'
+                                : key == 'sales'
+                                    ? 'All'
+                                    : 'Incomplete';
                           }),
                         ),
-                      ),
-                    Text(
-                      'Known valuation subtotal: ${inventoryValue(summary, 'known_value')} / known waste subtotal: ${inventoryValue(summary, 'known_waste_cost')}',
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Selected sales usage',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    Text(
-                      'Cashier: ${meta['cashier_name'] ?? 'All'} / whole-order category: ${meta['category_name'] ?? 'All'}',
-                    ),
-                    const Text(
-                      'Gross sale deductions versus recipe quantities saved at completion. Returns are separate. Variance is a ledger/recipe discrepancy, not a physical stocktake.',
-                    ),
-                    for (final key in [
-                      'sales',
-                      'variance_items',
-                      'missing_recipe_lines',
-                      'ledger_review_items',
-                    ])
-                      ListTile(
-                        title: Text(inventorySummaryLabels[key]!),
-                        subtitle: Text(
-                          '${inventoryValue(summary, key)}\n${inventoryChange(summary, key)}',
-                        ),
-                        onTap: () => setState(() {
-                          view = key == 'variance_items'
-                              ? 'Variance'
-                              : key == 'sales'
-                                  ? 'All'
-                                  : 'Incomplete';
-                        }),
-                      ),
-                    ExpansionTile(
-                      title: const Text('Accounting and data coverage'),
+                    ]),
+                    ReportSection(
+                      title: 'Accounting and data coverage',
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -237,6 +261,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
                         ),
                       ],
                     ),
+                    const Text('Exports include all ingredients.'),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -255,8 +280,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const Text(
-                      'Display filters affect this list only. Exports include every ingredient and the complete accounting basis. Quantities keep each ingredient unit.',
-                    ),
+                        'Choose a view, then tap an ingredient for stock movements.'),
                     Wrap(
                       spacing: 8,
                       children: [

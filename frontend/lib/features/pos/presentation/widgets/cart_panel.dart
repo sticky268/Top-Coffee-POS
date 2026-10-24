@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
+import 'menu_discount_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -22,105 +24,119 @@ class CartPanel extends ConsumerWidget {
     final currency = NumberFormat.currency(symbol: '\$');
 
     return Material(
-        color: theme.colorScheme.surface,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxHeight < 380 ||
-                MediaQuery.textScalerOf(context).scale(14) > 20;
-            final lines = cart.isEmpty
-                ? const _EmptyCart()
-                : ListView.separated(
-                    shrinkWrap: compact,
-                    physics:
-                        compact ? const NeverScrollableScrollPhysics() : null,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: cart.items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) =>
-                        CartLineTile(item: cart.items[index]),
-                  );
-            final children = <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Order Summary',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+      color: theme.colorScheme.surface,
+      shape: CoffeeStudioTheme.active(context)
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant))
+          : null,
+      clipBehavior:
+          CoffeeStudioTheme.active(context) ? Clip.antiAlias : Clip.none,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Keep the whole panel scrollable when the summary and saved-discount
+          // controls would leave too little room to edit a cart line.
+          final compact = constraints.maxHeight < 600 ||
+              MediaQuery.textScalerOf(context).scale(14) > 20;
+          final lines = cart.isEmpty
+              ? const _EmptyCart()
+              : ListView.separated(
+                  shrinkWrap: compact,
+                  physics:
+                      compact ? const NeverScrollableScrollPhysics() : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: cart.items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) =>
+                      CartLineTile(item: cart.items[index]),
+                );
+          final children = <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: WrapAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        CoffeeStudioTheme.active(context)
+                            ? 'Current Order'
+                            : 'Order Summary',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        Text(
-                          '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
-                          '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!cart.isEmpty)
-                      pos_ui.DangerButton.outlinedIcon(
-                        onPressed: () =>
-                            _confirmClearCart(context, cartNotifier),
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        label: const Text('Clear Cart'),
                       ),
-                  ],
-                ),
+                      Text(
+                        '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
+                        '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!cart.isEmpty)
+                    pos_ui.DangerButton.outlinedIcon(
+                      onPressed: () => _confirmClearCart(context, cartNotifier),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Clear Cart'),
+                    ),
+                ],
               ),
-              if (compact) lines else Expanded(child: lines),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _SummaryLine(
-                      label: 'Subtotal',
-                      value: currency.format(cart.subtotal),
-                    ),
-                    _DiscountRow(
-                      discountTotal: cart.discountTotal,
-                      onChanged: cartNotifier.setDiscount,
-                      currency: currency,
-                    ),
-                    const Divider(height: 16),
-                    CheckoutTotalCard(value: currency.format(cart.total)),
-                    const SizedBox(height: 16),
-                    pos_ui.PosActionButton(
-                      onPressed: cart.isEmpty
-                          ? null
-                          : () => context.push('/pos/checkout',
-                              extra: selectedTable),
-                      child: const Text('Review Order'),
-                    ),
-                  ],
-                ),
+            ),
+            if (compact) lines else Expanded(child: lines),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SummaryLine(
+                    label: 'Subtotal',
+                    value: currency.format(cart.subtotal),
+                  ),
+                  const MenuDiscountButton(),
+                  _DiscountRow(
+                    discountTotal: cart.discountTotal,
+                    onChanged: cartNotifier.setDiscount,
+                    currency: currency,
+                  ),
+                  const Divider(height: 16),
+                  CheckoutTotalCard(value: currency.format(cart.total)),
+                  const SizedBox(height: 16),
+                  pos_ui.PosActionButton(
+                    onPressed: cart.isEmpty
+                        ? null
+                        : () => context.push(
+                              '/pos/checkout',
+                              extra: selectedTable,
+                            ),
+                    child: const Text('Review Order'),
+                  ),
+                ],
               ),
-            ];
-            if (compact) {
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                ),
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
+            ),
+          ];
+          if (compact) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
             );
-          },
-        ));
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _confirmClearCart(
@@ -299,10 +315,13 @@ class _EmptyCart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text('Tap a product to start this order.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(
+              'Tap a product to start this order.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

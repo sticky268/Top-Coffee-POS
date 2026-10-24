@@ -130,6 +130,8 @@ class OrderOutbox {
         item['product_id'],
         item['product_variant_id'],
         item['quantity'],
+        item['modifier_ids'],
+        item['combo_selections'],
       ]);
     }).toList()
       ..sort();

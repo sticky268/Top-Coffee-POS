@@ -90,6 +90,13 @@ Route::prefix('v1')->group(function () {
         Route::patch('/categories/{category}', [CategoryController::class, 'update']);
         Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 
+        Route::get('/menu', [\App\Http\Controllers\Api\V1\MenuManagementController::class, 'index']);
+        Route::get('/menu/discounts', [\App\Http\Controllers\Api\V1\MenuManagementController::class, 'discounts']);
+        foreach (['combos' => 'combo', 'modifiers' => 'modifier', 'discounts' => 'discount'] as $path => $method) {
+            Route::post('/menu/'.$path, [\App\Http\Controllers\Api\V1\MenuManagementController::class, $method]);
+            Route::put('/menu/'.$path.'/{id}', [\App\Http\Controllers\Api\V1\MenuManagementController::class, $method])->whereNumber('id');
+        }
+
         Route::get('/products', [ProductController::class, 'index']);
         Route::post('/products', [ProductController::class, 'store']);
         Route::patch('/products/{product}', [ProductController::class, 'update']);
