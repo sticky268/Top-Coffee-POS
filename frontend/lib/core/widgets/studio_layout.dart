@@ -77,11 +77,14 @@ class StudioFormPanel extends StatelessWidget {
   const StudioFormPanel({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-      decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border:
-              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(16)),
-      child: Padding(padding: const EdgeInsets.all(20), child: child));
+  Widget build(BuildContext context) {
+    if (!CoffeeStudioTheme.active(context)) return child;
+    return DecoratedBox(
+        decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border:
+                Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(16)),
+        child: Padding(padding: const EdgeInsets.all(20), child: child));
+  }
 }

@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/receipt/last_receipt_provider.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
+import 'package:top_coffee_pos/core/theme/coffee_studio_theme.dart';
 import 'package:top_coffee_pos/core/routing/app_shell.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/application/auth_controller.dart';
@@ -74,6 +75,7 @@ void main() {
     bool populate = true,
     bool shell = false,
     bool signedIn = false,
+    bool studio = false,
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -124,7 +126,9 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: dark ? AppTheme.dark : AppTheme.light,
+          theme: studio
+              ? (dark ? CoffeeStudioTheme.dark : CoffeeStudioTheme.light)
+              : (dark ? AppTheme.dark : AppTheme.light),
           home: MediaQuery(
             data: MediaQueryData(
               size: size,
@@ -157,7 +161,7 @@ void main() {
         ) async {
           final preview = GlobalKey();
           await pump(tester, size, scale, dark,
-              preview: preview, signedIn: true);
+              preview: preview, signedIn: true, studio: true);
           expect(tester.takeException(), isNull);
           expect(find.text('Takeaway'), findsOneWidget);
           expect(find.text('Review Order'), findsOneWidget);
