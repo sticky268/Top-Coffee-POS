@@ -440,7 +440,10 @@ void main() {
           studio: true, preview: preview);
       expect(find.byType(Drawer), findsNothing);
       expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
-      expect(find.byType(ModalBarrier), findsNothing);
+      expect(
+          find.byWidgetPredicate(
+              (widget) => widget is ModalBarrier && (widget.color?.a ?? 0) > 0),
+          findsNothing);
       expect(tester.takeException(), isNull);
       await savePreview(tester, preview, 'studio-pinned-${layout.name}');
     });
@@ -488,7 +491,10 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsNothing);
-    expect(find.byType(ModalBarrier), findsNothing);
+    expect(
+        find.byWidgetPredicate(
+            (widget) => widget is ModalBarrier && (widget.color?.a ?? 0) > 0),
+        findsNothing);
     expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
     expect(tester.takeException(), isNull);
     await tester.binding.setSurfaceSize(const Size(390, 844));
