@@ -10,6 +10,7 @@ import 'package:top_coffee_pos/core/offline/order_sync.dart';
 import 'package:top_coffee_pos/core/printer/print_queue_providers.dart';
 import 'package:top_coffee_pos/core/routing/app_shell.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
+import 'package:top_coffee_pos/core/theme/coffee_studio_theme.dart';
 import 'package:top_coffee_pos/core/theme/home_layout_preference.dart';
 import 'package:top_coffee_pos/features/auth/data/auth_repository.dart';
 import 'package:top_coffee_pos/features/auth/domain/auth_models.dart';
@@ -64,6 +65,7 @@ void main() {
       double scale,
       bool dark,
       {bool limited = false,
+      bool studio = false,
       GlobalKey? preview}) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -137,7 +139,9 @@ void main() {
     await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
         child: MaterialApp.router(
-            theme: dark ? AppTheme.dark : AppTheme.light,
+            theme: studio
+                ? (dark ? CoffeeStudioTheme.dark : CoffeeStudioTheme.light)
+                : (dark ? AppTheme.dark : AppTheme.light),
             routerConfig: router,
             builder: (context, child) => LayoutBuilder(
                   builder: (context, constraints) => MediaQuery(
@@ -184,6 +188,24 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Opened /manage-menu'), findsOneWidget);
         expect(tester.takeException(), isNull);
+      });
+    }
+
+    for (final viewport in [
+      (const Size(390, 844), 1.0, false),
+      (const Size(1440, 1000), 1.0, false),
+      (const Size(1024, 900), 1.0, true),
+      (const Size(360, 800), 2.0, false),
+    ]) {
+      testWidgets('Coffee Studio ${layout.name} fits $viewport',
+          (tester) async {
+        final preview = GlobalKey();
+        await pumpHome(tester, layout, viewport.$1, viewport.$2, viewport.$3,
+            studio: true, preview: preview);
+        expect(find.text('\$428.50'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await savePreview(tester, preview,
+            'studio-home-${layout.name}-${viewport.$1.width.toInt()}-${viewport.$2}-${viewport.$3}');
       });
     }
 
