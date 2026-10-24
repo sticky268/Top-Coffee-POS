@@ -1,3 +1,4 @@
+import '../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -72,6 +73,17 @@ class ManageMenuScreen extends ConsumerWidget {
                     ),
                   ])
                     Card(
+                      color: CoffeeStudioTheme.active(context)
+                          ? CoffeeStudioTheme.accentSurface(
+                              context,
+                              [
+                                'Items',
+                                'Combos',
+                                'Categories',
+                                'Discounts',
+                                'Modifiers'
+                              ].indexOf(section.$1))
+                          : null,
                       margin: const EdgeInsets.only(bottom: 12),
                       clipBehavior: Clip.antiAlias,
                       child: ListTile(
@@ -152,9 +164,8 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
         '/products/form',
         extra: ProductFormArgs(
           categories: categories,
-          initialProduct: record == null
-              ? null
-              : ManagedProduct.fromJson(record),
+          initialProduct:
+              record == null ? null : ManagedProduct.fromJson(record),
         ),
       );
     } else {
@@ -183,15 +194,7 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
               onPressed: () => edit(asyncData.requireValue, null),
               icon: const Icon(Icons.add),
               label: Text(
-                'Add ${widget.section == 'Categories'
-                    ? 'category'
-                    : widget.section == 'Items'
-                    ? 'item'
-                    : widget.section == 'Combos'
-                    ? 'combo'
-                    : widget.section == 'Discounts'
-                    ? 'discount'
-                    : 'modifier group'}',
+                'Add ${widget.section == 'Categories' ? 'category' : widget.section == 'Items' ? 'item' : widget.section == 'Combos' ? 'combo' : widget.section == 'Discounts' ? 'discount' : 'modifier group'}',
               ),
             )
           : null,
@@ -216,23 +219,21 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
             ),
           ),
           data: (data) {
-            final source =
-                data[widget.section == 'Items' || widget.section == 'Combos'
-                        ? 'products'
-                        : widget.section.toLowerCase()]
-                    as List;
+            final source = data[
+                widget.section == 'Items' || widget.section == 'Combos'
+                    ? 'products'
+                    : widget.section.toLowerCase()] as List;
             final rows = source
                 .map((e) => Map<String, dynamic>.from(e as Map))
                 .where((row) {
-                  final combo = (row['combo_slots'] as List? ?? []).isNotEmpty;
-                  return (widget.section != 'Items' || !combo) &&
-                      (widget.section != 'Combos' || combo) &&
-                      (archived || row['is_active'] != false) &&
-                      '${row['name']}'.toLowerCase().contains(
+              final combo = (row['combo_slots'] as List? ?? []).isNotEmpty;
+              return (widget.section != 'Items' || !combo) &&
+                  (widget.section != 'Combos' || combo) &&
+                  (archived || row['is_active'] != false) &&
+                  '${row['name']}'.toLowerCase().contains(
                         search.trim().toLowerCase(),
                       );
-                })
-                .toList();
+            }).toList();
             return Column(
               children: [
                 Padding(
@@ -305,8 +306,8 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                                   search.trim().isNotEmpty
                                       ? 'Try another name or clear the search.'
                                       : canModify
-                                      ? 'Use the Add button to create your first entry, or include archived entries.'
-                                      : 'Include archived entries or contact your manager.',
+                                          ? 'Use the Add button to create your first entry, or include archived entries.'
+                                          : 'Include archived entries or contact your manager.',
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -323,16 +324,15 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                               row['is_active'] == false
                                   ? 'Archived · history retained'
                                   : widget.section == 'Discounts'
-                                  ? '${row['type'] == 'percent' ? '${row['value']}%' : '\$${row['value']}'} · ${row['branch_id'] == null ? 'All branches' : 'This branch'}'
-                                  : widget.section == 'Items' ||
-                                        widget.section == 'Combos'
-                                  ? 'Base price \$${row['base_price']} · tap to edit'
-                                  : widget.section == 'Categories'
-                                  ? 'Display order ${row['sort_order']} · ${row['branch_id'] == null ? 'Shared category' : 'This branch'}'
-                                  : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
+                                      ? '${row['type'] == 'percent' ? '${row['value']}%' : '\$${row['value']}'} · ${row['branch_id'] == null ? 'All branches' : 'This branch'}'
+                                      : widget.section == 'Items' ||
+                                              widget.section == 'Combos'
+                                          ? 'Base price \$${row['base_price']} · tap to edit'
+                                          : widget.section == 'Categories'
+                                              ? 'Display order ${row['sort_order']} · ${row['branch_id'] == null ? 'Shared category' : 'This branch'}'
+                                              : '${(row['modifiers'] as List? ?? []).length} options · shared across the business',
                             ),
-                            trailing:
-                                widget.section == 'Items' ||
+                            trailing: widget.section == 'Items' ||
                                     widget.section == 'Combos'
                                 ? PopupMenuButton<String>(
                                     enabled: canModify,
@@ -347,8 +347,8 @@ class _MenuSectionState extends ConsumerState<MenuSectionScreen> {
                                           context: context,
                                           builder: (_) =>
                                               BranchAvailabilityDialog(
-                                                product: row,
-                                              ),
+                                            product: row,
+                                          ),
                                         );
                                         ref.invalidate(menuDataProvider);
                                         ref.invalidate(

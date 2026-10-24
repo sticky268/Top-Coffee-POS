@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/page_content.dart';
 import 'package:go_router/go_router.dart';
 import 'appearance_settings_card.dart';
+import 'app_design_settings_card.dart';
 import 'manager_pin_settings_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_controller.dart';
@@ -34,6 +35,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
             ),
             const SizedBox(height: 24),
+            const AppDesignSettingsCard(),
+            const SizedBox(height: 16),
             const AppearanceSettingsCard(),
             const SizedBox(height: 16),
             Card(

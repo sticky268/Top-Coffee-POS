@@ -1,3 +1,4 @@
+import '../../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -30,7 +31,9 @@ class ProductCard extends StatelessWidget {
     return Tooltip(
       message: '${product.name} · $priceLabel',
       child: Material(
-        color: theme.colorScheme.surface,
+        color: CoffeeStudioTheme.active(context)
+            ? CoffeeStudioTheme.accentSurface(context, product.id)
+            : theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(

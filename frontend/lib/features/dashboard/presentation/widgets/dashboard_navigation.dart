@@ -5,6 +5,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 
 class DashboardNavigation extends StatelessWidget {
   const DashboardNavigation(
@@ -30,6 +31,17 @@ class DashboardNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (CoffeeStudioTheme.active(context)) {
+      return Theme(
+        data: CoffeeStudioTheme.navigation(theme),
+        child: Builder(builder: (context) => _navigation(context)),
+      );
+    }
+    return _navigation(context);
+  }
+
+  Widget _navigation(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: 250,
       decoration: BoxDecoration(
