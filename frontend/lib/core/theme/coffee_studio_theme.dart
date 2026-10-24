@@ -14,19 +14,35 @@ class CoffeeStudioStyle extends ThemeExtension<CoffeeStudioStyle> {
 abstract final class CoffeeStudioTheme {
   static bool active(BuildContext context) =>
       Theme.of(context).extension<CoffeeStudioStyle>() != null;
-  static Color accentSurface(BuildContext context, int index) {
-    const colors = [
-      Color(0xFF168372),
-      Color(0xFFC4594C),
-      Color(0xFF7555A6),
-      Color(0xFF146CB5),
-      Color(0xFFA96700)
-    ];
-    return Color.alphaBlend(
-        colors[index.abs() % colors.length].withValues(
-            alpha: Theme.of(context).brightness == Brightness.dark ? .20 : .09),
-        Theme.of(context).colorScheme.surface);
+  // A consistent cafe palette across shortcuts, menu hubs and statistics.
+  static const _accents = [
+    Color(0xFF087F70),
+    Color(0xFFC74F35),
+    Color(0xFF7350A2),
+    Color(0xFF2468A0),
+    Color(0xFF996000),
+  ];
+
+  static Color accentInk(BuildContext context, int index) {
+    final color = _accents[index.abs() % _accents.length];
+    return Theme.of(context).brightness == Brightness.dark
+        ? Color.lerp(color, Colors.white, .55)!
+        : color;
   }
+
+  static Color accentSurface(
+          BuildContext context, int index) =>
+      Color.alphaBlend(
+          _accents[index.abs() % _accents.length].withValues(
+              alpha:
+                  Theme.of(context).brightness == Brightness.dark ? .25 : .16),
+          Theme.of(context).colorScheme.surface);
+
+  static const saleGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF17483F), Color(0xFF087568)],
+  );
 
   static ThemeData get light => _build(false);
   static ThemeData get dark => _build(true);
@@ -34,7 +50,7 @@ abstract final class CoffeeStudioTheme {
   static ThemeData _build(bool dark) {
     final original = dark ? AppTheme.dark : AppTheme.light;
     final scheme = original.colorScheme.copyWith(
-      primary: dark ? const Color(0xFFA0CEC3) : const Color(0xFF145A52),
+      primary: dark ? const Color(0xFF9ADCCE) : const Color(0xFF096B5D),
       onPrimary: dark ? const Color(0xFF102E29) : Colors.white,
       primaryContainer:
           dark ? const Color(0xFF214A43) : const Color(0xFFE0F1EB),
@@ -56,8 +72,12 @@ abstract final class CoffeeStudioTheme {
       colorScheme: scheme,
       extensions: const [CoffeeStudioStyle()],
       appBarTheme: header,
+      scaffoldBackgroundColor:
+          dark ? const Color(0xFF181C1A) : const Color(0xFFF6F1E8),
       cardTheme: original.cardTheme.copyWith(
-        elevation: 0,
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: .10),
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: scheme.outlineVariant),
@@ -112,7 +132,7 @@ abstract final class CoffeeStudioTheme {
           onSurfaceVariant: const Color(0xFFE1D8CD),
           primary: AppColors.caramel,
           onPrimary: AppColors.espresso,
-          primaryContainer: const Color(0xFF765332),
+          primaryContainer: const Color(0xFF196455),
           onPrimaryContainer: AppColors.white,
           outlineVariant: const Color(0xFF61483E),
         ),

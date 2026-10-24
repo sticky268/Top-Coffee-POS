@@ -42,8 +42,7 @@ class _StudioActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ink =
-        featured ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
+    final ink = featured ? Colors.white : theme.colorScheme.onSurface;
     final tone = switch (action.title) {
       'Combos' || 'New Order' || 'Inventory' => 0,
       'Items' || 'Manage Menu' => 1,
@@ -56,26 +55,61 @@ class _StudioActionTile extends StatelessWidget {
       color: featured
           ? theme.colorScheme.primary
           : CoffeeStudioTheme.accentSurface(context, tone),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: action.onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-            padding: const EdgeInsets.all(22),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(action.icon, size: 38, color: ink),
-              const SizedBox(height: 20),
-              Text(action.title,
-                  style: theme.textTheme.titleLarge?.copyWith(color: ink)),
-              const SizedBox(height: 8),
-              Text(action.subtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: ink)),
-              const SizedBox(height: 14),
-              Align(
-                  alignment: Alignment.centerRight,
-                  child: Icon(Icons.arrow_forward_rounded, color: ink)),
-            ])),
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: featured ? CoffeeStudioTheme.saleGradient : null,
+          border: Border.all(
+              color: featured
+                  ? Colors.transparent
+                  : CoffeeStudioTheme.accentInk(context, tone)
+                      .withValues(alpha: .18)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: InkWell(
+          onTap: action.onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: featured
+                              ? Colors.white.withValues(alpha: .14)
+                              : CoffeeStudioTheme.accentInk(context, tone)
+                                  .withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(action.icon,
+                            size: 32,
+                            color: featured
+                                ? Colors.white
+                                : CoffeeStudioTheme.accentInk(context, tone)),
+                      ),
+                      const Spacer(),
+                      if (featured)
+                        Icon(Icons.coffee_rounded,
+                            size: 40, color: const Color(0xFFF1C98C)),
+                    ]),
+                    const SizedBox(height: 20),
+                    Text(action.title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                            color: ink, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    Text(action.subtitle,
+                        style:
+                            theme.textTheme.bodyMedium?.copyWith(color: ink)),
+                    const SizedBox(height: 14),
+                    Align(
+                        alignment: Alignment.centerRight,
+                        child: Icon(Icons.arrow_forward_rounded, color: ink)),
+                  ])),
+        ),
       ),
     );
   }

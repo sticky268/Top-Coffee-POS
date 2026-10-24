@@ -297,6 +297,9 @@ class _Metric extends StatelessWidget {
       padding: EdgeInsets.all(compact ? 14 : 18),
       decoration: BoxDecoration(
         color: hero ? const Color(0xFF145A52) : AppColors.tint(context, color),
+        gradient: hero && CoffeeStudioTheme.active(context)
+            ? CoffeeStudioTheme.saleGradient
+            : null,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -513,9 +516,20 @@ class _StudioCompactActions extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 26),
+                            horizontal: 18, vertical: 18),
                         child: Row(children: [
-                          Icon(actions[index].icon, size: 30),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: CoffeeStudioTheme.accentInk(context, index)
+                                  .withValues(alpha: .12),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Icon(actions[index].icon,
+                                size: 26,
+                                color: CoffeeStudioTheme.accentInk(
+                                    context, index)),
+                          ),
                           const SizedBox(width: 14),
                           Expanded(
                               child: Text(actions[index].label,

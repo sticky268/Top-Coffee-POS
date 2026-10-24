@@ -88,10 +88,14 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final studio = CoffeeStudioTheme.active(context);
+    final sales = studio && data.label == "Today's Sales";
+    final ink = sales ? Colors.white : data.color;
     return Card(
-      color: CoffeeStudioTheme.active(context)
+      clipBehavior: studio ? Clip.antiAlias : Clip.none,
+      color: studio
           ? Color.alphaBlend(
-              data.color.withValues(alpha: .09), theme.colorScheme.surface)
+              data.color.withValues(alpha: .16), theme.colorScheme.surface)
           : null,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -106,52 +110,65 @@ class _StatCard extends StatelessWidget {
           final labelFontSize = isCompact ? 12.0 : 14.0;
           final gap = isCompact ? 4.0 : 8.0;
 
-          return Padding(
-            padding: EdgeInsets.all(padding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              // mainAxisSize.max (the Column default) + Expanded below is
-              // what actually prevents overflow: the icon badge and the
-              // label get their fixed natural size, and Expanded gives the
-              // value text *exactly* whatever height is left over — even
-              // if that's very little — rather than assuming there's
-              // always enough room for a full-size headline.
-              children: [
-                Container(
-                  padding: EdgeInsets.all(iconPadding),
-                  decoration: BoxDecoration(
-                    color: data.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+          return Ink(
+            decoration: BoxDecoration(
+              gradient: sales ? CoffeeStudioTheme.saleGradient : null,
+              border: studio && !sales
+                  ? Border(top: BorderSide(color: data.color, width: 3))
+                  : null,
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                // mainAxisSize.max (the Column default) + Expanded below is
+                // what actually prevents overflow: the icon badge and the
+                // label get their fixed natural size, and Expanded gives the
+                // value text *exactly* whatever height is left over — even
+                // if that's very little — rather than assuming there's
+                // always enough room for a full-size headline.
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(iconPadding),
+                    decoration: BoxDecoration(
+                      color: ink.withValues(alpha: sales ? .18 : .12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(data.icon, color: ink, size: iconSize),
                   ),
-                  child: Icon(data.icon, color: data.color, size: iconSize),
-                ),
-                SizedBox(height: gap),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
+                  SizedBox(height: gap),
+                  Expanded(
+                    child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        data.value,
-                        maxLines: 1,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontSize: valueFontSize,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          data.value,
+                          maxLines: 1,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontSize:
+                                studio ? valueFontSize + 4 : valueFontSize,
+                            color: sales ? Colors.white : null,
+                            fontWeight: studio ? FontWeight.w800 : null,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Text(
-                  data.label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: labelFontSize,
+                  Text(
+                    data.label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: sales
+                          ? Colors.white
+                          : theme.colorScheme.onSurfaceVariant,
+                      fontSize: labelFontSize,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
