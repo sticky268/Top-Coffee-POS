@@ -93,8 +93,8 @@ class _StudioActionTile extends StatelessWidget {
                       ),
                       const Spacer(),
                       if (featured)
-                        Icon(Icons.coffee_rounded,
-                            size: 40, color: const Color(0xFFF1C98C)),
+                        const Icon(Icons.coffee_rounded,
+                            size: 40, color: Color(0xFFF1C98C)),
                     ]),
                     const SizedBox(height: 20),
                     Text(action.title,
