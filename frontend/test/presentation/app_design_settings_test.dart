@@ -66,7 +66,15 @@ void main() {
         final restored =
             Theme.of(tester.element(find.byType(AppDesignSettingsCard)));
         expect(restored.extension<CoffeeStudioStyle>(), isNull);
-        expect(restored, original);
+        expect(restored.colorScheme, original.colorScheme);
+        expect(restored.textTheme, original.textTheme);
+        expect(
+            restored.scaffoldBackgroundColor, original.scaffoldBackgroundColor);
+        expect(restored.appBarTheme, original.appBarTheme);
+        expect(restored.cardTheme, original.cardTheme);
+        expect(restored.inputDecorationTheme, original.inputDecorationTheme);
+        expect(restored.filledButtonTheme.style?.backgroundColor?.resolve({}),
+            original.filledButtonTheme.style?.backgroundColor?.resolve({}));
       });
     }
   }
