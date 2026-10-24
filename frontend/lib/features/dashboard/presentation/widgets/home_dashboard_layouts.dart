@@ -37,16 +37,6 @@ class HomeDashboardLayouts extends StatelessWidget {
           ...actions.where((a) => a.label != 'New Order'),
         ];
         final counter = layout == HomeLayout.coffeeCounter;
-        Widget tile(QuickAction a) =>
-            StudioActionBoard(featureFirst: a.label == 'New Order', actions: [
-              StudioAction(
-                  a.label,
-                  a.label == 'New Order'
-                      ? 'Start a new sale'
-                      : 'Open ${a.label.toLowerCase()}',
-                  a.icon,
-                  a.onTap)
-            ]);
         return Column(
             key: ValueKey('dashboard-${layout.name}'),
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -62,35 +52,7 @@ class HomeDashboardLayouts extends StatelessWidget {
                             .clamp(1, 4)),
               const SizedBox(height: 24),
               if (counter && work.isNotEmpty)
-                LayoutBuilder(builder: (context, box) {
-                  if (box.maxWidth < 760 || scale > 1.3) {
-                    return Column(children: [
-                      tile(work.first),
-                      const SizedBox(height: 16),
-                      StudioActionBoard(actions: [
-                        for (final a in work.skip(1))
-                          StudioAction(a.label, 'Open ${a.label.toLowerCase()}',
-                              a.icon, a.onTap)
-                      ]),
-                    ]);
-                  }
-                  return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 4, child: tile(work.first)),
-                        const SizedBox(width: 16),
-                        Expanded(
-                            flex: 6,
-                            child: StudioActionBoard(actions: [
-                              for (final a in work.skip(1))
-                                StudioAction(
-                                    a.label,
-                                    'Open ${a.label.toLowerCase()}',
-                                    a.icon,
-                                    a.onTap)
-                            ])),
-                      ]);
-                })
+                _StudioCounterActions(actions: work)
               else ...[
                 Text('Quick Actions',
                     style: Theme.of(context).textTheme.titleLarge),
@@ -467,4 +429,96 @@ class _HomeAction extends StatelessWidget {
           ),
         ));
   }
+}
+
+/// A balanced featured sale action and compact management shortcuts; no empty
+/// column alongside a long grid of equally tall secondary cards.
+class _StudioCounterActions extends StatelessWidget {
+  const _StudioCounterActions({required this.actions});
+  final List<QuickAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = actions.first;
+    const priority = [
+      'Manage Menu',
+      'Reports',
+      'Customers',
+      'Daily Operations'
+    ];
+    final right = [
+      for (final name in priority)
+        ...actions.skip(1).where((a) => a.label == name),
+    ];
+    final remaining = actions.skip(1).where((a) => !right.contains(a)).toList();
+    final featured = StudioActionBoard(featureFirst: true, actions: [
+      StudioAction(first.label, 'Start a new sale', first.icon, first.onTap),
+    ]);
+    return LayoutBuilder(builder: (context, box) {
+      final wide = box.maxWidth >= 760 &&
+          MediaQuery.textScalerOf(context).scale(14) <= 20;
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (wide && right.isNotEmpty)
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(flex: 4, child: featured),
+            const SizedBox(width: 16),
+            Expanded(
+                flex: 6,
+                child: _StudioCompactActions(actions: right, maxColumns: 2)),
+          ])
+        else ...[
+          featured,
+          if (right.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _StudioCompactActions(actions: right, maxColumns: 2),
+          ],
+        ],
+        if (remaining.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _StudioCompactActions(actions: remaining, maxColumns: 4),
+        ],
+      ]);
+    });
+  }
+}
+
+class _StudioCompactActions extends StatelessWidget {
+  const _StudioCompactActions(
+      {required this.actions, required this.maxColumns});
+  final List<QuickAction> actions;
+  final int maxColumns;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final large = MediaQuery.textScalerOf(context).scale(14) > 20;
+        final columns =
+            (box.maxWidth / (large ? 280 : 230)).floor().clamp(1, maxColumns);
+        final width = (box.maxWidth - 12 * (columns - 1)) / columns;
+        return Wrap(spacing: 12, runSpacing: 12, children: [
+          for (var index = 0; index < actions.length; index++)
+            SizedBox(
+                width: width,
+                child: Material(
+                  color: CoffeeStudioTheme.accentSurface(context, index),
+                  borderRadius: BorderRadius.circular(16),
+                  child: pos_ui.ActionSurface(
+                    onTap: actions[index].onTap,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 26),
+                        child: Row(children: [
+                          Icon(actions[index].icon, size: 30),
+                          const SizedBox(width: 14),
+                          Expanded(
+                              child: Text(actions[index].label,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium)),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right, size: 20),
+                        ])),
+                  ),
+                )),
+        ]);
+      });
 }
