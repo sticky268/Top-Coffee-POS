@@ -315,7 +315,7 @@ class _NavigationSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!_NavigationPresentation.compactOf(context))
+          if (!CoffeeStudioTheme.active(context))
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Text(
