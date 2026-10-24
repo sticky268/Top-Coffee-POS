@@ -44,10 +44,18 @@ class _StudioActionTile extends StatelessWidget {
     final theme = Theme.of(context);
     final ink =
         featured ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
+    final tone = switch (action.title) {
+      'Combos' || 'New Order' || 'Inventory' => 0,
+      'Items' || 'Manage Menu' => 1,
+      'Categories' || 'Reports' => 2,
+      'Modifiers' || 'Customers' || 'Orders' => 3,
+      'Discounts' || 'Daily Operations' => 4,
+      _ => index,
+    };
     return Material(
       color: featured
           ? theme.colorScheme.primary
-          : CoffeeStudioTheme.accentSurface(context, index),
+          : CoffeeStudioTheme.accentSurface(context, tone),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: action.onTap,
