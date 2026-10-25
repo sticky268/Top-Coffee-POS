@@ -821,122 +821,124 @@ class _OrderPanel extends StatelessWidget {
         _OrderHeader(order: order),
         const Divider(height: 1),
         Expanded(
-          child: ListView.separated(
+          child: CustomScrollView(
             key: const ValueKey('open-order-summary-scroll'),
-            padding: EdgeInsets.zero,
-            itemCount: lines.length + 1 + (lines.isEmpty ? 1 : 0),
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              if (lines.isEmpty && index == 0) {
-                return const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Center(child: Text('No items in this order.')),
-                );
-              }
-              if (index == lines.length + (lines.isEmpty ? 1 : 0)) {
-                return _OrderTotals(
-                  subtotal: subtotal,
-                  discount: discount,
-                  total: total,
-                  currency: currency,
-                  onSave: onSave,
-                  onDiscard: onDiscard,
-                  onCancel: onCancel,
-                  onPay: onPay,
-                );
-              }
-              final line = lines[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            line.productName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          if (line.variantName != null) ...[
-                            const SizedBox(height: 3),
-                            Text(line.variantName!),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            currency.format(line.unitPrice),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    pos_ui.IconButton(
-                      tooltip: 'Remove item',
-                      onPressed: () => onRemove(line.lineKey),
-                      icon: const Icon(Icons.delete_outline),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          pos_ui.IconButton(
-                            tooltip: 'Decrease quantity',
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => onDecrement(line.lineKey),
-                            icon: const Icon(Icons.remove),
-                          ),
-                          SizedBox(
-                            width: 28,
-                            child: Text(
-                              '${line.quantity}',
-                              textAlign: TextAlign.center,
+            slivers: [
+              if (lines.isEmpty)
+                const SliverToBoxAdapter(
+                    child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(child: Text('No items in this order.')))),
+              SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                final line = lines[index];
+                return Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              line.productName,
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
-                          ),
-                          pos_ui.IconButton(
-                            tooltip: 'Increase quantity',
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => onIncrement(line.lineKey),
-                            icon: const Icon(Icons.add),
-                          ),
-                        ],
+                            if (line.variantName != null) ...[
+                              const SizedBox(height: 3),
+                              Text(line.variantName!),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              currency.format(line.unitPrice),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 78,
-                      child: Text(
-                        currency.format(line.lineTotal),
-                        textAlign: TextAlign.end,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                      pos_ui.IconButton(
+                        tooltip: 'Remove item',
+                        onPressed: () => onRemove(line.lineKey),
+                        icon: const Icon(Icons.delete_outline),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            pos_ui.IconButton(
+                              tooltip: 'Decrease quantity',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => onDecrement(line.lineKey),
+                              icon: const Icon(Icons.remove),
+                            ),
+                            SizedBox(
+                              width: 28,
+                              child: Text(
+                                '${line.quantity}',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            pos_ui.IconButton(
+                              tooltip: 'Increase quantity',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => onIncrement(line.lineKey),
+                              icon: const Icon(Icons.add),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 78,
+                        child: Text(
+                          currency.format(line.lineTotal),
+                          textAlign: TextAlign.end,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }, childCount: lines.length)),
+              SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _OrderTotals(
+                        subtotal: subtotal,
+                        discount: discount,
+                        total: total,
+                        currency: currency,
+                        onSave: onSave,
+                        onDiscard: onDiscard,
+                        onCancel: onCancel,
+                        onPay: onPay,
+                      ))),
+            ],
           ),
         ),
       ],
