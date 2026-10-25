@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/coffee_studio_theme.dart';
 import '../../../../core/widgets/studio_layout.dart';
-import 'stat_cards_grid.dart';
+import 'studio_dashboard_cards.dart';
 import '../../../../core/theme/home_layout_preference.dart';
 import '../../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../../domain/dashboard_models.dart';
@@ -44,15 +44,10 @@ class HomeDashboardLayouts extends StatelessWidget {
               if (layout == HomeLayout.modern)
                 _HomeMetrics(stats: stats, modern: true)
               else
-                StatCardsGrid(
-                    stats: stats,
-                    crossAxisCount:
-                        (constraints.maxWidth / (scale > 1.4 ? 250 : 180))
-                            .floor()
-                            .clamp(1, 4)),
+                StudioDashboardMetrics(stats: stats),
               const SizedBox(height: 24),
               if (counter && work.isNotEmpty)
-                _StudioCounterActions(actions: work)
+                StudioDashboardActions(actions: work)
               else ...[
                 Text('Quick Actions',
                     style: Theme.of(context).textTheme.titleLarge),
@@ -432,114 +427,4 @@ class _HomeAction extends StatelessWidget {
           ),
         ));
   }
-}
-
-/// A balanced featured sale action and compact management shortcuts; no empty
-/// column alongside a long grid of equally tall secondary cards.
-class _StudioCounterActions extends StatelessWidget {
-  const _StudioCounterActions({required this.actions});
-  final List<QuickAction> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    final first = actions.first;
-    const priority = [
-      'Manage Menu',
-      'Reports',
-      'Customers',
-      'Daily Operations'
-    ];
-    final right = [
-      for (final name in priority)
-        ...actions.skip(1).where((a) => a.label == name),
-    ];
-    final remaining = actions.skip(1).where((a) => !right.contains(a)).toList();
-    final featured =
-        StudioActionBoard(featureFirst: first.label == 'New Order', actions: [
-      StudioAction(
-          first.label,
-          first.label == 'New Order'
-              ? 'Start a new sale'
-              : 'Open ${first.label.toLowerCase()}',
-          first.icon,
-          first.onTap),
-    ]);
-    return LayoutBuilder(builder: (context, box) {
-      final wide = box.maxWidth >= 760 &&
-          MediaQuery.textScalerOf(context).scale(14) <= 20;
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (wide && right.isNotEmpty)
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(flex: 4, child: featured),
-            const SizedBox(width: 16),
-            Expanded(
-                flex: 6,
-                child: _StudioCompactActions(actions: right, maxColumns: 2)),
-          ])
-        else ...[
-          featured,
-          if (right.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _StudioCompactActions(actions: right, maxColumns: 2),
-          ],
-        ],
-        if (remaining.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _StudioCompactActions(actions: remaining, maxColumns: 4),
-        ],
-      ]);
-    });
-  }
-}
-
-class _StudioCompactActions extends StatelessWidget {
-  const _StudioCompactActions(
-      {required this.actions, required this.maxColumns});
-  final List<QuickAction> actions;
-  final int maxColumns;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
-        final large = MediaQuery.textScalerOf(context).scale(14) > 20;
-        final columns =
-            (box.maxWidth / (large ? 280 : 230)).floor().clamp(1, maxColumns);
-        final width = (box.maxWidth - 12 * (columns - 1)) / columns;
-        return Wrap(spacing: 12, runSpacing: 12, children: [
-          for (var index = 0; index < actions.length; index++)
-            SizedBox(
-                width: width,
-                child: Material(
-                  color: CoffeeStudioTheme.accentSurface(context, index),
-                  borderRadius: BorderRadius.circular(16),
-                  child: pos_ui.ActionSurface(
-                    onTap: actions[index].onTap,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 18),
-                        child: Row(children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: CoffeeStudioTheme.accentInk(context, index)
-                                  .withValues(alpha: .12),
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            child: Icon(actions[index].icon,
-                                size: 26,
-                                color: CoffeeStudioTheme.accentInk(
-                                    context, index)),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                              child: Text(actions[index].label,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium)),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right, size: 20),
-                        ])),
-                  ),
-                )),
-        ]);
-      });
 }

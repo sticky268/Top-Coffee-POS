@@ -208,9 +208,24 @@ void main() {
         await pumpHome(tester, layout, viewport.$1, viewport.$2, viewport.$3,
             studio: true, preview: preview);
         expect(find.text('\$428.50'), findsOneWidget);
+        expect(find.text('Your coffee counter, at a glance.'), findsOneWidget);
+        expect(
+            find.byWidgetPredicate((widget) =>
+                widget is Image &&
+                widget.image is AssetImage &&
+                (widget.image as AssetImage).assetName ==
+                    'assets/dashboard/coffee_welcome.png'),
+            findsOneWidget);
         expect(tester.takeException(), isNull);
         await savePreview(tester, preview,
             'studio-home-${layout.name}-${viewport.$1.width.toInt()}-${viewport.$2}-${viewport.$3}');
+        final menu = find.byKey(const ValueKey('home-action-Manage Menu'));
+        await tester.ensureVisible(menu);
+        await tester.pumpAndSettle();
+        await tester.tap(menu);
+        await tester.pumpAndSettle();
+        expect(find.text('Opened /manage-menu'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       });
     }
 
@@ -260,7 +275,7 @@ void main() {
       await pumpHome(tester, layout, const Size(1280, 800), 1, false,
           studio: true, preview: preview);
       expect(find.byType(Drawer), findsNothing);
-      expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
+      expect(tester.getSize(find.byType(DashboardNavigation)).width, 250);
       final nav = find.byType(DashboardNavigation);
       final rows = <Rect>[];
       for (final label in [
@@ -355,7 +370,7 @@ void main() {
         find.byWidgetPredicate(
             (widget) => widget is ModalBarrier && (widget.color?.a ?? 0) > 0),
         findsNothing);
-    expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
+    expect(tester.getSize(find.byType(DashboardNavigation)).width, 250);
     expect(tester.takeException(), isNull);
     await tester.binding.setSurfaceSize(const Size(390, 844));
     await tester.pumpAndSettle();

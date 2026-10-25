@@ -37,7 +37,14 @@ class DashboardNavigation extends StatelessWidget {
 
     if (CoffeeStudioTheme.active(context)) {
       return Theme(
-        data: CoffeeStudioTheme.navigation(theme),
+        data: selectedRoute == '/home'
+            ? CoffeeStudioTheme.navigation(theme).copyWith(
+                colorScheme:
+                    CoffeeStudioTheme.navigation(theme).colorScheme.copyWith(
+                          primaryContainer: const Color(0xFFE3BF77),
+                          onPrimaryContainer: const Color(0xFF35291E),
+                        ))
+            : CoffeeStudioTheme.navigation(theme),
         child: _NavigationPresentation(
           compact: compact,
           child: Builder(builder: (context) => _navigation(context)),

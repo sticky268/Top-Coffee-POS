@@ -74,8 +74,9 @@ class AppShell extends ConsumerWidget {
             children: [
               DashboardNavigation(
                 selectedRoute: selectedRoute,
-                compact:
-                    studio && MediaQuery.textScalerOf(context).scale(14) <= 20,
+                compact: studio &&
+                    !home &&
+                    MediaQuery.textScalerOf(context).scale(14) <= 20,
               ),
               Expanded(child: content),
             ],

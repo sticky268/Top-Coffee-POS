@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/coffee_studio_theme.dart';
+import 'studio_dashboard_cards.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -33,6 +34,50 @@ class DashboardHeader extends ConsumerWidget {
     final roleLabel = user.roles.isNotEmpty ? user.roles.first : null;
     final currentBranch = ref.watch(currentBranchProvider);
     final canViewAllBranches = user.hasPermission('branches.view-all');
+
+    if (CoffeeStudioTheme.active(context)) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (user.branches.length > 1 || canViewAllBranches)
+                ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 240),
+                    child: DropdownButton<BranchSummary?>(
+                      value: currentBranch,
+                      isExpanded: true,
+                      hint: const Text('Select branch'),
+                      items: [
+                        if (canViewAllBranches)
+                          const DropdownMenuItem<BranchSummary?>(
+                              value: null, child: Text('All Branches')),
+                        for (final branch in user.branches)
+                          DropdownMenuItem<BranchSummary?>(
+                              value: branch,
+                              child: Text(branch.name,
+                                  overflow: TextOverflow.ellipsis)),
+                      ],
+                      onChanged: (branch) => ref
+                          .read(currentBranchProvider.notifier)
+                          .selectBranch(branch),
+                    ))
+              else if (currentBranch != null)
+                Text(currentBranch.name),
+              Text(user.name, style: theme.textTheme.titleSmall),
+              if (roleLabel != null)
+                Text(roleLabel, style: theme.textTheme.bodySmall),
+              pos_ui.IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Log out',
+                  onPressed: onLogout),
+            ]),
+        const SizedBox(height: 12),
+        StudioWelcomeBanner(greeting: '$_greeting, ${user.name}!'),
+      ]);
+    }
 
     final information = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
