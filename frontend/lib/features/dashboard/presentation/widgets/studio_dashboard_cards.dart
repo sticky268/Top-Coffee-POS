@@ -11,48 +11,65 @@ class StudioWelcomeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: LayoutBuilder(
-            builder: (context, box) => Stack(children: [
-                  Positioned.fill(
-                      child: Image.asset('assets/dashboard/coffee_welcome.png',
-                          fit: BoxFit.cover,
-                          alignment: Alignment.centerRight,
-                          excludeFromSemantics: true)),
-                  Positioned.fill(
-                      child: DecoratedBox(
-                          decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [
-                    const Color(0xFFFFF8E9),
-                    const Color(0xFFFFF8E9)
-                        .withValues(alpha: box.maxWidth < 600 ? .85 : .05)
-                  ])))),
-                  Padding(
-                      padding: const EdgeInsets.all(28),
-                      child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                              minHeight: 110,
-                              maxWidth: box.maxWidth > 700
-                                  ? box.maxWidth * .64
-                                  : box.maxWidth),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.wb_sunny_outlined,
-                                    color: Color(0xFFAE772A), size: 28),
-                                const SizedBox(height: 10),
-                                Text(greeting,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                            color: const Color(0xFF342D24),
-                                            fontWeight: FontWeight.w800)),
-                                const SizedBox(height: 8),
-                                const Text('Your coffee counter, at a glance.',
-                                    style: TextStyle(color: Color(0xFF655A48))),
-                              ]))),
-                ])),
+        child: LayoutBuilder(builder: (context, box) {
+          final narrow = box.maxWidth < 600;
+          final banner = Stack(children: [
+            if (!narrow)
+              Positioned.fill(
+                  child: Image.asset('assets/dashboard/coffee_welcome.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.centerRight,
+                      excludeFromSemantics: true)),
+            Positioned.fill(
+                child: DecoratedBox(
+                    decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+              const Color(0xFFFFF8E9),
+              const Color(0xFFFFF8E9).withValues(alpha: narrow ? 1 : .05)
+            ])))),
+            Padding(
+                padding: const EdgeInsets.all(28),
+                child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                        minHeight: 110,
+                        maxWidth: box.maxWidth > 700
+                            ? box.maxWidth * .64
+                            : box.maxWidth),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.wb_sunny_outlined,
+                              color: Color(0xFFAE772A), size: 28),
+                          const SizedBox(height: 10),
+                          Text(greeting,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                      color: const Color(0xFF342D24),
+                                      fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 8),
+                          const Text('Your coffee counter, at a glance.',
+                              style: TextStyle(color: Color(0xFF655A48))),
+                        ]))),
+          ]);
+          if (!narrow) return banner;
+          return ColoredBox(
+              color: const Color(0xFFFFF8E9),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                        height: 110,
+                        child: Image.asset(
+                            'assets/dashboard/coffee_welcome.png',
+                            fit: BoxFit.cover,
+                            alignment: Alignment.centerRight,
+                            excludeFromSemantics: true)),
+                    banner,
+                  ]));
+        }),
       );
 }
 
