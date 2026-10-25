@@ -270,6 +270,9 @@ void main() {
               scrollable: scrollable,
               maxScrolls: 50,
             );
+            await tester.ensureVisible(find.text('Exact \$3.50'));
+            await tester.pumpAndSettle();
+            expect(find.text('Exact \$3.50').hitTestable(), findsOneWidget);
             await tester.tap(find.text('Exact \$3.50'));
             await tester.pumpAndSettle();
             expect((tester.widget<TextField>(amount)).controller!.text, '3.50');

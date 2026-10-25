@@ -60,6 +60,9 @@ void main() {
         ProviderScope.containerOf(tester.element(find.byType(CheckoutScreen)));
     expect(container.read(cartControllerProvider).items.single.quantity, 1);
     expect(container.read(cartControllerProvider).table?.id, 7);
+    await tester.scrollUntilVisible(find.text('Save Order · Pay Later'), 300,
+        scrollable: find.byType(Scrollable).first, maxScrolls: 50);
+    await tester.pumpAndSettle();
     expect(find.text('Save Order · Pay Later').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
