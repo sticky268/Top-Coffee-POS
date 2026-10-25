@@ -518,7 +518,6 @@ void main() {
     await tester.enterText(amount, '5');
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Complete Sale'));
-    await tester.ensureVisible(find.text('Complete Sale'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Complete Sale'));
     // Submission stays busy behind the modal, so its spinner never settles.
@@ -531,7 +530,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(calls, 1);
     expect(built.container.read(cartControllerProvider).items, hasLength(1));
-    await tester.ensureVisible(find.text('Complete Sale'));
     await tester.ensureVisible(find.text('Complete Sale'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Complete Sale'));

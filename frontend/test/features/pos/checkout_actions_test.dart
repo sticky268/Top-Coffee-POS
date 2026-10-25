@@ -80,7 +80,8 @@ void main() {
           onComplete: (_) {}),
     ]))));
     expect(find.text('Total due').hitTestable(), findsNothing);
-    await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.scrollUntilVisible(find.text('Complete Sale'), 300,
+        scrollable: find.byType(Scrollable));
     await tester.pumpAndSettle();
     expect(find.text('Total due').hitTestable(), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, 700));

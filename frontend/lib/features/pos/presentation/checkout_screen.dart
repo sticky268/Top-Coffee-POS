@@ -534,10 +534,6 @@ class _CheckoutForm extends StatelessWidget {
                     key: const ValueKey('checkout-review-scroll'),
                     padding: const EdgeInsets.all(16),
                     children: [
-                      if (errorMessage != null) ...[
-                        _ErrorBanner(message: errorMessage!),
-                        const SizedBox(height: 16),
-                      ],
                       Text(
                         'Review Order',
                         style: theme.textTheme.headlineSmall?.copyWith(
@@ -1261,6 +1257,10 @@ class _CheckoutForm extends StatelessWidget {
                         'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
                       ),
                       const SizedBox(height: 20),
+                      if (errorMessage != null) ...[
+                        _ErrorBanner(message: errorMessage!),
+                        const SizedBox(height: 16),
+                      ],
                       CheckoutActions(
                         onSave: canSaveOrder ? onHold : null,
                         inline: true,
