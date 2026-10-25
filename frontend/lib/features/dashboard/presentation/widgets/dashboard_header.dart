@@ -37,43 +37,114 @@ class DashboardHeader extends ConsumerWidget {
 
     if (CoffeeStudioTheme.active(context)) {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 16,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (user.branches.length > 1 || canViewAllBranches)
+        LayoutBuilder(builder: (context, box) {
+          final controlWidth = box.maxWidth.clamp(0.0, 260.0);
+          final names =
+              user.name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty);
+          final initials =
+              names.take(2).map((s) => s.characters.first).join().toUpperCase();
+          final role = roleLabel == null || roleLabel.isEmpty
+              ? null
+              : '${roleLabel[0].toUpperCase()}${roleLabel.substring(1).replaceAll('_', ' ')}';
+          return Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 20,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                    key: const ValueKey('studio-branch-control'),
+                    width: controlWidth,
+                    constraints: const BoxConstraints(minHeight: 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        border:
+                            Border.all(color: theme.colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Row(children: [
+                      Icon(Icons.storefront_outlined,
+                          size: 22, color: theme.colorScheme.onSurface),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: user.branches.length > 1 || canViewAllBranches
+                              ? DropdownButtonHideUnderline(
+                                  child: DropdownButton<BranchSummary?>(
+                                  value: currentBranch,
+                                  isExpanded: true,
+                                  icon: const Icon(
+                                      Icons.keyboard_arrow_down_rounded),
+                                  hint: const Text('Select branch'),
+                                  style: theme.textTheme.titleSmall,
+                                  items: [
+                                    if (canViewAllBranches)
+                                      const DropdownMenuItem<BranchSummary?>(
+                                          value: null,
+                                          child: Text('All Branches')),
+                                    for (final branch in user.branches)
+                                      DropdownMenuItem<BranchSummary?>(
+                                          value: branch,
+                                          child: Text(branch.name,
+                                              overflow: TextOverflow.ellipsis)),
+                                  ],
+                                  onChanged: (branch) => ref
+                                      .read(currentBranchProvider.notifier)
+                                      .selectBranch(branch),
+                                ))
+                              : Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  child: Text(
+                                      currentBranch?.name ?? 'Select branch',
+                                      style: theme.textTheme.titleSmall,
+                                      overflow: TextOverflow.ellipsis))),
+                    ])),
                 ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 240),
-                    child: DropdownButton<BranchSummary?>(
-                      value: currentBranch,
-                      isExpanded: true,
-                      hint: const Text('Select branch'),
-                      items: [
-                        if (canViewAllBranches)
-                          const DropdownMenuItem<BranchSummary?>(
-                              value: null, child: Text('All Branches')),
-                        for (final branch in user.branches)
-                          DropdownMenuItem<BranchSummary?>(
-                              value: branch,
-                              child: Text(branch.name,
-                                  overflow: TextOverflow.ellipsis)),
-                      ],
-                      onChanged: (branch) => ref
-                          .read(currentBranchProvider.notifier)
-                          .selectBranch(branch),
-                    ))
-              else if (currentBranch != null)
-                Text(currentBranch.name),
-              Text(user.name, style: theme.textTheme.titleSmall),
-              if (roleLabel != null)
-                Text(roleLabel, style: theme.textTheme.bodySmall),
-              pos_ui.IconButton(
-                  icon: const Icon(Icons.logout),
-                  tooltip: 'Log out',
-                  onPressed: onLogout),
-            ]),
+                    constraints: BoxConstraints(
+                        maxWidth: box.maxWidth.clamp(0.0, 300.0)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      ExcludeSemantics(
+                          child: CircleAvatar(
+                              radius: 22,
+                              backgroundColor:
+                                  theme.colorScheme.primaryContainer,
+                              foregroundColor:
+                                  theme.colorScheme.onPrimaryContainer,
+                              child: initials.isEmpty
+                                  ? const Icon(Icons.person_outline)
+                                  : Text(initials))),
+                      const SizedBox(width: 12),
+                      Flexible(
+                          child: Column(
+                              key: const ValueKey('studio-user-identity'),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(user.name,
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
+                            if (role != null) ...[
+                              const SizedBox(height: 3),
+                              Text(role,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant))
+                            ],
+                          ])),
+                      const SizedBox(width: 18),
+                      Container(
+                          padding: const EdgeInsets.only(left: 12),
+                          decoration: BoxDecoration(
+                              border: Border(
+                                  left: BorderSide(
+                                      color:
+                                          theme.colorScheme.outlineVariant))),
+                          child: pos_ui.IconButton(
+                              icon: const Icon(Icons.logout, size: 24),
+                              tooltip: 'Log out',
+                              onPressed: onLogout)),
+                    ])),
+              ]);
+        }),
         const SizedBox(height: 12),
         StudioWelcomeBanner(greeting: '$_greeting, ${user.name}!'),
       ]);

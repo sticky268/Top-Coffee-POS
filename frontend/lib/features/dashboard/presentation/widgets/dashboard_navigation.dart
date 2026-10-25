@@ -5,6 +5,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import 'studio_coffee_brand.dart';
 import '../../../../core/theme/coffee_studio_theme.dart';
 
 class DashboardNavigation extends StatelessWidget {
@@ -67,40 +68,44 @@ class DashboardNavigation extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: _NavigationPresentation.compactOf(context)
-                  ? const EdgeInsets.all(12)
-                  : const EdgeInsets.fromLTRB(24, 24, 16, 24),
-              child: _NavigationPresentation.compactOf(context)
-                  ? Column(children: [
-                      const Icon(Icons.local_cafe_outlined,
-                          color: AppColors.caramel, size: 32),
-                      const SizedBox(height: 8),
-                      Text('TOP\nCOFFEE',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                              color: AppColors.white,
-                              fontWeight: FontWeight.w800)),
-                    ])
-                  : Row(
-                      children: [
-                        Icon(
-                          Icons.local_cafe_rounded,
-                          size: 32,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            'Top Coffee',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
+            if (CoffeeStudioTheme.active(context) &&
+                !_NavigationPresentation.compactOf(context))
+              const StudioCoffeeBrand()
+            else
+              Padding(
+                padding: _NavigationPresentation.compactOf(context)
+                    ? const EdgeInsets.all(12)
+                    : const EdgeInsets.fromLTRB(24, 24, 16, 24),
+                child: _NavigationPresentation.compactOf(context)
+                    ? Column(children: [
+                        const Icon(Icons.local_cafe_outlined,
+                            color: AppColors.caramel, size: 32),
+                        const SizedBox(height: 8),
+                        Text('TOP\nCOFFEE',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                                color: AppColors.white,
+                                fontWeight: FontWeight.w800)),
+                      ])
+                    : Row(
+                        children: [
+                          Icon(
+                            Icons.local_cafe_rounded,
+                            size: 32,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              'Top Coffee',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-            ),
+                        ],
+                      ),
+              ),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.symmetric(
