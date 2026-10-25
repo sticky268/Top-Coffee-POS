@@ -301,6 +301,8 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Complete Sale'));
     await tester.pumpAndSettle();
     verify(
@@ -345,6 +347,8 @@ void main() {
         w is TextField && w.decoration?.labelText == 'First payment amount');
     await tester.ensureVisible(amount);
     await tester.enterText(amount, '3');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Complete Sale'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Complete Sale'));
     await tester.pumpAndSettle();
@@ -545,6 +549,8 @@ void main() {
     await pumpBill(tester);
     await tester.tap(find.text('Review & Pay'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Complete & Print'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Complete & Print'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
@@ -601,6 +607,8 @@ void main() {
         )).thenThrow(Exception('Network unavailable'));
     await pumpBill(tester);
     await tester.tap(find.text('Review & Pay'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Complete & Print'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Complete & Print'));
     await tester.pumpAndSettle();

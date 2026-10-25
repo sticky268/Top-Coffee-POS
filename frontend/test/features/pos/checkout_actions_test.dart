@@ -64,6 +64,32 @@ void main() {
   });
 
   testWidgets(
+      'inline total scrolls with the order instead of following the screen',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(860, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: ListView(children: [
+      const SizedBox(height: 900, child: Text('Order details')),
+      CheckoutActions(
+          inline: true,
+          totalLabel: '\$5.00',
+          enabled: true,
+          isSubmitting: false,
+          onComplete: (_) {}),
+    ]))));
+    expect(find.text('Total due').hitTestable(), findsNothing);
+    await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.pumpAndSettle();
+    expect(find.text('Total due').hitTestable(), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, 700));
+    await tester.pumpAndSettle();
+    expect(find.text('Total due').hitTestable(), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'actions preserve chosen receipt behavior and block while submitting',
       (tester) async {
     final choices = <bool>[];

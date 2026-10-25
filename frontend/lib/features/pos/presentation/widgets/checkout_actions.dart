@@ -10,6 +10,7 @@ class CheckoutActions extends StatelessWidget {
     required this.totalLabel,
     this.secondaryTotalLabel,
     this.maxHeight,
+    this.inline = false,
     required this.enabled,
     required this.isSubmitting,
     required this.onComplete,
@@ -19,6 +20,7 @@ class CheckoutActions extends StatelessWidget {
   final String totalLabel;
   final String? secondaryTotalLabel;
   final double? maxHeight;
+  final bool inline;
   final bool enabled;
   final bool isSubmitting;
   final ValueChanged<bool> onComplete;
@@ -63,44 +65,46 @@ class CheckoutActions extends StatelessWidget {
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Save Order · Pay Later'),
               );
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight ?? height * 0.48),
-          child: Material(
-            color: theme.colorScheme.surface,
-            elevation: 0,
-            shape: Border(
-                top: BorderSide(color: theme.colorScheme.outlineVariant)),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (wide)
-                    Row(children: [
-                      Expanded(flex: 2, child: total),
-                      const SizedBox(width: 16),
-                      Expanded(flex: 3, child: print),
-                      const SizedBox(width: 10),
-                      Expanded(flex: 3, child: complete),
-                    ])
-                  else ...[
-                    Row(children: [
-                      Expanded(child: total),
-                    ]),
-                    const SizedBox(height: 8),
-                    print,
-                    const SizedBox(height: 8),
-                    complete,
-                  ],
-                  if (save != null) ...[
-                    const SizedBox(height: 8),
-                    save,
-                  ],
+        final content = Material(
+          color: theme.colorScheme.surface,
+          elevation: 0,
+          shape:
+              Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (wide)
+                  Row(children: [
+                    Expanded(flex: 2, child: total),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 3, child: print),
+                    const SizedBox(width: 10),
+                    Expanded(flex: 3, child: complete),
+                  ])
+                else ...[
+                  Row(children: [
+                    Expanded(child: total),
+                  ]),
+                  const SizedBox(height: 8),
+                  print,
+                  const SizedBox(height: 8),
+                  complete,
                 ],
-              ),
+                if (save != null) ...[
+                  const SizedBox(height: 8),
+                  save,
+                ],
+              ],
             ),
           ),
+        );
+        if (inline) return content;
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight ?? height * 0.48),
+          child: SingleChildScrollView(child: content),
         );
       },
     );

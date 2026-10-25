@@ -527,7 +527,7 @@ class _CheckoutForm extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: LayoutBuilder(
-            builder: (context, viewport) => Column(
+            builder: (context, _) => Column(
               children: [
                 Expanded(
                   child: ListView(
@@ -1260,18 +1260,19 @@ class _CheckoutForm extends StatelessWidget {
                       const Text(
                         'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
                       ),
+                      const SizedBox(height: 20),
+                      CheckoutActions(
+                        onSave: canSaveOrder ? onHold : null,
+                        inline: true,
+                        totalLabel: currency.format(cart.total),
+                        secondaryTotalLabel:
+                            '${NumberFormat.decimalPattern('en').format(TillCurrency.rielForUsd(cart.total))}៛',
+                        enabled: canConfirm,
+                        isSubmitting: isSubmitting,
+                        onComplete: onConfirm,
+                      ),
                     ],
                   ),
-                ),
-                CheckoutActions(
-                  onSave: canSaveOrder ? onHold : null,
-                  maxHeight: viewport.maxHeight * 0.5,
-                  totalLabel: currency.format(cart.total),
-                  secondaryTotalLabel:
-                      '${NumberFormat.decimalPattern('en').format(TillCurrency.rielForUsd(cart.total))}៛',
-                  enabled: canConfirm,
-                  isSubmitting: isSubmitting,
-                  onComplete: onConfirm,
                 ),
               ],
             ),
