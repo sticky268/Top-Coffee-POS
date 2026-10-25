@@ -97,6 +97,8 @@ void main() {
           expect(find.byType(StudioActionBoard), findsWidgets);
         }
         if (page.$1 == 'settings') {
+          expect(find.text('Home layout'), findsNothing);
+          expect(find.byTooltip('Home layout'), findsNothing);
           await tester.tap(find.text('App theme'));
           await tester.pumpAndSettle();
           expect(find.text('Original'), findsOneWidget);

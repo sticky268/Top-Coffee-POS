@@ -24,7 +24,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final layout = ref.watch(homeLayoutProvider);
+    const layout = HomeLayout.coffeeCounter;
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
     if (user != null && !user.hasPermission('reports.view')) {
@@ -287,7 +287,7 @@ class _DashboardContent extends ConsumerWidget {
         ),
     ];
 
-    final layout = ref.watch(homeLayoutProvider);
+    const layout = HomeLayout.coffeeCounter;
     if (layout != HomeLayout.classic || CoffeeStudioTheme.active(context)) {
       return HomeDashboardLayouts(
         layout: layout,

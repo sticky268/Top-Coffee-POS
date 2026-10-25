@@ -9,7 +9,7 @@ import 'package:top_coffee_pos/features/operations/data/operations_repository.da
 import 'package:top_coffee_pos/features/operations/presentation/cashier_workspace.dart';
 
 void main() {
-  for (final layout in HomeLayout.values) {
+  for (final layout in [HomeLayout.coffeeCounter]) {
     testWidgets(
       '${layout.name} cashier sees selling and shift actions without owner sales metrics',
       (tester) async {
@@ -24,7 +24,6 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              initialHomeLayoutProvider.overrideWithValue(layout),
               currentBranchProvider.overrideWith(
                 (ref) => CurrentBranchNotifier(ref, listenToAuth: false)
                   ..selectBranch(user.branches.first),

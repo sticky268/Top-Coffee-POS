@@ -44,7 +44,6 @@ import '../../features/purchasing/presentation/purchase_creation_screen.dart';
 import '../../features/reports/presentation/reports_home_screen.dart';
 import '../../features/settings/presentation/receipt_settings_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
-import '../../features/settings/presentation/home_layout_settings_card.dart';
 import '../../features/settings/presentation/about_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
 
@@ -339,7 +338,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/settings/home-layout',
-            builder: (context, state) => const HomeLayoutSettingsScreen(),
+            redirect: (context, state) => '/settings',
           ),
           GoRoute(
             path: '/settings/receipt',

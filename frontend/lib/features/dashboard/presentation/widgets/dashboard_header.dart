@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/branch/current_branch_provider.dart';
 import '../../../../core/widgets/app_buttons.dart' as pos_ui;
@@ -148,11 +147,6 @@ class DashboardHeader extends ConsumerWidget {
       ],
     );
     final controls = Row(mainAxisSize: MainAxisSize.min, children: [
-      pos_ui.IconButton(
-        icon: const Icon(Icons.dashboard_customize_outlined),
-        tooltip: 'Home layout',
-        onPressed: () => context.push('/settings/home-layout'),
-      ),
       pos_ui.IconButton(
         icon: const Icon(Icons.logout),
         tooltip: 'Log out',

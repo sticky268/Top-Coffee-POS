@@ -69,12 +69,6 @@ class SettingsScreen extends ConsumerWidget {
                   1,
                   () => panel('App theme', const AppDesignSettingsCard())),
               tile(
-                  'Home layout',
-                  'Classic, Modern, or Coffee Counter',
-                  Icons.dashboard_customize_outlined,
-                  4,
-                  () => context.push('/settings/home-layout')),
-              tile(
                   'Appearance',
                   'Light, dark, or device setting',
                   Icons.light_mode_outlined,
@@ -131,14 +125,6 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             const AppearanceSettingsCard(),
             const SizedBox(height: 16),
-            Card(
-                child: RecordTile(
-              leading: const Icon(Icons.dashboard_customize_outlined),
-              title: 'Home layout',
-              subtitle: 'Classic, Modern, or colorful Coffee Counter',
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings/home-layout'),
-            )),
             if (auth is AuthAuthenticated && auth.user.canApproveCheckout)
               ManagerPinSettingsCard(
                 key: ValueKey(auth.user.id),

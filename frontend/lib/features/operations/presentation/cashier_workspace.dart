@@ -17,7 +17,7 @@ class CashierWorkspace extends ConsumerWidget {
   final AuthenticatedUser user;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final layout = ref.watch(homeLayoutProvider);
+    const layout = HomeLayout.coffeeCounter;
     final shifts = ref.watch(shiftsProvider);
     final pending = ref.watch(pendingOrdersProvider);
     final open = shifts.asData?.value

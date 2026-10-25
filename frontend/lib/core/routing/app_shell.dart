@@ -4,10 +4,8 @@ import '../../features/pos/data/pos_repository.dart';
 
 import '../../features/dashboard/presentation/widgets/dashboard_navigation.dart';
 import '../widgets/page_app_bar.dart';
-import '../theme/home_layout_preference.dart';
 import '../theme/app_colors.dart';
 import '../theme/coffee_studio_theme.dart';
-import '../../features/dashboard/presentation/widgets/home_navigation_rail.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child, required this.selectedRoute});
@@ -17,10 +15,9 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final layout = ref.watch(homeLayoutProvider);
     final home = selectedRoute == '/home';
     final studio = CoffeeStudioTheme.active(context);
-    final counter = home && layout == HomeLayout.coffeeCounter;
+    final counter = home;
     final usingCache = ref.watch(cachedCatalogProvider);
     final content = Column(
       children: [
@@ -75,16 +72,11 @@ class AppShell extends ConsumerWidget {
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (home &&
-                  layout == HomeLayout.modern &&
-                  !CoffeeStudioTheme.active(context))
-                const HomeNavigationRail()
-              else
-                DashboardNavigation(
-                  selectedRoute: selectedRoute,
-                  compact: studio &&
-                      MediaQuery.textScalerOf(context).scale(14) <= 20,
-                ),
+              DashboardNavigation(
+                selectedRoute: selectedRoute,
+                compact:
+                    studio && MediaQuery.textScalerOf(context).scale(14) <= 20,
+              ),
               Expanded(child: content),
             ],
           ),
