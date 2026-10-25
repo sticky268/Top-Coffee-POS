@@ -1253,10 +1253,6 @@ class _CheckoutForm extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 32),
-                      const Text(
-                        'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
-                      ),
-                      const SizedBox(height: 20),
                       if (errorMessage != null) ...[
                         _ErrorBanner(message: errorMessage!),
                         const SizedBox(height: 16),
@@ -1270,6 +1266,12 @@ class _CheckoutForm extends StatelessWidget {
                         enabled: canConfirm,
                         isSubmitting: isSubmitting,
                         onComplete: onConfirm,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Complete Sale saves payment without printing a receipt. Cash payments open the drawer with either choice.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),

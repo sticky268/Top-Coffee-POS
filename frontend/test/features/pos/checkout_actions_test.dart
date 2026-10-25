@@ -58,6 +58,7 @@ void main() {
         tester.getRect(find.widgetWithText(OutlinedButton, 'Complete Sale'));
     expect(footer.height, lessThan(110));
     expect(print.center.dy, sale.center.dy);
+    expect(print.height, sale.height);
     expect(tester.getRect(find.text('Total due')).right, lessThan(print.left));
     expect(find.text('20,000៛'), findsOneWidget);
     expect(tester.takeException(), isNull);
