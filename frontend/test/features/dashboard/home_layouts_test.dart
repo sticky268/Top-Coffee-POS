@@ -147,6 +147,12 @@ void main() {
                   ),
                 ))));
     await tester.pumpAndSettle();
+    if (studio) {
+      await tester.runAsync(() => precacheImage(
+          const AssetImage('assets/dashboard/coffee_welcome.png'),
+          tester.element(find.byType(DashboardScreen))));
+      await tester.pumpAndSettle();
+    }
     return (container, repo);
   }
 

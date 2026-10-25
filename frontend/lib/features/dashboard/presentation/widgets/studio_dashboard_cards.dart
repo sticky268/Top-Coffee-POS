@@ -107,7 +107,9 @@ class StudioDashboardMetrics extends StatelessWidget {
     ];
     return LayoutBuilder(builder: (context, box) {
       final large = MediaQuery.textScalerOf(context).scale(14) > 20;
-      final columns = (box.maxWidth / (large ? 320 : 220)).floor().clamp(1, 4);
+      final availableColumns =
+          (box.maxWidth / (large ? 320 : 220)).floor().clamp(1, 4);
+      final columns = availableColumns == 3 ? 2 : availableColumns;
       return Wrap(spacing: 12, runSpacing: 12, children: [
         for (final v in values)
           SizedBox(
