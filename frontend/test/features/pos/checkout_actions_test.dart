@@ -36,8 +36,7 @@ void main() {
     }
   }
 
-  testWidgets('tablet total and payment buttons share one compact row',
-      (tester) async {
+  testWidgets('tablet payment buttons stack vertically', (tester) async {
     await tester.binding.setSurfaceSize(const Size(860, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(MaterialApp(
@@ -51,15 +50,16 @@ void main() {
           isSubmitting: false,
           onComplete: (_) {}),
     ))));
-    final footer = tester.getRect(find.byType(CheckoutActions));
+
     final print =
         tester.getRect(find.widgetWithText(FilledButton, 'Complete & Print'));
     final sale =
         tester.getRect(find.widgetWithText(OutlinedButton, 'Complete Sale'));
-    expect(footer.height, lessThan(110));
-    expect(print.center.dy, sale.center.dy);
+    expect(print.bottom, lessThan(sale.top));
+    expect(print.left, sale.left);
+    expect(print.width, sale.width);
     expect(print.height, sale.height);
-    expect(tester.getRect(find.text('Total due')).right, lessThan(print.left));
+    expect(tester.getRect(find.text('Total due')).bottom, lessThan(print.top));
     expect(find.text('20,000៛'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

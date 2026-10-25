@@ -71,7 +71,7 @@ class CheckoutActions extends StatelessWidget {
             : pos_ui.SecondaryButton.icon(
                 onPressed: isSubmitting ? null : onSave,
                 icon: const Icon(Icons.save_outlined),
-                label: const Text('Save Order · Pay Later'),
+                label: const Text('Save Order'),
               );
         final content = Material(
           color: theme.colorScheme.surface,
@@ -86,27 +86,15 @@ class CheckoutActions extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (wide)
-                  Row(children: [
-                    Expanded(flex: 2, child: total),
-                    const SizedBox(width: 16),
-                    Expanded(flex: 3, child: print),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 3, child: complete),
-                  ])
-                else ...[
-                  Row(children: [
-                    Expanded(child: total),
-                  ]),
-                  const SizedBox(height: 8),
-                  print,
-                  const SizedBox(height: 8),
-                  complete,
-                ],
+                total,
+                const SizedBox(height: 16),
                 if (save != null) ...[
-                  const SizedBox(height: 8),
                   save,
+                  const SizedBox(height: 10),
                 ],
+                print,
+                const SizedBox(height: 10),
+                complete,
               ],
             ),
           ),
