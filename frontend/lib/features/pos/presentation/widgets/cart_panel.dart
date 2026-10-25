@@ -46,7 +46,9 @@ class CartPanel extends ConsumerWidget {
                       compact ? const NeverScrollableScrollPhysics() : null,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: cart.items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, __) => CoffeeStudioTheme.active(context)
+                      ? const SizedBox(height: 2)
+                      : const Divider(height: 1),
                   itemBuilder: (context, index) =>
                       CartLineTile(item: cart.items[index]),
                 );
@@ -99,12 +101,46 @@ class CartPanel extends ConsumerWidget {
                     label: 'Subtotal',
                     value: currency.format(cart.subtotal),
                   ),
-                  const MenuDiscountButton(),
-                  _DiscountRow(
-                    discountTotal: cart.discountTotal,
-                    onChanged: cartNotifier.setDiscount,
-                    currency: currency,
-                  ),
+                  if (CoffeeStudioTheme.active(context)) ...[
+                    _SummaryLine(
+                        label: 'Discount',
+                        value: currency.format(cart.discountTotal)),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(builder: (context, box) {
+                      final buttons = [
+                        const MenuDiscountButton(),
+                        _DiscountRow(
+                            discountTotal: cart.discountTotal,
+                            onChanged: cartNotifier.setDiscount,
+                            currency: currency,
+                            compact: true)
+                      ];
+                      if (box.maxWidth < 340 ||
+                          MediaQuery.textScalerOf(context).scale(14) > 20) {
+                        return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              buttons[0],
+                              const SizedBox(height: 10),
+                              buttons[1]
+                            ]);
+                      }
+                      return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: buttons[0]),
+                            const SizedBox(width: 10),
+                            Expanded(child: buttons[1])
+                          ]);
+                    }),
+                  ] else ...[
+                    const MenuDiscountButton(),
+                    _DiscountRow(
+                      discountTotal: cart.discountTotal,
+                      onChanged: cartNotifier.setDiscount,
+                      currency: currency,
+                    ),
+                  ],
                   const Divider(height: 16),
                   CheckoutTotalCard(value: currency.format(cart.total)),
                   const SizedBox(height: 16),
@@ -187,8 +223,10 @@ class _DiscountRow extends StatefulWidget {
     required this.discountTotal,
     required this.onChanged,
     required this.currency,
+    this.compact = false,
   });
 
+  final bool compact;
   final double discountTotal;
   final ValueChanged<double> onChanged;
   final NumberFormat currency;
@@ -223,19 +261,20 @@ class _DiscountRowState extends State<_DiscountRow> {
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Discount', style: theme.textTheme.bodyMedium),
-                if (widget.discountTotal > 0)
-                  Text(
-                    '- ${widget.currency.format(widget.discountTotal)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+            if (!widget.compact)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Discount', style: theme.textTheme.bodyMedium),
+                  if (widget.discountTotal > 0)
+                    Text(
+                      '- ${widget.currency.format(widget.discountTotal)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
             pos_ui.OutlinedButton.icon(
               onPressed: () => setState(() => _editing = true),
               icon: const Icon(Icons.discount_outlined, size: 18),

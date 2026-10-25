@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/branch/current_branch_provider.dart';
 import '../../../auth/data/auth_repository.dart';
@@ -9,7 +10,7 @@ class MenuDiscountButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final offer = ref.watch(cartControllerProvider).menuDiscount;
-    return TextButton.icon(
+    final button = TextButton.icon(
       icon: const Icon(Icons.local_offer_outlined),
       label: Text(
         offer == null ? 'Choose saved discount' : '${offer['name']} · change',
@@ -69,5 +70,11 @@ class MenuDiscountButton extends ConsumerWidget {
         }
       },
     );
+    if (!CoffeeStudioTheme.active(context)) return button;
+    return OutlinedButton.icon(
+        onPressed: button.onPressed,
+        icon: button.icon,
+        label: Text(
+            offer == null ? 'Saved discount' : '${offer['name']} · change'));
   }
 }
