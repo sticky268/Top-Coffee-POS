@@ -49,13 +49,19 @@ class CheckoutActions extends StatelessWidget {
               Text(secondaryTotalLabel!, style: theme.textTheme.bodySmall),
           ],
         );
+        final buttonStyle = wide
+            ? const ButtonStyle(
+                fixedSize: WidgetStatePropertyAll(Size.fromHeight(56)))
+            : null;
         final print = pos_ui.PrimaryButton.icon(
+          style: buttonStyle,
           onPressed: enabled && !isSubmitting ? () => onComplete(true) : null,
           isLoading: isSubmitting,
           icon: const Icon(Icons.receipt_long_outlined, size: 20),
           label: const Text('Complete & Print'),
         );
         final complete = pos_ui.OutlinedButton.icon(
+          style: buttonStyle,
           onPressed: enabled && !isSubmitting ? () => onComplete(false) : null,
           icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
           label: const Text('Complete Sale'),
