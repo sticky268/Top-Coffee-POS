@@ -311,7 +311,8 @@ class _NavigationSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding:
+          EdgeInsets.only(bottom: CoffeeStudioTheme.active(context) ? 0 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -415,16 +416,26 @@ class _NavigationItem extends ConsumerWidget {
           child: InkWell(
             onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 84),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               child: Column(children: [
                 Icon(selected ? selectedIcon : icon,
                     color: iconColor, size: 23),
                 const SizedBox(height: 6),
-                Text(label,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: foregroundColor)),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                      minHeight:
+                          MediaQuery.textScalerOf(context).scale(12) * 2.8),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(label,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: foregroundColor)),
+                  ),
+                ),
               ]),
             ),
           ),
@@ -439,12 +450,21 @@ class _NavigationItem extends ConsumerWidget {
         child: ListTile(
           dense: false,
           minLeadingWidth: 24,
+          minTileHeight: 56,
+          horizontalTitleGap: 16,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          titleAlignment: ListTileTitleAlignment.center,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
           selected: selected,
           selectedTileColor: theme.colorScheme.primaryContainer,
-          leading: Icon(selected ? selectedIcon : icon, color: iconColor),
+          leading: SizedBox.square(
+            dimension: 24,
+            child: Icon(selected ? selectedIcon : icon,
+                color: iconColor, size: 24),
+          ),
           title: Text(
             label,
             style: theme.textTheme.bodyMedium?.copyWith(

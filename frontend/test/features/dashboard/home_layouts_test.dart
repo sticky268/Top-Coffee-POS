@@ -261,6 +261,26 @@ void main() {
           studio: true, preview: preview);
       expect(find.byType(Drawer), findsNothing);
       expect(tester.getSize(find.byType(DashboardNavigation)).width, 108);
+      final nav = find.byType(DashboardNavigation);
+      final rows = <Rect>[];
+      for (final label in [
+        'Dashboard',
+        'POS',
+        'Orders',
+        'Pending Orders',
+        'Manage Menu'
+      ]) {
+        final text = find.descendant(of: nav, matching: find.text(label));
+        final row =
+            find.ancestor(of: text, matching: find.byType(InkWell)).first;
+        rows.add(tester.getRect(row));
+      }
+      for (final row in rows.skip(1)) {
+        expect(row.left, rows.first.left);
+        expect(row.width, rows.first.width);
+        expect(row.height, rows.first.height);
+      }
+
       expect(
           find.byWidgetPredicate(
               (widget) => widget is ModalBarrier && (widget.color?.a ?? 0) > 0),
@@ -284,6 +304,25 @@ void main() {
           of: drawer, matching: find.widgetWithText(ListTile, 'Dashboard'));
       expect(dashboard, findsOneWidget);
       expect(tester.getSize(dashboard).width, greaterThanOrEqualTo(250));
+      final pos = find.descendant(
+          of: drawer, matching: find.widgetWithText(ListTile, 'POS'));
+      expect(
+          tester
+              .getRect(
+                  find.descendant(of: dashboard, matching: find.byType(Icon)))
+              .left,
+          tester
+              .getRect(find.descendant(of: pos, matching: find.byType(Icon)))
+              .left);
+      expect(
+          tester
+              .getRect(find.descendant(
+                  of: dashboard, matching: find.text('Dashboard')))
+              .left,
+          tester
+              .getRect(find.descendant(of: pos, matching: find.text('POS')))
+              .left);
+
       expect(
           find.descendant(
               of: dashboard, matching: find.byIcon(Icons.dashboard)),
