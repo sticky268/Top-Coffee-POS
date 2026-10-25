@@ -68,7 +68,8 @@ class CheckoutActions extends StatelessWidget {
         );
         final save = onSave == null
             ? null
-            : pos_ui.SecondaryButton.icon(
+            : pos_ui.OutlinedButton.icon(
+                style: buttonStyle,
                 onPressed: isSubmitting ? null : onSave,
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Save Order'),
