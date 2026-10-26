@@ -169,13 +169,18 @@ class CartPanel extends ConsumerWidget {
             ),
           ];
           if (compact) {
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: children,
-              ),
-            );
+            return CustomScrollView(slivers: [
+              SliverToBoxAdapter(child: children[0]),
+              SliverToBoxAdapter(child: lines),
+              SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: children.skip(2).toList()))),
+            ]);
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
