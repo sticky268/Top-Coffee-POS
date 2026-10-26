@@ -697,16 +697,21 @@ void main() {
           await tester.scrollUntilVisible(
               find.text('Order details & actions'), 160,
               scrollable: scrollable, maxScrolls: 80);
+          await tester.pumpAndSettle();
           await tester.tap(find.text('Order details & actions'));
           await tester.pumpAndSettle();
           await tester.scrollUntilVisible(find.text('Save'), 100,
               scrollable: scrollable, maxScrolls: 30);
+          await tester.pumpAndSettle();
           expect(find.text('Save').hitTestable(), findsOneWidget);
           expect(find.text('Discard'), findsOneWidget);
           expect(find.text('Subtotal'), findsOneWidget);
-          await tester.scrollUntilVisible(find.text('Review & Pay').last, 100,
+          final review = find.descendant(
+              of: summary, matching: find.text('Review & Pay'));
+          await tester.scrollUntilVisible(review, 100,
               scrollable: scrollable, maxScrolls: 30);
-          expect(find.text('Review & Pay').last.hitTestable(), findsOneWidget);
+          await tester.pumpAndSettle();
+          expect(review.hitTestable(), findsOneWidget);
           expect(tester.takeException(), isNull);
           verifyNever(() => pos.payHeldOrder(
                 orderId: any(named: 'orderId'),
