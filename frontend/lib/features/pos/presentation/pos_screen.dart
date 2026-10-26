@@ -238,6 +238,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           ],
         ),
         body: SafeArea(
+          bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 760;

@@ -93,7 +93,8 @@ class CartPanel extends ConsumerWidget {
             if (compact) lines else Expanded(child: lines),
             const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.fromLTRB(
+                  16, 10, 16, 10 + MediaQuery.viewPaddingOf(context).bottom),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
