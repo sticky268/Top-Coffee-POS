@@ -1200,7 +1200,9 @@ class _OrderTotals extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ExpansionTile(
+                Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     title: const Text('Order details & actions',
                         style: TextStyle(fontSize: 13)),
@@ -1221,7 +1223,7 @@ class _OrderTotals extends StatelessWidget {
                               onPressed: onCancel,
                               child: const Text('Cancel Order')),
                       ]),
-                    ]),
+                    ])),
                 const SizedBox(height: 6),
                 _TotalRow(
                     label: 'Total',
