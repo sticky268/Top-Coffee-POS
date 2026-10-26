@@ -332,6 +332,16 @@ class _DiscountRowState extends State<_DiscountRow> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (!_editing && widget.compact) {
+      return SizedBox(
+          height: 56 * MediaQuery.textScalerOf(context).scale(14) / 14,
+          child: pos_ui.OutlinedButton.icon(
+              onPressed: () => setState(() => _editing = true),
+              icon: const Icon(Icons.discount_outlined, size: 18),
+              label: Text(widget.discountTotal > 0
+                  ? 'Edit discount'
+                  : 'Add discount')));
+    }
     if (!_editing) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
