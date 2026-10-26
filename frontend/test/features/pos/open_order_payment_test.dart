@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:top_coffee_pos/core/theme/app_theme.dart';
+import 'package:top_coffee_pos/core/theme/coffee_studio_theme.dart';
 import '../../presentation/ui_polish_test.dart' show savePreview;
 import 'package:top_coffee_pos/core/receipt/receipt_action_service.dart';
 
@@ -27,16 +28,20 @@ class MockPosRepository extends Mock implements PosRepository {}
 class MockOrdersRepository extends Mock implements OrdersRepository {}
 
 OrderDetail bill(
-        {int quantity = 1, double unitPrice = 3.50, String? revision}) =>
+        {int quantity = 1,
+        double unitPrice = 3.50,
+        String? revision,
+        int lineCount = 1,
+        bool longNames = false}) =>
     OrderDetail(
       editRevision: revision,
       id: 42,
       uuid: 'held-42',
       orderType: 'dine_in',
       status: 'held',
-      subtotal: quantity * unitPrice,
+      subtotal: quantity * unitPrice * lineCount,
       discountTotal: 0,
-      total: quantity * unitPrice,
+      total: quantity * unitPrice * lineCount,
       branch: const OrderBranchRef(id: 11, name: 'Riverside', code: 'PP-01'),
       cashier: null,
       table: const OrderTableRef(
@@ -46,10 +51,13 @@ OrderDetail bill(
         status: 'occupied',
       ),
       items: [
-        OrderLineItem(
-          id: 1,
-          productId: 1,
-          productName: 'Latte',
+        for (var i = 0; i < lineCount; i++)
+          OrderLineItem(
+          id: i + 1,
+          productId: i + 1,
+          productName: longNames
+              ? 'កាហ្វេទឹកដោះគោ Long Khmer coffee name $i'
+              : 'Latte',
           quantity: quantity,
           unitPrice: unitPrice,
           lineTotal: quantity * unitPrice,
@@ -137,6 +145,7 @@ void main() {
     Size viewport = const Size(1200, 900),
     double textScale = 1,
     bool dark = false,
+    bool studio = false,
     GlobalKey? preview,
   }) async {
     tester.view.physicalSize = viewport;
@@ -188,8 +197,8 @@ void main() {
         ],
         child: MaterialApp.router(
           routerConfig: router,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
+          theme: studio ? CoffeeStudioTheme.light : AppTheme.light,
+          darkTheme: studio ? CoffeeStudioTheme.dark : AppTheme.dark,
           themeMode: dark ? ThemeMode.dark : ThemeMode.light,
           builder: (context, child) => RepaintBoundary(
             key: preview,
@@ -657,4 +666,84 @@ void main() {
       });
     }
   }
+
+  for (final size in [
+    const Size(390, 640),
+    const Size(1024, 600),
+    const Size(1200, 600),
+  ]) {
+    for (final count in [1, 5, 10]) {
+      for (final scale in [1.0, 2.0]) {
+        testWidgets(
+            'Studio open order ${size.width} with $count lines at text $scale',
+            (tester) async {
+          when(() => orders.getOrder(42)).thenAnswer(
+              (_) async => bill(lineCount: count, longNames: true));
+          await pumpBill(tester,
+              viewport: size,
+              textScale: scale,
+              studio: true,
+              dark: scale == 2,
+              allowedMethods: ['cash']);
+          if (size.width < 900) {
+            await tester.tap(find.text('View / Edit'));
+            await tester.pumpAndSettle();
+          }
+          expect(tester.takeException(), isNull);
+          final summary = find.byKey(
+              const ValueKey('open-order-summary-scroll'));
+          final scrollable = find.descendant(
+              of: summary, matching: find.byType(Scrollable));
+          await tester.scrollUntilVisible(
+              find.text('Order details & actions'), 160,
+              scrollable: scrollable, maxScrolls: 80);
+          await tester.tap(find.text('Order details & actions'));
+          await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(find.text('Save'), 100,
+              scrollable: scrollable, maxScrolls: 30);
+          expect(find.text('Save').hitTestable(), findsOneWidget);
+          expect(find.text('Discard'), findsOneWidget);
+          expect(find.text('Subtotal'), findsOneWidget);
+          await tester.scrollUntilVisible(find.text('Review & Pay').last, 100,
+              scrollable: scrollable, maxScrolls: 30);
+          expect(find.text('Review & Pay').last.hitTestable(), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          verifyNever(() => pos.payHeldOrder(
+                orderId: any(named: 'orderId'),
+                paymentMethod: any(named: 'paymentMethod'),
+                expectedTotal: any(named: 'expectedTotal'),
+                branchId: any(named: 'branchId'),
+              ));
+        });
+      }
+    }
+  }
+
+  testWidgets('Studio expanded Save persists quantity without payment',
+      (tester) async {
+    await pumpBill(tester, studio: true, fromList: true);
+    await tester.tap(find.byTooltip('Increase quantity'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Order details & actions'));
+    await tester.tap(find.text('Order details & actions'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save'));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Bill'), findsOneWidget);
+    final items = verify(() => pos.updateHeldOrder(
+          orderId: 42,
+          items: captureAny(named: 'items'),
+          discountTotal: 0,
+          branchId: 11,
+        )).captured.single as List<Map<String, dynamic>>;
+    expect(items.single['quantity'], 2);
+    verifyNever(() => pos.payHeldOrder(
+          orderId: any(named: 'orderId'),
+          paymentMethod: any(named: 'paymentMethod'),
+          expectedTotal: any(named: 'expectedTotal'),
+          branchId: any(named: 'branchId'),
+        ));
+    expect(tester.takeException(), isNull);
+  });
 }
