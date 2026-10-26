@@ -37,7 +37,12 @@ void main() {
           ),
         );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Review Order'));
+    await tester.scrollUntilVisible(find.text('Review Order'), 160,
+        scrollable: find
+            .descendant(
+                of: find.byType(CartPanel), matching: find.byType(Scrollable))
+            .first,
+        maxScrolls: 30);
     await tester.pumpAndSettle();
     expect(find.text('Review Order').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -70,7 +75,13 @@ void main() {
                             width: 380, height: 300, child: CartPanel()))))));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await tester.ensureVisible(find.text('Review Order'));
+        await tester.scrollUntilVisible(find.text('Review Order'), 160,
+            scrollable: find
+                .descendant(
+                    of: find.byType(CartPanel),
+                    matching: find.byType(Scrollable))
+                .first,
+            maxScrolls: 30);
         await tester.pumpAndSettle();
         expect(find.text('Review Order').hitTestable(), findsOneWidget);
         expect(container.read(cartControllerProvider).totalItemCount, count);
