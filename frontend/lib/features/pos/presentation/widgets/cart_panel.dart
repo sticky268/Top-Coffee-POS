@@ -98,51 +98,110 @@ class CartPanel extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _SummaryLine(
-                    label: 'Subtotal',
-                    value: currency.format(cart.subtotal),
-                  ),
-                  if (CoffeeStudioTheme.active(context)) ...[
-                    _SummaryLine(
-                        label: 'Discount',
-                        value: currency.format(cart.discountTotal)),
-                    const SizedBox(height: 4),
-                    LayoutBuilder(builder: (context, box) {
-                      final buttons = [
-                        const MenuDiscountButton(),
-                        _DiscountRow(
+                  if (CoffeeStudioTheme.active(context))
+                    ExpansionTile(
+                      key: const PageStorageKey('cart-summary-details'),
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      title: const Text('Order details & discounts',
+                          style: TextStyle(fontSize: 13)),
+                      children: [
+                        _SummaryLine(
+                          label: 'Subtotal',
+                          value: currency.format(cart.subtotal),
+                        ),
+                        if (CoffeeStudioTheme.active(context)) ...[
+                          _SummaryLine(
+                              label: 'Discount',
+                              value: currency.format(cart.discountTotal)),
+                          const SizedBox(height: 4),
+                          LayoutBuilder(builder: (context, box) {
+                            final buttons = [
+                              const MenuDiscountButton(),
+                              _DiscountRow(
+                                  discountTotal: cart.discountTotal,
+                                  onChanged: cartNotifier.setDiscount,
+                                  currency: currency,
+                                  compact: true)
+                            ];
+                            if (box.maxWidth < 340 ||
+                                MediaQuery.textScalerOf(context).scale(14) >
+                                    20) {
+                              return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    buttons[0],
+                                    const SizedBox(height: 10),
+                                    buttons[1]
+                                  ]);
+                            }
+                            return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: buttons[0]),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: buttons[1])
+                                ]);
+                          }),
+                        ] else ...[
+                          const MenuDiscountButton(),
+                          _DiscountRow(
                             discountTotal: cart.discountTotal,
                             onChanged: cartNotifier.setDiscount,
                             currency: currency,
-                            compact: true)
-                      ];
-                      if (box.maxWidth < 340 ||
-                          MediaQuery.textScalerOf(context).scale(14) > 20) {
-                        return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              buttons[0],
-                              const SizedBox(height: 10),
-                              buttons[1]
-                            ]);
-                      }
-                      return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: buttons[0]),
-                            const SizedBox(width: 10),
-                            Expanded(child: buttons[1])
-                          ]);
-                    }),
-                  ] else ...[
-                    const MenuDiscountButton(),
-                    _DiscountRow(
-                      discountTotal: cart.discountTotal,
-                      onChanged: cartNotifier.setDiscount,
-                      currency: currency,
+                          ),
+                        ],
+                        const Divider(height: 16),
+                      ],
+                    )
+                  else ...[
+                    _SummaryLine(
+                      label: 'Subtotal',
+                      value: currency.format(cart.subtotal),
                     ),
+                    if (CoffeeStudioTheme.active(context)) ...[
+                      _SummaryLine(
+                          label: 'Discount',
+                          value: currency.format(cart.discountTotal)),
+                      const SizedBox(height: 4),
+                      LayoutBuilder(builder: (context, box) {
+                        final buttons = [
+                          const MenuDiscountButton(),
+                          _DiscountRow(
+                              discountTotal: cart.discountTotal,
+                              onChanged: cartNotifier.setDiscount,
+                              currency: currency,
+                              compact: true)
+                        ];
+                        if (box.maxWidth < 340 ||
+                            MediaQuery.textScalerOf(context).scale(14) > 20) {
+                          return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                buttons[0],
+                                const SizedBox(height: 10),
+                                buttons[1]
+                              ]);
+                        }
+                        return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: buttons[0]),
+                              const SizedBox(width: 10),
+                              Expanded(child: buttons[1])
+                            ]);
+                      }),
+                    ] else ...[
+                      const MenuDiscountButton(),
+                      _DiscountRow(
+                        discountTotal: cart.discountTotal,
+                        onChanged: cartNotifier.setDiscount,
+                        currency: currency,
+                      ),
+                    ],
+                    const Divider(height: 16),
                   ],
-                  const Divider(height: 16),
                   if (CoffeeStudioTheme.active(context))
                     Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -163,6 +222,10 @@ class CartPanel extends ConsumerWidget {
                               '/pos/checkout',
                               extra: selectedTable,
                             ),
+                    style: const ButtonStyle(
+                        minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+                        padding: WidgetStatePropertyAll(EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10))),
                     child: const Text('Review Order'),
                   ),
                 ],
