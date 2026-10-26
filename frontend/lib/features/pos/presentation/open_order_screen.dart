@@ -1203,27 +1203,29 @@ class _OrderTotals extends StatelessWidget {
                 Material(
                     color: Theme.of(context).colorScheme.surface,
                     child: ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('Order details & actions',
-                        style: TextStyle(fontSize: 13)),
-                    children: [
-                      _TotalRow(
-                          label: 'Subtotal', value: currency.format(subtotal)),
-                      if (discount > 0)
-                        _TotalRow(
-                            label: 'Discount',
-                            value: '-${currency.format(discount)}'),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        pos_ui.OutlinedButton(
-                            onPressed: onSave, child: const Text('Save')),
-                        pos_ui.DangerButton.outlined(
-                            onPressed: onDiscard, child: const Text('Discard')),
-                        if (onCancel != null)
-                          pos_ui.DangerButton.outlined(
-                              onPressed: onCancel,
-                              child: const Text('Cancel Order')),
-                      ]),
-                    ])),
+                        tilePadding: EdgeInsets.zero,
+                        title: const Text('Order details & actions',
+                            style: TextStyle(fontSize: 13)),
+                        children: [
+                          _TotalRow(
+                              label: 'Subtotal',
+                              value: currency.format(subtotal)),
+                          if (discount > 0)
+                            _TotalRow(
+                                label: 'Discount',
+                                value: '-${currency.format(discount)}'),
+                          Wrap(spacing: 8, runSpacing: 8, children: [
+                            pos_ui.OutlinedButton(
+                                onPressed: onSave, child: const Text('Save')),
+                            pos_ui.DangerButton.outlined(
+                                onPressed: onDiscard,
+                                child: const Text('Discard')),
+                            if (onCancel != null)
+                              pos_ui.DangerButton.outlined(
+                                  onPressed: onCancel,
+                                  child: const Text('Cancel Order')),
+                          ]),
+                        ])),
                 const SizedBox(height: 6),
                 _TotalRow(
                     label: 'Total',
