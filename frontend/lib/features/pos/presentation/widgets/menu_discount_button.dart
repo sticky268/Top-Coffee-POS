@@ -73,7 +73,7 @@ class MenuDiscountButton extends ConsumerWidget {
     if (!CoffeeStudioTheme.active(context)) return button;
     return OutlinedButton.icon(
         onPressed: button.onPressed,
-        icon: button.icon,
+        icon: const Icon(Icons.local_offer_outlined),
         label: Text(
             offer == null ? 'Saved discount' : '${offer['name']} · change'));
   }
