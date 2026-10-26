@@ -80,7 +80,7 @@ class _CashDrawerButtonState extends ConsumerState<CashDrawerButton> {
         icon: const Icon(Icons.point_of_sale),
       );
     }
-    return pos_ui.SecondaryButton.icon(
+    return pos_ui.OutlinedButton.icon(
       onPressed: _busy ? null : _open,
       icon: _busy
           ? const SizedBox(

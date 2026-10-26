@@ -190,7 +190,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             if (compactToolbar) const CashDrawerButton(compact: true),
             if (drawerScope != null)
               pos_ui.IconButton(
-                boxed: compactToolbar,
+                boxed: true,
                 tooltip: 'Drawer activity',
                 icon: const Icon(Icons.history),
                 onPressed: () => context.push('/drawer-activity'),
@@ -209,7 +209,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.receipt_long_outlined),
               )
             else
-              pos_ui.SecondaryButton.icon(
+              pos_ui.OutlinedButton.icon(
                 onPressed: lastReceipt == null
                     ? null
                     : () => showLastReceiptDialog(
@@ -229,7 +229,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.table_restaurant),
               )
             else
-              pos_ui.SecondaryButton.icon(
+              pos_ui.OutlinedButton.icon(
                 onPressed: _openTableSelector,
                 icon: const Icon(Icons.table_restaurant),
                 label: const Text('Dine-in'),

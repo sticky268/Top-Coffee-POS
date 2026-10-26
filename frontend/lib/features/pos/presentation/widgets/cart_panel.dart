@@ -93,7 +93,7 @@ class CartPanel extends ConsumerWidget {
             if (compact) lines else Expanded(child: lines),
             const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -105,7 +105,7 @@ class CartPanel extends ConsumerWidget {
                     _SummaryLine(
                         label: 'Discount',
                         value: currency.format(cart.discountTotal)),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
                     LayoutBuilder(builder: (context, box) {
                       final buttons = [
                         const MenuDiscountButton(),
@@ -142,8 +142,19 @@ class CartPanel extends ConsumerWidget {
                     ),
                   ],
                   const Divider(height: 16),
-                  CheckoutTotalCard(value: currency.format(cart.total)),
-                  const SizedBox(height: 16),
+                  if (CoffeeStudioTheme.active(context))
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(children: [
+                          const Expanded(child: Text('Total')),
+                          Text(currency.format(cart.total),
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.primary))
+                        ]))
+                  else
+                    CheckoutTotalCard(value: currency.format(cart.total)),
+                  const SizedBox(height: 8),
                   pos_ui.PosActionButton(
                     onPressed: cart.isEmpty
                         ? null
