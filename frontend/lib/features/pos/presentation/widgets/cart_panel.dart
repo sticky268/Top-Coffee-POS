@@ -236,14 +236,20 @@ class CartPanel extends ConsumerWidget {
             return CustomScrollView(slivers: [
               SliverToBoxAdapter(child: children[0]),
               SliverToBoxAdapter(child: lines),
-              SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: children.skip(2).toList()))),
+              SliverLayoutBuilder(
+                  builder: (context, sliver) => SliverToBoxAdapter(
+                      child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                              minHeight: (sliver.viewportMainAxisExtent -
+                                      sliver.precedingScrollExtent)
+                                  .clamp(0.0, double.infinity)),
+                          child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: children.skip(2).toList()))))),
             ]);
           }
           return Column(

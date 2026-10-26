@@ -323,6 +323,14 @@ void main() {
     final locked = await api.get('/auth/manager-pin');
     expect(locked.data['data']['locked'], isTrue);
     container.read(appRouterProvider).go('/settings');
+    await waitFor(tester, find.byType(SettingsScreen));
+    await tester.scrollUntilVisible(find.text('Save manager PIN'), 300,
+        scrollable: find
+            .descendant(
+                of: find.byType(SettingsScreen),
+                matching: find.byType(Scrollable))
+            .last,
+        maxScrolls: 20);
     await _fill(tester, 'Current account password', _password);
     await _fill(tester, 'New manager PIN', _pin);
     await _fill(tester, 'Confirm manager PIN', _pin);

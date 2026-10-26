@@ -924,20 +924,25 @@ class _OrderPanel extends StatelessWidget {
                   ),
                 );
               }, childCount: lines.length)),
-              SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: _OrderTotals(
-                        subtotal: subtotal,
-                        discount: discount,
-                        total: total,
-                        currency: currency,
-                        onSave: onSave,
-                        onDiscard: onDiscard,
-                        onCancel: onCancel,
-                        onPay: onPay,
-                      ))),
+              SliverLayoutBuilder(
+                  builder: (context, sliver) => SliverToBoxAdapter(
+                      child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                              minHeight: (sliver.viewportMainAxisExtent -
+                                      sliver.precedingScrollExtent)
+                                  .clamp(0.0, double.infinity)),
+                          child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: _OrderTotals(
+                                subtotal: subtotal,
+                                discount: discount,
+                                total: total,
+                                currency: currency,
+                                onSave: onSave,
+                                onDiscard: onDiscard,
+                                onCancel: onCancel,
+                                onPay: onPay,
+                              ))))),
             ],
           ),
         ),
