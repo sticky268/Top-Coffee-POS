@@ -1,3 +1,4 @@
+import '../../../core/theme/coffee_studio_theme.dart';
 import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
 import '../../../core/branch/current_branch_provider.dart';
 import '../../../core/network/api_exceptions.dart';
@@ -683,7 +684,20 @@ class _OpenOrderContentState extends ConsumerState<_OpenOrderContent> {
                     children: [
                       Expanded(flex: 3, child: productPanel),
                       const VerticalDivider(width: 1),
-                      SizedBox(width: 340, child: orderPanel),
+                      SizedBox(
+                          width: MediaQuery.sizeOf(context).width >= 1200
+                              ? 380
+                              : 340,
+                          child: Material(
+                              color: Theme.of(context).colorScheme.surface,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant)),
+                              clipBehavior: Clip.antiAlias,
+                              child: orderPanel)),
                     ],
                   );
                 }
@@ -832,6 +846,80 @@ class _OrderPanel extends StatelessWidget {
               SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                 final line = lines[index];
+                if (CoffeeStudioTheme.active(context)) {
+                  final details = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(line.productName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        if (line.variantName != null)
+                          Text(line.variantName!,
+                              style: Theme.of(context).textTheme.bodySmall),
+                        Text('${currency.format(line.unitPrice)} each',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ]);
+                  final qty = Container(
+                      decoration: BoxDecoration(
+                          color:
+                              Theme.of(context).colorScheme.surfaceContainerLow,
+                          border: Border.all(
+                              color:
+                                  Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        pos_ui.IconButton(
+                            tooltip: 'Decrease quantity',
+                            icon: const Icon(Icons.remove, size: 18),
+                            onPressed: () => onDecrement(line.lineKey)),
+                        Text('${line.quantity}'),
+                        pos_ui.IconButton(
+                            tooltip: 'Increase quantity',
+                            icon: const Icon(Icons.add, size: 18),
+                            onPressed: () => onIncrement(line.lineKey)),
+                      ]));
+                  final end = Column(mainAxisSize: MainAxisSize.min, children: [
+                    pos_ui.IconButton(
+                        tooltip: 'Remove item',
+                        icon: Icon(Icons.delete_outline,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.error),
+                        onPressed: () => onRemove(line.lineKey)),
+                    Text(currency.format(line.lineTotal),
+                        style: Theme.of(context).textTheme.titleSmall),
+                  ]);
+                  return Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                          border: Border.all(
+                              color:
+                                  Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(14)),
+                      child: LayoutBuilder(builder: (context, box) {
+                        if (box.maxWidth < 310 ||
+                            MediaQuery.textScalerOf(context).scale(14) > 20) {
+                          return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                details,
+                                const SizedBox(height: 10),
+                                Row(children: [qty, const Spacer(), end])
+                              ]);
+                        }
+                        return Row(children: [
+                          Expanded(child: details),
+                          const SizedBox(width: 10),
+                          qty,
+                          const SizedBox(width: 10),
+                          end
+                        ]);
+                      }));
+                }
+
                 return Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1100,6 +1188,50 @@ class _OrderTotals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (CoffeeStudioTheme.active(context)) {
+      return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(
+                  top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant))),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text('Order details & actions',
+                        style: TextStyle(fontSize: 13)),
+                    children: [
+                      _TotalRow(
+                          label: 'Subtotal', value: currency.format(subtotal)),
+                      if (discount > 0)
+                        _TotalRow(
+                            label: 'Discount',
+                            value: '-${currency.format(discount)}'),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        pos_ui.OutlinedButton(
+                            onPressed: onSave, child: const Text('Save')),
+                        pos_ui.DangerButton.outlined(
+                            onPressed: onDiscard, child: const Text('Discard')),
+                        if (onCancel != null)
+                          pos_ui.DangerButton.outlined(
+                              onPressed: onCancel,
+                              child: const Text('Cancel Order')),
+                      ]),
+                    ]),
+                const SizedBox(height: 6),
+                _TotalRow(
+                    label: 'Total',
+                    value: currency.format(total),
+                    emphasized: true),
+                const SizedBox(height: 8),
+                pos_ui.PosActionButton(
+                    onPressed: onPay, child: const Text('Review & Pay')),
+              ]));
+    }
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
