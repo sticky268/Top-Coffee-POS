@@ -72,7 +72,12 @@ jobs:
           }
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          $redist = Get-ChildItem (Join-Path $vs 'VC/Redist/MSVC') -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $redist = Get-ChildItem (Join-Path $vs 'VC/Redist/MSVC') -Directory |
+            Where-Object { $_.Name -match '^[0-9]+[.][0-9]+[.][0-9]+' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Where-Object { Test-Path (Join-Path $_.FullName 'x64/Microsoft.VC143.CRT/msvcp140.dll') } |
+            Select-Object -First 1
+          if (-not $redist) { throw 'A versioned Visual C++ runtime directory was not found.' }
           $crt = Join-Path $redist.FullName 'x64/Microsoft.VC143.CRT'
           foreach ($dll in @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
             Copy-Item -LiteralPath (Join-Path $crt $dll) -Destination $release
