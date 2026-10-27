@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,5 +118,36 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('shows server cooldown message after HTTP 429 without signing in',
+      (tester) async {
+    const message =
+        'Too many failed sign-in attempts. Try again in 15 minutes.';
+    final options = RequestOptions(path: '/auth/login');
+    final error = ApiExceptionMapper.fromDioException(DioException(
+      requestOptions: options,
+      type: DioExceptionType.badResponse,
+      response: Response(
+        requestOptions: options,
+        statusCode: 429,
+        data: {'message': message, 'code': 'LOGIN_LOCKED', 'retry_after': 900},
+      ),
+    ));
+    when(() => repository.login(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+          deviceName: any(named: 'deviceName'),
+        )).thenThrow(error);
+    await pumpLoginScreen(tester);
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Email'), 'cashier@topcoffee.test');
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Password'), 'wrongpass');
+    await tester.tap(find.text('Sign in'));
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }
