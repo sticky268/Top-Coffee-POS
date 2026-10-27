@@ -268,8 +268,6 @@ void main() {
     await tapSignIn(tester);
     await tester.pumpAndSettle();
     expect(find.text(message), findsOneWidget);
-    await tester.ensureVisible(find.text(message));
-    await tester.pumpAndSettle();
     expect(find.text(message).hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

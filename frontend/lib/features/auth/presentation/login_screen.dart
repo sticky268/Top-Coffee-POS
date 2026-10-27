@@ -17,6 +17,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _errorKey = GlobalKey();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _emailFocus = FocusNode();
@@ -63,6 +64,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authControllerProvider, (previous, next) {
+      if (next is! AuthError) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final errorContext = _errorKey.currentContext;
+        if (errorContext == null) return;
+        Scrollable.ensureVisible(errorContext,
+            alignment: .15,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 250));
+      });
+    });
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState is AuthLoading;
     final errorMessage = authState is AuthError ? authState.message : null;
@@ -209,7 +223,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     )),
             const SizedBox(height: 28),
             if (errorMessage != null) ...[
-              _ErrorBanner(message: errorMessage),
+              KeyedSubtree(
+                key: _errorKey,
+                child: _ErrorBanner(message: errorMessage),
+              ),
               const SizedBox(height: 20),
             ],
             TextFormField(
