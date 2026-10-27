@@ -106,6 +106,20 @@ Future<void> _showPendingText(WidgetTester tester, String text) async {
   await waitFor(tester, find.text(text));
 }
 
+Future<void> _dismissKeyboard(WidgetTester tester) async {
+  FocusManager.instance.primaryFocus?.unfocus();
+  // Native IME metrics can arrive after the next Flutter frame. Wait for
+  // the full viewport before scrolling lazy checkout actions into view.
+  for (var i = 0; i < 50; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (tester.view.viewInsets.bottom == 0) {
+      await tester.pump(const Duration(milliseconds: 200));
+      if (tester.view.viewInsets.bottom == 0) return;
+    }
+  }
+  fail('The keyboard did not close before offline checkout.');
+}
+
 Future<void> _queueSale(
     WidgetTester tester, ProviderContainer container, String product) async {
   container.read(appRouterProvider).go('/pos');
@@ -126,10 +140,15 @@ Future<void> _queueSale(
       scrollable: scroll);
   await tester.enterText(
       find.widgetWithText(TextField, 'Amount received'), '5');
-  FocusManager.instance.primaryFocus?.unfocus();
+  await _dismissKeyboard(tester);
   await tester.scrollUntilVisible(find.text('Complete Sale'), 200,
       scrollable: scroll);
-  await _tap(tester, find.text('Complete Sale'));
+  await tester.pumpAndSettle();
+  expect(find.text('Complete Sale').hitTestable(), findsOneWidget);
+  // It is already visible: another ensureVisible can scroll it out of the
+  // lazy sliver when viewport/scroll extents are being corrected.
+  await tester.tap(find.text('Complete Sale'));
+  await tester.pump(const Duration(milliseconds: 200));
   await waitFor(tester, find.text('Order saved on this device'));
   expect(find.text('Payment Successful'), findsNothing);
 }
