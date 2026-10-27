@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/network/api_client.dart';
 import '../../auth/data/auth_repository.dart' show apiClientProvider;
@@ -256,7 +257,8 @@ class ApiProductsRepository implements ProductsRepository {
     form.files.add(
       MapEntry(
         'image',
-        await MultipartFile.fromFile(image.path, filename: image.name),
+        await MultipartFile.fromFile(image.path,
+            filename: p.basename(image.name)),
       ),
     );
     return form;
