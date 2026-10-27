@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../features/pos/data/pos_repository.dart';
 
 import '../../features/dashboard/presentation/widgets/dashboard_navigation.dart';
@@ -7,15 +8,58 @@ import '../widgets/page_app_bar.dart';
 import '../theme/app_colors.dart';
 import '../theme/coffee_studio_theme.dart';
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.child, required this.selectedRoute});
 
   final Widget child;
   final String selectedRoute;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final home = selectedRoute == '/home';
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  final _drawerKey = GlobalKey<ScaffoldState>();
+  String? _pendingRoute;
+
+  @override
+  void didUpdateWidget(AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedRoute != widget.selectedRoute) _pendingRoute = null;
+  }
+
+  void _selectDrawerDestination(String route) {
+    // Keep destination initialization out of the drawer's closing animation.
+    // Repeated taps retain only the latest choice.
+    _pendingRoute = route == widget.selectedRoute ? null : route;
+    _drawerKey.currentState?.closeDrawer();
+  }
+
+  void _drawerChanged(bool isOpen) {
+    if (isOpen) _pendingRoute = null;
+  }
+
+  void _drawerContentsRemoved() {
+    final route = _pendingRoute;
+    final source = widget.selectedRoute;
+    if (route == null) return;
+    // The drawer contents unmount only when its closing animation finishes.
+    // Navigate after that tree update, rather than during disposal.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _pendingRoute != route ||
+          widget.selectedRoute != source ||
+          (_drawerKey.currentState?.isDrawerOpen ?? false)) {
+        return;
+      }
+      _pendingRoute = null;
+      context.go(route);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final home = widget.selectedRoute == '/home';
     final studio = CoffeeStudioTheme.active(context);
     final counter = home;
     final usingCache = ref.watch(cachedCatalogProvider);
@@ -30,7 +74,7 @@ class AppShell extends ConsumerWidget {
               'Using saved catalog. Orders will wait for server confirmation if the connection is unavailable.',
             ),
           ),
-        Expanded(child: child),
+        Expanded(child: widget.child),
       ],
     );
     return LayoutBuilder(
@@ -39,6 +83,8 @@ class AppShell extends ConsumerWidget {
 
         if (!isDesktop || (counter && !studio)) {
           return Scaffold(
+            key: _drawerKey,
+            onDrawerChanged: _drawerChanged,
             // Dashboard has no page toolbar; all other routes provide one.
             appBar: home
                 ? AppBar(
@@ -51,7 +97,11 @@ class AppShell extends ConsumerWidget {
                   )
                 : null,
             drawer: Drawer(
-              child: DashboardNavigation(selectedRoute: selectedRoute),
+              child: _DrawerContents(
+                  onRemoved: _drawerContentsRemoved,
+                  child: DashboardNavigation(
+                      selectedRoute: widget.selectedRoute,
+                      onDestinationSelected: _selectDrawerDestination)),
             ),
             body: Builder(
               builder: (shellContext) => PageNavigation(
@@ -73,7 +123,7 @@ class AppShell extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DashboardNavigation(
-                selectedRoute: selectedRoute,
+                selectedRoute: widget.selectedRoute,
                 compact: studio &&
                     !home &&
                     MediaQuery.textScalerOf(context).scale(14) <= 20,
@@ -85,4 +135,25 @@ class AppShell extends ConsumerWidget {
       },
     );
   }
+}
+
+/// Its lifetime follows the actual drawer animation, including reduced motion.
+class _DrawerContents extends StatefulWidget {
+  const _DrawerContents({required this.onRemoved, required this.child});
+  final VoidCallback onRemoved;
+  final Widget child;
+
+  @override
+  State<_DrawerContents> createState() => _DrawerContentsState();
+}
+
+class _DrawerContentsState extends State<_DrawerContents> {
+  @override
+  void dispose() {
+    widget.onRemoved();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

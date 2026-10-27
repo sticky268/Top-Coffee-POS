@@ -56,6 +56,7 @@ import 'package:top_coffee_pos/features/branches/presentation/edit_branch_screen
 
 import '../../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
+import 'sidebar_route.dart';
 import '../../features/operations/presentation/operations_screen.dart';
 import '../../features/operations/presentation/payment_operations_screen.dart';
 
@@ -114,11 +115,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/drawer-activity',
             builder: (context, state) => const CashDrawerActivityScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/print-queue',
             builder: (context, state) => const PrintQueueScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/operations',
             builder: (context, state) => OperationsScreen(
               initialSection: state.uri.queryParameters['section'],
@@ -135,15 +136,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               orderId: int.parse(state.pathParameters['id']!),
             ),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/pending-orders',
             builder: (context, state) => const PendingOrdersScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/home',
             builder: (context, state) => const DashboardScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/audit-log',
             builder: (context, state) => const AuditLogScreen(),
           ),
@@ -161,7 +162,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   state.extra is PosTable ? state.extra as PosTable : null,
             ),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/pos/select-table',
             builder: (context, state) => SelectTableScreen(
               selectionOnly: state.uri.queryParameters['select'] == 'true',
@@ -174,7 +175,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return OpenOrderScreen(orderId: orderId);
             },
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/orders',
             builder: (context, state) => const OrdersScreen(),
           ),
@@ -192,7 +193,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return OrderDetailScreen(orderId: orderId);
             },
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/staff',
             builder: (context, state) => const StaffScreen(),
           ),
@@ -207,7 +208,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return StaffDetailScreen(staffId: staffId);
             },
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/branches',
             builder: (context, state) => const BranchesScreen(),
           ),
@@ -222,7 +223,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return EditBranchScreen(branchId: branchId);
             },
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/customers',
             builder: (context, state) => const CustomersScreen(),
             routes: [
@@ -253,11 +254,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/loyalty',
             builder: (context, state) => const LoyaltySettingsScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/manage-menu',
             builder: (context, state) => const ManageMenuScreen(),
           ),
@@ -278,11 +279,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return ProductFormScreen(args: args);
             },
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/tables',
             builder: (context, state) => const TableManagementScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/inventory',
             builder: (context, state) => InventoryScreen(
               initialLowStockOnly:
@@ -314,11 +315,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/suppliers',
             builder: (context, state) => const SuppliersScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/purchases',
             builder: (context, state) => const PurchaseHistoryScreen(),
             routes: [
@@ -328,11 +329,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/reports',
             builder: (context, state) => const ReportsHomeScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/settings',
             builder: (context, state) => const SettingsScreen(),
           ),
@@ -352,7 +353,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/settings/subscription',
             builder: (context, state) => const SubscriptionScreen(),
           ),
-          GoRoute(
+          SidebarRoute(
             path: '/expenses',
             builder: (context, state) => const ExpensesScreen(),
             routes: [
