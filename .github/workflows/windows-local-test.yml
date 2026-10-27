@@ -63,10 +63,10 @@ jobs:
             throw 'Secure-storage identity isolation could not be verified.'
           }
       - name: Build loopback-only Windows test application
-        run: flutter build windows --release --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http://127.0.0.1:18001/api/v1
+        run: flutter build windows --profile --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http://127.0.0.1:18001/api/v1
       - name: Bundle runtime libraries and test instructions
         run: |
-          $release = 'build/windows/x64/runner/Release'
+          $release = 'build/windows/x64/runner/Profile'
           if (-not (Test-Path (Join-Path $release 'top_coffee_windows_test.exe'))) {
             throw 'Windows test executable was not produced.'
           }
@@ -96,6 +96,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: top-coffee-windows-local-test
-          path: frontend/build/windows/x64/runner/Release/
+          path: frontend/build/windows/x64/runner/Profile/
           if-no-files-found: error
           retention-days: 7
