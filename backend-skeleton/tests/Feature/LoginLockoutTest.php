@@ -122,4 +122,36 @@ class LoginLockoutTest extends TestCase
             ->assertJsonPath('code', 'LOGIN_LOCKED');
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
+
+    public function test_ip_request_limit_cannot_be_bypassed_by_changing_email(): void
+    {
+        // Invalid payloads exercise the request cap without password hashing or
+        // accidentally reaching the per-account failed-password threshold.
+        for ($i = 0; $i < 30; $i++) {
+            $this->postJson('/api/v1/auth/login', ['email' => 'probe-'.$i.'@example.test'])
+                ->assertUnprocessable();
+        }
+        $limited = $this->postJson('/api/v1/auth/login', ['email' => 'another@example.test'])
+            ->assertTooManyRequests()->assertJsonPath('code', 'LOGIN_RATE_LIMITED');
+        $seconds = $limited->json('retry_after');
+        $this->assertGreaterThanOrEqual(1, $seconds);
+        $this->assertLessThanOrEqual(60, $seconds);
+        $limited->assertHeader('Retry-After', (string) $seconds);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
+        $this->travel(61)->seconds();
+        $this->postJson('/api/v1/auth/login', ['email' => 'another@example.test'])
+            ->assertUnprocessable();
+    }
+
+    public function test_expired_lockout_gives_a_fresh_failed_password_budget(): void
+    {
+        $this->lockAccount();
+        $this->travel(900)->seconds();
+        for ($i = 0; $i < 4; $i++) $this->login()->assertUnauthorized();
+        $this->login()->assertTooManyRequests()
+            ->assertJsonPath('code', 'LOGIN_LOCKED')
+            ->assertJsonPath('retry_after', 900);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
 }
