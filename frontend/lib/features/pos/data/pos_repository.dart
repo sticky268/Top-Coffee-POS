@@ -49,6 +49,7 @@ abstract class PosRepository {
     required String orderType,
     required int tableId,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? customerId,
     int? branchId,
   });
@@ -58,6 +59,7 @@ abstract class PosRepository {
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? branchId,
   });
 
@@ -88,6 +90,7 @@ abstract class PosRepository {
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? branchId,
     int? customerId,
   });
@@ -367,6 +370,7 @@ class ApiPosRepository implements PosRepository {
     required String orderType,
     required int tableId,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? customerId,
     int? branchId,
   }) async {
@@ -379,6 +383,7 @@ class ApiPosRepository implements PosRepository {
       'items': items
           .map(
             (item) => {
+              ...item.selectionPayload,
               'product_id': item.product.id,
               'product_variant_id': item.variant?.id,
               'quantity': item.quantity,
@@ -386,6 +391,7 @@ class ApiPosRepository implements PosRepository {
           )
           .toList(),
       'discount_total': discountTotal,
+      if (menuDiscountId != null) 'menu_discount_id': menuDiscountId,
     });
   }
 
@@ -395,6 +401,7 @@ class ApiPosRepository implements PosRepository {
     required int orderId,
     required List<Map<String, dynamic>> items,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? customerId,
     int? branchId,
   }) async {
@@ -406,6 +413,7 @@ class ApiPosRepository implements PosRepository {
           if (branchId != null) 'branch_id': branchId,
           'items': items,
           'discount_total': discountTotal,
+          if (menuDiscountId != null) 'menu_discount_id': menuDiscountId,
         },
       ),
     );
@@ -501,6 +509,7 @@ class ApiPosRepository implements PosRepository {
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     double discountTotal = 0,
+    int? menuDiscountId,
     int? customerId,
     int? branchId,
   }) async {
@@ -522,6 +531,7 @@ class ApiPosRepository implements PosRepository {
           'items': items
               .map(
                 (item) => {
+                  ...item.selectionPayload,
                   'product_id': item.product.id,
                   'product_variant_id': item.variant?.id,
                   'quantity': item.quantity,
@@ -529,6 +539,7 @@ class ApiPosRepository implements PosRepository {
               )
               .toList(),
           'discount_total': discountTotal,
+          if (menuDiscountId != null) 'menu_discount_id': menuDiscountId,
           'payment': {
             'method': paymentMethod,
             if (tendered != null) 'tendered': tendered,

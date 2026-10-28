@@ -187,9 +187,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
         throw Exception('No branch is selected.');
       }
 
-      final items = await ref
-          .read(productsRepositoryProvider)
-          .updateRecipe(
+      final items = await ref.read(productsRepositoryProvider).updateRecipe(
             productId: widget.product.id!,
             items: _items,
             branchId: branch.id,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/network/api_client.dart';
 import '../../auth/data/auth_repository.dart' show apiClientProvider;
@@ -22,24 +23,22 @@ abstract class ProductsRepository {
   /// the backend falls back to the authenticated user's primary branch —
   /// passing it explicitly is what lets the app's branch switcher change
   /// which branch's catalog this screen shows.
-      Future<List<PosCategory>> getCategories({int? branchId});
-      Future<List<PosProduct>> getProducts({int? branchId});
+  Future<List<PosCategory>> getCategories({int? branchId});
+  Future<List<PosProduct>> getProducts({int? branchId});
 
-      Future<PosCategory> createCategory({
-        required int branchId,
-        required String name,
-        int sortOrder = 0,
-      });
-      Future<PosCategory> updateCategory({
-        required int categoryId,
-        String? name,
-        int? sortOrder,
-        bool? isActive,
-      });
+  Future<PosCategory> createCategory({
+    required int branchId,
+    required String name,
+    int sortOrder = 0,
+  });
+  Future<PosCategory> updateCategory({
+    required int categoryId,
+    String? name,
+    int? sortOrder,
+    bool? isActive,
+  });
 
-      Future<void> deleteCategory({
-        required int categoryId,
-      });
+  Future<void> deleteCategory({required int categoryId});
 
   /// POST /api/v1/products
   ///
@@ -78,10 +77,7 @@ abstract class ProductsRepository {
   /// backend's `sometimes` validation already treats an absent field as
   /// "don't touch it", so this is the correct minimal request for a
   /// single-flag toggle, not a shortcut.
-  Future<List<RecipeItem>> getRecipe({
-    required int productId,
-    int? branchId,
-  });
+  Future<List<RecipeItem>> getRecipe({required int productId, int? branchId});
 
   Future<List<RecipeItem>> updateRecipe({
     required int productId,
@@ -99,36 +95,37 @@ class ApiProductsRepository implements ProductsRepository {
   @override
   Future<List<PosCategory>> getCategories({int? branchId}) async {
     final response = await _apiClient.request(
-      (dio) => dio.get('/categories', queryParameters: {
-        if (branchId != null) 'branch_id': branchId,
-      }),
+      (dio) => dio.get(
+        '/categories',
+        queryParameters: {if (branchId != null) 'branch_id': branchId},
+      ),
     );
     final data = response.data['data'] as List;
-    return data.map((json) => PosCategory.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => PosCategory.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   @override
-Future<PosCategory> createCategory({
-  required int branchId,
-  required String name,
-  int sortOrder = 0,
-}) async {
-  final response = await _apiClient.request(
-    (dio) => dio.post(
-      '/categories',
-      data: {
-        'branch_id': branchId,
-        'name': name,
-        'sort_order': sortOrder,
-        'is_active': true,
-      },
-    ),
-  );
+  Future<PosCategory> createCategory({
+    required int branchId,
+    required String name,
+    int sortOrder = 0,
+  }) async {
+    final response = await _apiClient.request(
+      (dio) => dio.post(
+        '/categories',
+        data: {
+          'branch_id': branchId,
+          'name': name,
+          'sort_order': sortOrder,
+          'is_active': true,
+        },
+      ),
+    );
 
-  return PosCategory.fromJson(
-    response.data['data'] as Map<String, dynamic>,
-  );
-}
+    return PosCategory.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
 
   @override
   Future<PosCategory> updateCategory({
@@ -148,19 +145,14 @@ Future<PosCategory> createCategory({
       ),
     );
 
-    return PosCategory.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    return PosCategory.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   @override
-  Future<void> deleteCategory({
-    required int categoryId,
-  }) async {
-    await _apiClient.request(
-      (dio) => dio.delete('/categories/$categoryId'),
-    );
+  Future<void> deleteCategory({required int categoryId}) async {
+    await _apiClient.request((dio) => dio.delete('/categories/$categoryId'));
   }
+
   @override
   Future<List<PosProduct>> getProducts({int? branchId}) async {
     // Fetched once, unfiltered by category/search — category selection
@@ -171,12 +163,15 @@ Future<PosCategory> createCategory({
     // tap isn't necessary when the full catalog is already in memory.
     // branch_id is a separate, orthogonal concern from that decision.
     final response = await _apiClient.request(
-      (dio) => dio.get('/products', queryParameters: {
-        if (branchId != null) 'branch_id': branchId,
-      }),
+      (dio) => dio.get(
+        '/products',
+        queryParameters: {if (branchId != null) 'branch_id': branchId},
+      ),
     );
     final data = response.data['data'] as List;
-    return data.map((json) => PosProduct.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => PosProduct.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -192,72 +187,18 @@ Future<PosCategory> createCategory({
           .toList();
     }
 
-final response = await _apiClient.request(
-  (dio) async {
-    if (imageFile == null) {
-      return dio.post('/products', data: payload);
-    }
-
-    final formData = FormData();
-
-    payload.forEach((key, value) {
-      if (key == 'variants' && value is List) {
-        for (var i = 0; i < value.length; i++) {
-          final variant = value[i] as Map<String, dynamic>;
-
-          variant.forEach((variantKey, variantValue) {
-            formData.fields.add(
-              MapEntry(
-                'variants[$i][$variantKey]',
-          variantValue is bool
-              ? (variantValue ? '1' : '0')
-              : variantValue?.toString() ?? '',
-              ),
-            );
-          });
-        }
-      } else if (key == 'branches' && value is List) {
-        for (var i = 0; i < value.length; i++) {
-          final branch = value[i] as Map<String, dynamic>;
-
-          branch.forEach((branchKey, branchValue) {
-            formData.fields.add(
-              MapEntry(
-                'branches[$i][$branchKey]',
-          branchValue is bool
-              ? (branchValue ? '1' : '0')
-              : branchValue?.toString() ?? '',
-              ),
-            );
-          });
-        }
-      } else {
-        final fieldValue = value is bool
-            ? (value ? '1' : '0')
-            : value?.toString() ?? '';
-
-        formData.fields.add(
-          MapEntry(key, fieldValue),
-        );
+    final response = await _apiClient.request((dio) async {
+      if (imageFile == null) {
+        return dio.post('/products', data: payload);
       }
+
+      final formData = await _photoForm(payload, imageFile);
+
+      return dio.post('/products', data: formData);
     });
-
-    formData.files.add(
-      MapEntry(
-        'image',
-        await MultipartFile.fromFile(
-          imageFile.path,
-          filename: imageFile.name,
-        ),
-      ),
+    return ManagedProduct.fromJson(
+      response.data['data'] as Map<String, dynamic>,
     );
-
-    return dio.post('/products', data: formData);
-  },
-);
-return ManagedProduct.fromJson(
-  response.data['data'] as Map<String, dynamic>,
-);
   }
 
   @override
@@ -266,39 +207,61 @@ return ManagedProduct.fromJson(
     ManagedProduct product, {
     XFile? imageFile,
   }) async {
-final response = await _apiClient.request(
-  (dio) async {
-    if (imageFile == null) {
-      return dio.patch('/products/$id', data: product.toJson());
+    final response = await _apiClient.request((dio) async {
+      if (imageFile == null) {
+        return dio.patch('/products/$id', data: product.toJson());
+      }
+
+      final formData = await _photoForm(
+        product.toJson(),
+        imageFile,
+        patch: true,
+      );
+
+      return dio.post('/products/$id', data: formData);
+    });
+    return ManagedProduct.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<FormData> _photoForm(
+    Map<String, dynamic> payload,
+    XFile image, {
+    bool patch = false,
+  }) async {
+    final form = FormData();
+    void add(String key, dynamic value) {
+      if (value is Map) {
+        for (final entry in value.entries) {
+          add('$key[${entry.key}]', entry.value);
+        }
+      } else if (value is List) {
+        // Empty arrays are omitted: product updates upsert variants and retain
+        // omitted variants; an empty array does not delete historical records.
+        for (var index = 0; index < value.length; index++) {
+          add('$key[$index]', value[index]);
+        }
+      } else {
+        form.fields.add(
+          MapEntry(
+            key,
+            value is bool ? (value ? '1' : '0') : value?.toString() ?? '',
+          ),
+        );
+      }
     }
 
-    final formData = FormData();
-    final payload = product.toJson();
-
-    payload.forEach((key, value) {
-      formData.fields.add(
-        MapEntry(key, value?.toString() ?? ''),
-      );
-    });
-
-    formData.fields.add(
-      const MapEntry('_method', 'PATCH'),
-    );
-
-    formData.files.add(
+    payload.forEach(add);
+    if (patch) form.fields.add(const MapEntry('_method', 'PATCH'));
+    form.files.add(
       MapEntry(
         'image',
-        await MultipartFile.fromFile(
-          imageFile.path,
-          filename: imageFile.name,
-        ),
+        MultipartFile.fromStream(image.openRead, await image.length(),
+            filename: p.basename(image.name)),
       ),
     );
-
-    return dio.post('/products/$id', data: formData);
-  },
-);
-    return ManagedProduct.fromJson(response.data['data'] as Map<String, dynamic>);
+    return form;
   }
 
   @override
@@ -309,9 +272,7 @@ final response = await _apiClient.request(
     final response = await _apiClient.request(
       (dio) => dio.get(
         '/products/$productId/recipe',
-        queryParameters: {
-          if (branchId != null) 'branch_id': branchId,
-        },
+        queryParameters: {if (branchId != null) 'branch_id': branchId},
       ),
     );
 
@@ -319,13 +280,10 @@ final response = await _apiClient.request(
     final items = data['items'] as List;
 
     return items
-        .map(
-          (json) => RecipeItem.fromJson(
-            json as Map<String, dynamic>,
-          ),
-        )
+        .map((json) => RecipeItem.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
   @override
   Future<List<RecipeItem>> updateRecipe({
     required int productId,
@@ -346,13 +304,10 @@ final response = await _apiClient.request(
     final updatedItems = data['items'] as List;
 
     return updatedItems
-        .map(
-          (json) => RecipeItem.fromJson(
-            json as Map<String, dynamic>,
-          ),
-        )
+        .map((json) => RecipeItem.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
   @override
   Future<void> setProductActive(int id, bool isActive) async {
     await _apiClient.request(

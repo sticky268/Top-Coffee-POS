@@ -61,7 +61,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ref.read(currentBranchProvider)?.id != _branchId ||
         (widget.expense != null && widget.expense!.branchId != _branchId)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Branch changed. Reopen the expense form for this branch.'),
+        content:
+            Text('Branch changed. Reopen the expense form for this branch.'),
       ));
       return;
     }
@@ -199,6 +200,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         title: Text(widget.expense == null ? 'Add Expense' : 'Edit Expense'),
       ),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -208,9 +210,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               switch (categoryState) {
                 ExpenseCategoriesLoading() => const LinearProgressIndicator(),
                 ExpenseCategoriesError(:final message) => Text(
-                  message,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+                    message,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
                 ExpenseCategoriesLoaded(:final categories) =>
                   pos_ui.ActionSurface(
                     onTap: () => _selectCategory(categories),
@@ -224,11 +227,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         _selectedCategoryId == null
                             ? 'Select category'
                             : categories
-                                  .firstWhere(
-                                    (category) =>
-                                        category.id == _selectedCategoryId,
-                                  )
-                                  .name,
+                                .firstWhere(
+                                  (category) =>
+                                      category.id == _selectedCategoryId,
+                                )
+                                .name,
                       ),
                     ),
                   ),
@@ -282,8 +285,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   _isSaving
                       ? 'Saving...'
                       : (widget.expense == null
-                            ? 'Save Expense'
-                            : 'Update Expense'),
+                          ? 'Save Expense'
+                          : 'Update Expense'),
                 ),
               ),
             ],

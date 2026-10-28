@@ -154,14 +154,17 @@ class SecurityAttackPathsTest extends TestCase
 
     public function test_failed_passwords_are_audited_without_secrets_and_account_throttle_survives_ip_changes(): void
     {
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 4; $i++) {
             $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.'.($i + 1)])
                 ->postJson('/api/v1/auth/login', ['email' => $this->cashier->email, 'password' => 'wrong-secret', 'device_name' => 'probe'])->assertUnauthorized();
         }
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.5'])->postJson('/api/v1/auth/login',
+            ['email' => $this->cashier->email, 'password' => 'wrong-secret', 'device_name' => 'probe'])
+            ->assertTooManyRequests()->assertJsonPath('code', 'LOGIN_LOCKED');
         $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.99'])->postJson('/api/v1/auth/login',
             ['email' => strtoupper($this->cashier->email), 'password' => 'wrong-secret', 'device_name' => 'probe'])->assertTooManyRequests();
         $this->assertDatabaseCount('personal_access_tokens', 0);
-        $this->assertDatabaseCount('audit_logs', 10);
+        $this->assertDatabaseCount('audit_logs', 5);
         $this->assertStringNotContainsString('wrong-secret', AuditLog::withoutGlobalScopes()->get()->toJson());
     }
 

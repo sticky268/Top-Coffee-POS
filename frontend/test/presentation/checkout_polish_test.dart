@@ -270,6 +270,9 @@ void main() {
               scrollable: scrollable,
               maxScrolls: 50,
             );
+            await tester.ensureVisible(find.text('Exact \$3.50'));
+            await tester.pumpAndSettle();
+            expect(find.text('Exact \$3.50').hitTestable(), findsOneWidget);
             await tester.tap(find.text('Exact \$3.50'));
             await tester.pumpAndSettle();
             expect((tester.widget<TextField>(amount)).controller!.text, '3.50');
@@ -518,6 +521,7 @@ void main() {
     await tester.enterText(amount, '5');
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Complete Sale'));
     // Submission stays busy behind the modal, so its spinner never settles.
     await tester.pump();
@@ -530,6 +534,7 @@ void main() {
     expect(calls, 1);
     expect(built.container.read(cartControllerProvider).items, hasLength(1));
     await tester.ensureVisible(find.text('Complete Sale'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Complete Sale'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

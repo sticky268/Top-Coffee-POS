@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/offline/order_sync.dart';
+import '../../../core/theme/home_layout_preference.dart';
+import '../../dashboard/presentation/widgets/home_dashboard_layouts.dart';
+import '../../dashboard/presentation/widgets/quick_actions_grid.dart';
 import '../../../core/offline/order_sync_summary.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/domain/auth_models.dart';
@@ -14,6 +17,7 @@ class CashierWorkspace extends ConsumerWidget {
   final AuthenticatedUser user;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const layout = HomeLayout.coffeeCounter;
     final shifts = ref.watch(shiftsProvider);
     final pending = ref.watch(pendingOrdersProvider);
     final open = shifts.asData?.value
@@ -22,10 +26,13 @@ class CashierWorkspace extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
+          key: PageStorageKey('cashier-home-scroll-${layout.name}'),
           padding: const EdgeInsets.all(16),
           children: [
             DashboardHeader(
               user: user,
+              showBrand: MediaQuery.sizeOf(context).width >= 900 &&
+                  layout != HomeLayout.coffeeCounter,
               onLogout: () =>
                   ref.read(authControllerProvider.notifier).logout(),
             ),
@@ -42,8 +49,8 @@ class CashierWorkspace extends ConsumerWidget {
                   open == null
                       ? 'Check your shift'
                       : open.isEmpty
-                      ? 'Open your shift'
-                      : 'Shift #${open.first['id']} is open',
+                          ? 'Open your shift'
+                          : 'Shift #${open.first['id']} is open',
                 ),
                 subtitle: const Text(
                   'Opening cash, cash movements and end-of-shift count',
@@ -53,30 +60,53 @@ class CashierWorkspace extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                if (user.hasPermission('orders.create')) ...[
-                  FilledButton.icon(
-                    onPressed: () => context.go('/pos'),
-                    icon: const Icon(Icons.shopping_bag_outlined),
-                    label: const Text('New takeaway order'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => context.go('/pos/select-table'),
-                    icon: const Icon(Icons.table_restaurant_outlined),
-                    label: const Text('Dine-in / tables'),
-                  ),
+            if (layout != HomeLayout.classic)
+              HomeTaskPanel(
+                  title: 'Start here',
+                  colorful: layout == HomeLayout.coffeeCounter,
+                  featureFirst: layout == HomeLayout.coffeeCounter,
+                  actions: [
+                    if (user.hasPermission('orders.create')) ...[
+                      QuickAction(
+                          label: 'New takeaway order',
+                          icon: Icons.shopping_bag_outlined,
+                          onTap: () => context.go('/pos')),
+                      QuickAction(
+                          label: 'Dine-in / tables',
+                          icon: Icons.table_restaurant_outlined,
+                          onTap: () => context.go('/pos/select-table')),
+                    ],
+                    if (user.hasPermission('orders.view'))
+                      QuickAction(
+                          label: 'Orders',
+                          icon: Icons.receipt_long_outlined,
+                          onTap: () => context.go('/orders')),
+                  ])
+            else
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  if (user.hasPermission('orders.create')) ...[
+                    FilledButton.icon(
+                      onPressed: () => context.go('/pos'),
+                      icon: const Icon(Icons.shopping_bag_outlined),
+                      label: const Text('New takeaway order'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/pos/select-table'),
+                      icon: const Icon(Icons.table_restaurant_outlined),
+                      label: const Text('Dine-in / tables'),
+                    ),
+                  ],
+                  if (user.hasPermission('orders.view'))
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/orders'),
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Orders'),
+                    ),
                 ],
-                if (user.hasPermission('orders.view'))
-                  OutlinedButton.icon(
-                    onPressed: () => context.go('/orders'),
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Orders'),
-                  ),
-              ],
-            ),
+              ),
             const SizedBox(height: 16),
             Card(
               child: ListTile(

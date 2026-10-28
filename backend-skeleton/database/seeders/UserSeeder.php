@@ -40,12 +40,5 @@ class UserSeeder extends Seeder
         );
         $cashier->assignRole('cashier');
         $cashier->branches()->syncWithoutDetaching([$branch1->id => ['is_primary' => true]]);
-
-        $kitchen = User::firstOrCreate(
-            ['email' => 'kitchen@topcoffee.test'],
-            ['business_id' => $business->id, 'name' => 'Kitchen Staff', 'password' => Hash::make('password')]
-        );
-        $kitchen->assignRole('kitchen_staff');
-        $kitchen->branches()->syncWithoutDetaching([$branch1->id => ['is_primary' => true]]);
     }
 }

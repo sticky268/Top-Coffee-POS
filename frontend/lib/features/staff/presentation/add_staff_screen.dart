@@ -104,9 +104,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
     });
 
     try {
-      await ref
-          .read(staffRepositoryProvider)
-          .createStaff(
+      await ref.read(staffRepositoryProvider).createStaff(
             name: _nameController.text.trim(),
             email: _emailController.text.trim(),
             phone: _phoneController.text.trim().isEmpty
@@ -190,6 +188,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Add Staff')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SafeArea(
           child: Form(
@@ -337,8 +336,8 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                       DropdownButtonFormField<int>(
                         initialValue:
                             _selectedBranchIds.contains(_primaryBranchId)
-                            ? _primaryBranchId
-                            : null,
+                                ? _primaryBranchId
+                                : null,
                         decoration: const InputDecoration(
                           labelText: 'Primary branch',
                         ),

@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.util.Log
+import io.flutter.FlutterInjector
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -570,6 +571,7 @@ class MainActivity : FlutterActivity() {
             supplemental = call.argument<String>("supplemental") ?: "0.00",
             refunded = call.argument<String>("refunded") ?: "0.00",
             netPaid = call.argument<String>("netPaid"),
+            fontStyle = call.argument<String>("fontStyle") ?: "Default",
         )
 
         result.success(true)
@@ -659,19 +661,33 @@ class MainActivity : FlutterActivity() {
         supplemental: String = "0.00",
         refunded: String = "0.00",
         netPaid: String? = null,
+        fontStyle: String = "Default",
     ) {
         val receiptWidth = 576
         val left = 24f
         val right = 552f
         val contentWidth = right - left
 
-        val khmerTypeface = Typeface.createFromAsset(
+        val loader = FlutterInjector.instance().flutterLoader()
+        val regularTypeface = Typeface.createFromAsset(
             assets,
-            "fonts/NotoSansKhmerUI-Regular.ttf",
+            if (fontStyle == "Niradei") {
+                loader.getLookupKeyForAsset("assets/fonts/Niradei-Regular.ttf")
+            } else {
+                "fonts/NotoSansKhmerUI-Regular.ttf"
+            },
         )
+        val boldTypeface = if (fontStyle == "Niradei") {
+            Typeface.createFromAsset(
+                assets,
+                loader.getLookupKeyForAsset("assets/fonts/Niradei-Black.ttf"),
+            )
+        } else {
+            Typeface.create(regularTypeface, Typeface.BOLD)
+        }
 
         fun typeface(bold: Boolean): Typeface {
-            return Typeface.create(khmerTypeface, if (bold) Typeface.BOLD else Typeface.NORMAL)
+            return if (bold) boldTypeface else regularTypeface
         }
 
         fun textSize(setting: String): Float {

@@ -48,8 +48,13 @@ void main() {
         )
         .selected;
 
+    final homeShell = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+    homeShell.openDrawer();
+    await tester.pumpAndSettle();
     expect(selected('Dashboard'), isTrue);
     expect(selected('POS'), isFalse);
+    homeShell.closeDrawer();
+    await tester.pumpAndSettle();
     unawaited(router.push<void>('/pos'));
     await tester.pumpAndSettle();
     expect(selected('POS'), isTrue);
@@ -62,6 +67,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(selected('POS'), isTrue);
     router.pop();
+    await tester.pumpAndSettle();
+    tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
     await tester.pumpAndSettle();
     expect(selected('Dashboard'), isTrue);
     expect(selected('POS'), isFalse);

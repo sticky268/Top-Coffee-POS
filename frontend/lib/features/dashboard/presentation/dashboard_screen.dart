@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../core/theme/home_layout_preference.dart';
+import 'widgets/home_dashboard_layouts.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../application/dashboard_controller.dart';
@@ -21,6 +24,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const layout = HomeLayout.coffeeCounter;
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
     if (user != null && !user.hasPermission('reports.view')) {
@@ -50,6 +54,7 @@ class DashboardScreen extends ConsumerWidget {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1312),
                   child: SingleChildScrollView(
+                    key: PageStorageKey('home-scroll-${layout.name}'),
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -58,25 +63,49 @@ class DashboardScreen extends ConsumerWidget {
                         if (user != null)
                           DashboardHeader(
                             user: user,
+                            showBrand: !CoffeeStudioTheme.active(context) &&
+                                MediaQuery.sizeOf(context).width >= 900 &&
+                                layout != HomeLayout.coffeeCounter,
                             onLogout: () => ref
                                 .read(authControllerProvider.notifier)
                                 .logout(),
                           ),
                         const SizedBox(height: 24),
-                        DashboardAttentionPanel(
-                          lowStockCount: dashboardState is DashboardLoaded
-                              ? dashboardState.stats.lowStockItemCount
-                              : null,
-                          cashDiscrepancyCount: dashboardState is DashboardLoaded
-                              ? dashboardState.stats.cashDiscrepancyCount : null,
-                          cashDiscrepancyShiftId: dashboardState is DashboardLoaded
-                              ? dashboardState.stats.cashDiscrepancyShiftId : null,
-                        ),
+                        if (!CoffeeStudioTheme.active(context))
+                          DashboardAttentionPanel(
+                            lowStockCount: dashboardState is DashboardLoaded
+                                ? dashboardState.stats.lowStockItemCount
+                                : null,
+                            cashDiscrepancyCount:
+                                dashboardState is DashboardLoaded
+                                    ? dashboardState.stats.cashDiscrepancyCount
+                                    : null,
+                            cashDiscrepancyShiftId: dashboardState
+                                    is DashboardLoaded
+                                ? dashboardState.stats.cashDiscrepancyShiftId
+                                : null,
+                          ),
                         _DashboardBody(
                           state: dashboardState,
                           statColumns: statColumns,
                           actionColumns: actionColumns,
                         ),
+                        if (CoffeeStudioTheme.active(context)) ...[
+                          const SizedBox(height: 24),
+                          DashboardAttentionPanel(
+                            lowStockCount: dashboardState is DashboardLoaded
+                                ? dashboardState.stats.lowStockItemCount
+                                : null,
+                            cashDiscrepancyCount:
+                                dashboardState is DashboardLoaded
+                                    ? dashboardState.stats.cashDiscrepancyCount
+                                    : null,
+                            cashDiscrepancyShiftId: dashboardState
+                                    is DashboardLoaded
+                                ? dashboardState.stats.cashDiscrepancyShiftId
+                                : null,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -106,9 +135,10 @@ class _DashboardBody extends ConsumerWidget {
     return switch (state) {
       DashboardLoading() => const _DashboardLoading(),
       DashboardError(:final message) => _DashboardErrorView(
-        message: message,
-        onRetry: () => ref.read(dashboardControllerProvider.notifier).refresh(),
-      ),
+          message: message,
+          onRetry: () =>
+              ref.read(dashboardControllerProvider.notifier).refresh(),
+        ),
       DashboardLoaded(
         :final stats,
         :final recentOrders,
@@ -205,50 +235,77 @@ class _DashboardContent extends ConsumerWidget {
     bool allowed(String permission) => user?.hasPermission(permission) ?? false;
 
     final actions = [
-      if (allowed('orders.create') || allowed('orders.refund') ||
-          allowed('reports.view')) QuickAction(
-        label: 'Daily Operations',
-        icon: Icons.account_balance_wallet_outlined,
-        onTap: () => context.push('/operations'),
-      ),
-      if (allowed('orders.create')) QuickAction(
-        label: 'New Order',
-        icon: Icons.add_shopping_cart,
-        onTap: () => context.push('/pos'),
-      ),
-      if (allowed('orders.view')) QuickAction(
-        label: 'Orders',
-        icon: Icons.receipt_long_outlined,
-        onTap: () => context.push('/orders'),
-      ),
-      if (allowed('customers.view')) QuickAction(
-        label: 'Customers',
-        icon: Icons.people_outline,
-        onTap: () => context.push('/customers'),
-      ),
-      if (allowed('products.view')) QuickAction(
-        label: 'Products',
-        icon: Icons.local_cafe_outlined,
-        onTap: () => context.push('/products'),
-      ),
-      if (allowed('inventory.view')) QuickAction(
-        label: 'Inventory',
-        icon: Icons.inventory_2_outlined,
-        onTap: () => context.push('/inventory'),
-      ),
-      if (allowed('reports.view')) QuickAction(
-        label: 'Reports',
-        icon: Icons.bar_chart_outlined,
-        onTap: () => context.push('/reports'),
-      ),
-      if (allowed('orders.create')) QuickAction(
-        label: 'Receipt Settings',
-        icon: Icons.receipt_long_outlined,
-        onTap: () => context.push('/settings/receipt'),
-      ),
+      if (allowed('orders.create') ||
+          allowed('orders.refund') ||
+          allowed('reports.view'))
+        QuickAction(
+          label: 'Daily Operations',
+          icon: Icons.account_balance_wallet_outlined,
+          onTap: () => context.push('/operations'),
+        ),
+      if (allowed('orders.create'))
+        QuickAction(
+          label: 'New Order',
+          icon: Icons.add_shopping_cart,
+          onTap: () => context.push('/pos'),
+        ),
+      if (allowed('orders.view'))
+        QuickAction(
+          label: 'Orders',
+          icon: Icons.receipt_long_outlined,
+          onTap: () => context.push('/orders'),
+        ),
+      if (allowed('customers.view'))
+        QuickAction(
+          label: 'Customers',
+          icon: Icons.people_outline,
+          onTap: () => context.push('/customers'),
+        ),
+      if (allowed('products.manage'))
+        QuickAction(
+          label: 'Manage Menu',
+          icon: Icons.local_cafe_outlined,
+          onTap: () => context.push('/manage-menu'),
+        ),
+      if (allowed('inventory.view'))
+        QuickAction(
+          label: 'Inventory',
+          icon: Icons.inventory_2_outlined,
+          onTap: () => context.push('/inventory'),
+        ),
+      if (allowed('reports.view'))
+        QuickAction(
+          label: 'Reports',
+          icon: Icons.bar_chart_outlined,
+          onTap: () => context.push('/reports'),
+        ),
+      if (allowed('orders.create'))
+        QuickAction(
+          label: 'Receipt Settings',
+          icon: Icons.receipt_long_outlined,
+          onTap: () => context.push('/settings/receipt'),
+        ),
     ];
 
+    const layout = HomeLayout.coffeeCounter;
+    if (layout != HomeLayout.classic || CoffeeStudioTheme.active(context)) {
+      return HomeDashboardLayouts(
+        layout: layout,
+        stats: stats,
+        actions: [
+          ...actions,
+          if (layout == HomeLayout.coffeeCounter && user != null)
+            QuickAction(
+                label: 'Settings',
+                icon: Icons.settings_outlined,
+                onTap: () => context.push('/settings')),
+        ],
+        recentOrders: recentOrders,
+        salesOverview: salesOverview,
+      );
+    }
     return Column(
+      key: const ValueKey('dashboard-classic'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         StatCardsGrid(stats: stats, crossAxisCount: statColumns),
@@ -257,21 +314,35 @@ class _DashboardContent extends ConsumerWidget {
         const SizedBox(height: 16),
         QuickActionsGrid(actions: actions, crossAxisCount: actionColumns),
         const SizedBox(height: 24),
-        Text(
-          'Sales Overview — Last 7 Days',
-          style: theme.textTheme.titleMedium,
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SalesOverviewChart(data: salesOverview),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text('Recent Orders', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 16),
-        RecentOrdersSection(orders: recentOrders),
+        LayoutBuilder(builder: (context, constraints) {
+          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final chart =
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Sales Overview — Last 7 Days',
+                style: theme.textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Card(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SalesOverviewChart(data: salesOverview))),
+          ]);
+          final orders =
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Recent Orders', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+            RecentOrdersSection(orders: recentOrders),
+          ]);
+          if (constraints.maxWidth >= 850 && scale <= 1.3) {
+            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(flex: 3, child: chart),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: orders),
+            ]);
+          }
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [chart, const SizedBox(height: 24), orders]);
+        }),
       ],
     );
   }

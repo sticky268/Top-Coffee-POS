@@ -1,5 +1,4 @@
 import 'package:top_coffee_pos/core/widgets/page_app_bar.dart';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -17,6 +16,7 @@ import '../application/product_form_state.dart';
 import '../application/products_controller.dart';
 import '../domain/managed_product_models.dart';
 import 'recipe_editor_screen.dart';
+import 'product_photo_editor.dart';
 import 'widgets/variant_editor_dialog.dart';
 
 /// Bundled navigation arguments — passed via go_router's `extra`. The
@@ -53,6 +53,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   bool _isActive = true;
   late List<ManagedProductVariant> _variants;
   XFile? _selectedImage;
+  XFile? _sourceImage;
+  ProductPhotoEdit? _photoEdit;
+  bool _editingPhoto = false;
 
   bool get _isEditing => widget.args.initialProduct != null;
 
@@ -82,20 +85,52 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
+  Future<void> _pickImage() => _editPhoto(choose: true);
 
-    final image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null && mounted) {
+  Future<void> _editPhoto({bool choose = false}) async {
+    if (_editingPhoto ||
+        ref.read(productFormControllerProvider) is ProductFormSaving) {
+      return;
+    }
+    setState(() => _editingPhoto = true);
+    try {
+      final source = choose
+          ? await ImagePicker().pickImage(source: ImageSource.gallery)
+          : _sourceImage;
+      if (source == null || !mounted) return;
+      final edit = await Navigator.of(context).push<ProductPhotoEdit>(
+        MaterialPageRoute(
+            builder: (_) => ProductPhotoEditor(
+                  source: source,
+                  initialEdit: choose ? null : _photoEdit,
+                )),
+      );
+      if (edit == null || !mounted) return;
       setState(() {
-        _selectedImage = image;
+        _sourceImage = source;
+        _photoEdit = edit;
+        _selectedImage = XFile.fromData(edit.bytes,
+            path: 'product-photo.png',
+            name: 'product-photo.png',
+            mimeType: 'image/png');
       });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not select a photo. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _editingPhoto = false);
     }
   }
 
   void _submit() {
-    if (ref.read(productFormControllerProvider) is ProductFormSaving) return;
+    if (_editingPhoto ||
+        ref.read(productFormControllerProvider) is ProductFormSaving) {
+      return;
+    }
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (_selectedCategoryId == null) {
@@ -127,9 +162,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     } else {
       // Create the product for the currently selected branch.
       final currentBranch = ref.read(currentBranchProvider);
-      final branchIds = currentBranch != null
-          ? [currentBranch.id]
-          : const <int>[];
+      final branchIds =
+          currentBranch != null ? [currentBranch.id] : const <int>[];
 
       ref
           .read(productFormControllerProvider.notifier)
@@ -159,10 +193,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   @override
   Widget build(BuildContext context) {
     final formState = ref.watch(productFormControllerProvider);
-    final isSaving = formState is ProductFormSaving;
-    final errorMessage = formState is ProductFormError
-        ? formState.message
-        : null;
+    final isSaving = formState is ProductFormSaving || _editingPhoto;
+    final errorMessage =
+        formState is ProductFormError ? formState.message : null;
     final theme = Theme.of(context);
     final currency = NumberFormat.currency(symbol: '\$');
 
@@ -187,8 +220,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     });
 
     return Scaffold(
-      appBar: PageAppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
+      appBar:
+          PageAppBar(title: Text(_isEditing ? 'Edit Product' : 'Add Product')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SafeArea(
           child: Form(
@@ -253,35 +288,41 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Product Photo', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 8),
-                    if (_selectedImage != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(_selectedImage!.path),
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    else
-                      Container(
-                        height: 180,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 220,
                         width: double.infinity,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: theme.colorScheme.outline),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.add_a_photo_outlined, size: 40),
-                        ),
+                        child: _photoEdit != null
+                            ? Image.memory(_photoEdit!.bytes,
+                                fit: BoxFit.contain)
+                            : widget.args.initialProduct?.imageUrl != null
+                                ? Image.network(
+                                    widget.args.initialProduct!.imageUrl!,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Center(
+                                        child: Icon(Icons.add_a_photo_outlined,
+                                            size: 40)))
+                                : const DecoratedBox(
+                                    decoration:
+                                        BoxDecoration(color: Color(0xFFF5F1EB)),
+                                    child: Center(
+                                        child: Icon(Icons.add_a_photo_outlined,
+                                            size: 40))),
                       ),
+                    ),
                     const SizedBox(height: 8),
+                    if (_sourceImage != null)
+                      pos_ui.OutlinedButton.icon(
+                        onPressed: isSaving ? null : () => _editPhoto(),
+                        icon: const Icon(Icons.crop),
+                        label: const Text('Adjust Photo'),
+                      ),
                     pos_ui.OutlinedButton.icon(
                       onPressed: isSaving ? null : _pickImage,
                       icon: const Icon(Icons.photo_library_outlined),
@@ -293,9 +334,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 DropdownButtonFormField<int>(
                   initialValue: _selectedCategoryId,
                   decoration: const InputDecoration(

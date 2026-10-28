@@ -24,8 +24,14 @@ const _testUser = AuthenticatedUser(
   name: 'Alex',
   email: 'cashier@topcoffee.test',
   roles: ['manager'],
-  permissions: ['orders.create', 'orders.view', 'reports.view',
-    'inventory.view', 'products.view', 'customers.view'],
+  permissions: [
+    'orders.create',
+    'orders.view',
+    'reports.view',
+    'inventory.view',
+    'products.manage',
+    'customers.view'
+  ],
   branches: [BranchSummary(id: 1, name: 'Riverside', code: 'PP-01')],
 );
 
@@ -143,21 +149,30 @@ void main() {
 
       expect(find.text('New Order'), findsOneWidget);
       expect(find.text('Orders'), findsOneWidget);
-      expect(find.text('Products'), findsOneWidget);
+      expect(find.text('Manage Menu'), findsOneWidget);
       expect(find.text('Inventory'), findsOneWidget);
       expect(find.text('Reports'), findsOneWidget);
     });
 
-    testWidgets('quick actions respect the restored permission list', (tester) async {
-      when(() => authRepository.getCurrentUser()).thenAnswer((_) async =>
-        const AuthenticatedUser(
-          id: 1, name: 'Alex', email: 'cashier@topcoffee.test', roles: ['manager'],
-          permissions: ['orders.create', 'reports.view'],
-          branches: [BranchSummary(id: 1, name: 'Riverside', code: 'PP-01')],
-        ));
-      when(() => dashboardRepository.getStats()).thenAnswer((_) async => _stats);
-      when(() => dashboardRepository.getRecentOrders()).thenAnswer((_) async => _orders);
-      when(() => dashboardRepository.getSalesOverview()).thenAnswer((_) async => _sales);
+    testWidgets('quick actions respect the restored permission list',
+        (tester) async {
+      when(() => authRepository.getCurrentUser())
+          .thenAnswer((_) async => const AuthenticatedUser(
+                id: 1,
+                name: 'Alex',
+                email: 'cashier@topcoffee.test',
+                roles: ['manager'],
+                permissions: ['orders.create', 'reports.view'],
+                branches: [
+                  BranchSummary(id: 1, name: 'Riverside', code: 'PP-01')
+                ],
+              ));
+      when(() => dashboardRepository.getStats())
+          .thenAnswer((_) async => _stats);
+      when(() => dashboardRepository.getRecentOrders())
+          .thenAnswer((_) async => _orders);
+      when(() => dashboardRepository.getSalesOverview())
+          .thenAnswer((_) async => _sales);
       final container = await pumpDashboard(tester);
       await container.read(dashboardControllerProvider.notifier).initialization;
       await tester.pump();
@@ -165,7 +180,7 @@ void main() {
       expect(find.text('Reports'), findsOneWidget);
       expect(find.text('Daily Operations'), findsOneWidget);
       expect(find.text('Inventory'), findsNothing);
-      expect(find.text('Products'), findsNothing);
+      expect(find.text('Manage Menu'), findsNothing);
       expect(find.text('Customers'), findsNothing);
     });
 

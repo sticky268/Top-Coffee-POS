@@ -104,6 +104,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Add Customer')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

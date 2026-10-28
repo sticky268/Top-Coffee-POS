@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/app_buttons.dart' as pos_ui;
+import '../../../../core/theme/coffee_studio_theme.dart';
 
 class QuickAction {
   const QuickAction({
@@ -53,12 +54,23 @@ class _QuickActionButton extends StatelessWidget {
     final iconColor = isPrimary
         ? theme.colorScheme.onPrimary
         : theme.colorScheme.onSurfaceVariant;
-    final textColor = isPrimary
-        ? theme.colorScheme.onPrimary
-        : theme.colorScheme.onSurface;
+    final textColor =
+        isPrimary ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
 
     return Material(
-      color: isPrimary ? theme.colorScheme.primary : theme.colorScheme.surface,
+      color: isPrimary
+          ? theme.colorScheme.primary
+          : CoffeeStudioTheme.active(context)
+              ? CoffeeStudioTheme.accentSurface(
+                  context,
+                  [
+                    'New Order',
+                    'Manage Menu',
+                    'Reports',
+                    'Customers',
+                    'Daily Operations'
+                  ].indexOf(action.label))
+              : theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: isPrimary
@@ -78,11 +90,10 @@ class _QuickActionButton extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color:
-                        (isPrimary
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.primary)
-                            .withValues(alpha: 0.08),
+                    color: (isPrimary
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.primary)
+                        .withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(action.icon, size: 24, color: iconColor),

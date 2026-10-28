@@ -282,6 +282,7 @@ class IconButton extends material.StatelessWidget {
     this.tooltip,
     this.visualDensity,
     this.isLoading = false,
+    this.boxed = false,
   });
 
   final material.VoidCallback? onPressed;
@@ -290,20 +291,39 @@ class IconButton extends material.StatelessWidget {
   // Accepted for drop-in migration; controls still enforce a 48px touch target.
   final material.VisualDensity? visualDensity;
   final bool isLoading;
+  final bool boxed;
 
   @override
-  material.Widget build(material.BuildContext context) => material.IconButton(
-    onPressed: isLoading ? null : onPressed,
-    tooltip: tooltip,
-    visualDensity: material.VisualDensity.standard,
-    constraints: const material.BoxConstraints(minWidth: 48, minHeight: 48),
-    icon: isLoading
-        ? const material.SizedBox.square(
-            dimension: 18,
-            child: material.CircularProgressIndicator(strokeWidth: 2),
-          )
-        : icon,
-  );
+  material.Widget build(material.BuildContext context) {
+    final scheme = material.Theme.of(context).colorScheme;
+    final button = material.IconButton(
+      style: boxed
+          ? material.IconButton.styleFrom(
+              backgroundColor: scheme.surface,
+              disabledBackgroundColor: scheme.surfaceContainerLow,
+              side: material.BorderSide(color: scheme.outlineVariant),
+              shape: material.RoundedRectangleBorder(
+                  borderRadius: material.BorderRadius.circular(12)),
+            )
+          : null,
+      onPressed: isLoading ? null : onPressed,
+      tooltip: tooltip,
+      visualDensity: material.VisualDensity.standard,
+      constraints: const material.BoxConstraints(minWidth: 48, minHeight: 48),
+      icon: isLoading
+          ? const material.SizedBox.square(
+              dimension: 18,
+              child: material.CircularProgressIndicator(strokeWidth: 2),
+            )
+          : icon,
+    );
+    return boxed
+        ? material.Padding(
+            padding:
+                const material.EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: button)
+        : button;
+  }
 }
 
 /// A card or row that acts as a button, with the same interaction language.

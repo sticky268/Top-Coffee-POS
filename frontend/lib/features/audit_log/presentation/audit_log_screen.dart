@@ -9,6 +9,7 @@ import '../../../core/widgets/app_buttons.dart' as pos_ui;
 import '../application/audit_log_list_controller.dart';
 import '../application/audit_log_list_state.dart';
 import '../domain/audit_log_models.dart';
+import '../../../core/theme/app_colors.dart';
 
 class AuditLogScreen extends ConsumerStatefulWidget {
   const AuditLogScreen({super.key});
@@ -214,7 +215,16 @@ class _AuditLogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final accent = AppColors.semantic(
+        context,
+        log.action.toLowerCase().contains('delete') ||
+                log.action.toLowerCase().contains('void')
+            ? AppColors.error
+            : AppColors.ready);
     return Card(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: accent.withValues(alpha: .35))),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -223,7 +233,9 @@ class _AuditLogCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(child: Icon(_iconForAction(log.action))),
+                CircleAvatar(
+                    backgroundColor: accent.withValues(alpha: .12),
+                    child: Icon(_iconForAction(log.action), color: accent)),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -243,15 +255,15 @@ class _AuditLogCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (log.createdAt != null)
-                  Text(
-                    DateFormat(
-                      'dd MMM, HH:mm',
-                    ).format(log.createdAt!.toLocal()),
-                    style: theme.textTheme.bodySmall,
-                  ),
               ],
             ),
+            if (log.createdAt != null)
+              Text(
+                DateFormat(
+                  'dd MMM, HH:mm',
+                ).format(log.createdAt!.toLocal()),
+                style: theme.textTheme.bodySmall,
+              ),
             if (log.auditableType != null) ...[
               const SizedBox(height: 16),
               Row(
@@ -325,9 +337,8 @@ class _AuditLogCard extends StatelessWidget {
       return '';
     }
 
-    final entries = values.entries
-        .take(3)
-        .map((entry) => '${entry.key}: ${entry.value}');
+    final entries =
+        values.entries.take(3).map((entry) => '${entry.key}: ${entry.value}');
 
     return entries.join(' • ');
   }

@@ -29,6 +29,11 @@ class AuthController extends Controller
             ], 422);
         }
 
+        return app(\App\Services\LoginAttempts::class)->attempt($request, fn () => $this->authenticate($request));
+    }
+
+    private function authenticate(Request $request)
+    {
         $user = User::where('email', $request->email)->first();
 
         // Equal-cost hashing also runs for nonexistent accounts.

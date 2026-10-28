@@ -59,8 +59,17 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/dashboard/
+    - assets/login/
 
   fonts:
+    - family: Niradei
+      fonts:
+        - asset: assets/fonts/Niradei-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Niradei-Black.ttf
+          weight: 900
     - family: TopCoffeeReceiptKhmer
       fonts:
         - asset: assets/fonts/NotoSansKhmerUI-Regular.ttf

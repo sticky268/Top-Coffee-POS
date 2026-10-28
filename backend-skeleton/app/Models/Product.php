@@ -11,8 +11,8 @@ class Product extends Model
 
     use SoftDeletes;
 
-    protected $fillable = ['category_id', 'name', 'sku', 'description', 'base_price', 'is_active'];
-    protected $casts = ['base_price' => 'decimal:2', 'is_active' => 'boolean'];
+    protected $fillable = ['category_id', 'name', 'sku', 'description', 'base_price', 'is_active', 'combo_slots'];
+    protected $casts = ['combo_slots' => 'array', 'base_price' => 'decimal:2', 'is_active' => 'boolean'];
 
     public function category()
     {

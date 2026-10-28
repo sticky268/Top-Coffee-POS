@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'report_overview_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/widgets/page_app_bar.dart';
@@ -14,10 +15,14 @@ class ActivityReportScreen extends ConsumerStatefulWidget {
     required this.query,
     required this.branchId,
     this.onChangeFilters,
+    this.onPeriodChanged,
+    this.selectedPeriod,
   });
   final SalesReportQuery query;
   final int? branchId;
   final VoidCallback? onChangeFilters;
+  final ValueChanged<String>? onPeriodChanged;
+  final String? selectedPeriod;
   @override
   ConsumerState<ActivityReportScreen> createState() =>
       _ActivityReportScreenState();
@@ -151,57 +156,66 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
                   padding: const EdgeInsets.all(16),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
-                    Text(
-                      SalesReport.maps(
-                        meta['branches'],
-                      )
-                          .map((b) => '${b['name']} / ${b['timezone']}')
-                          .join('\n'),
+                    ReportHeader(
+                      onPeriodChanged: widget.onPeriodChanged,
+                      selectedPeriod: widget.selectedPeriod,
+                      meta: Map<String, dynamic>.from(meta),
+                      scope: SalesReport.maps(meta['branches'])
+                          .map((b) => '${b['name']}')
+                          .join(', '),
+                      filterLabel: 'Change report filters',
+                      onChangeFilters: widget.onChangeFilters ??
+                          () => Navigator.pop(context),
                     ),
-                    Text(
-                      '${meta['date_from']} - ${meta['date_to']}\nPrevious: ${meta['previous_from']} - ${meta['previous_to']}',
-                    ),
-                    Text(
-                      'Cashier: ${meta['cashier_name'] ?? 'All'} / Category: ${meta['category_name'] ?? 'All'}',
-                    ),
-                    TextButton(
-                      onPressed: widget.onChangeFilters ?? () => Navigator.pop(context),
-                      child: const Text('Change report filters'),
-                    ),
-                    for (final key in activityLabels.keys)
-                      Card(
-                        child: ListTile(
-                          title: Text(activityLabels[key]!),
-                          subtitle: Text(
-                            '${activityValue(summary, key)}\n${activityChange(summary, key)}',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => sources(kind: kind(key)),
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Weekday and hourly heatmap',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Text(
-                      'Local branch time. Swipe horizontally for all 24 hours; tap a cell for paid source orders. Repeated DST hours are combined.',
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final key in ['orders', 'net_sales'])
-                          ChoiceChip(
-                            label: Text(activityLabels[key]!),
-                            selected: heatMetric == key,
-                            onSelected: (_) => setState(() => heatMetric = key),
-                          ),
+                    ReportOverview(
+                      primary: ReportMetricTile(
+                          label: activityLabels['net_sales']!,
+                          value: activityValue(summary, 'net_sales'),
+                          prominent: true,
+                          caption:
+                              'Paid sales after sale-linked refunds. Includes tax.',
+                          onTap: () => sources()),
+                      metrics: [
+                        for (final key in ['orders', 'discounts', 'refunds'])
+                          ReportMetricTile(
+                              label: activityLabels[key]!,
+                              value: activityValue(summary, key),
+                              onTap: () => sources(kind: kind(key))),
                       ],
                     ),
-                    const Text(
-                      'Shade shows relative magnitude; negative net sales use red. New means no previous activity; - means no comparable baseline.',
-                    ),
-                    _heatmap(data),
+                    ReportSection(title: 'Sales & exceptions', children: [
+                      for (final key in activityLabels.keys)
+                        ListTile(
+                            title: Text(activityLabels[key]!),
+                            subtitle: Text(
+                                '${activityValue(summary, key)}\n${activityChange(summary, key)}'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => sources(kind: kind(key))),
+                    ]),
+                    ReportSection(
+                        title: 'Weekday and hourly heatmap',
+                        children: [
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Local branch time. Swipe horizontally for all 24 hours; tap a cell for paid source orders. Repeated DST hours are combined.',
+                          ),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final key in ['orders', 'net_sales'])
+                                ChoiceChip(
+                                  label: Text(activityLabels[key]!),
+                                  selected: heatMetric == key,
+                                  onSelected: (_) =>
+                                      setState(() => heatMetric = key),
+                                ),
+                            ],
+                          ),
+                          const Text(
+                            'Shade shows relative magnitude; negative net sales use red. New means no previous activity; - means no comparable baseline.',
+                          ),
+                          _heatmap(data),
+                        ]),
                     const SizedBox(height: 20),
                     Text(
                       'Cashier performance',
@@ -210,14 +224,14 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
                     const Text(
                       'Grouped by original order cashier. Rates describe sale cohorts, not who authorised a refund or void.',
                     ),
-                    Text(meta['flag_basis'] as String),
                     if ((data['cashiers'] as List).isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(24),
                         child: Text('No cashier activity in these periods.'),
                       ),
                     for (final row in SalesReport.maps(data['cashiers']))
-                      ExpansionTile(
+                      Card(
+                          child: ExpansionTile(
                         title: Text(row['name'] as String),
                         subtitle: Text(
                           '${activityValue(row, 'net_sales')} / ${row['orders']} paid orders\n${(row['flags'] as List).isEmpty ? 'No review flags' : 'Review: ${(row['flags'] as List).map((k) => activityRates[k]).join(', ')}'}',
@@ -244,13 +258,14 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
                               ),
                             ),
                         ],
-                      ),
-                    ExpansionTile(
-                      title: const Text('Accounting and attribution'),
+                      )),
+                    ReportSection(
+                      title: 'Accounting and attribution',
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Text(meta['basis'] as String),
+                          child:
+                              Text('${meta['basis']}\n${meta['flag_basis']}'),
                         ),
                       ],
                     ),
@@ -304,6 +319,7 @@ class _ActivityReportScreenState extends ConsumerState<ActivityReportScreen> {
       ]),
       Expanded(
           child: SingleChildScrollView(
+              key: const PageStorageKey('activity-heatmap-horizontal-scroll'),
               scrollDirection: Axis.horizontal,
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

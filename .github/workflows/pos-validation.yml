@@ -79,7 +79,7 @@ jobs:
       - name: Verify real MySQL contention and populated migration
         run: php vendor/bin/phpunit --filter 'OperationsConcurrencyTest|OperationsMigrationRehearsalTest|ProductionDatabaseEngineTest'
       - name: Checkout controls and business isolation on MySQL
-        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest|PilotOperationsTest|ManagerPinTest'
+        run: php vendor/bin/phpunit --filter 'CheckoutControlsTest|LaunchBusinessIsolationTest|SecurityAttackPathsTest|OperationsHealthTest|PilotOperationsTest|ManagerPinTest|LoginLockoutTest'
       - name: Install age for encrypted MySQL recovery
         run: sudo apt-get update -qq && sudo apt-get install -y age
       - name: Verify private MySQL backup and isolated restore

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/page_app_bar.dart';
+import '../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,6 +12,7 @@ import '../../../core/widgets/receipt_action_buttons.dart';
 import '../application/pos_catalog_controller.dart';
 import '../application/cart_controller.dart';
 import 'widgets/variant_selector_sheet.dart';
+import 'widgets/menu_selection_sheet.dart';
 import 'cash_drawer_button.dart';
 import '../application/pos_catalog_state.dart';
 import '../domain/pos_models.dart';
@@ -92,7 +95,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         context.go('/home');
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: PageAppBar(
           toolbarHeight: compactToolbar
               ? (MediaQuery.textScalerOf(context).scale(16) * 1.5 +
                       MediaQuery.textScalerOf(context).scale(11) * 1.3 +
@@ -109,7 +112,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: compactToolbar
-                    ? Theme.of(context).textTheme.titleMedium
+                    ? Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: CoffeeStudioTheme.active(context)
+                            ? Colors.white
+                            : null)
                     : null,
               ),
               if (compactToolbar)
@@ -119,7 +125,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                       : 'Dine-in · ${_selectedTable!.name}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: CoffeeStudioTheme.active(context)
+                          ? Colors.white70
+                          : null),
                 ),
             ],
           ),
@@ -145,7 +154,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                               ? Icons.shopping_bag_outlined
                               : Icons.table_restaurant_outlined,
                           size: 20,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: CoffeeStudioTheme.active(context)
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -162,7 +173,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600),
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: CoffeeStudioTheme.active(context)
+                                          ? Colors.white
+                                          : null),
                             ),
                           ),
                         ),
@@ -175,12 +190,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             if (compactToolbar) const CashDrawerButton(compact: true),
             if (drawerScope != null)
               pos_ui.IconButton(
+                boxed: true,
                 tooltip: 'Drawer activity',
                 icon: const Icon(Icons.history),
                 onPressed: () => context.push('/drawer-activity'),
               ),
             if (compactToolbar)
               pos_ui.IconButton(
+                boxed: true,
                 tooltip: 'Last Receipt',
                 onPressed: lastReceipt == null
                     ? null
@@ -192,7 +209,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.receipt_long_outlined),
               )
             else
-              pos_ui.SecondaryButton.icon(
+              pos_ui.OutlinedButton.icon(
                 onPressed: lastReceipt == null
                     ? null
                     : () => showLastReceiptDialog(
@@ -203,23 +220,25 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 icon: const Icon(Icons.receipt_long_outlined),
                 label: const Text('Last Receipt'),
               ),
-            const SizedBox(width: 8),
+            SizedBox(width: compactToolbar ? 0 : 8),
             if (compactToolbar)
               pos_ui.IconButton(
+                boxed: true,
                 tooltip: 'Dine-in',
                 onPressed: _openTableSelector,
                 icon: const Icon(Icons.table_restaurant),
               )
             else
-              pos_ui.SecondaryButton.icon(
+              pos_ui.OutlinedButton.icon(
                 onPressed: _openTableSelector,
                 icon: const Icon(Icons.table_restaurant),
                 label: const Text('Dine-in'),
               ),
-            const SizedBox(width: 8),
+            SizedBox(width: compactToolbar ? 0 : 8),
           ],
         ),
         body: SafeArea(
+          bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 760;
@@ -437,7 +456,7 @@ class _CatalogErrorView extends StatelessWidget {
   }
 }
 
-void _scanProduct(BuildContext context, WidgetRef ref, String code) {
+void _scanProduct(BuildContext context, WidgetRef ref, String code) async {
   final catalog = ref.read(posCatalogControllerProvider);
   if (catalog is! PosCatalogLoaded) return;
   final matches = catalog.products
@@ -453,7 +472,22 @@ void _scanProduct(BuildContext context, WidgetRef ref, String code) {
     return;
   }
   final product = matches.single;
-  if (product.hasVariants) {
+  if (product.needsConfiguration) {
+    final item = await showMenuSelection(
+      context,
+      product,
+      catalog: catalog.products,
+    );
+    if (item == null || !context.mounted) return;
+    ref.read(cartControllerProvider.notifier).addItem(
+          product,
+          variant: item.variant,
+          modifierIds: item.modifierIds,
+          comboSelections: item.comboSelections,
+          extraCents: item.extraCents,
+          configurationLabel: item.configurationLabel,
+        );
+  } else if (product.hasVariants) {
     showVariantSelector(context, ref, product);
   } else {
     ref.read(cartControllerProvider.notifier).addItem(product);

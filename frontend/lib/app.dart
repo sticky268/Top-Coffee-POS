@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_design_preference.dart';
+import 'core/theme/coffee_studio_theme.dart';
 import 'core/theme/theme_preference.dart';
 import 'core/offline/order_sync.dart';
 import 'core/printer/print_queue_providers.dart';
@@ -26,11 +28,12 @@ class TopCoffeeApp extends ConsumerWidget {
       ref.watch(printQueueWorkerProvider);
     }
 
+    final studio = ref.watch(appDesignProvider) == AppDesign.coffeeStudio;
     return MaterialApp.router(
       title: 'Top Coffee POS',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: studio ? CoffeeStudioTheme.light : AppTheme.light,
+      darkTheme: studio ? CoffeeStudioTheme.dark : AppTheme.dark,
       themeMode: ref.watch(themeModeProvider),
       routerConfig: router,
     );

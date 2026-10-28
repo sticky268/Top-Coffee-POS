@@ -82,7 +82,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
       }
     });
     return Scaffold(
-      appBar: const PageAppBar(title: Text('Sales history')),
+      appBar: const PageAppBar(title: Text('Sale Reports'), centerTitle: true),
       body: PageContent(
         maxWidth: 1000,
         child: FutureBuilder<SalesReport>(
@@ -93,7 +93,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
             }
             if (snapshot.hasError) {
               return Center(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -138,35 +138,76 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                 setState(() {
                   pending = next;
                 });
-                await next;
+                try {
+                  await next;
+                } catch (_) {
+                  // FutureBuilder shows the failed request and its retry action.
+                }
               },
               child: ListView(
+                key: const ValueKey('sales-history-list'),
                 padding: const EdgeInsets.all(16),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: false, label: Text('Daily')),
-                        ButtonSegment(value: true, label: Text('Monthly')),
-                      ],
-                      selected: {monthly},
-                      onSelectionChanged: (selection) {
-                        monthly = selection.single;
-                        _select(
-                          monthly
-                              ? query.periodSelection('year', year: year)
-                              : query.periodSelection('last30'),
-                        );
-                      },
-                    ),
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16,
+                    runSpacing: 8,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final mode in [false, true])
+                            ChoiceChip(
+                              label: Text(mode ? 'Monthly' : 'Daily'),
+                              selected: monthly == mode,
+                              showCheckmark: false,
+                              side: BorderSide.none,
+                              shape: const StadiumBorder(),
+                              selectedColor: const Color(0xff2563eb),
+                              backgroundColor: Colors.transparent,
+                              labelStyle: TextStyle(
+                                color: monthly == mode
+                                    ? Colors.white
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                              ),
+                              onSelected: (_) {
+                                if (monthly == mode) return;
+                                monthly = mode;
+                                _select(
+                                  monthly
+                                      ? query.periodSelection(
+                                          'year',
+                                          year: year,
+                                        )
+                                      : query.periodSelection('last30'),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                      IconButton(
+                        tooltip: 'Sales filters',
+                        onPressed: () => _showFilters(report),
+                        icon: Badge(
+                          isLabelVisible:
+                              query.cashierId != null ||
+                              query.categoryId != null,
+                          child: const Icon(Icons.filter_list),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Text(
                     ref.watch(currentBranchProvider)?.name ??
                         'All accessible branches',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   if (monthly) ...[
@@ -187,59 +228,21 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                         }
                       },
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Every month of the selected year. Future months are marked upcoming.',
-                    ),
+                    const SizedBox(height: 12),
+                    Text('Your monthly sales for $year'),
                   ] else
                     Text(
-                      'Last 30 days · ${DateFormat('d MMM').format(DateTime.parse(report.from))} – ${DateFormat('d MMM yyyy').format(DateTime.parse(report.to))}',
+                      'Your sales from the last ${DateTime.parse('${report.to}T00:00:00Z').difference(DateTime.parse('${report.from}T00:00:00Z')).inDays + 1} days',
                     ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Paid order totals including tax, before refunds and additional charges. Tap a period for its full summary.',
-                  ),
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('Cashier & category filters'),
-                    subtitle: Text(
-                      query.cashierId == null && query.categoryId == null
-                          ? 'All cashiers · all categories'
-                          : 'Filtered sales',
+                  if (query.cashierId != null || query.categoryId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Filtered sales',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
                     ),
-                    children: [
-                      _filter(
-                        'Cashier',
-                        query.cashierId,
-                        SalesReport.maps(report.meta['cashiers']),
-                        (id) => _select(
-                          query.filters(
-                            cashierId: id,
-                            categoryId: query.categoryId,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _filter(
-                        'Category',
-                        query.categoryId,
-                        SalesReport.maps(report.meta['categories']),
-                        (id) => _select(
-                          query.filters(
-                            cashierId: query.cashierId,
-                            categoryId: id,
-                          ),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'Category selects whole orders. Item quantities include all their items, including items later refunded.',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   if (rows.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(24),
@@ -272,6 +275,67 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
       ),
     );
   }
+
+  Future<void> _showFilters(SalesReport report) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheet) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Sales filters',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            _filter(
+              'Cashier',
+              query.cashierId,
+              SalesReport.maps(report.meta['cashiers']),
+              (id) {
+                Navigator.of(sheet).pop();
+                _select(
+                  query.filters(cashierId: id, categoryId: query.categoryId),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _filter(
+              'Category',
+              query.categoryId,
+              SalesReport.maps(report.meta['categories']),
+              (id) {
+                Navigator.of(sheet).pop();
+                _select(
+                  query.filters(cashierId: query.cashierId, categoryId: id),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Paid order totals include tax, before refunds and additional charges. Category filters select whole orders; item counts include all their items, including items later refunded.',
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tap a day or month to open its full sales summary. Future months are marked upcoming.',
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                Navigator.of(sheet).pop();
+                _select(query.filters());
+              },
+              child: const Text('Clear filters'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _filter(
     String label,
@@ -317,31 +381,41 @@ class _HistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final topColor = dark ? const Color(0xff6ee7b7) : const Color(0xff168565);
+    final amountColor = dark
+        ? const Color(0xffc4b5fd)
+        : const Color(0xff5b3db2);
     final future = row['upcoming'] == true;
     final title = DateFormat(
       monthly ? 'MMMM yyyy' : 'd MMM yyyy',
     ).format(DateTime.parse(row['date_from'] as String));
-    final amount = future ? 'Upcoming' : ReportAmount.parse(row['total']).money;
+    final amount = future
+        ? 'Upcoming'
+        : ReportAmount.parse(row['total']).money.replaceAllMapped(
+            RegExp(r'(\d)(?=(\d{3})+\.)'),
+            (match) => '${match[1]},',
+          );
     final subtitle = future
         ? 'No sales period yet'
         : row['orders'] == null || row['items'] == null
         ? 'Paid orders'
-        : '${row['orders']} paid orders · ${row['items']} items';
+        : '${row['orders']} ${row['orders'] == 1 ? 'Sale' : 'Sales'} · ${row['items']} ${row['items'] == 1 ? 'Item' : 'Items'}';
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
-      color: best ? scheme.tertiary.withValues(alpha: .08) : null,
+      color: best ? topColor.withValues(alpha: .08) : null,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(
-          color: best ? scheme.tertiary : scheme.outlineVariant,
+          color: best ? topColor : scheme.outlineVariant,
           width: best ? 1.5 : .6,
         ),
       ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stacked =
@@ -369,13 +443,17 @@ class _HistoryRow extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: scheme.tertiary,
+                              color: topColor,
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
                               'Top',
                               style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onTertiary),
+                                  ?.copyWith(
+                                    color: dark
+                                        ? const Color(0xff102a20)
+                                        : Colors.white,
+                                  ),
                             ),
                           ),
                         ),
@@ -406,7 +484,7 @@ class _HistoryRow extends StatelessWidget {
                             ?.copyWith(
                               color: future
                                   ? scheme.onSurfaceVariant
-                                  : scheme.primary,
+                                  : amountColor,
                               fontWeight: FontWeight.w700,
                             ),
                       ),
@@ -423,7 +501,11 @@ class _HistoryRow extends StatelessWidget {
               return stacked
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [details, const SizedBox(height: 10), total],
+                      children: [
+                        details,
+                        const SizedBox(height: 10),
+                        Align(alignment: Alignment.centerRight, child: total),
+                      ],
                     )
                   : Row(
                       children: [

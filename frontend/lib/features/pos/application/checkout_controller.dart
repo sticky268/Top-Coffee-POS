@@ -42,6 +42,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     double? tendered,
     List<Map<String, dynamic>>? splitPayments,
     required double discountTotal,
+    int? menuDiscountId,
     int? customerId,
   }) async {
     // Prevent concurrent requests and accidental resubmission after success.
@@ -75,11 +76,18 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       orderType,
       tableId,
       discountTotal,
+      menuDiscountId,
       paymentMethod,
       tendered,
       splitPayments,
       for (final item in items)
-        [item.product.id, item.variant?.id, item.quantity],
+        [
+          item.product.id,
+          item.variant?.id,
+          item.quantity,
+          item.modifierIds,
+          item.comboSelections,
+        ],
     ]);
     final requestUuid = _pendingRequests.putIfAbsent(requestKey, _uuid.v4);
     state = const CheckoutSubmitting();
@@ -99,6 +107,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
             tendered: tendered,
             splitPayments: splitPayments,
             discountTotal: discountTotal,
+            menuDiscountId: menuDiscountId,
             customerId: customerId,
             branchId: branchId,
           );
@@ -145,6 +154,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     required String orderType,
     required int tableId,
     required double discountTotal,
+    int? menuDiscountId,
     int? customerId,
   }) async {
     // Prevent concurrent requests and accidental resubmission after success.
@@ -178,8 +188,15 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       orderType,
       tableId,
       discountTotal,
+      menuDiscountId,
       for (final item in items)
-        [item.product.id, item.variant?.id, item.quantity],
+        [
+          item.product.id,
+          item.variant?.id,
+          item.quantity,
+          item.modifierIds,
+          item.comboSelections,
+        ],
     ]);
     final requestUuid = _pendingRequests.putIfAbsent(requestKey, _uuid.v4);
     state = const CheckoutSubmitting();
@@ -191,6 +208,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         orderType: orderType,
         tableId: tableId,
         discountTotal: discountTotal,
+        menuDiscountId: menuDiscountId,
         customerId: customerId,
         branchId: branchId,
       );

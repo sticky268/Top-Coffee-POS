@@ -1,0 +1,101 @@
+name: Windows local test build
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/windows-local-test.yml'
+permissions:
+  contents: read
+jobs:
+  windows-test:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Verify login on Windows
+        run: flutter test test/features/auth/login_screen_test.dart
+      - name: Prepare isolated local test identity and data directory
+        run: |
+          $cmake = 'windows/CMakeLists.txt'
+          $text = [IO.File]::ReadAllText($cmake)
+          $original = 'set(BINARY_NAME "top_coffee_pos")'
+          if (-not $text.Contains($original)) { throw 'Unexpected Windows application identity.' }
+          $text = $text.Replace($original, 'set(BINARY_NAME "top_coffee_windows_test")')
+          [IO.File]::WriteAllText($cmake, $text)
+
+          $resource = 'windows/runner/Runner.rc'
+          $text = [IO.File]::ReadAllText($resource)
+          $text = $text.Replace('VALUE "CompanyName", "com.example"', 'VALUE "CompanyName", "TopCoffeeTest"')
+          $text = $text.Replace('VALUE "ProductName", "top_coffee_pos"', 'VALUE "ProductName", "TopCoffeeWindowsTest"')
+          $text = $text.Replace('VALUE "FileDescription", "top_coffee_pos"', 'VALUE "FileDescription", "Top Coffee Windows Test"')
+          $text = $text.Replace('VALUE "OriginalFilename", "top_coffee_pos.exe"', 'VALUE "OriginalFilename", "top_coffee_windows_test.exe"')
+          [IO.File]::WriteAllText($resource, $text)
+          $main = 'windows/runner/main.cpp'
+          $text = [IO.File]::ReadAllText($main).Replace('L"top_coffee_pos"', 'L"Top Coffee POS - Windows Test"')
+          [IO.File]::WriteAllText($main, $text)
+
+          $database = 'lib/core/storage/app_database.dart'
+          $text = [IO.File]::ReadAllText($database)
+          $original = 'final dbFolder = await getApplicationDocumentsDirectory();'
+          if (-not $text.Contains($original)) { throw 'Unexpected local database initialization.' }
+          $replacement = "final dbFolder = Directory(p.join(p.dirname(Platform.resolvedExecutable), 'test-data'));" + [Environment]::NewLine + '      await dbFolder.create(recursive: true);'
+          $text = $text.Replace($original, $replacement)
+          $text = $text.Replace("import 'package:path_provider/path_provider.dart';", '')
+          [IO.File]::WriteAllText($database, $text)
+
+          # flutter_secure_storage_windows derives its credential prefix from
+          # BINARY_NAME; CompanyName/ProductName isolate its files and preferences.
+          $config = Get-Content .dart_tool/package_config.json -Raw | ConvertFrom-Json
+          $storage = $config.packages | Where-Object name -eq 'flutter_secure_storage_windows'
+          $root = [Uri]::new([Uri]::new((Resolve-Path .dart_tool/package_config.json).Path), $storage.rootUri).LocalPath
+          $pluginCmake = [IO.File]::ReadAllText((Join-Path $root 'windows/CMakeLists.txt'))
+          if (-not $pluginCmake.Contains('SECURE_STORAGE_KEY_PREFIX') -or -not $pluginCmake.Contains('BINARY_NAME')) {
+            throw 'Secure-storage identity isolation could not be verified.'
+          }
+      - name: Build loopback-only Windows test application
+        run: flutter build windows --profile --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=http://127.0.0.1:18001/api/v1
+      - name: Bundle runtime libraries and test instructions
+        run: |
+          $release = 'build/windows/x64/runner/Profile'
+          if (-not (Test-Path (Join-Path $release 'top_coffee_windows_test.exe'))) {
+            throw 'Windows test executable was not produced.'
+          }
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $redist = Get-ChildItem (Join-Path $vs 'VC/Redist/MSVC') -Directory |
+            Where-Object { $_.Name -match '^[0-9]+[.][0-9]+[.][0-9]+' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Where-Object { Test-Path (Join-Path $_.FullName 'x64/Microsoft.VC143.CRT/msvcp140.dll') } |
+            Select-Object -First 1
+          if (-not $redist) { throw 'A versioned Visual C++ runtime directory was not found.' }
+          $crt = Join-Path $redist.FullName 'x64/Microsoft.VC143.CRT'
+          foreach ($dll in @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+            Copy-Item -LiteralPath (Join-Path $crt $dll) -Destination $release
+          }
+          @"
+          Top Coffee POS - Windows Test
+          Source: ${{ github.event.pull_request.head.sha }}
+          API: http://127.0.0.1:18001/api/v1
+          Start the separate disposable local backend before signing in.
+          Run top_coffee_windows_test.exe from this extracted folder.
+          This test identity uses separate preferences and credentials.
+          Its offline database is stored beside the executable in test-data/.
+          Keep the data/ folder and DLL files beside the executable.
+          This is a local test build, not a production deployment.
+          "@ | Set-Content (Join-Path $release 'README-WINDOWS-TEST.txt')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top-coffee-windows-local-test
+          path: frontend/build/windows/x64/runner/Profile/
+          if-no-files-found: error
+          retention-days: 7

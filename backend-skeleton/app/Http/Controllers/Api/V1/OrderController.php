@@ -162,6 +162,11 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.modifier_ids' => 'sometimes|array|max:100',
+            'items.*.modifier_ids.*' => 'integer|min:1',
+            'items.*.combo_selections' => 'sometimes|array|max:20',
+            'items.*.combo_selections.*' => 'integer|min:1',
+            'menu_discount_id' => 'nullable|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
             'expected_total' => 'nullable|numeric|min:0',
             'payment.method' => 'required|in:cash,card,qr,split',
@@ -241,59 +246,14 @@ class OrderController extends Controller
                 $resolvedItems = [];
 
                 foreach ($request->input('items') as $itemInput) {
-                    $product = Product::query()
-                        ->where('is_active', true)
-                        ->whereHas('branches', function ($query) use ($branchId) {
-                            $query->where('branches.id', $branchId)
-                                ->where('branch_product.is_available', true);
-                        })
-                        ->with(['branches' => function ($query) use ($branchId) {
-                            $query->where('branches.id', $branchId);
-                        }])
-                        ->find($itemInput['product_id']);
-
-                    if (! $product) {
-                        // Aborting here rolls back the whole transaction ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
-                        // no partial order is ever left behind because one
-                        // line referenced an unavailable product.
-                        abort(422, "Product {$itemInput['product_id']} is not available at this branch.");
-                    }
-
-                    $branchPivot = $product->branches->first()?->pivot;
-                    $effectivePrice = ($branchPivot && $branchPivot->price_override !== null)
-                        ? (float) $branchPivot->price_override
-                        : (float) $product->base_price;
-
-                    $unitPrice = $effectivePrice;
-                    $variantId = $itemInput['product_variant_id'] ?? null;
-
-                    if ($variantId !== null) {
-                        $variant = ProductVariant::query()
-                            ->where('id', $variantId)
-                            ->where('product_id', $product->id)
-                            ->where('is_active', true)
-                            ->first();
-
-                        if (! $variant) {
-                            abort(422, "Variant {$variantId} is not valid for product {$product->id}.");
-                        }
-
-                        $unitPrice = $effectivePrice + (float) $variant->price_delta;
-                    }
-
-                    $quantity = (int) $itemInput['quantity'];
-                    $subtotal += $unitPrice * $quantity;
-
-                    $resolvedItems[] = [
-                        'product_id' => $product->id,
-                        'product_variant_id' => $variantId,
-                        'product_name' => $product->name,
-                        'variant_name' => $variantId !== null ? $variant->name : null,
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                    ];
+                    $line = app(\App\Services\MenuSaleService::class)->resolve($itemInput, (int) $branchId);
+                    $subtotal += \App\Services\MenuSaleService::cents($line['unit_price']) * $line['quantity'];
+                    $resolvedItems[] = $line;
                 }
+                $subtotal = \App\Services\MenuSaleService::decimal($subtotal);
 
+                $discountTotal = \App\Services\MenuSaleService::decimal(app(\App\Services\MenuSaleService::class)->discount(
+                    $request->input('menu_discount_id'), \App\Services\MenuSaleService::cents($subtotal), (int) $branchId, \App\Services\MenuSaleService::cents($discountTotal)));
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
                 if ($request->filled('expected_total')
@@ -525,6 +485,11 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.modifier_ids' => 'sometimes|array|max:100',
+            'items.*.modifier_ids.*' => 'integer|min:1',
+            'items.*.combo_selections' => 'sometimes|array|max:20',
+            'items.*.combo_selections.*' => 'integer|min:1',
+            'menu_discount_id' => 'nullable|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
         ]);
 
@@ -574,55 +539,11 @@ class OrderController extends Controller
                 $resolvedItems = [];
 
                 foreach ($request->input('items') as $itemInput) {
-                    $product = Product::query()
-                        ->where('is_active', true)
-                        ->whereHas('branches', function ($query) use ($branchId) {
-                            $query->where('branches.id', $branchId)
-                                ->where('branch_product.is_available', true);
-                        })
-                        ->with(['branches' => function ($query) use ($branchId) {
-                            $query->where('branches.id', $branchId);
-                        }])
-                        ->find($itemInput['product_id']);
-
-                    if (! $product) {
-                        abort(422, "Product {$itemInput['product_id']} is not available at this branch.");
-                    }
-
-                    $branchPivot = $product->branches->first()?->pivot;
-                    $effectivePrice = ($branchPivot && $branchPivot->price_override !== null)
-                        ? (float) $branchPivot->price_override
-                        : (float) $product->base_price;
-
-                    $unitPrice = $effectivePrice;
-                    $variantId = $itemInput['product_variant_id'] ?? null;
-
-                    if ($variantId !== null) {
-                        $variant = ProductVariant::query()
-                            ->where('id', $variantId)
-                            ->where('product_id', $product->id)
-                            ->where('is_active', true)
-                            ->first();
-
-                        if (! $variant) {
-                            abort(422, "Variant {$variantId} is not valid for product {$product->id}.");
-                        }
-
-                        $unitPrice = $effectivePrice + (float) $variant->price_delta;
-                    }
-
-                    $quantity = (int) $itemInput['quantity'];
-                    $subtotal += $unitPrice * $quantity;
-
-                    $resolvedItems[] = [
-                        'product_id' => $product->id,
-                        'product_variant_id' => $variantId,
-                        'product_name' => $product->name,
-                        'variant_name' => $variantId !== null ? $variant->name : null,
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                    ];
+                    $line = app(\App\Services\MenuSaleService::class)->resolve($itemInput, (int) $branchId);
+                    $subtotal += \App\Services\MenuSaleService::cents($line['unit_price']) * $line['quantity'];
+                    $resolvedItems[] = $line;
                 }
+                $subtotal = \App\Services\MenuSaleService::decimal($subtotal);
 
                 $customerId = $request->input('customer_id');
 
@@ -638,6 +559,8 @@ class OrderController extends Controller
         }
 
         $discountTotal = round((float) $request->input('discount_total', 0), 2);
+                $discountTotal = \App\Services\MenuSaleService::decimal(app(\App\Services\MenuSaleService::class)->discount(
+                    $request->input('menu_discount_id'), \App\Services\MenuSaleService::cents($subtotal), (int) $branchId, \App\Services\MenuSaleService::cents($discountTotal)));
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
                 $order = Order::create([
@@ -750,6 +673,11 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.modifier_ids' => 'sometimes|array|max:100',
+            'items.*.modifier_ids.*' => 'integer|min:1',
+            'items.*.combo_selections' => 'sometimes|array|max:20',
+            'items.*.combo_selections.*' => 'integer|min:1',
+            'menu_discount_id' => 'nullable|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
         ]);
 
@@ -803,55 +731,11 @@ class OrderController extends Controller
                 $resolvedItems = [];
 
                 foreach ($request->input('items') as $itemInput) {
-                    $product = Product::query()
-                        ->where('is_active', true)
-                        ->whereHas('branches', function ($query) use ($order) {
-                            $query->where('branches.id', $order->branch_id)
-                                ->where('branch_product.is_available', true);
-                        })
-                        ->with(['branches' => function ($query) use ($order) {
-                            $query->where('branches.id', $order->branch_id);
-                        }])
-                        ->find($itemInput['product_id']);
-
-                    if (! $product) {
-                        abort(422, "Product {$itemInput['product_id']} is not available at this branch.");
-                    }
-
-                    $branchPivot = $product->branches->first()?->pivot;
-                    $effectivePrice = ($branchPivot && $branchPivot->price_override !== null)
-                        ? (float) $branchPivot->price_override
-                        : (float) $product->base_price;
-
-                    $unitPrice = $effectivePrice;
-                    $variantId = $itemInput['product_variant_id'] ?? null;
-
-                    if ($variantId !== null) {
-                        $variant = ProductVariant::query()
-                            ->where('id', $variantId)
-                            ->where('product_id', $product->id)
-                            ->where('is_active', true)
-                            ->first();
-
-                        if (! $variant) {
-                            abort(422, "Variant {$variantId} is not valid for product {$product->id}.");
-                        }
-
-                        $unitPrice = $effectivePrice + (float) $variant->price_delta;
-                    }
-
-                    $quantity = (int) $itemInput['quantity'];
-                    $subtotal += $unitPrice * $quantity;
-
-                    $resolvedItems[] = [
-                        'product_id' => $product->id,
-                        'product_variant_id' => $variantId,
-                        'product_name' => $product->name,
-                        'variant_name' => $variantId !== null ? $variant->name : null,
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                    ];
+                    $line = app(\App\Services\MenuSaleService::class)->resolve($itemInput, (int) $order->branch_id);
+                    $subtotal += \App\Services\MenuSaleService::cents($line['unit_price']) * $line['quantity'];
+                    $resolvedItems[] = $line;
                 }
+                $subtotal = \App\Services\MenuSaleService::decimal($subtotal);
 
                 $customerId = $request->input('customer_id', $order->customer_id);
 
@@ -867,6 +751,8 @@ class OrderController extends Controller
         }
 
         $discountTotal = round((float) $request->input('discount_total', 0), 2);
+                $discountTotal = \App\Services\MenuSaleService::decimal(app(\App\Services\MenuSaleService::class)->discount(
+                    $request->input('menu_discount_id'), \App\Services\MenuSaleService::cents($subtotal), (int) $order->branch_id, \App\Services\MenuSaleService::cents($discountTotal)));
                 $total = max(0, round($subtotal - $discountTotal, 2));
 
                 $oldValues = [
@@ -1392,6 +1278,11 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.modifier_ids' => 'sometimes|array|max:100',
+            'items.*.modifier_ids.*' => 'integer|min:1',
+            'items.*.combo_selections' => 'sometimes|array|max:20',
+            'items.*.combo_selections.*' => 'integer|min:1',
+            'menu_discount_id' => 'nullable|integer|min:1',
             'discount_total' => 'nullable|numeric|min:0',
         ]);
 
@@ -1447,7 +1338,8 @@ class OrderController extends Controller
                         'product_id' => $item->product_id,
                         'product_variant_id' => $item->product_variant_id,
                         'quantity' => (int) $item->quantity,
-                        'unit_price' => (float) $item->unit_price,
+                        'menu_configuration' => $item->menu_configuration,
+                    'unit_price' => (float) $item->unit_price,
                     ])->values()->all(),
                 ];
 
@@ -1455,62 +1347,11 @@ class OrderController extends Controller
                 $resolvedItems = [];
 
                 foreach ($request->input('items') as $itemInput) {
-                    $product = Product::query()
-                        ->where('is_active', true)
-                        ->whereHas('branches', function ($query) use ($order) {
-                            $query->where('branches.id', $order->branch_id)
-                                ->where('branch_product.is_available', true);
-                        })
-                        ->with(['branches' => function ($query) use ($order) {
-                            $query->where('branches.id', $order->branch_id);
-                        }])
-                        ->find($itemInput['product_id']);
-
-                    if (! $product) {
-                        abort(
-                            422,
-                            "Product {$itemInput['product_id']} is not available at this branch."
-                        );
-                    }
-
-                    $branchPivot = $product->branches->first()?->pivot;
-
-                    $effectivePrice = ($branchPivot && $branchPivot->price_override !== null)
-                        ? (float) $branchPivot->price_override
-                        : (float) $product->base_price;
-
-                    $unitPrice = $effectivePrice;
-                    $variantId = $itemInput['product_variant_id'] ?? null;
-
-                    if ($variantId !== null) {
-                        $variant = ProductVariant::query()
-                            ->where('id', $variantId)
-                            ->where('product_id', $product->id)
-                            ->where('is_active', true)
-                            ->first();
-
-                        if (! $variant) {
-                            abort(
-                                422,
-                                "Variant {$variantId} is not valid for product {$product->id}."
-                            );
-                        }
-
-                        $unitPrice = $effectivePrice + (float) $variant->price_delta;
-                    }
-
-                    $quantity = (int) $itemInput['quantity'];
-                    $subtotal += $unitPrice * $quantity;
-
-                    $resolvedItems[] = [
-                        'product_id' => $product->id,
-                        'product_variant_id' => $variantId,
-                        'product_name' => $product->name,
-                        'variant_name' => $variantId !== null ? $variant->name : null,
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                    ];
+                    $line = app(\App\Services\MenuSaleService::class)->resolve($itemInput, (int) $order->branch_id);
+                    $subtotal += \App\Services\MenuSaleService::cents($line['unit_price']) * $line['quantity'];
+                    $resolvedItems[] = $line;
                 }
+                $subtotal = \App\Services\MenuSaleService::decimal($subtotal);
 
                 $discountTotal = round(
                     (float) $request->input(
@@ -1520,6 +1361,8 @@ class OrderController extends Controller
                     2
                 );
 
+                $discountTotal = \App\Services\MenuSaleService::decimal(app(\App\Services\MenuSaleService::class)->discount(
+                    $request->input('menu_discount_id'), \App\Services\MenuSaleService::cents($subtotal), (int) $order->branch_id, \App\Services\MenuSaleService::cents($discountTotal)));
                 $total = max(
                     0,
                     round($subtotal - $discountTotal, 2)
@@ -1815,6 +1658,7 @@ class OrderController extends Controller
                     'product_id' => $item->product_id,
                     'product_variant_id' => $item->product_variant_id,
                     'product_name' => $item->product_name ?? $item->product?->name ?? 'Unknown product',
+                    'menu_configuration' => $item->menu_configuration,
                     'variant_name' => $item->variant_name ?? $item->variant?->name,
                     'quantity' => $item->quantity,
                     'unit_price' => (float) $item->unit_price,

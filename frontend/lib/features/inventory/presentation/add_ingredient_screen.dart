@@ -125,12 +125,13 @@ class _AddIngredientScreenState extends ConsumerState<AddIngredientScreen> {
     return Scaffold(
       appBar: const PageAppBar(title: Text('Add Ingredient')),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: _isLoadingUnits
             ? const Center(child: CircularProgressIndicator())
             : _units.isEmpty
-            ? _buildNoUnitsState()
-            : _buildForm(),
+                ? _buildNoUnitsState()
+                : _buildForm(),
       ),
     );
   }

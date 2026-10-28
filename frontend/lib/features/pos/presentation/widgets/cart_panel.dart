@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
+import 'menu_discount_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -22,105 +24,241 @@ class CartPanel extends ConsumerWidget {
     final currency = NumberFormat.currency(symbol: '\$');
 
     return Material(
-        color: theme.colorScheme.surface,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxHeight < 380 ||
-                MediaQuery.textScalerOf(context).scale(14) > 20;
-            final lines = cart.isEmpty
-                ? const _EmptyCart()
-                : ListView.separated(
-                    shrinkWrap: compact,
-                    physics:
-                        compact ? const NeverScrollableScrollPhysics() : null,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: cart.items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) =>
-                        CartLineTile(item: cart.items[index]),
-                  );
-            final children = <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Order Summary',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+      color: theme.colorScheme.surface,
+      shape: CoffeeStudioTheme.active(context)
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant))
+          : null,
+      clipBehavior:
+          CoffeeStudioTheme.active(context) ? Clip.antiAlias : Clip.none,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Keep the whole panel scrollable when the summary and saved-discount
+          // controls would leave too little room to edit a cart line.
+          final compact = constraints.maxHeight < 600 ||
+              MediaQuery.textScalerOf(context).scale(14) > 20;
+          final lines = cart.isEmpty
+              ? const _EmptyCart()
+              : ListView.separated(
+                  shrinkWrap: compact,
+                  physics:
+                      compact ? const NeverScrollableScrollPhysics() : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: cart.items.length,
+                  separatorBuilder: (_, __) => CoffeeStudioTheme.active(context)
+                      ? const SizedBox(height: 2)
+                      : const Divider(height: 1),
+                  itemBuilder: (context, index) =>
+                      CartLineTile(item: cart.items[index]),
+                );
+          final children = <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: WrapAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        CoffeeStudioTheme.active(context)
+                            ? 'Current Order'
+                            : 'Order Summary',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        Text(
-                          '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
-                          '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!cart.isEmpty)
-                      pos_ui.DangerButton.outlinedIcon(
-                        onPressed: () =>
-                            _confirmClearCart(context, cartNotifier),
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        label: const Text('Clear Cart'),
                       ),
-                  ],
-                ),
+                      Text(
+                        '${cart.totalItemCount} ${cart.totalItemCount == 1 ? 'item' : 'items'}'
+                        '${selectedTable == null ? '' : ' · ${selectedTable!.name}'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!cart.isEmpty)
+                    pos_ui.DangerButton.outlinedIcon(
+                      onPressed: () => _confirmClearCart(context, cartNotifier),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Clear Cart'),
+                    ),
+                ],
               ),
-              if (compact) lines else Expanded(child: lines),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+            ),
+            if (compact) lines else Expanded(child: lines),
+            const Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                  16, 10, 16, 10 + MediaQuery.viewPaddingOf(context).bottom),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (CoffeeStudioTheme.active(context))
+                    ExpansionTile(
+                      key: const PageStorageKey('cart-summary-details'),
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      title: const Text('Order details & discounts',
+                          style: TextStyle(fontSize: 13)),
+                      children: [
+                        _SummaryLine(
+                          label: 'Subtotal',
+                          value: currency.format(cart.subtotal),
+                        ),
+                        if (CoffeeStudioTheme.active(context)) ...[
+                          _SummaryLine(
+                              label: 'Discount',
+                              value: currency.format(cart.discountTotal)),
+                          const SizedBox(height: 4),
+                          LayoutBuilder(builder: (context, box) {
+                            final buttons = [
+                              const MenuDiscountButton(),
+                              _DiscountRow(
+                                  discountTotal: cart.discountTotal,
+                                  onChanged: cartNotifier.setDiscount,
+                                  currency: currency,
+                                  compact: true)
+                            ];
+                            if (box.maxWidth < 340 ||
+                                MediaQuery.textScalerOf(context).scale(14) >
+                                    20) {
+                              return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    buttons[0],
+                                    const SizedBox(height: 10),
+                                    buttons[1]
+                                  ]);
+                            }
+                            return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: buttons[0]),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: buttons[1])
+                                ]);
+                          }),
+                        ] else ...[
+                          const MenuDiscountButton(),
+                          _DiscountRow(
+                            discountTotal: cart.discountTotal,
+                            onChanged: cartNotifier.setDiscount,
+                            currency: currency,
+                          ),
+                        ],
+                        const Divider(height: 16),
+                      ],
+                    )
+                  else ...[
                     _SummaryLine(
                       label: 'Subtotal',
                       value: currency.format(cart.subtotal),
                     ),
-                    _DiscountRow(
-                      discountTotal: cart.discountTotal,
-                      onChanged: cartNotifier.setDiscount,
-                      currency: currency,
-                    ),
+                    if (CoffeeStudioTheme.active(context)) ...[
+                      _SummaryLine(
+                          label: 'Discount',
+                          value: currency.format(cart.discountTotal)),
+                      const SizedBox(height: 4),
+                      LayoutBuilder(builder: (context, box) {
+                        final buttons = [
+                          const MenuDiscountButton(),
+                          _DiscountRow(
+                              discountTotal: cart.discountTotal,
+                              onChanged: cartNotifier.setDiscount,
+                              currency: currency,
+                              compact: true)
+                        ];
+                        if (box.maxWidth < 340 ||
+                            MediaQuery.textScalerOf(context).scale(14) > 20) {
+                          return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                buttons[0],
+                                const SizedBox(height: 10),
+                                buttons[1]
+                              ]);
+                        }
+                        return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: buttons[0]),
+                              const SizedBox(width: 10),
+                              Expanded(child: buttons[1])
+                            ]);
+                      }),
+                    ] else ...[
+                      const MenuDiscountButton(),
+                      _DiscountRow(
+                        discountTotal: cart.discountTotal,
+                        onChanged: cartNotifier.setDiscount,
+                        currency: currency,
+                      ),
+                    ],
                     const Divider(height: 16),
-                    CheckoutTotalCard(value: currency.format(cart.total)),
-                    const SizedBox(height: 16),
-                    pos_ui.PosActionButton(
-                      onPressed: cart.isEmpty
-                          ? null
-                          : () => context.push('/pos/checkout',
-                              extra: selectedTable),
-                      child: const Text('Review Order'),
-                    ),
                   ],
-                ),
+                  if (CoffeeStudioTheme.active(context))
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(children: [
+                          const Expanded(child: Text('Total')),
+                          Text(currency.format(cart.total),
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.primary))
+                        ]))
+                  else
+                    CheckoutTotalCard(value: currency.format(cart.total)),
+                  const SizedBox(height: 8),
+                  pos_ui.PosActionButton(
+                    onPressed: cart.isEmpty
+                        ? null
+                        : () => context.push(
+                              '/pos/checkout',
+                              extra: selectedTable,
+                            ),
+                    style: const ButtonStyle(
+                        minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+                        padding: WidgetStatePropertyAll(EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10))),
+                    child: const Text('Review Order'),
+                  ),
+                ],
               ),
-            ];
-            if (compact) {
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                ),
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
-            );
-          },
-        ));
+            ),
+          ];
+          if (compact) {
+            return CustomScrollView(slivers: [
+              SliverToBoxAdapter(child: children[0]),
+              SliverToBoxAdapter(child: lines),
+              SliverLayoutBuilder(
+                  builder: (context, sliver) => SliverToBoxAdapter(
+                      child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                              minHeight: (sliver.viewportMainAxisExtent -
+                                      sliver.precedingScrollExtent)
+                                  .clamp(0.0, double.infinity)),
+                          child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: children.skip(2).toList()))))),
+            ]);
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _confirmClearCart(
@@ -171,8 +309,10 @@ class _DiscountRow extends StatefulWidget {
     required this.discountTotal,
     required this.onChanged,
     required this.currency,
+    this.compact = false,
   });
 
+  final bool compact;
   final double discountTotal;
   final ValueChanged<double> onChanged;
   final NumberFormat currency;
@@ -198,6 +338,16 @@ class _DiscountRowState extends State<_DiscountRow> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (!_editing && widget.compact) {
+      return SizedBox(
+          height: 56 * MediaQuery.textScalerOf(context).scale(14) / 14,
+          child: pos_ui.OutlinedButton.icon(
+              onPressed: () => setState(() => _editing = true),
+              icon: const Icon(Icons.discount_outlined, size: 18),
+              label: Text(widget.discountTotal > 0
+                  ? 'Edit discount'
+                  : 'Add discount')));
+    }
     if (!_editing) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -207,19 +357,20 @@ class _DiscountRowState extends State<_DiscountRow> {
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Discount', style: theme.textTheme.bodyMedium),
-                if (widget.discountTotal > 0)
-                  Text(
-                    '- ${widget.currency.format(widget.discountTotal)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+            if (!widget.compact)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Discount', style: theme.textTheme.bodyMedium),
+                  if (widget.discountTotal > 0)
+                    Text(
+                      '- ${widget.currency.format(widget.discountTotal)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
             pos_ui.OutlinedButton.icon(
               onPressed: () => setState(() => _editing = true),
               icon: const Icon(Icons.discount_outlined, size: 18),
@@ -299,10 +450,13 @@ class _EmptyCart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text('Tap a product to start this order.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(
+              'Tap a product to start this order.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

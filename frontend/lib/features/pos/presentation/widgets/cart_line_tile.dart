@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/coffee_studio_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -24,6 +25,71 @@ class CartLineTile extends ConsumerWidget {
         ? '${item.product.name} — ${item.variant!.name}'
         : item.product.name;
 
+    if (CoffeeStudioTheme.active(context)) {
+      final details =
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        if (item.configurationLabel.isNotEmpty)
+          Text(item.configurationLabel, style: theme.textTheme.bodySmall),
+        const SizedBox(height: 4),
+        Text('${currency.format(item.unitPrice)} each',
+            style: theme.textTheme.bodySmall),
+      ]);
+      final quantity = Container(
+          decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerLow,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(12)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            pos_ui.IconButton(
+                icon: const Icon(Icons.remove, size: 18),
+                tooltip: 'Decrease quantity',
+                onPressed: () => cartNotifier.decrementQuantity(item.lineKey)),
+            Text('${item.quantity}', style: theme.textTheme.titleSmall),
+            pos_ui.IconButton(
+                icon: const Icon(Icons.add, size: 18),
+                tooltip: 'Increase quantity',
+                onPressed: () => cartNotifier.incrementQuantity(item.lineKey)),
+          ]));
+      final trailing = Column(mainAxisSize: MainAxisSize.min, children: [
+        pos_ui.IconButton(
+            icon: Icon(Icons.delete_outline,
+                color: theme.colorScheme.error, size: 20),
+            tooltip: 'Remove item',
+            onPressed: () => cartNotifier.removeItem(item.lineKey)),
+        Text(currency.format(item.lineTotal),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+      ]);
+      return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(14)),
+          child: LayoutBuilder(builder: (context, box) {
+            if (box.maxWidth < 310 ||
+                MediaQuery.textScalerOf(context).scale(14) > 20) {
+              return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    details,
+                    const SizedBox(height: 10),
+                    Row(children: [quantity, const Spacer(), trailing])
+                  ]);
+            }
+            return Row(children: [
+              Expanded(child: details),
+              const SizedBox(width: 10),
+              quantity,
+              const SizedBox(width: 10),
+              trailing
+            ]);
+          }));
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
@@ -40,6 +106,7 @@ class CartLineTile extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (item.configurationLabel.isNotEmpty) Text(item.configurationLabel),
           const SizedBox(height: 4),
           Text(
             '${item.quantity} × ${currency.format(item.unitPrice)}',

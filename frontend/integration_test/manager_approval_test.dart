@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:top_coffee_pos/app.dart';
+import 'package:top_coffee_pos/features/settings/presentation/settings_screen.dart';
 import 'package:top_coffee_pos/core/branch/current_branch_provider.dart';
 import 'package:top_coffee_pos/core/config/env.dart';
 import 'package:top_coffee_pos/core/routing/app_router.dart';
@@ -65,6 +66,16 @@ Future<void> _login(
 Future<void> _enroll(WidgetTester tester, ProviderContainer container,
     {bool wrongPasswordFirst = false}) async {
   container.read(appRouterProvider).go('/settings');
+  await waitFor(tester, find.byType(SettingsScreen));
+  // Settings uses a lazy list: the PIN form may be below appearance cards.
+  // Scroll to build it before waiting for its submit button.
+  await tester.scrollUntilVisible(find.text('Save manager PIN'), 300,
+      scrollable: find
+          .descendant(
+              of: find.byType(SettingsScreen),
+              matching: find.byType(Scrollable))
+          .last,
+      maxScrolls: 20);
   await waitFor(tester, find.text('Save manager PIN'));
   Future<void> submit(String password) async {
     await _fill(tester, 'Current account password', password);
@@ -312,6 +323,14 @@ void main() {
     final locked = await api.get('/auth/manager-pin');
     expect(locked.data['data']['locked'], isTrue);
     container.read(appRouterProvider).go('/settings');
+    await waitFor(tester, find.byType(SettingsScreen));
+    await tester.scrollUntilVisible(find.text('Save manager PIN'), 300,
+        scrollable: find
+            .descendant(
+                of: find.byType(SettingsScreen),
+                matching: find.byType(Scrollable))
+            .last,
+        maxScrolls: 20);
     await _fill(tester, 'Current account password', _password);
     await _fill(tester, 'New manager PIN', _pin);
     await _fill(tester, 'Confirm manager PIN', _pin);

@@ -80,12 +80,14 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->where('is_active', true)
+            ->whereHas('category', fn ($q) => $q->where('is_active', true))
             ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
             ->whereHas('branches', function ($query) use ($branchId) {
                 $query->where('branches.id', $branchId)
                     ->where('branch_product.is_available', true);
             })
             ->with([
+                'modifierGroups' => fn ($q) => $q->where('is_active', true)->with('modifiers'),
                 'category:id,name',
                 'branches' => function ($query) use ($branchId) {
                     // Scoped to the resolved branch only, so
@@ -117,6 +119,12 @@ class ProductController extends Controller
                     'id' => $product->category->id,
                     'name' => $product->category->name,
                 ] : null,
+                'combo_slots' => $product->combo_slots ?? [],
+                'modifier_groups' => $product->modifierGroups->map(fn ($group) => [
+                    'id' => $group->id, 'name' => $group->name, 'min_select' => $group->min_select,
+                    'max_select' => $group->max_select, 'is_required' => $group->is_required,
+                    'options' => $group->modifiers->where('is_active', true)->values(),
+                ]),
                 'price' => $effectivePrice,
 		'images' => $product->images->map(fn ($image) => [
     			'id' => $image->id,

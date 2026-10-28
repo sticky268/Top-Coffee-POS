@@ -1,20 +1,40 @@
 import 'package:flutter/material.dart';
+import '../theme/coffee_studio_theme.dart';
 
 /// Keeps long lists and forms readable on a tablet without adding a second
 /// scroll view or changing their refresh, pagination or keyboard behavior.
 class PageContent extends StatelessWidget {
-  const PageContent({super.key, required this.child, this.maxWidth = 1000});
+  const PageContent(
+      {super.key,
+      required this.child,
+      this.maxWidth = 1000,
+      this.form = false});
   final Widget child;
   final double maxWidth;
+  final bool form;
 
   @override
   Widget build(BuildContext context) => Align(
-    alignment: Alignment.topCenter,
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: SizedBox(width: double.infinity, child: child),
-    ),
-  );
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: SizedBox(
+              width: double.infinity,
+              child: form && CoffeeStudioTheme.active(context)
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: DecoratedBox(
+                          decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant),
+                              borderRadius: BorderRadius.circular(16)),
+                          child: child))
+                  : child),
+        ),
+      );
 }
 
 /// Values wrap below their labels when space or the user's text size requires
@@ -86,6 +106,44 @@ class RecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (CoffeeStudioTheme.active(context) &&
+        MediaQuery.sizeOf(context).width >= 900 &&
+        MediaQuery.textScalerOf(context).scale(14) <= 20) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Row(children: [
+              if (leading != null) ...[
+                Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: CoffeeStudioTheme.accentSurface(
+                            context, title.length),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: leading),
+                const SizedBox(width: 18),
+              ],
+              Expanded(
+                  flex: 3,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: theme.textTheme.titleMedium),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 5),
+                          Text(subtitle!, style: theme.textTheme.bodySmall),
+                        ],
+                      ])),
+              if (details != null) ...[
+                const SizedBox(width: 24),
+                Expanded(flex: 2, child: details!),
+              ],
+              if (trailing != null) ...[const SizedBox(width: 16), trailing!],
+            ])),
+      );
+    }
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),

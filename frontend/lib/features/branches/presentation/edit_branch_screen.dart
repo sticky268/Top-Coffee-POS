@@ -51,9 +51,8 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
 
   Future<void> _loadBranch() async {
     try {
-      final branch = await ref
-          .read(branchRepositoryProvider)
-          .getBranch(widget.branchId);
+      final branch =
+          await ref.read(branchRepositoryProvider).getBranch(widget.branchId);
 
       if (!mounted) return;
 
@@ -86,9 +85,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
     });
 
     try {
-      await ref
-          .read(branchRepositoryProvider)
-          .updateBranch(
+      await ref.read(branchRepositoryProvider).updateBranch(
             id: widget.branchId,
             name: _nameController.text.trim(),
             code: _codeController.text.trim(),
@@ -182,6 +179,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
       return const Scaffold(
         appBar: PageAppBar(title: Text('Edit Branch')),
         body: PageContent(
+          form: true,
           maxWidth: 800,
           child: Center(child: CircularProgressIndicator()),
         ),
@@ -201,6 +199,7 @@ class _EditBranchScreenState extends ConsumerState<EditBranchScreen> {
         ],
       ),
       body: PageContent(
+        form: true,
         maxWidth: 800,
         child: SafeArea(
           child: Form(
