@@ -82,7 +82,7 @@ class ProductCard extends StatelessWidget {
                               ),
                               child: product.imageUrl?.isNotEmpty == true
                                   ? Image.network(product.imageUrl!,
-                                      fit: BoxFit.contain,
+                                      fit: BoxFit.cover,
                                       cacheWidth: (constraints.maxWidth *
                                               MediaQuery.devicePixelRatioOf(
                                                   context))
