@@ -21,6 +21,48 @@ void main() {
     repository = ApiProductsRepository(apiClient);
   });
 
+  test('adjusted in-memory PNG uploads without a temporary file', () async {
+    final bytes = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=');
+    final image = XFile.fromData(bytes,
+        path: 'product-photo.png',
+        name: 'product-photo.png',
+        mimeType: 'image/png');
+    final dio = MockDio();
+    when(() => dio.post<dynamic>(any(), data: any(named: 'data'))).thenAnswer(
+        (_) async =>
+            Response(requestOptions: RequestOptions(path: '/products'), data: {
+              'data': {
+                'id': 20,
+                'name': 'Latte',
+                'base_price': 3.5,
+                'is_active': true,
+                'category': {'id': 1, 'name': 'Coffee'},
+                'variants': [],
+                'branches': []
+              }
+            }));
+    when(() => apiClient.request<Response<dynamic>>(any()))
+        .thenAnswer((invocation) {
+      final call = invocation.positionalArguments.single
+          as Future<Response<dynamic>> Function(Dio);
+      return call(dio);
+    });
+    await repository.createProduct(
+      const ManagedProduct(name: 'Latte', categoryId: 1, basePrice: 3.5),
+      imageFile: image,
+    );
+    final form = verify(() =>
+            dio.post<dynamic>('/products', data: captureAny(named: 'data')))
+        .captured
+        .single as FormData;
+    final part = form.files.single.value;
+    expect(part.filename, 'product-photo.png');
+    expect(part.length, bytes.length);
+    final uploaded = await part.finalize().expand((chunk) => chunk).toList();
+    expect(uploaded, bytes);
+  });
+
   test('getCategories parses the GET /api/v1/categories response', () async {
     final responseData = {
       'success': true,
@@ -151,9 +193,8 @@ void main() {
         when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((
           invocation,
         ) async {
-          final call =
-              invocation.positionalArguments[0]
-                  as Future<Response<dynamic>> Function(Dio);
+          final call = invocation.positionalArguments[0]
+              as Future<Response<dynamic>> Function(Dio);
           return call(mockDio);
         });
 
@@ -207,9 +248,8 @@ void main() {
         when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((
           invocation,
         ) async {
-          final call =
-              invocation.positionalArguments[0]
-                  as Future<Response<dynamic>> Function(Dio);
+          final call = invocation.positionalArguments[0]
+              as Future<Response<dynamic>> Function(Dio);
           return call(mockDio);
         });
 
@@ -327,9 +367,8 @@ void main() {
             when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((
               call,
             ) async {
-              final request =
-                  call.positionalArguments.first
-                      as Future<Response<dynamic>> Function(Dio);
+              final request = call.positionalArguments.first
+                  as Future<Response<dynamic>> Function(Dio);
               return request(mockDio);
             });
             final photo = XFile(file.path);
@@ -343,14 +382,12 @@ void main() {
               );
             }
             final path = updating ? '/products/20' : '/products';
-            final form =
-                verify(
-                      () => mockDio.post<dynamic>(
-                        path,
-                        data: captureAny(named: 'data'),
-                      ),
-                    ).captured.single
-                    as FormData;
+            final form = verify(
+              () => mockDio.post<dynamic>(
+                path,
+                data: captureAny(named: 'data'),
+              ),
+            ).captured.single as FormData;
             final fields = Map<String, String>.fromEntries(form.fields);
             expect(fields['is_active'], active ? '1' : '0');
             expect(fields['base_price'], '3.5');
@@ -428,9 +465,8 @@ void main() {
         when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((
           invocation,
         ) async {
-          final call =
-              invocation.positionalArguments[0]
-                  as Future<Response<dynamic>> Function(Dio);
+          final call = invocation.positionalArguments[0]
+              as Future<Response<dynamic>> Function(Dio);
           return call(mockDio);
         });
 
@@ -462,9 +498,8 @@ void main() {
       when(() => apiClient.request<Response<dynamic>>(any())).thenAnswer((
         invocation,
       ) async {
-        final call =
-            invocation.positionalArguments[0]
-                as Future<Response<dynamic>> Function(Dio);
+        final call = invocation.positionalArguments[0]
+            as Future<Response<dynamic>> Function(Dio);
         return call(mockDio);
       });
 

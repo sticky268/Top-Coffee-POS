@@ -257,7 +257,7 @@ class ApiProductsRepository implements ProductsRepository {
     form.files.add(
       MapEntry(
         'image',
-        await MultipartFile.fromFile(image.path,
+        MultipartFile.fromStream(image.openRead, await image.length(),
             filename: p.basename(image.name)),
       ),
     );
